@@ -157,6 +157,8 @@
 /* Horizontal-scrollable table wrapper with subtle edge fade on mobile */
 .table-scroll {
   overflow-x: auto;
+  max-width: 100%;
+  width: 100%;
   -webkit-overflow-scrolling: touch;
 }
 .table-scroll::-webkit-scrollbar {
@@ -165,6 +167,15 @@
 .table-scroll::-webkit-scrollbar-thumb {
   background-color: hsl(var(--muted-foreground) / 0.3);
   border-radius: 9999px;
+}
+/* Ensure table containers never force the page to overflow horizontally on
+   small screens. The bordered wrapper around <Table> must shrink to fit. */
+.table-scroll,
+.table-scroll > table {
+  min-width: 0;
+}
+.table-scroll > table {
+  width: 100%;
 }
 
 /* Marquee for running text announcements */

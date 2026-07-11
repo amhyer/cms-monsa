@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { slugify } from "../src/lib/format";
+import { hashPassword } from "../src/lib/password";
 
 const db = new PrismaClient();
 
@@ -30,7 +31,7 @@ async function main() {
     data: {
       name: "Nawawi Hamzah, S.Pd., M.Pd.",
       email: "admin@mongisidi1.sch.id",
-      password: "admin123",
+      password: hashPassword("admin123"),
       role: "SUPER_ADMIN",
       isActive: true,
     },
@@ -40,7 +41,7 @@ async function main() {
     data: {
       name: "Siti Aminah, S.Pd.",
       email: "operator@mongisidi1.sch.id",
-      password: "operator123",
+      password: hashPassword("operator123"),
       role: "OPERATOR",
       isActive: true,
     },
@@ -50,7 +51,7 @@ async function main() {
     data: {
       name: "Muhammad Yusuf, S.Pd.",
       email: "yusuf@mongisidi1.sch.id",
-      password: "operator123",
+      password: hashPassword("operator123"),
       role: "OPERATOR",
       isActive: true,
     },
@@ -60,7 +61,7 @@ async function main() {
     data: {
       name: "Fatimah Zahra, S.Pd.",
       email: "fatimah@mongisidi1.sch.id",
-      password: "operator123",
+      password: hashPassword("operator123"),
       role: "OPERATOR",
       isActive: false,
     },

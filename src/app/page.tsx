@@ -6,6 +6,7 @@ import { PublicSite } from "@/components/public/public-site";
 import { LoginView } from "@/components/auth/login-view";
 import { AdminLoginView } from "@/components/auth/admin-login-view";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { NotFoundView } from "@/components/public/not-found-view";
 
 export default function Home() {
   const route = useAppStore((s) => s.route);
@@ -60,5 +61,17 @@ export default function Home() {
     return <DashboardShell />;
   }
 
-  return <PublicSite />;
+  // Known public routes — handled inside PublicSite.
+  const PUBLIC_PREFIXES = ["/news/", "/profile", "/academic", "/news", "/gallery", "/contact"];
+  const isPublicRoute =
+    route === "/" ||
+    route === "" ||
+    PUBLIC_PREFIXES.some((p) => route === p || route.startsWith(p));
+
+  if (isPublicRoute) {
+    return <PublicSite />;
+  }
+
+  // Unknown route -> 404.
+  return <NotFoundView />;
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { logActivity } from "@/lib/log";
+import { hashPassword } from "@/lib/password";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -15,11 +16,19 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   }
   const body = await req.json();
   const data: Record<string, unknown> = {};
-  if (typeof body.name === "string") data.name = body.name;
-  if (typeof body.email === "string") data.email = body.email.trim().toLowerCase();
+  if (typeof body.name === "string" && body.name.trim()) data.name = body.name.trim();
+  if (typeof body.email === "string") {
+    const email = body.email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json({ error: "Format email tidak valid." }, { status: 400 });
+    }
+    data.email = email;
+  }
   if (typeof body.role === "string") data.role = body.role === "SUPER_ADMIN" ? "SUPER_ADMIN" : "OPERATOR";
   if (typeof body.isActive === "boolean") data.isActive = body.isActive;
-  if (typeof body.password === "string" && body.password.length >= 6) data.password = body.password;
+  if (typeof body.password === "string" && body.password.length >= 6) {
+    data.password = hashPassword(body.password);
+  }
 
   const updated = await db.user.update({
     where: { id },

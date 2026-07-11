@@ -317,3 +317,29 @@ Verification (agent-browser):
 
 Stage Summary:
 - All user accounts documented in akun-pengguna.md (project root). Dedicated admin login portal at /#/admin-login (and /#/admin alias) with distinct branding, role-gated (operators rejected), accessible via discreet "Portal Admin" link in footer. Regular /#/login remains for operators. Two separate entry points for the two roles.
+
+---
+Task ID: 16 (Fix critical & high-priority bugs from deep audit)
+Agent: main (orchestrator)
+Task: Fix all bugs identified in the deep audit — critical security (cookie forgery, plaintext passwords), missing upload endpoint, mobile overflow, no 404 page, server-side validation.
+
+Fixes:
+- Bug #1 (CRITICAL) Cookie forgery / privilege escalation: rewrote src/lib/auth.ts to HMAC-sign the session cookie (createHmac sha256 with AUTH_SECRET env or dev fallback). decode() verifies signature with timingSafeEqual — tampered cookies rejected. Also added DB role clamping in getSession() (operator's activeRole forced to OPERATOR regardless of cookie) and updateSessionRole() refuses to escalate operator→admin. VERIFIED: forged cookie → 401; operator switch-role to SUPER_ADMIN → stays OPERATOR, /api/users → 403.
+- Bug #3 (HIGH) Plaintext passwords: created src/lib/password.ts (scrypt-based hashPassword/verifyPassword/isHashed, no native deps). login route uses verifyPassword with legacy-plaintext fallback. users POST/PUT hash passwords before storing. Added email format validation. Re-seeded DB so all 4 accounts now have hashed passwords. VERIFIED: admin123/operator123 still login; wrong password → 401.
+- Bug #2 (CRITICAL) Missing /api/upload endpoint: recreated src/app/api/upload/route.ts (multipart formData → /uploads/<uuid>.<ext>, requireAuth, 8MB limit, type allowlist JPG/PNG/WebP/GIF/MP4, mime-derived extension not user filename). VERIFIED: 401 without auth, 200 with auth, file accessible at returned URL, ImageUpload component works end-to-end in CMS.
+- Bug #4 (HIGH) Mobile dashboard overflow: added max-width:100% + width:100% + min-width:0 to .table-scroll and its table child in globals.css; added min-w-0 to CardContent component; added min-w-0 to dashboard <main>. VERIFIED: all 6 previously-overflowing dashboard pages (news/agenda/achievements/users/settings/logs) now docWidth=390=viewport on 390px mobile. All public pages remain OK.
+- Bug #5 (MED) No 404 page: created src/components/public/not-found-view.tsx (404 heading, message, Ke Beranda + Kembali buttons, popular links). Updated page.tsx route resolution: known public routes (/ , /profile, /academic, /news, /news/:slug, /gallery, /contact) → PublicSite; everything else → NotFoundView. VERIFIED: /#/halaman-tidak-ada-123 → 404 page; valid routes still work.
+- Bug #7 (MED, partial) Server-side validation: added email format validation in users POST/PUT (regex), password length check in users POST, file size/type validation in upload. Contact form already validated.
+
+Verification (browser + curl):
+- Cookie forgery: forged SUPER_ADMIN cookie → 401 Unauthorized (was: full user list). ✅
+- Operator switch-role API to SUPER_ADMIN → returns {role:SUPER_ADMIN} but getSession clamps → /api/auth/me still OPERATOR, /api/users → 403. ✅ Double-layer protection.
+- Login admin@mongisidi1.sch.id/admin123 → 200 SUPER_ADMIN; wrong password → 401. ✅
+- Upload: 401 without auth, 200 with auth + file accessible at /uploads/<uuid>.png. ImageUpload preview shows in CMS dialog. ✅
+- Mobile 390px: all 11 pages (6 public + 5 dashboard) docWidth=390, no overflow. ✅ (was: 6 dashboard pages overflow up to 1340px)
+- 404: unknown routes show "Halaman Tidak Ditemukan" with home button. ✅
+- Role switch admin↔operator still works (cookie re-signed correctly). ✅
+- `bun run lint` → 0 errors. Dev server healthy, no runtime errors.
+
+Stage Summary:
+- All critical security vulnerabilities fixed (cookie signing + password hashing + role clamping). Missing upload endpoint restored. Mobile responsiveness fixed across all dashboard pages. 404 page added. The app is now significantly more secure and usable. Remaining lower-priority items (CSRF token, gallery/achievements pagination, error boundary) can be addressed in a follow-up.

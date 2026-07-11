@@ -27,13 +27,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 const DEMO = [
   {
     label: "Super Admin",
-    email: "admin@smansara.sch.id",
+    email: "admin@mongisidi1.sch.id",
     password: "admin123",
     desc: "Akses penuh — pengaturan, operator, log",
   },
   {
     label: "Operator",
-    email: "operator@smansara.sch.id",
+    email: "operator@mongisidi1.sch.id",
     password: "operator123",
     desc: "Manajemen konten harian",
   },
@@ -103,8 +103,8 @@ export function LoginView() {
           <div className="mb-3 flex size-16 items-center justify-center rounded-2xl bg-gold text-gold-foreground shadow-lg">
             <GraduationCap className="size-9" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            SMA Negeri 1 Nusantara
+          <h1 className="text-2xl font-bold leading-tight tracking-tight">
+            SDN Unggulan Mongisidi 1
           </h1>
           <p className="mt-1 text-sm text-primary-foreground/70">
             Portal CMS Sekolah
@@ -134,7 +134,7 @@ export function LoginView() {
                   id="email"
                   type="email"
                   autoComplete="email"
-                  placeholder="nama@smansara.sch.id"
+                  placeholder="nama@mongisidi1.sch.id"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={submitting}
@@ -231,8 +231,8 @@ export function LoginView() {
         </Card>
 
         <p className="mt-6 text-center text-xs text-primary-foreground/60">
-          © {new Date().getFullYear()} SMA Negeri 1 Nusantara · Sistem Manajemen
-          Konten Sekolah
+          © {new Date().getFullYear()} SD Negeri Unggulan Mongisidi 1 · Sistem
+          Manajemen Konten Sekolah
         </p>
       </div>
     </div>

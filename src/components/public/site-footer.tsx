@@ -18,7 +18,7 @@ export function SiteFooter() {
   const navigate = useAppStore((s) => s.navigate);
 
   const year = new Date().getFullYear();
-  const schoolName = settings?.schoolName ?? "SMA Negeri 1 Nusantara";
+  const schoolName = settings?.schoolName ?? "SD Negeri Unggulan Mongisidi 1";
   const address = settings?.address ?? "-";
   const phone = settings?.phone ?? "-";
   const email = settings?.email ?? "-";
@@ -126,7 +126,7 @@ export function SiteFooter() {
 
         <div className="mt-10 border-t border-primary-foreground/15 pt-6">
           <p className="text-center text-xs text-primary-foreground/70 sm:text-sm">
-            &copy; {year} SMA Negeri 1 Nusantara. Hak cipta dilindungi.
+            &copy; {year} SD Negeri Unggulan Mongisidi 1. Hak cipta dilindungi.
           </p>
         </div>
       </div>

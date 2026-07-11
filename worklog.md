@@ -174,3 +174,41 @@ Browser verification (agent-browser) — all golden paths pass:
 Stage Summary:
 - Project COMPLETE and browser-verified end-to-end. Single `/` route with hash-based SPA navigation. Navy+Gold theme, fully responsive, RBAC enforced (Operator vs Super Admin) with mock role switcher for testing. Realistic Indonesian school mock data seeded. All CRUD modules functional. Sticky footer correct.
 - Login accounts: admin@smansara.sch.id / admin123 (Super Admin), operator@smansara.sch.id / operator123 (Operator).
+Task ID: 11 (Rebrand to real school: SDN Unggulan Mongisidi 1)
+Agent: main (orchestrator)
+Task: User requested updating the site to their real school "UPT SPF SD NEGERI UNGGULAN MONISIDI1". Used web-search + web-reader skills to find & verify the real school data, then rebranded the entire app.
+
+Research (via z-ai web_search + page_reader):
+- Real name: UPT SPF SD NEGERI UNGGULAN MONGISIDI 1 (user typo "MONISIDI1" → correct "MONGISIDI 1", named after pahlawan Robert Wolter Monginsidi). It is an SD (elementary), NOT SMA.
+- NPSN: 40313912. Akreditasi: A. Founded 31 Desember 1995.
+- Address: Jln. Wr. Monginsidi No.13, Maricaya Baru, Kec. Makasar, Kota Makassar, Sulawesi Selatan 90142.
+- Phone: 04118918116. Email: sdn.unggulanmonginsidi@yahoo.co.id. Website: monsa.sch.id.
+- Kepala Sekolah: Nawawi Hamzah (Dapodik). Siswa: 402 (192 L, 210 P). Rombel: 17.
+- Instagram @monsajaya_, Facebook mongisidisatu.
+- Sekolah Inklusi (melayani anak berkebutuhan khusus).
+- Visi (verified from faktadelik article): "Sekolah yang berbudaya Unggul dan berwawasan lingkungan berdasarkan iman dan Taqwa."
+- Misi (verified point): "memperkuat kepribadian berlandaskan Etika, Logika, dan Estetika" + typical SD-unggulan missions.
+
+Changes:
+- layout.tsx: metadata title/description/keywords → SD Mongisidi 1.
+- prisma/seed.ts: FULL REWRITE with verified SD data — school identity, contact, visi/misi, sejarah (founded 1995), stats (402 siswa/28 guru/18 fasilitas/45 prestasi), social (ig/fb), mapEmbed (Monginsidi Makassar), PPDB SD info. News: 6 SD-appropriate articles (HUT RI ke-80, Juara LCC, rapat komite, Hari Kartini, Drumband juara, PAS) + 1 draft. Announcements/Agenda: SD context. Teachers: 12 SD teachers (kepsek Nawawi Hamzah, wakasek, guru kelas, guru agama/PJOK/B.Inggris/Seni/Informatika, guru inklusi/ABK, bendahara). Gallery: 12 SD photos + 2 videos. Achievements: 6 SD-level (LCC, Drumband, Olimpiade MTK SD, Lomba Mewarnai, Tahfidz, Pidato B.Inggris). Login accounts: admin@mongisidi1.sch.id/admin123, operator@mongisidi1.sch.id/operator123.
+- Updated all hardcoded "SMA Negeri 1 Nusantara" → "SD Negeri Unggulan Mongisidi 1" across 11 component files (login-view, dashboard-shell, overview, settings-manager, users-manager, achievements-manager, site-header, site-footer, home-view, profile-view, news-view, gallery-view) + page.tsx. Replaced "smansara.sch.id" → "mongisidi1.sch.id".
+- dashboard-shell.tsx: made sidebar crest + footer DYNAMIC from settings.schoolName (brandShort strips "UPT SPF "/"Negeri Unggulan ").
+- profile-view.tsx: updated FACILITIES grid to SD-appropriate (Lab Komputer, Perpustakaan, Lapangan, Aula, Musholla, Kantin, UKS, Green House [mentioned in faktadelik article], Ruang Inklusi, Ruang Drumband). Added icon imports (Sprout, HeartHandshake, Music).
+- academic-view.tsx: updated EKSKUL grid to SD-appropriate (Pramuka, Drumband Monsa Jaya, Seni Tari, Tahfidz, English Club, Robotic, Paduan Suara, Futsal, Seni Rupa, Klub Literasi, Pembinaan Inklusi, Qasidah). Added icon imports (Cpu, Palette, HeartHandshake, Sparkles, BookOpen).
+- Ran `bun run db:push` (schema unchanged) + re-ran seed.
+
+Verification (agent-browser):
+- Title: "UPT SPF SD Negeri Unggulan Mongisidi 1 — Website Resmi Sekolah". Header/footer show correct school name.
+- /api/site-settings returns verified data (NPSN 40313912, phone 04118918116, 402 siswa, kepsek Nawawi Hamzah).
+- Profile page: SD facilities (Green House, Ruang Inklusi, Drumband visible).
+- Academic page: SD ekskul (Drumband, Tahfidz, Robotic, Qasidah, Pembinaan Inklusi, Klub Literasi visible).
+- News: SD titles (HUT RI ke-80, Juara LCC, Hari Kartini, Drumband juara).
+- Contact: real phone/email/address present + Google Maps embed for Monginsidi Makassar.
+- Login: admin@mongisidi1.sch.id autofill → login → dashboard. Role badge "Login sebagai: Admin". Dashboard sidebar crest shows "SD Mongisidi 1".
+- Stats: 402 siswa & 28 guru displayed on home.
+- `bun run lint` → 0 errors. No runtime/console errors.
+
+Stage Summary:
+- Site fully rebranded from the fictional SMA to the user's REAL school: UPT SPF SD Negeri Unggulan Mongisidi 1 Makassar. All data verified against Kemendikdasmen Dapodik + DaftarSekolah + faktadelik. Content adjusted for SD jenjang (subjects, ekskul, facilities, news, achievements). New login accounts use mongisidi1.sch.id domain.
+

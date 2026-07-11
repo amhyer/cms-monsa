@@ -212,6 +212,11 @@ export function DashboardShell() {
   const authLoading = useAppStore((s) => s.authLoading);
   const logout = useAppStore((s) => s.logout);
   const switchRole = useAppStore((s) => s.switchRole);
+  const settings = useAppStore((s) => s.settings);
+
+  const brandShort = settings?.schoolName
+    ? settings.schoolName.replace(/UPT SPF /, "").replace(/Negeri Unggulan /, "")
+    : "SDN Mongisidi 1";
 
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -267,7 +272,7 @@ export function DashboardShell() {
                   <GraduationCap className="size-5" />
                 </span>
                 <span className="flex flex-col">
-                  <span className="text-sm font-bold leading-tight">SMA Negeri 1</span>
+                  <span className="text-sm font-bold leading-tight">{brandShort}</span>
                   <span className="text-[11px] text-sidebar-foreground/70">Panel CMS</span>
                 </span>
               </SheetTitle>
@@ -373,7 +378,7 @@ export function DashboardShell() {
             </span>
             <span className="flex flex-col">
               <span className="text-sm font-bold leading-tight">
-                SMA Negeri 1
+                {brandShort}
               </span>
               <span className="text-[11px] text-sidebar-foreground/70">
                 Panel CMS
@@ -400,7 +405,7 @@ export function DashboardShell() {
       </div>
 
       <footer className="mt-auto border-t bg-background px-4 py-3 text-center text-xs text-muted-foreground sm:px-6">
-        © {new Date().getFullYear()} SMA Negeri 1 Nusantara — CMS v1.0
+        © {new Date().getFullYear()} {settings?.schoolName ?? "SD Negeri Unggulan Mongisidi 1"} — CMS v1.0
       </footer>
     </div>
   );

@@ -71,7 +71,7 @@ export function GalleryView() {
       <PageBanner
         eyebrow="Dokumentasi"
         title="Galeri Kegiatan"
-        description="Dokumentasi foto dan video kegiatan, prestasi, serta fasilitas SMA Negeri 1 Nusantara."
+        description="Dokumentasi foto dan video kegiatan, prestasi, serta fasilitas SD Negeri Unggulan Mongisidi 1."
       />
 
       <SectionShell>

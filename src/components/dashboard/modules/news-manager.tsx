@@ -534,7 +534,7 @@ export function NewsManager() {
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto custom-scroll">
+        <DialogContent className="max-w-2xl custom-scroll">
           <DialogHeader>
             <div className="flex items-start justify-between gap-2">
               <div>

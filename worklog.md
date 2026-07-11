@@ -289,3 +289,31 @@ Verification (agent-browser):
 
 Stage Summary:
 - All "PPDB" terminology replaced with "SPMB" across the entire site (public + dashboard + metadata + seed data). New configurable "Link Portal SPMB" field in Site Settings (admin) — pre-filled with the official https://spmb.makassarkota.go.id. All "Daftar SPMB" buttons (header, home CTA, contact page, news sidebar) now open the configured link in a new tab. Admin can change the link anytime via Pengaturan Sekolah → Info SPMB.
+
+---
+Task ID: 15 (Save user accounts to MD + dedicated admin login link)
+Agent: main (orchestrator)
+Task: User requested (1) save all user accounts to a markdown file, (2) create a separate link for admin login.
+
+Changes:
+1. Created /home/z/my-project/akun-pengguna.md — complete list of all 4 user accounts (1 Super Admin + 3 Operators) with name, email, password, role, status. Includes warning that passwords are seed/prototype data, login URL table (admin portal vs umum), and notes about disabled account, Switch Role mock, and how to change passwords. Queried live DB via /api/users to get accurate data.
+2. Created src/components/auth/admin-login-view.tsx — dedicated "Portal Administrator" login page:
+   - Distinct branding: ShieldCheck icon in gold with ring, "Portal Administrator" badge, "Login Super Admin" heading, "Khusus Kepala Sekolah & Administrator Sistem" subtitle.
+   - Only shows Super Admin demo credentials (not operator).
+   - Role gate: after successful login, checks if user.role === SUPER_ADMIN. If OPERATOR → shows "Akses Ditolak" alert ("Portal ini khusus untuk Super Admin"), auto-logout, redirect to /login after 2.2s.
+   - If already logged in as SUPER_ADMIN → auto-redirect to /dashboard.
+   - Link at bottom: "Login sebagai Operator? Ke login umum" → navigates to /login.
+3. Updated src/app/page.tsx — added route resolution: `/admin-login` and `/admin` (alias) → AdminLoginView. Auto-redirect to /dashboard if already logged in as SUPER_ADMIN.
+4. Updated src/components/public/site-footer.tsx — added discreet "Portal Admin" button (ShieldCheck icon) in footer bottom bar. Styled as low-emphasis (text-primary-foreground/50, hover turns gold) so it's accessible but not prominent. Navigates to /admin-login.
+
+Verification (agent-browser):
+- /#/admin-login shows "Login Super Admin" page with Portal Administrator branding, no operator demo creds.
+- Operator login attempt on admin portal: rejected with "Akses Ditolak" + "Portal ini khusus untuk Super Admin", auto-logged out, redirected to /login.
+- Admin autofill (admin@mongisidi1.sch.id) → submit → redirect to /#/dashboard, role badge "Login sebagai: Admin".
+- Footer "Portal Admin" button: when logged out, click → /#/admin-login → "Login Super Admin" page. When logged in as admin, click → auto-redirect to /dashboard.
+- /admin alias works identically to /admin-login.
+- `bun run lint` → 0 errors.
+- akun-pengguna.md created in project root (1958 bytes).
+
+Stage Summary:
+- All user accounts documented in akun-pengguna.md (project root). Dedicated admin login portal at /#/admin-login (and /#/admin alias) with distinct branding, role-gated (operators rejected), accessible via discreet "Portal Admin" link in footer. Regular /#/login remains for operators. Two separate entry points for the two roles.

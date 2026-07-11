@@ -1,0 +1,61 @@
+import {
+  LayoutDashboard,
+  Newspaper,
+  Megaphone,
+  CalendarDays,
+  Image,
+  Trophy,
+  Users,
+  Mail,
+  UserCog,
+  Settings,
+  ScrollText,
+  Home,
+  Building2,
+  GraduationCap,
+  Phone,
+  type LucideIcon,
+} from "lucide-react";
+
+export type NavItem = {
+  label: string;
+  path: string;
+  icon: LucideIcon;
+  adminOnly?: boolean;
+};
+
+export const PUBLIC_NAV: NavItem[] = [
+  { label: "Beranda", path: "/", icon: Home },
+  { label: "Profil", path: "/profile", icon: Building2 },
+  { label: "Akademik", path: "/academic", icon: GraduationCap },
+  { label: "Berita", path: "/news", icon: Newspaper },
+  { label: "Galeri", path: "/gallery", icon: Image },
+  { label: "Kontak", path: "/contact", icon: Phone },
+];
+
+export const DASHBOARD_NAV: NavItem[] = [
+  { label: "Ringkasan", path: "/dashboard", icon: LayoutDashboard },
+  { label: "Berita & Artikel", path: "/dashboard/news", icon: Newspaper },
+  { label: "Pengumuman", path: "/dashboard/announcements", icon: Megaphone },
+  { label: "Agenda Sekolah", path: "/dashboard/agenda", icon: CalendarDays },
+  { label: "Galeri Media", path: "/dashboard/gallery", icon: Image },
+  { label: "Data Prestasi", path: "/dashboard/achievements", icon: Trophy },
+  { label: "Guru & Staf", path: "/dashboard/teachers", icon: Users },
+  { label: "Pesan Masuk", path: "/dashboard/messages", icon: Mail },
+  { label: "Manajemen Operator", path: "/dashboard/users", icon: UserCog, adminOnly: true },
+  { label: "Pengaturan Sekolah", path: "/dashboard/settings", icon: Settings, adminOnly: true },
+  { label: "Log Aktivitas", path: "/dashboard/logs", icon: ScrollText, adminOnly: true },
+];
+
+export const NEWS_CATEGORIES = ["Akademik", "Kegiatan", "Prestasi"] as const;
+export const GALLERY_CATEGORIES = ["Kegiatan", "Prestasi", "Fasilitas", "Upacara"] as const;
+export const AGENDA_CATEGORIES = ["Akademik", "Kegiatan", "Libur", "Umum"] as const;
+export const ACHIEVEMENT_LEVELS = [
+  "Sekolah",
+  "Kecamatan",
+  "Kabupaten",
+  "Provinsi",
+  "Nasional",
+  "Internasional",
+] as const;
+export const ACHIEVEMENT_CATEGORIES = ["Akademik", "Non-Akademik"] as const;

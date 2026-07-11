@@ -236,3 +236,25 @@ Stage Summary:
 - Files created: theme-provider.tsx, theme-toggle.tsx, dashboard-search.tsx, lib/export.ts.
 - Files modified: layout.tsx, sonner.tsx, site-header.tsx, dashboard-shell.tsx, news-detail-view.tsx, contact-view.tsx, messages-manager.tsx, teachers-manager.tsx, achievements-manager.tsx, logs-view.tsx, news-manager.tsx, users-manager.tsx, agenda-manager.tsx, globals.css.
 - `bun run lint` → 0 errors. Dev server healthy, no runtime errors. All fixes browser-verified.
+
+---
+Task ID: 13 (Fix responsive dialog forms in CMS)
+Agent: main (orchestrator)
+Task: User reported agenda create form not flexible/scrollable on different device sizes. Fix all CMS dialog forms to be responsive.
+
+Root cause: Base DialogContent (src/components/ui/dialog.tsx) had NO max-height constraint and NO overflow handling. It was `grid` with `w-full max-w-[calc(100%-2rem)]` (responsive width) but height grew unbounded. On mobile/short viewports, tall forms (agenda has 6 fields + footer) overflowed the viewport — top got cut off, Simpan/Batal buttons unreachable, no scroll. 6 of 7 manager dialogs were affected (agenda, users, teachers, gallery, announcements, achievements); only news-manager had a per-dialog overflow override.
+
+Fix (one change in base component, fixes ALL dialogs):
+- src/components/ui/dialog.tsx DialogContent: added `max-h-[calc(100dvh-2rem)] overflow-y-auto` to default className. Uses `100dvh` (dynamic viewport height) which correctly accounts for mobile browser chrome (address bar/keyboard) appearing/disappearing — better than `vh`.
+- Close button: kept `absolute top-4 right-4` but added `z-20 bg-background/80 backdrop-blur p-1` so it remains visible/clickable over content at top of scroll.
+- news-manager: removed redundant `max-h-[90vh] overflow-y-auto` override (now handled by base), kept `max-w-2xl custom-scroll`.
+
+Verification (agent-browser):
+- Mobile 390x844: dialog maxH=812px, overflow-y=auto. Simpan button visible (top:625, in viewport).
+- Mobile 390x500 (simulating keyboard): maxH=468px, content 694px → scrollable. Scrolled to bottom → Simpan reachable & clickable.
+- Desktop 1280x900: dialog contentH=472px (no overflow, no regression), maxH=868px.
+- End-to-end: filled agenda form (title/date/time/location/description) → Simpan → toast "Agenda ditambahkan." → dialog closed → API confirmed 7 agendas (6→7). Cleaned up test data.
+- `bun run lint` → 0 errors.
+
+Stage Summary:
+- All CMS dialog forms (agenda, users, teachers, gallery, announcements, achievements, news, settings) are now fully responsive — scrollable on any screen size, buttons always reachable, close button visible. Single base-component fix, no per-dialog hacks needed.

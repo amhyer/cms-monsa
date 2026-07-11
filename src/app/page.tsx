@@ -27,7 +27,7 @@ export default function Home() {
         <div className="flex flex-col items-center gap-3">
           <div className="size-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           <p className="text-sm text-muted-foreground">
-            Memuat SMA Negeri 1 Nusantara…
+            Memuat SD Negeri Unggulan Mongisidi 1…
           </p>
         </div>
       </div>

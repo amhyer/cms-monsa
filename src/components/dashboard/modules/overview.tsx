@@ -127,7 +127,7 @@ export function Overview() {
           Selamat datang kembali 👋
         </h2>
         <p className="text-sm text-muted-foreground">
-          Berikut ringkasan aktivitas dan statistik konten SMA Negeri 1 Nusantara.
+          Berikut ringkasan aktivitas dan statistik konten SD Negeri Unggulan Mongisidi 1.
         </p>
       </div>
 

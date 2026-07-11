@@ -11,7 +11,7 @@ function avatar(n: number) {
 }
 
 async function main() {
-  console.log("🌱 Seeding SMA Negeri 1 Nusantara...");
+  console.log("🌱 Seeding UPT SPF SD Negeri Unggulan Mongisidi 1...");
 
   // Wipe
   await db.activityLog.deleteMany();
@@ -28,8 +28,8 @@ async function main() {
   // ---------- USERS ----------
   const admin = await db.user.create({
     data: {
-      name: "Dr. Bambang Sutrisno, M.Pd.",
-      email: "admin@smansara.sch.id",
+      name: "Nawawi Hamzah, S.Pd., M.Pd.",
+      email: "admin@mongisidi1.sch.id",
       password: "admin123",
       role: "SUPER_ADMIN",
       isActive: true,
@@ -38,8 +38,8 @@ async function main() {
 
   const op1 = await db.user.create({
     data: {
-      name: "Siti Rahmawati, S.Pd.",
-      email: "operator@smansara.sch.id",
+      name: "Siti Aminah, S.Pd.",
+      email: "operator@mongisidi1.sch.id",
       password: "operator123",
       role: "OPERATOR",
       isActive: true,
@@ -48,8 +48,8 @@ async function main() {
 
   const op2 = await db.user.create({
     data: {
-      name: "Ahmad Fauzi, S.Pd.",
-      email: "ahmad@smansara.sch.id",
+      name: "Muhammad Yusuf, S.Pd.",
+      email: "yusuf@mongisidi1.sch.id",
       password: "operator123",
       role: "OPERATOR",
       isActive: true,
@@ -58,8 +58,8 @@ async function main() {
 
   const op3 = await db.user.create({
     data: {
-      name: "Dewi Lestari, S.Kom.",
-      email: "dewi@smansara.sch.id",
+      name: "Fatimah Zahra, S.Pd.",
+      email: "fatimah@mongisidi1.sch.id",
       password: "operator123",
       role: "OPERATOR",
       isActive: false,
@@ -70,35 +70,35 @@ async function main() {
   await db.siteSetting.create({
     data: {
       id: "singleton",
-      schoolName: "SMA Negeri 1 Nusantara",
-      npsn: "20100001",
+      schoolName: "UPT SPF SD Negeri Unggulan Mongisidi 1",
+      npsn: "40313912",
       logo: null,
       address:
-        "Jl. Pendidikan No. 1, Kel. Nusantara Jaya, Kec. Nusantara, Kota Nusantara 12345",
-      phone: "(021) 1234567",
-      email: "info@smansara.sch.id",
+        "Jln. Wr. Monginsidi No.13, Kel. Maricaya Baru, Kec. Makasar, Kota Makassar, Sulawesi Selatan 90142",
+      phone: "04118918116",
+      email: "sdn.unggulanmonginsidi@yahoo.co.id",
       mapEmbed:
-        "https://www.google.com/maps?q=Monas+Jakarta&output=embed",
+        "https://www.google.com/maps?q=Jln.+Wr.+Monginsidi+No.13+Maricaya+Baru+Makassar+Sulawesi+Selatan&output=embed",
       vision:
-        "Menjadi pusat pendidikan menengah unggul yang menghasilkan generasi beriman, berakhlak mulia, cerdas, terampil, dan berdaya saing global pada tahun 2030.",
+        "Sekolah yang berbudaya Unggul dan berwawasan lingkungan berdasarkan iman dan Taqwa.",
       mission:
-        "1. Menyelenggarakan pendidikan berbasis karakter dan nilai-nilai keagamaan.\n2. Mengembangkan kurikulum yang relevan dengan perkembangan ilmu pengetahuan dan teknologi.\n3. Meningkatkan kompetensi pendidik dan tenaga kependidikan secara berkelanjutan.\n4. Membangun budaya literasi, riset, dan inovasi peserta didik.\n5. Menjalin kemitraan dengan masyarakat, dunia usaha, dan perguruan tinggi.",
+        "1. Memperkuat kepribadian berlandaskan Etika, Logika, dan Estetika.\n2. Mewujudkan pembelajaran aktif, kreatif, inovatif, dan menyenangkan berbasis literasi dan numerasi.\n3. Menumbuhkan budaya unggul dan wawasan lingkungan melalui pembiasaan di sekolah.\n4. Mengembangkan pendidikan inklusi yang ramah anak berkebutuhan khusus.\n5. Meningkatkan kompetensi pendidik dan tenaga kependidikan secara berkelanjutan.\n6. Menjalin kemitraan dengan orang tua, komite sekolah, dan masyarakat.",
       history:
-        "SMA Negeri 1 Nusantara didirikan pada 17 Agustus 1965 atas prakarsa tokoh masyarakat dan pemerintah daerah. Berawal dari tiga ruang kelas sederhana, sekolah ini terus berkembang menjadi institusi pendidikan menengah terkemuka. Hingga kini, puluhan ribu alumni tersebar di berbagai bidang, dari akademisi, pejabat, hingga pengusaha. Dengan akreditasi A, SMA Negeri 1 Nusantara berkomitmen mencetak generasi pemimpin masa depan.",
-      principalName: "Dr. Bambang Sutrisno, M.Pd.",
+        "UPT SPF SD Negeri Unggulan Mongisidi 1 didirikan pada 31 Desember 1995 dan berlokasi di Jln. Wr. Monginsidi No.13, Maricaya Baru, Makassar. Berdiri di atas lahan strategis di pusat Kota Makassar, sekolah ini tumbuh menjadi salah satu sekolah dasar unggulan di Sulawesi Selatan. Dengan akreditasi A (SK No. 160/SK/BAP-SM/XI/2017), sekolah ini dikenal sebagai sekolah inklusi yang ramah anak berkebutuhan khusus serta unggul dalam pembinaan literasi, numerasi, drumband, dan kepramukaan. Hingga kini, ribuan alumni tersebar di berbagai SMP dan SMA favorit di Makassar.",
+      principalName: "Nawawi Hamzah, S.Pd., M.Pd.",
       principalPhoto: avatar(60),
       principalWelcome:
-        "Selamat datang di website resmi SMA Negeri 1 Nusantara. Kami berkomitmen menyelenggarakan pendidikan berkualitas yang memadukan keimanan, ilmu pengetahuan, dan karakter. Mari bergabung membangun generasi unggul yang siap menghadapi tantangan masa depan.",
-      facebook: "https://facebook.com/sman1nusantara",
-      instagram: "https://instagram.com/sman1nusantara",
-      youtube: "https://youtube.com/@sman1nusantara",
-      tiktok: "https://tiktok.com/@sman1nusantara",
-      studentCount: 1240,
-      teacherCount: 78,
-      facilityCount: 24,
-      achievementCount: 156,
+        "Selamat datang di website resmi UPT SPF SD Negeri Unggulan Mongisidi 1 Makassar. Kami berkomitmen menyelenggarakan pendidikan dasar berkualitas yang memadukan iman, taqwa, dan budaya unggul berwawasan lingkungan. Sebagai sekolah inklusi, kami merangkul setiap anak untuk tumbuh sesuai potensinya. Mari bersama membangun generasi cerdas, berkarakter, dan berakhlak mulia.",
+      facebook: "https://facebook.com/mongisidisatu",
+      instagram: "https://instagram.com/monsajaya_",
+      youtube: null,
+      tiktok: null,
+      studentCount: 402,
+      teacherCount: 28,
+      facilityCount: 18,
+      achievementCount: 45,
       ppdbInfo:
-        "Penerimaan Peserta Didik Baru (PPDB) Tahun Ajaran 2025/2026 dibuka mulai 1 Juni 2025. Jalur yang tersedia: Zonasi (50%), Afirmasi (15%), Prestasi (30%), dan Perpindahan Tugas Orang Tua (5%). Pendaftaran dilakukan secara daring melalui portal PPDB. Kuota total 360 siswa untuk 9 rombongan belajar.",
+        "Penerimaan Peserta Didik Baru (PPDB) SD Negeri Unggulan Mongisidi 1 Tahun Ajaran 2025/2026 dibuka mulai Juni 2025 untuk jenjang kelas 1. Jalur yang tersedia: Zonasi (50%), Afirmasi (15%), Prestasi (30%), dan Perpindahan Tugas Orang Tua (5%). Pendaftaran dilakukan secara daring melalui portal PPDB Kota Makassar. Kuota tersedia 51 siswa untuk 3 rombongan belajar. Sekolah ini juga melayani pendidikan inklusi bagi anak berkebutuhan khusus.",
       updatedAt: new Date(),
     },
   });
@@ -106,64 +106,64 @@ async function main() {
   // ---------- NEWS ----------
   const newsData = [
     {
-      title: "Upacara Bendera Peringatan HUT Kemerdekaan RI ke-79",
+      title: "Peringatan HUT Kemerdekaan RI ke-80 di SDN Mongisidi 1",
       category: "Kegiatan",
       excerpt:
-        "Seluruh warga sekolah mengikuti upacara bendera dengan khidmat untuk memperingati HUT Kemerdekaan Republik Indonesia ke-79.",
+        "Seluruh siswa, guru, dan tenaga kependidikan mengikuti upacara bendera dengan khidmat memperingati HUT Kemerdekaan Republik Indonesia ke-80.",
       content:
-        "<p>SMA Negeri 1 Nusantara menggelar upacara bendera dalam rangka memperingati Hari Ulang Tahun Kemerdekaan Republik Indonesia ke-79 di lapangan utama sekolah, Sabtu (17/8). Kegiatan ini diikuti oleh seluruh siswa, guru, dan tenaga kependidikan.</p><p>Kepala Sekolah, Dr. Bambang Sutrisno, M.Pd., dalam sambutannya menekankan pentingnya memaknai kemerdekaan dengan kerja keras dan prestasi. \u201cKemerdekaan bukan sekadar bebas dari penjajahan, tetapi bebas dari kebodohan dan kemiskinan,\u201d ujarnya.</p><p>Upacara berjalan dengan tertib dan khidmat. Pasukan Pengibar Bendera Pusaka (Paskibra) tampil apik membawa bendera Merah Putih. Kegiatan ditutup dengan penyembelihan hewan qurban sebagai rangkaian kegiatan keagamaan.</p>",
-      cover: img("upacara-79"),
-      daysAgo: 3,
+        "<p>UPT SPF SD Negeri Unggulan Mongisidi 1 menggelar upacara bendera dalam rangka memperingati Hari Ulang Tahun Kemerdekaan Republik Indonesia ke-80 di halaman sekolah. Kegiatan ini diikuti oleh seluruh siswa kelas 1 hingga kelas 6, guru, dan tenaga kependidikan.</p><p>Kepala Sekolah, Bapak Nawawi Hamzah, S.Pd., M.Pd., dalam sambutannya menekankan pentingnya meneladani semangat para pahlawan dengan rajin belajar dan cinta tanah air. \u201cMerdeka bukan sekadar bebas dari penjajahan, tetapi juga bebas dari kebodohan,\u201d ujarnya.</p><p>Upacara berjalan dengan tertib. Pasukan Pengibar Bendera (Paskibra) yang terdiri dari siswa kelas 6 tampil apik. Rangkaian kegiatan dilanjutkan dengan lomba-lomba kemerdekaan yang seru dan meriah.</p>",
+      cover: img("upacara-80-sdn"),
+      daysAgo: 4,
     },
     {
-      title: "Siswa SMA Negeri 1 Nusantara Raih Medali Emas Olimpiade Sains Nasional",
+      title: "Siswa SDN Mongisidi 1 Juara 1 Lomba Cerdas Cermat Tingkat Kota Makassar",
       category: "Prestasi",
       excerpt:
-        "Anindya Putri Maharani, siswa kelas XII IPA, meraih medali emas pada Olimpiade Sains Nasional (OSN) bidang Fisika 2024.",
+        "Tim LCC sekolah berhasil meraih juara 1 pada Lomba Cerdas Cermat tingkat SD se-Kota Makassar 2025.",
       content:
-        "<p>Bangga! Anindya Putri Maharani, siswi kelas XII IPA-1 SMA Negeri 1 Nusantara, berhasil meraih medali emas pada Olimpiade Sains Nasional (OSN) 2024 bidang Fisika yang diselenggarakan di Bali, pekan lalu.</p><p>Anindya mengalahkan lebih dari 200 peserta dari seluruh Indonesia. Ia mempersiapkan diri selama satu tahun dengan bimbingan tim pelatih sekolah. \u201cSaya sangat bersyukur. Ini hasil kerja keras dan doa,\u201d ungkap Anindya.</p><p>Kepala Sekolah menyampaikan apresiasi tinggi dan berharap prestasi ini memotivasi siswa lain. Sekolah memberikan beasiswa penuh untuk Anindya melanjutkan studi ke perguruan tinggi negeri favorit.</p>",
-      cover: img("osn-emas"),
-      daysAgo: 7,
+        "<p>Alhamdulillah, tim Lomba Cerdas Cermat (LCC) SD Negeri Unggulan Mongisidi 1 berhasil meraih Juara 1 pada ajang LCC tingkat SD se-Kota Makassar 2025 yang diselenggarakan pekan lalu.</p><p>Tim yang terdiri dari Aisyah Putri (kelas 5), Muhammad Rizki (kelas 5), dan Fathur Rahman (kelas 6) mengalahkan 48 tim dari berbagai SD se-Kota Makassar. \u201cKami sangat bersyukur. Ini hasil latihan rutin selama tiga bulan,\u201d ungkap Aisyah, kapten tim.</p><p>Kepala Sekolah menyampaikan apresiasi tinggi dan berharap prestasi ini memotivasi siswa lain. Tim akan mewakili Kota Makassar pada LCC tingkat Provinsi Sulawesi Selatan bulan depan.</p>",
+      cover: img("lcc-juara-sdn"),
+      daysAgo: 9,
     },
     {
-      title: "Rapat Koordinasi Guru dan Tenaga Kependidikan Awal Semester",
+      title: "Pertemuan Komite Sekolah dan Orang Tua Awal Semester",
       category: "Akademik",
       excerpt:
-        "Seluruh guru dan tenaga kependidikan mengikuti rapat koordinasi untuk menyusun program kerja semester ganjil 2025/2026.",
+        "Pertemuan orang tua siswa membahas program kerja semester, kalender akademik, dan kesehatan belajar siswa di sekolah.",
       content:
-        "<p>Dalam rangka menyongsong tahun ajaran baru, SMA Negeri 1 Nusantara mengadakan rapat koordinasi guru dan tenaga kependidikan di aula sekolah. Rapat membahas kalender akademik, pembagian tugas mengajar, serta program peningkatan mutu pembelajaran.</p><p>Kepala Sekolah mengarahkan seluruh guru untuk menerapkan pembelajaran berbasis proyek (project based learning) dan memperkuat literasi digital. Evaluasi pembelajaran akan menggunakan asesmen autentik.</p>",
-      cover: img("rapat-guru"),
-      daysAgo: 12,
+        "<p>Dalam rangka menyongsong tahun ajaran baru, SDN Mongisidi 1 mengadakan pertemuan komite sekolah dengan orang tua siswa di aula sekolah. Pertemuan membahas kalender akademik, program literasi-numerasi, serta pembiasaan karakter.</p><p>Kepala Sekolah mengarahkan orang tua untuk mendukung pembelajaran berbasis literasi dan numerasi di rumah. Sekolah juga menerapkan program sekolah inklusi dengan pendampingan khusus bagi anak berkebutuhan khusus.</p>",
+      cover: img("rapat-komite-sdn"),
+      daysAgo: 14,
     },
     {
-      title: "Pekan Literasi dan Gelar Karya Siswa 2024",
+      title: "Peringatan Hari Kartini & Lomba Dresscode Tradisional",
       category: "Kegiatan",
       excerpt:
-        "Serangkaian kegiatan pekan literasi diisi dengan lomba menulis, pamerkan karya, dan bedah buku bersama penulis nasional.",
+        "Siswi-siswi SDN Mongisidi 1 tampil memukau dalam peringatan Hari Kartini dengan lomba dresscode pakaian tradisional Nusantara.",
       content:
-        "<p>SMA Negeri 1 Nusantara menggelar Pekan Literasi dan Gelar Karya Siswa 2024 dengan tema \u201cMembaca Membuka Dunia\u201d. Kegiatan berlangsung selama lima hari dan menampilkan lomba menulis esai, puisi, serta pameran karya inovasi siswa.</p><p>Sebagai puncak acara, diadakan bedah buku bersama penulis nasional, Bapak Andrea Hirata. Beliau memotivasi siswa untuk menjadikan membaca sebagai gaya hidup.</p>",
-      cover: img("literasi"),
-      daysAgo: 20,
+        "<p>SDN Mongisidi 1 menggelar peringatan Hari Kartini dengan tema \u201cKartini Masa Kini\u201d. Kegiatan diisi dengan lomba dresscode pakaian adat tradisional, lomba membaca puisi, dan panggung seni siswa.</p><p>Siswi-siswi tampil cantik mengenakan pakaian adat dari berbagai daerah: Baju Bodo (Sulawesi Selatan), Kebaya Jawa, Batak, hingga pakaian adat Papua. Kegiatan ini menumbuhkan rasa cinta terhadap keberagaman budaya Nusantara sejak dini.</p>",
+      cover: img("kartini-sdn"),
+      daysAgo: 22,
     },
     {
-      title: "Tim Robotik Juara 1 Tingkat Provinsi",
+      title: "Tim Drumband Mongisidi 1 Juara Festival Drumband Pelajar Makassar",
       category: "Prestasi",
       excerpt:
-        "Tim robotik sekolah berhasil meraih juara 1 pada kompetisi robotik tingkat provinsi dan berhak melaju ke tingkat nasional.",
+        "Tim Drumband sekolah kembali mengharumkan nama SDN Mongisidi 1 dengan meraih juara pada Festival Drumband Pelajar.",
       content:
-        "<p>Tim Robotik SMA Negeri 1 Nusantara yang bernama \u201cNusantara Tech\u201d berhasil meraih juara 1 pada Kompetisi Robotik Cerdas Tingkat Provinsi 2024. Mereka mengalahkan 32 tim dari berbagai sekolah.</p><p>Robot yang dibuat mampu menyelesaikan misi sortir benda berwarna dalam waktu tercepat. Tim berhak mewakili provinsi pada kompetisi nasional bulan depan.</p>",
-      cover: img("robotik"),
-      daysAgo: 25,
+        "<p>Tim Drumband \u201cMonsa Jaya\u201d SDN Mongisidi 1 berhasil meraih Juara Umum pada Festival Drumband Pelajar Tingkat SD se-Kota Makassar 2025. Mereka mengalahkan 25 tim drumband lainnya.</p><p>Penampilan tim yang terdiri dari 40 siswa kelas 4-6 memukau juri dengan formasi yang rapi dan harmoni yang mempesona. Tim berlatih rutin tiga kali seminggu di bawah bimbingan pelatih profesional.</p>",
+      cover: img("drumband-sdn"),
+      daysAgo: 28,
     },
     {
-      title: "Pelaksanaan Ujian Tengah Semester Ganjil 2025/2026",
+      title: "Pelaksanaan Penilaian Akhir Semester Ganjil 2025/2026",
       category: "Akademik",
       excerpt:
-        "Ujian Tengah Semester (UTS) akan dilaksanakan secara luring dan daring dengan jadwal yang telah dibagikan kepada siswa.",
+        "Penilaian Akhir Semester (PAS) akan dilaksanakan secara luring dengan jadwal yang telah dibagikan kepada siswa dan orang tua.",
       content:
-        "<p>Ujian Tengah Semester (UTS) Ganjil Tahun Ajaran 2025/2026 akan dilaksanakan mulai 23 September 2025. Siswa diharapkan mempersiapkan diri dengan baik.</p><p>Jadwal lengkap dapat diunduh pada halaman pengumuman. Tata tertib ujian wajib dipatuhi seluruh peserta.</p>",
-      cover: img("uts"),
-      daysAgo: 30,
+        "<p>Penilaian Akhir Semester (PAS) Ganjil Tahun Ajaran 2025/2026 akan dilaksanakan mulai 8 Desember 2025. Siswa diharapkan mempersiapkan diri dengan belajar tekun.</p><p>Jadwal lengkap per kelas dapat diunduh pada halaman pengumuman. Orang tua dimohon mendampingi putra-putrinya selama masa persiapan. Tata tertib ujian wajib dipatuhi seluruh peserta.</p>",
+      cover: img("pas-sdn"),
+      daysAgo: 35,
     },
   ];
 
@@ -187,13 +187,12 @@ async function main() {
   // A draft news
   await db.news.create({
     data: {
-      title: "Persiapan Festival Seni Budaya Akhir Tahun (Draf)",
-      slug: slugify("Persiapan Festival Seni Budaya Akhir Tahun") + "-draft",
+      title: "Persiapan Pentas Seni Akhir Tahun (Draf)",
+      slug: slugify("Persiapan Pentas Seni Akhir Tahun") + "-draft",
       excerpt:
-        "Rencana kegiatan festival seni budaya yang akan digelar akhir tahun ajaran.",
-      content:
-        "<p>Artikel ini masih dalam tahap draf dan belum dipublikasikan.</p>",
-      coverImage: img("festival-draft"),
+        "Rencana kegiatan pentas seni siswa yang akan digelar menjelang akhir tahun ajaran.",
+      content: "<p>Artikel ini masih dalam tahap draf dan belum dipublikasikan.</p>",
+      coverImage: img("pentas-draft-sdn"),
       category: "Kegiatan",
       status: "DRAFT",
       authorId: op1.id,
@@ -205,9 +204,9 @@ async function main() {
   const now = Date.now();
   await db.announcement.create({
     data: {
-      title: "Pengumuman Libur Hari Raya",
+      title: "Pengumuman Libur Hari Raya Idul Fitri",
       content:
-        "Diberitahukan kepada seluruh siswa dan guru, kegiatan belajar mengajar diliburkan mulai 10-18 April 2025 dalam rangka Hari Raya Idul Fitri. Kegiatan kembali normal pada 21 April 2025.",
+        "Diberitahukan kepada seluruh siswa, guru, dan orang tua, kegiatan belajar mengajar diliburkan mulai 28 Maret - 6 April 2025 dalam rangka Hari Raya Idul Fitri 1446 H. Kegiatan kembali normal pada 7 April 2025.",
       isPinned: true,
       expiresAt: new Date(now + 1000 * 60 * 60 * 24 * 30),
       isActive: true,
@@ -215,19 +214,19 @@ async function main() {
   });
   await db.announcement.create({
     data: {
-      title: "Pengumuman Hasil Seleksi OSN Tingkat Sekolah",
+      title: "Pengumuman PPDB Tahun Ajaran 2025/2026",
       content:
-        "Hasil seleksi Olimpiade Sains Nasional tingkat sekolah telah diumumkan. Silakan cek papan pengumuman atau hubungi wali kelas masing-masing.",
-      isPinned: false,
-      expiresAt: new Date(now + 1000 * 60 * 60 * 24 * 14),
+        "Pendaftaran Peserta Didik Baru (PPDB) kelas 1 dibuka mulai 9 Juni 2025 melalui portal PPDB Kota Makassar. Jalur: Zonasi, Afirmasi, Prestasi, dan Perpindahan Tugas. Kuota 51 siswa untuk 3 rombongan belajar.",
+      isPinned: true,
+      expiresAt: new Date(now + 1000 * 60 * 60 * 24 * 45),
       isActive: true,
     },
   });
   await db.announcement.create({
     data: {
-      title: "Pengumuman Jadwal Ujian Tengah Semester",
+      title: "Pengumuman Jadwal Penilaian Akhir Semester",
       content:
-        "Jadwal UTS Ganjil 2025/2026 dapat diunduh pada halaman beranda. Mohon siswa mempersiapkan diri dengan baik.",
+        "Jadwal PAS Ganjil 2025/2026 telah dibagikan. Mohon orang tua mendampingi putra-putrinya selama persiapan ujian.",
       isPinned: false,
       expiresAt: new Date(now + 1000 * 60 * 60 * 24 * 21),
       isActive: true,
@@ -235,19 +234,19 @@ async function main() {
   });
   await db.announcement.create({
     data: {
-      title: "Pengumuman Pendaftaran Ekstrakurikuler",
+      title: "Pendaftaran Ekstrakurikuler Semester Genap",
       content:
-        "Pendaftaran ekskul dibuka mulai 1 September 2025. Tersedia 18 jenis ekstrakurikuler. Daftar melalui portal siswa.",
+        "Pendaftaran ekskul dibuka mulai 5 Januari 2026. Tersedia: Pramuka, Drumband, Tari, Qasidah, English Club, Robotic, Futsal, dan Tahfidz. Daftar melalui wali kelas.",
       isPinned: false,
-      expiresAt: new Date(now + 1000 * 60 * 60 * 24 * 10),
+      expiresAt: new Date(now + 1000 * 60 * 60 * 24 * 14),
       isActive: true,
     },
   });
   await db.announcement.create({
     data: {
-      title: "Pengumuman Rapat Komite Sekolah",
+      title: "Pengumuman Pertemuan Orang Tua",
       content:
-        "Rapat komite sekolah dengan orang tua siswa akan diadakan pada 15 September 2025 pukul 09.00 WIB di aula.",
+        "Pertemuan orang tua siswa akan diadakan pada 20 September 2025 pukul 09.00 WIB di aula sekolah.",
       isPinned: false,
       expiresAt: new Date(now - 1000 * 60 * 60 * 24 * 5), // expired
       isActive: true,
@@ -260,72 +259,73 @@ async function main() {
     {
       title: "Upacara Bendera Senin",
       date: new Date(agendaBase + 2 * 86400000),
-      time: "07.00 - 08.00 WIB",
-      location: "Lapangan Utama",
+      time: "07.00 - 07.30 WITA",
+      location: "Halaman Sekolah",
       category: "Kegiatan",
       description: "Upacara bendera rutin setiap Senin pagi.",
     },
     {
-      title: "Pelaksanaan Ujian Tengah Semester",
-      date: new Date(agendaBase + 10 * 86400000),
-      time: "07.30 - 12.00 WIB",
+      title: "Penilaian Akhir Semester Ganjil",
+      date: new Date(agendaBase + 12 * 86400000),
+      time: "07.30 - 10.00 WITA",
       location: "Ruang Kelas",
       category: "Akademik",
-      description: "UTS untuk seluruh tingkatan.",
+      description: "PAS untuk seluruh tingkatan kelas 1-6.",
     },
     {
-      title: "Lomba Kebersihan Kelas",
-      date: new Date(agendaBase + 15 * 86400000),
-      time: "13.00 - 15.00 WIB",
+      title: "Lomba Kebersihan dan Kerapian Kelas",
+      date: new Date(agendaBase + 18 * 86400000),
+      time: "09.00 - 11.00 WITA",
       location: "Seluruh Ruang Kelas",
       category: "Kegiatan",
-      description: "Penilaian kebersihan dan kerapian kelas.",
+      description: "Penilaian kebersihan, kerapian, dan dekorasi kelas.",
     },
     {
-      title: "Workshop Guru: Asesmen Autentik",
-      date: new Date(agendaBase + 20 * 86400000),
-      time: "09.00 - 12.00 WIB",
+      title: "Workshop Guru: Pembelajaran Literasi-Numerasi",
+      date: new Date(agendaBase + 25 * 86400000),
+      time: "08.00 - 12.00 WITA",
       location: "Aula Sekolah",
       category: "Akademik",
-      description: "Pelatihan asesmen autentik untuk guru.",
+      description: "Pelatihan guru tentang pembelajaran berbasis literasi-numerasi.",
     },
     {
       title: "Libur Hari Sumpah Pemuda",
-      date: new Date(agendaBase + 35 * 86400000),
+      date: new Date(agendaBase + 40 * 86400000),
       time: "Sepanjang Hari",
       location: "-",
       category: "Libur",
-      description: "Libur memperingati Hari Sumpah Pemuda.",
+      description: "Libur memperingati Hari Sumpah Pemuda ke-77.",
     },
     {
-      title: "Pentas Seni Akhir Tahun",
-      date: new Date(agendaBase + 60 * 86400000),
-      time: "18.00 - 21.00 WIB",
-      location: "Auditorium",
+      title: "Pentas Seni & Wisuda Kelas 6",
+      date: new Date(agendaBase + 65 * 86400000),
+      time: "16.00 - 19.00 WITA",
+      location: "Auditorium Sekolah",
       category: "Kegiatan",
-      description: "Pertunjukan seni siswa dan guru.",
+      description: "Pertunjukan seni siswa dan wisuda kelas 6.",
     },
   ];
   for (const a of agenda) {
     await db.agenda.create({ data: a });
   }
 
-  // ---------- TEACHERS ----------
+  // ---------- TEACHERS (SD) ----------
   const teachers = [
-    { name: "Dr. Bambang Sutrisno, M.Pd.", position: "Kepala Sekolah", subject: "Leadership", education: "S3 Manajemen Pendidikan", img: 60 },
-    { name: "Hj. Siti Aminah, M.Pd.", position: "Wakil Kepala Sekolah Bidang Kurikulum", subject: "Matematika", education: "S2 Pendidikan Matematika", img: 45 },
-    { name: "Drs. Suparman", position: "Wakil Kepala Sekolah Bidang Kesiswaan", subject: "Sejarah", education: "S1 Pendidikan Sejarah", img: 12 },
-    { name: "Rina Marlina, S.Pd.", position: "Guru Bahasa Indonesia", subject: "Bahasa Indonesia", education: "S1 Pendidikan Bahasa Indonesia", img: 5 },
-    { name: "Agus Salim, S.Pd., M.Pd.", position: "Guru Fisika", subject: "Fisika", education: "S2 Pendidikan Fisika", img: 33 },
+    { name: "Nawawi Hamzah, S.Pd., M.Pd.", position: "Kepala Sekolah", subject: "Kepemimpinan", education: "S2 Manajemen Pendidikan", img: 60 },
+    { name: "Hj. Rosmiati, S.Pd., M.Pd.", position: "Wakil Kepala Sekolah Bidang Kurikulum", subject: "Guru Kelas", education: "S2 Pendidikan Dasar", img: 45 },
+    { name: "Drs. Abdul Rahman", position: "Wakil Kepala Sekolah Bidang Kesiswaan", subject: "PJOK", education: "S1 Pendidikan Olahraga", img: 12 },
+    { name: "Siti Aminah, S.Pd.", position: "Guru Kelas 1A", subject: "Kelas 1A", education: "S1 PGSD", img: 5 },
+    { name: "Andi Mappangara, S.Pd.", position: "Guru Kelas 4B", subject: "Kelas 4B", education: "S1 PGSD", img: 33 },
     { name: "Maya Sari, S.Pd.", position: "Guru Bahasa Inggris", subject: "Bahasa Inggris", education: "S1 Pendidikan Bahasa Inggris", img: 20 },
-    { name: " Hendra Gunawan, S.Kom.", position: "Guru Informatika", subject: "Informatika", education: "S1 Teknik Informatika", img: 15 },
-    { name: "Dewi Anggraini, S.Pd.", position: "Guru Biologi", subject: "Biologi", education: "S1 Pendidikan Biologi", img: 25 },
-    { name: "Joko Widodo, S.Pd.", position: "Guru Ekonomi", subject: "Ekonomi", education: "S1 Pendidikan Ekonomi", img: 8 },
-    { name: "Nurul Hidayah, S.Pd.", position: "Guru Kimia", subject: "Kimia", education: "S1 Pendidikan Kimia", img: 16 },
-    { name: "Budi Santoso, S.Pd.", position: "Pembina OSIS", subject: "PKn", education: "S1 Pendidikan PKn", img: 51 },
-    { name: "Ratna Dewi, S.E.", position: "Bendahara Sekolah", subject: "-", education: "S1 Akuntansi", img: 48 },
+    { name: "Ustadz Ahmad Fauzi, S.Pd.I.", position: "Guru Pendidikan Agama Islam", subject: "Agama Islam", education: "S1 PAI", img: 15 },
+    { name: "Dewi Anggraini, S.Pd.", position: "Guru PJOK", subject: "PJOK", education: "S1 Pendidikan Olahraga", img: 25 },
+    { name: "Rina Marlina, S.Pd.", position: "Guru Seni Budaya & Drumband", subject: "Seni Budaya", education: "S1 Pendidikan Seni", img: 16 },
+    { name: "Muhammad Yusuf, S.Kom.", position: "Guru Informatika", subject: "Informatika", education: "S1 Pendidikan Informatika", img: 8 },
+    { name: "Nurul Hidayah, S.Pd.", position: "Guru Inklusi / Pembina ABK", subject: "Pendidikan Inklusi", education: "S1 Pendidikan Luar Biasa", img: 48 },
+    { name: "Ratna Dewi, S.E.", position: "Bendahara Sekolah", subject: "-", education: "S1 Akuntansi", img: 51 },
   ];
-  teachers.forEach(async (t, i) => {
+  for (let i = 0; i < teachers.length; i++) {
+    const t = teachers[i];
     await db.teacher.create({
       data: {
         name: t.name,
@@ -337,28 +337,28 @@ async function main() {
         isActive: true,
       },
     });
-  });
+  }
 
   // ---------- GALLERY ----------
   const gallery = [
-    { title: "Upacara Bendera", category: "Upacara", seed: "upacara" },
-    { title: "Laboratorium Komputer", category: "Fasilitas", seed: "lab-komputer" },
-    { title: "Juara OSN Fisika", category: "Prestasi", seed: "juara-osn" },
-    { title: "Kegiatan Pramuka", category: "Kegiatan", seed: "pramuka" },
-    { title: "Perpustakaan", category: "Fasilitas", seed: "perpustakaan" },
-    { title: "Lomba Marching Band", category: "Prestasi", seed: "marching" },
-    { title: "Class Meeting", category: "Kegiatan", seed: "class-meeting" },
-    { title: "Pentas Seni", category: "Kegiatan", seed: "pentas-seni" },
-    { title: "Lapangan Olahraga", category: "Fasilitas", seed: "lapangan" },
-    { title: "Wisuda Akbar", category: "Kegiatan", seed: "wisuda" },
-    { title: "Olimpiade Matematika", category: "Prestasi", seed: "olim-mtk" },
-    { title: "Ekstrakurikuler Robotik", category: "Kegiatan", seed: "robotik-gal" },
+    { title: "Upacara Bendera", category: "Upacara", seed: "upacara-sdn" },
+    { title: "Lab Komputer", category: "Fasilitas", seed: "lab-komputer-sdn" },
+    { title: "Juara Lomba Cerdas Cermat", category: "Prestasi", seed: "lcc-sdn" },
+    { title: "Kegiatan Pramuka", category: "Kegiatan", seed: "pramuka-sdn" },
+    { title: "Perpustakaan Sekolah", category: "Fasilitas", seed: "perpus-sdn" },
+    { title: "Penampilan Drumband", category: "Prestasi", seed: "drumband-sdn" },
+    { title: "Class Meeting", category: "Kegiatan", seed: "class-meeting-sdn" },
+    { title: "Pentas Seni Anak", category: "Kegiatan", seed: "pentas-sdn" },
+    { title: "Lapangan Olahraga", category: "Fasilitas", seed: "lapangan-sdn" },
+    { title: "Wisuda Kelas 6", category: "Kegiatan", seed: "wisuda-sdn" },
+    { title: "Lomba Mewarnai", category: "Prestasi", seed: "mewarnai-sdn" },
+    { title: "Pembelajaran Inklusi", category: "Kegiatan", seed: "inklusi-sdn" },
   ];
   for (const g of gallery) {
     await db.galleryItem.create({
       data: {
         title: g.title,
-        description: `Dokumentasi ${g.title.toLowerCase()} SMA Negeri 1 Nusantara.`,
+        description: `Dokumentasi ${g.title.toLowerCase()} di SDN Unggulan Mongisidi 1.`,
         type: "PHOTO",
         url: img(g.seed, 1280, 800),
         thumbnail: img(g.seed, 600, 400),
@@ -366,36 +366,35 @@ async function main() {
       },
     });
   }
-  // A couple of "video" items (use a thumbnail + youtube url)
   await db.galleryItem.create({
     data: {
-      title: "Profil Sekolah 2024 (Video)",
-      description: "Video profil SMA Negeri 1 Nusantara.",
+      title: "Profil Sekolah (Video)",
+      description: "Video profil SDN Unggulan Mongisidi 1.",
       type: "VIDEO",
       url: "https://www.youtube.com/embed/aqz-KE-bpKQ",
-      thumbnail: img("profil-video", 1280, 800),
+      thumbnail: img("profil-video-sdn", 1280, 800),
       category: "Kegiatan",
     },
   });
   await db.galleryItem.create({
     data: {
-      title: "Cinematic Graduation 2024",
-      description: "Dokumentasi wisuda dalam bentuk video.",
+      title: "Cinematic Wisuda Kelas 6",
+      description: "Dokumentasi wisuda kelas 6 dalam bentuk video.",
       type: "VIDEO",
       url: "https://www.youtube.com/embed/ScMzIvxBSi4",
-      thumbnail: img("cinematic-grad", 1280, 800),
+      thumbnail: img("cinematic-wisuda-sdn", 1280, 800),
       category: "Kegiatan",
     },
   });
 
   // ---------- ACHIEVEMENTS ----------
   const ach = [
-    { title: "Medali Emas OSN Fisika Nasional", studentName: "Anindya Putri Maharani", level: "Nasional", category: "Akademik", date: new Date(now - 7 * 86400000) },
-    { title: "Juara 1 Kompetisi Robotik Provinsi", studentName: "Tim Nusantara Tech", level: "Provinsi", category: "Non-Akademik", date: new Date(now - 25 * 86400000) },
-    { title: "Juara 2 Olimpiade Matematika Kabupaten", studentName: "Rizky Pratama", level: "Kabupaten", category: "Akademik", date: new Date(now - 40 * 86400000) },
-    { title: "Juara 1 Lomba Cerdas Cermat Kimia", studentName: "Tim C3 Kimia", level: "Provinsi", category: "Akademik", date: new Date(now - 60 * 86400000) },
-    { title: "Juara 1 Festival Film Pelajar", studentName: "Tim Sinema Nusantara", level: "Nasional", category: "Non-Akademik", date: new Date(now - 90 * 86400000) },
-    { title: "Juara 3 Pidato Bahasa Inggris", studentName: "Sarah Wijaya", level: "Provinsi", category: "Non-Akademik", date: new Date(now - 120 * 86400000) },
+    { title: "Juara 1 Lomba Cerdas Cermat Tingkat Kota", studentName: "Tim LCC SDN Mongisidi 1", level: "Kabupaten", category: "Akademik", date: new Date(now - 9 * 86400000) },
+    { title: "Juara Umum Festival Drumband Pelajar", studentName: "Tim Drumband Monsa Jaya", level: "Kabupaten", category: "Non-Akademik", date: new Date(now - 28 * 86400000) },
+    { title: "Juara 2 Olimpiade Matematika SD Tingkat Provinsi", studentName: "Fathur Rahman (kelas 6)", level: "Provinsi", category: "Akademik", date: new Date(now - 45 * 86400000) },
+    { title: "Juara 1 Lomba Mewarnai Tingkat Kota", studentName: "Khadijah Aulia (kelas 3)", level: "Kabupaten", category: "Non-Akademik", date: new Date(now - 60 * 86400000) },
+    { title: "Juara 1 Tahfidz Juz 30 Tingkat Kota", studentName: "Ahmad Zaki (kelas 5)", level: "Kabupaten", category: "Non-Akademik", date: new Date(now - 90 * 86400000) },
+    { title: "Juara 3 Pidato Bahasa Inggris Tingkat Provinsi", studentName: "Sarah Wijaya (kelas 6)", level: "Provinsi", category: "Non-Akademik", date: new Date(now - 120 * 86400000) },
   ];
   for (const a of ach) {
     await db.achievement.create({
@@ -413,11 +412,11 @@ async function main() {
   // ---------- CONTACT MESSAGES ----------
   await db.contactMessage.create({
     data: {
-      name: "Bapak Joko",
-      email: "joko.parent@email.com",
+      name: "Bapak Andi",
+      email: "andi.parent@email.com",
       phone: "081234567890",
-      subject: "Pertanyaan PPDB",
-      message: "Apakah masih ada kuota jalur zonasi untuk tahun ajaran 2025/2026?",
+      subject: "Pertanyaan PPDB Kelas 1",
+      message: "Apakah masih ada kuota jalur zonasi untuk pendaftaran kelas 1 tahun ajaran 2025/2026? Batas usia maksimal berapa?",
       isRead: false,
     },
   });
@@ -426,8 +425,8 @@ async function main() {
       name: "Ibu Wati",
       email: "wati@email.com",
       phone: "081298765432",
-      subject: "Informasi Beasiswa",
-      message: "Mohon informasi mengenai program beasiswa prestasi untuk siswa baru.",
+      subject: "Informasi Pendidikan Inklusi",
+      message: "Mohon informasi mengenai program pendidikan inklusi di sekolah. Apakah menerima anak dengan autisme?",
       isRead: false,
     },
   });
@@ -440,8 +439,8 @@ async function main() {
       action: "CREATE",
       entity: "News",
       entityId: "-",
-      detail: "Membuat berita baru: Upacara Bendera Peringatan HUT Kemerdekaan RI ke-79",
-      createdAt: new Date(now - 3 * 86400000),
+      detail: "Membuat berita baru: Peringatan HUT Kemerdekaan RI ke-80 di SDN Mongisidi 1",
+      createdAt: new Date(now - 4 * 86400000),
     },
   });
   await db.activityLog.create({
@@ -451,8 +450,8 @@ async function main() {
       action: "CREATE",
       entity: "News",
       entityId: "-",
-      detail: "Membuat berita baru: Siswa SMA Negeri 1 Nusantara Raih Medali Emas Olimpiade Sains Nasional",
-      createdAt: new Date(now - 7 * 86400000),
+      detail: "Membuat berita baru: Siswa SDN Mongisidi 1 Juara 1 Lomba Cerdas Cermat Tingkat Kota Makassar",
+      createdAt: new Date(now - 9 * 86400000),
     },
   });
   await db.activityLog.create({
@@ -462,7 +461,7 @@ async function main() {
       action: "CREATE",
       entity: "Announcement",
       entityId: "-",
-      detail: "Menerbitkan pengumuman: Pengumuman Libur Hari Raya",
+      detail: "Menerbitkan pengumuman: Pengumuman Libur Hari Raya Idul Fitri",
       createdAt: new Date(now - 2 * 86400000),
     },
   });
@@ -473,7 +472,7 @@ async function main() {
       action: "UPDATE",
       entity: "Teacher",
       entityId: "-",
-      detail: "Memperbarui data guru: Agus Salim, S.Pd., M.Pd.",
+      detail: "Memperbarui data guru: Siti Aminah, S.Pd.",
       createdAt: new Date(now - 1 * 86400000),
     },
   });
@@ -490,8 +489,8 @@ async function main() {
   });
 
   console.log("✅ Seed selesai!");
-  console.log("   Login Admin   : admin@smansara.sch.id / admin123");
-  console.log("   Login Operator: operator@smansara.sch.id / operator123");
+  console.log("   Login Admin   : admin@mongisidi1.sch.id / admin123");
+  console.log("   Login Operator: operator@mongisidi1.sch.id / operator123");
 }
 
 main()

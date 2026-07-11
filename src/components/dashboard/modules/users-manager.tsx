@@ -377,7 +377,7 @@ export function UsersManager() {
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
-                placeholder="nama@smansara.sch.id"
+                placeholder="nama@mongisidi1.sch.id"
               />
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

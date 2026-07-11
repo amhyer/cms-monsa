@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import {
   Building2,
-  FlaskConical,
   Computer,
   Library,
   Trophy,
@@ -11,6 +10,9 @@ import {
   Church,
   UtensilsCrossed,
   HeartPulse,
+  Sprout,
+  HeartHandshake,
+  Music,
   Quote,
   Target,
   Eye,
@@ -25,14 +27,16 @@ import { PageBanner, SectionShell } from "./_shared";
 import type { TeacherItem } from "@/lib/types";
 
 const FACILITIES = [
-  { icon: FlaskConical, label: "Laboratorium IPA" },
-  { icon: Computer, label: "Laboratorium Komputer" },
+  { icon: Computer, label: "Lab Komputer" },
   { icon: Library, label: "Perpustakaan" },
   { icon: Trophy, label: "Lapangan Olahraga" },
   { icon: Building, label: "Aula Serbaguna" },
-  { icon: Church, label: "Masjid" },
+  { icon: Church, label: "Musholla" },
   { icon: UtensilsCrossed, label: "Kantin Sehat" },
   { icon: HeartPulse, label: "UKS" },
+  { icon: Sprout, label: "Green House" },
+  { icon: HeartHandshake, label: "Ruang Inklusi" },
+  { icon: Music, label: "Ruang Drumband" },
 ];
 
 function LeaderCard({ t }: { t: TeacherItem }) {
@@ -96,7 +100,7 @@ export function ProfileView() {
       <PageBanner
         eyebrow="Tentang Kami"
         title="Profil Sekolah"
-        description="Mengenal lebih dekat sejarah, visi-misi, dan struktur SMA Negeri 1 Nusantara."
+        description="Mengenal lebih dekat sejarah, visi-misi, dan struktur SD Negeri Unggulan Mongisidi 1."
       />
 
       {/* Sejarah */}
@@ -168,7 +172,7 @@ export function ProfileView() {
         <SectionHeading
           eyebrow="Kepemimpinan"
           title="Struktur Organisasi"
-          description="Para pemimpin yang menggerakkan roda pendidikan di SMA Negeri 1 Nusantara."
+          description="Para pemimpin yang menggerakkan roda pendidikan di SD Negeri Unggulan Mongisidi 1."
           center
         />
         <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">

@@ -185,7 +185,7 @@ export function AchievementsManager() {
         <div>
           <h2 className="text-xl font-bold tracking-tight">Data Prestasi</h2>
           <p className="text-sm text-muted-foreground">
-            Kelola daftar prestasi siswa SMA Negeri 1 Nusantara.
+            Kelola daftar prestasi siswa SD Negeri Unggulan Mongisidi 1.
           </p>
         </div>
         <Button

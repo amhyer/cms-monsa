@@ -10,24 +10,25 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "SMA Negeri 1 Nusantara — Website Resmi Sekolah",
+  title: "UPT SPF SD Negeri Unggulan Mongisidi 1 — Website Resmi Sekolah",
   description:
-    "Website resmi SMA Negeri 1 Nusantara. Beranda, profil sekolah, berita, pengumuman, galeri, direktori guru, dan informasi PPDB.",
+    "Website resmi UPT SPF SD Negeri Unggulan Mongisidi 1 Makassar. Beranda, profil sekolah, berita, pengumuman, galeri, direktori guru, dan informasi PPDB.",
   keywords: [
-    "SMA Negeri 1 Nusantara",
-    "sekolah",
+    "SD Negeri Unggulan Mongisidi 1",
+    "SDN Mongisidi 1",
+    "Mongisidi Makassar",
+    "sekolah dasar",
     "website sekolah",
-    "PPDB",
-    "berita sekolah",
-    "CMS sekolah",
+    "PPDB SD",
+    "sekolah inklusi Makassar",
   ],
-  authors: [{ name: "SMA Negeri 1 Nusantara" }],
+  authors: [{ name: "UPT SPF SD Negeri Unggulan Mongisidi 1" }],
   icons: {
     icon: "/logo.svg",
   },
   openGraph: {
-    title: "SMA Negeri 1 Nusantara",
-    description: "Website resmi SMA Negeri 1 Nusantara",
+    title: "UPT SPF SD Negeri Unggulan Mongisidi 1",
+    description: "Website resmi SD Negeri Unggulan Mongisidi 1 Makassar",
     type: "website",
   },
 };

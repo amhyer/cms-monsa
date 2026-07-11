@@ -169,7 +169,7 @@ export function SettingsManager() {
                 id="s-school"
                 value={form.schoolName}
                 onChange={(e) => set("schoolName", e.target.value)}
-                placeholder="SMA Negeri 1 Nusantara"
+                placeholder="SD Negeri Unggulan Mongisidi 1"
               />
             </div>
             <div className="space-y-2">
@@ -208,7 +208,7 @@ export function SettingsManager() {
               rows={2}
               value={form.address}
               onChange={(e) => set("address", e.target.value)}
-              placeholder="Jl. Pendidikan No. 1, Nusantara"
+              placeholder="Jln. Wr. Monginsidi No.13, Maricaya Baru, Makassar"
             />
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -228,7 +228,7 @@ export function SettingsManager() {
                 type="email"
                 value={form.email}
                 onChange={(e) => set("email", e.target.value)}
-                placeholder="info@smansara.sch.id"
+                placeholder="info@mongisidi1.sch.id"
               />
             </div>
           </div>

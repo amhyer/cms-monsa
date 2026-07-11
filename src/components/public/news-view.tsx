@@ -93,7 +93,7 @@ export function NewsView() {
       <PageBanner
         eyebrow="Informasi Sekolah"
         title="Berita & Pengumuman"
-        description="Berita terkini, kegiatan, prestasi, dan pengumuman resmi dari SMA Negeri 1 Nusantara."
+        description="Berita terkini, kegiatan, prestasi, dan pengumuman resmi dari SD Negeri Unggulan Mongisidi 1."
       />
 
       <SectionShell>

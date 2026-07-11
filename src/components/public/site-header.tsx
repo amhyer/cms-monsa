@@ -21,7 +21,7 @@ export function SiteHeader() {
   const settings = useAppStore((s) => s.settings);
   const [open, setOpen] = useState(false);
 
-  const schoolName = settings?.schoolName ?? "SMA Negeri 1 Nusantara";
+  const schoolName = settings?.schoolName ?? "SD Negeri Unggulan Mongisidi 1";
   const npsn = settings?.npsn ?? "";
 
   const isActive = (path: string) => {

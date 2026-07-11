@@ -131,7 +131,8 @@ model SiteSetting {
   teacherCount      Int      @default(78)
   facilityCount     Int      @default(24)
   achievementCount  Int      @default(156)
-  ppdbInfo          String
+  spmbInfo          String
+  spmbLink          String?
   updatedAt         DateTime @updatedAt
 }
 

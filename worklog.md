@@ -258,3 +258,34 @@ Verification (agent-browser):
 
 Stage Summary:
 - All CMS dialog forms (agenda, users, teachers, gallery, announcements, achievements, news, settings) are now fully responsive — scrollable on any screen size, buttons always reachable, close button visible. Single base-component fix, no per-dialog hacks needed.
+
+---
+Task ID: 14 (Rebrand PPDB → SPMB + add SPMB link field)
+Agent: main (orchestrator)
+Task: User requested replacing all "PPDB" with "SPMB" (Sistem Penerimaan Murid Baru — the Makassar standardized term) and adding a configurable SPMB link field since the dinas pendidikan standardizes the portal across all Makassar schools.
+
+Research: Web search confirmed official Makassar SPMB portal = https://spmb.makassarkota.go.id (SPMB Kota Makassar = "Sistem Penerimaan Murid Baru").
+
+Changes:
+- Prisma schema: renamed SiteSetting.ppdbInfo → spmbInfo, added spmbLink String?. Ran `db:push --force-reset` (seed repopulates).
+- src/lib/types.ts: SiteSettingItem updated (spmbInfo, spmbLink).
+- src/app/api/site-settings/route.ts: GET/PUT handle spmbInfo + spmbLink.
+- prisma/seed.ts: spmbInfo text rebranded to SPMB, spmbLink set to https://spmb.makassarkota.go.id. Announcement title & content, contact message subject all PPDB→SPMB.
+- src/components/dashboard/modules/settings-manager.tsx: FormState/EMPTY updated; "Info SPMB" card with new "Link Portal SPMB" input (type=url, placeholder https://spmb.makassarkota.go.id) + helper text explaining tombol Daftar SPMB pakai link ini; "Informasi SPMB" textarea. Card description notes "diseragamkan Dinas Pendidikan Kota Makassar".
+- src/components/public/site-header.tsx: PPDB button → "SPMB" (desktop) / "Daftar SPMB" (mobile). Added openSpmb() — opens settings.spmbLink in new tab if set, else navigates to /contact. ExternalLink icon shown when link configured. Added ExternalLink import.
+- src/components/public/home-view.tsx: CTA section rebranded "Sistem Penerimaan Murid Baru (SPMB) 2025/2026 Dibuka!", "Daftar SPMB" button opens spmbLink in new tab. Added ExternalLink import.
+- src/components/public/contact-view.tsx: PPDB section → SPMB (id="spmb", headings, jalur&kuota). "Daftar SPMB Online" button now an <a> linking to settings.spmbLink (target=_blank) when set; shows "Link SPMB belum diatur" placeholder when empty. Note text mentions "diseragamkan untuk seluruh sekolah". Renamed PPDB_PATHS → SPMB_PATHS. Added ExternalLink import.
+- src/components/public/news-detail-view.tsx: SPMB sidebar box → "Daftar SPMB" button opens spmbLink in new tab. Added settings from store.
+- src/app/layout.tsx: metadata description & keywords PPDB → SPMB.
+
+Verification (agent-browser):
+- Header shows "SPMB" button, no "PPDB" anywhere on home.
+- Clicking header SPMB button opened https://spmb.makassarkota.go.id in a NEW TAB (verified via agent-browser tab list).
+- Home CTA: "Daftar SPMB" button present.
+- Contact page: "Info SPMB" heading, "Daftar SPMB Online" link href=https://spmb.makassarkota.go.id/ target=_blank, "diseragamkan" note visible. No PPDB text.
+- Settings manager (admin): "Info SPMB" card with Link Portal SPMB field (value=https://spmb.makassarkota.go.id) + Informasi SPMB textarea. Changed link → Simpan → toast "Pengaturan berhasil disimpan." → API confirmed spmbLink updated. Restored official link after test.
+- API GET /api/site-settings returns spmbLink + spmbInfo, no ppdbInfo.
+- `bun run lint` → 0 errors. Dev server restarted to pick up new Prisma Client after schema change.
+
+Stage Summary:
+- All "PPDB" terminology replaced with "SPMB" across the entire site (public + dashboard + metadata + seed data). New configurable "Link Portal SPMB" field in Site Settings (admin) — pre-filled with the official https://spmb.makassarkota.go.id. All "Daftar SPMB" buttons (header, home CTA, contact page, news sidebar) now open the configured link in a new tab. Admin can change the link anytime via Pengaturan Sekolah → Info SPMB.

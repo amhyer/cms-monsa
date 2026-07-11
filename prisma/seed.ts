@@ -97,8 +97,9 @@ async function main() {
       teacherCount: 28,
       facilityCount: 18,
       achievementCount: 45,
-      ppdbInfo:
-        "Penerimaan Peserta Didik Baru (PPDB) SD Negeri Unggulan Mongisidi 1 Tahun Ajaran 2025/2026 dibuka mulai Juni 2025 untuk jenjang kelas 1. Jalur yang tersedia: Zonasi (50%), Afirmasi (15%), Prestasi (30%), dan Perpindahan Tugas Orang Tua (5%). Pendaftaran dilakukan secara daring melalui portal PPDB Kota Makassar. Kuota tersedia 51 siswa untuk 3 rombongan belajar. Sekolah ini juga melayani pendidikan inklusi bagi anak berkebutuhan khusus.",
+      spmbInfo:
+        "Sistem Penerimaan Murid Baru (SPMB) SD Negeri Unggulan Mongisidi 1 Tahun Ajaran 2025/2026 dibuka mulai Juni 2025 untuk jenjang kelas 1. Jalur yang tersedia: Zonasi (50%), Afirmasi (15%), Prestasi (30%), dan Perpindahan Tugas Orang Tua (5%). Pendaftaran dilakukan secara daring melalui portal SPMB resmi Kota Makassar (spmb.makassarkota.go.id) yang diseragamkan untuk seluruh sekolah. Kuota tersedia 51 siswa untuk 3 rombongan belajar. Sekolah ini juga melayani pendidikan inklusi bagi anak berkebutuhan khusus.",
+      spmbLink: "https://spmb.makassarkota.go.id",
       updatedAt: new Date(),
     },
   });
@@ -214,9 +215,9 @@ async function main() {
   });
   await db.announcement.create({
     data: {
-      title: "Pengumuman PPDB Tahun Ajaran 2025/2026",
+      title: "Pengumuman SPMB Tahun Ajaran 2025/2026",
       content:
-        "Pendaftaran Peserta Didik Baru (PPDB) kelas 1 dibuka mulai 9 Juni 2025 melalui portal PPDB Kota Makassar. Jalur: Zonasi, Afirmasi, Prestasi, dan Perpindahan Tugas. Kuota 51 siswa untuk 3 rombongan belajar.",
+        "Sistem Penerimaan Murid Baru (SPMB) kelas 1 dibuka mulai 9 Juni 2025 melalui portal SPMB resmi Kota Makassar (spmb.makassarkota.go.id). Jalur: Zonasi, Afirmasi, Prestasi, dan Perpindahan Tugas. Kuota 51 siswa untuk 3 rombongan belajar.",
       isPinned: true,
       expiresAt: new Date(now + 1000 * 60 * 60 * 24 * 45),
       isActive: true,
@@ -415,7 +416,7 @@ async function main() {
       name: "Bapak Andi",
       email: "andi.parent@email.com",
       phone: "081234567890",
-      subject: "Pertanyaan PPDB Kelas 1",
+      subject: "Pertanyaan SPMB Kelas 1",
       message: "Apakah masih ada kuota jalur zonasi untuk pendaftaran kelas 1 tahun ajaran 2025/2026? Batas usia maksimal berapa?",
       isRead: false,
     },

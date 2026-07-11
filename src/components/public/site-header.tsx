@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { GraduationCap, Menu, LogIn, PencilLine } from "lucide-react";
+import { GraduationCap, Menu, LogIn, PencilLine, ExternalLink } from "lucide-react";
 import { useAppStore } from "@/store/app";
 import { PUBLIC_NAV } from "@/lib/nav";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,17 @@ export function SiteHeader() {
   const [open, setOpen] = useState(false);
 
   const schoolName = settings?.schoolName ?? "SD Negeri Unggulan Mongisidi 1";
+  const spmbLink = settings?.spmbLink;
+
+  /** Open SPMB portal in a new tab if configured, else go to contact page. */
+  const openSpmb = () => {
+    if (spmbLink) {
+      window.open(spmbLink, "_blank", "noopener,noreferrer");
+    } else {
+      navigate("/contact");
+    }
+    setOpen(false);
+  };
   const npsn = settings?.npsn ?? "";
 
   const isActive = (path: string) => {
@@ -111,10 +122,12 @@ export function SiteHeader() {
             type="button"
             size="sm"
             className="bg-gold text-gold-foreground hover:bg-gold/90"
-            onClick={() => go("/contact")}
+            onClick={openSpmb}
+            title={spmbLink ? `Buka portal SPMB: ${spmbLink}` : "Info SPMB"}
           >
             <PencilLine className="size-4" />
-            PPDB
+            SPMB
+            {spmbLink && <ExternalLink className="size-3 opacity-70" />}
           </Button>
 
           {/* Mobile menu */}
@@ -188,10 +201,11 @@ export function SiteHeader() {
                 <Button
                   type="button"
                   className="bg-gold text-gold-foreground hover:bg-gold/90"
-                  onClick={() => go("/contact")}
+                  onClick={openSpmb}
                 >
                   <PencilLine className="size-4" />
-                  Daftar PPDB
+                  Daftar SPMB
+                  {spmbLink && <ExternalLink className="size-3 opacity-70" />}
                 </Button>
               </div>
             </SheetContent>

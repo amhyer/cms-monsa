@@ -55,7 +55,8 @@ const EMPTY: FormState = {
   teacherCount: 0,
   facilityCount: 0,
   achievementCount: 0,
-  ppdbInfo: "",
+  spmbInfo: "",
+  spmbLink: "",
 };
 
 export function SettingsManager() {
@@ -93,7 +94,8 @@ export function SettingsManager() {
           teacherCount: data.teacherCount ?? 0,
           facilityCount: data.facilityCount ?? 0,
           achievementCount: data.achievementCount ?? 0,
-          ppdbInfo: data.ppdbInfo ?? "",
+          spmbInfo: data.spmbInfo ?? "",
+          spmbLink: data.spmbLink ?? "",
         });
       } catch {
         toast.error("Gagal memuat pengaturan.");
@@ -405,25 +407,39 @@ export function SettingsManager() {
         </CardContent>
       </Card>
 
-      {/* PPDB */}
+      {/* SPMB */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Megaphone className="size-4 text-gold-foreground" /> Info PPDB
+            <Megaphone className="size-4 text-gold-foreground" /> Info SPMB
           </CardTitle>
           <CardDescription>
-            Pengumuman Penerimaan Peserta Didik Baru.
+            Sistem Penerimaan Murid Baru (SPMB) — diseragamkan Dinas Pendidikan Kota Makassar.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="s-ppdb">Informasi PPDB</Label>
+            <Label htmlFor="s-spmb-link">Link Portal SPMB</Label>
+            <Input
+              id="s-spmb-link"
+              type="url"
+              value={form.spmbLink}
+              onChange={(e) => set("spmbLink", e.target.value)}
+              placeholder="https://spmb.makassarkota.go.id"
+            />
+            <p className="text-xs text-muted-foreground">
+              Tautan portal SPMB resmi Kota Makassar. Tombol “Daftar SPMB” di
+              beranda dan halaman kontak akan mengarah ke link ini.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="s-spmb">Informasi SPMB</Label>
             <Textarea
-              id="s-ppdb"
+              id="s-spmb"
               rows={5}
-              value={form.ppdbInfo}
-              onChange={(e) => set("ppdbInfo", e.target.value)}
-              placeholder="Jadwal, syarat, dan tata cara PPDB…"
+              value={form.spmbInfo}
+              onChange={(e) => set("spmbInfo", e.target.value)}
+              placeholder="Jadwal, syarat, jalur, dan tata cara SPMB…"
             />
           </div>
         </CardContent>

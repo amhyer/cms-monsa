@@ -20,6 +20,7 @@ import { toast } from "sonner";
 export function NewsDetailView() {
   const route = useAppStore((s) => s.route);
   const navigate = useAppStore((s) => s.navigate);
+  const settings = useAppStore((s) => s.settings);
 
   const slug = route.split("/")[2] ?? "";
 
@@ -256,7 +257,7 @@ export function NewsDetailView() {
 
             <div className="mt-4 rounded-xl border-2 border-gold bg-gold/5 p-5">
               <h4 className="font-sans text-base font-bold text-foreground">
-                PPDB 2025/2026
+                SPMB 2025/2026
               </h4>
               <p className="mt-1 text-sm text-muted-foreground">
                 Pendaftaran peserta didik baru telah dibuka. Daftar sekarang
@@ -266,9 +267,15 @@ export function NewsDetailView() {
                 type="button"
                 size="sm"
                 className="mt-3 w-full bg-gold text-gold-foreground hover:bg-gold/90"
-                onClick={() => navigate("/contact")}
+                onClick={() => {
+                  if (settings?.spmbLink) {
+                    window.open(settings.spmbLink, "_blank", "noopener,noreferrer");
+                  } else {
+                    navigate("/contact");
+                  }
+                }}
               >
-                Daftar Sekarang
+                Daftar SPMB
               </Button>
             </div>
           </div>

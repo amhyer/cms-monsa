@@ -13,14 +13,14 @@ const geistSans = Geist({
 export const metadata: Metadata = {
   title: "UPT SPF SD Negeri Unggulan Mongisidi 1 — Website Resmi Sekolah",
   description:
-    "Website resmi UPT SPF SD Negeri Unggulan Mongisidi 1 Makassar. Beranda, profil sekolah, berita, pengumuman, galeri, direktori guru, dan informasi PPDB.",
+    "Website resmi UPT SPF SD Negeri Unggulan Mongisidi 1 Makassar. Beranda, profil sekolah, berita, pengumuman, galeri, direktori guru, dan informasi SPMB.",
   keywords: [
     "SD Negeri Unggulan Mongisidi 1",
     "SDN Mongisidi 1",
     "Mongisidi Makassar",
     "sekolah dasar",
     "website sekolah",
-    "PPDB SD",
+    "SPMB SD",
     "sekolah inklusi Makassar",
   ],
   authors: [{ name: "UPT SPF SD Negeri Unggulan Mongisidi 1" }],

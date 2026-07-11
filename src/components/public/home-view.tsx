@@ -16,6 +16,7 @@ import {
   Award,
   PencilLine,
   BookOpen,
+  ExternalLink,
 } from "lucide-react";
 import { useAppStore } from "@/store/app";
 import { Button } from "@/components/ui/button";
@@ -505,30 +506,38 @@ export function HomeView() {
         </div>
       </SectionShell>
 
-      {/* CTA PPDB */}
+      {/* CTA SPMB */}
       <section className="bg-primary text-primary-foreground">
         <div className="mx-auto flex w-full max-w-7xl flex-col items-start gap-6 px-4 py-12 sm:px-6 sm:py-16 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-col gap-3">
             <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gold">
               <BookOpen className="size-4" />
-              PPDB 2025/2026
+              SPMB 2025/2026
             </span>
             <h2 className="font-sans text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl">
-              Pendaftaran Peserta Didik Baru (PPDB) 2025/2026 Dibuka!
+              Sistem Penerimaan Murid Baru (SPMB) 2025/2026 Dibuka!
             </h2>
             <p className="max-w-2xl text-sm text-primary-foreground/80 sm:text-base">
               Bergabunglah bersama kami membangun generasi unggul yang beriman,
-              berakhlak mulia, dan berdaya saing global.
+              berakhlak mulia, dan berdaya saing global. Pendaftaran dilakukan
+              melalui portal SPMB resmi Kota Makassar.
             </p>
           </div>
           <Button
             type="button"
             size="lg"
             className="bg-gold text-gold-foreground hover:bg-gold/90"
-            onClick={() => navigate("/contact")}
+            onClick={() => {
+              if (settings?.spmbLink) {
+                window.open(settings.spmbLink, "_blank", "noopener,noreferrer");
+              } else {
+                navigate("/contact");
+              }
+            }}
           >
             <PencilLine className="size-4" />
-            Daftar Sekarang
+            Daftar SPMB
+            <ExternalLink className="size-4 opacity-80" />
           </Button>
         </div>
       </section>

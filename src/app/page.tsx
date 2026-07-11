@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useAppStore, initHashRouter } from "@/store/app";
 import { PublicSite } from "@/components/public/public-site";
 import { LoginView } from "@/components/auth/login-view";
+import { AdminLoginView } from "@/components/auth/admin-login-view";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 
 export default function Home() {
@@ -36,6 +37,7 @@ export default function Home() {
 
   // --- Route resolution (hash-based, single-page) ---
   // /login -> LoginView (redirect to /dashboard if already authenticated)
+  // /admin-login or /admin -> AdminLoginView (Super Admin portal)
   // /dashboard* -> DashboardShell (handles its own auth guard)
   // everything else -> public site
   if (route === "/login") {
@@ -44,6 +46,14 @@ export default function Home() {
       return null;
     }
     return <LoginView />;
+  }
+
+  if (route === "/admin-login" || route === "/admin") {
+    if (user?.role === "SUPER_ADMIN") {
+      navigate("/dashboard");
+      return null;
+    }
+    return <AdminLoginView />;
   }
 
   if (route === "/dashboard" || route.startsWith("/dashboard/")) {

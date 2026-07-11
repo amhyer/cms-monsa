@@ -9,6 +9,7 @@ import {
   Phone,
   Mail,
   GraduationCap,
+  ShieldCheck,
 } from "lucide-react";
 import { useAppStore } from "@/store/app";
 import { PUBLIC_NAV } from "@/lib/nav";
@@ -124,10 +125,19 @@ export function SiteFooter() {
           </div>
         </div>
 
-        <div className="mt-10 border-t border-primary-foreground/15 pt-6">
+        <div className="mt-10 flex flex-col items-center gap-3 border-t border-primary-foreground/15 pt-6 sm:flex-row sm:justify-between">
           <p className="text-center text-xs text-primary-foreground/70 sm:text-sm">
             &copy; {year} SD Negeri Unggulan Mongisidi 1. Hak cipta dilindungi.
           </p>
+          <button
+            type="button"
+            onClick={() => navigate("/admin-login")}
+            className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-primary-foreground/50 transition-colors hover:bg-primary-foreground/10 hover:text-gold"
+            title="Portal login khusus Super Admin"
+          >
+            <ShieldCheck className="size-3.5" />
+            Portal Admin
+          </button>
         </div>
       </div>
     </footer>

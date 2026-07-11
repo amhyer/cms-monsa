@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { setSession } from "@/lib/auth";
 import { logActivity } from "@/lib/log";
+import { verifyPassword, isHashed } from "@/lib/password";
 import type { Role } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
@@ -16,9 +17,22 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    if (password.length > 1024) {
+      return NextResponse.json(
+        { error: "Password terlalu panjang." },
+        { status: 400 }
+      );
+    }
 
     const user = await db.user.findUnique({ where: { email } });
-    if (!user || user.password !== password) {
+    // Support both hashed and (legacy) plaintext stored passwords.
+    const valid = user
+      ? isHashed(user.password)
+        ? verifyPassword(password, user.password)
+        : user.password === password
+      : false;
+    // Use constant-time-ish failure regardless of whether user exists.
+    if (!user || !valid) {
       return NextResponse.json(
         { error: "Email atau password salah." },
         { status: 401 }

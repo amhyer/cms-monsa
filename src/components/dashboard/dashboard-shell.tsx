@@ -445,7 +445,7 @@ export function DashboardShell() {
         </aside>
 
         {/* Main */}
-        <main className="flex-1 p-4 sm:p-6">
+        <main className="min-w-0 flex-1 p-4 sm:p-6">
           {showAccessDenied ? (
             <div className="mx-auto max-w-3xl">
               <div className="mb-4 flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-2 text-sm text-destructive">

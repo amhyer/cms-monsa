@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   UserCircle2,
   ShieldAlert,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAppStore } from "@/store/app";
@@ -45,6 +46,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/theme-toggle";
+import {
+  DashboardSearch,
+  useDashboardSearchHotkey,
+} from "./dashboard-search";
 import { Overview } from "./modules/overview";
 import { NewsManager } from "./modules/news-manager";
 import { AnnouncementsManager } from "./modules/announcements-manager";
@@ -106,6 +112,31 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
 
   const isAdmin = user?.role === "SUPER_ADMIN";
 
+  // Unread message count badge for "Pesan Masuk" nav item.
+  const [unread, setUnread] = useState(0);
+  useEffect(() => {
+    let active = true;
+    async function load() {
+      try {
+        const res = await fetch("/api/stats", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (active && typeof data?.counts?.unreadMessages === "number") {
+          setUnread(data.counts.unreadMessages);
+        }
+      } catch {
+        // ignore — badge is non-critical
+      }
+    }
+    load();
+    // refresh when returning to dashboard overview
+    const interval = setInterval(load, 30000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [route]);
+
   const groups = useMemo(() => {
     const items = DASHBOARD_NAV.filter(
       (n) => !n.adminOnly || isAdmin
@@ -129,6 +160,7 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   function renderItem(n: NavItem) {
     const active = route === n.path || (n.path !== "/dashboard" && route.startsWith(n.path));
     const Icon = n.icon;
+    const showBadge = n.path === "/dashboard/messages" && unread > 0;
     return (
       <button
         key={n.path}
@@ -150,6 +182,14 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
         )}
         <Icon className="size-4 shrink-0" />
         <span className="truncate">{n.label}</span>
+        {showBadge && (
+          <span
+            aria-label={`${unread} pesan belum dibaca`}
+            className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-gold px-1.5 text-[11px] font-bold text-gold-foreground"
+          >
+            {unread > 99 ? "99+" : unread}
+          </span>
+        )}
       </button>
     );
   }
@@ -213,6 +253,7 @@ export function DashboardShell() {
   const logout = useAppStore((s) => s.logout);
   const switchRole = useAppStore((s) => s.switchRole);
   const settings = useAppStore((s) => s.settings);
+  const search = useDashboardSearchHotkey();
 
   const brandShort = settings?.schoolName
     ? settings.schoolName.replace(/UPT SPF /, "").replace(/Negeri Unggulan /, "")
@@ -293,6 +334,19 @@ export function DashboardShell() {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => search.setOpen(true)}
+            className="hidden md:inline-flex"
+            aria-label="Cari menu (Ctrl+K)"
+          >
+            <Search className="size-4" />
+            <span className="hidden lg:inline">Cari…</span>
+            <kbd className="ml-1 hidden rounded border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground lg:inline">
+              Ctrl K
+            </kbd>
+          </Button>
           <Badge
             className={
               isAdmin
@@ -303,16 +357,18 @@ export function DashboardShell() {
             Login sebagai: {isAdmin ? "Admin" : "Operator"}
           </Badge>
 
+          <ThemeToggle className="hidden sm:inline-flex" />
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleSwitchRole}
-                className="hidden sm:inline-flex"
+                className="hidden md:inline-flex"
               >
                 <Repeat className="size-4" />
-                Switch Role (Mock)
+                <span className="hidden lg:inline">Switch Role (Mock)</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent>Beralih peran untuk uji coba hak akses</TooltipContent>
@@ -407,6 +463,8 @@ export function DashboardShell() {
       <footer className="mt-auto border-t bg-background px-4 py-3 text-center text-xs text-muted-foreground sm:px-6">
         © {new Date().getFullYear()} {settings?.schoolName ?? "SD Negeri Unggulan Mongisidi 1"} — CMS v1.0
       </footer>
+
+      <DashboardSearch open={search.open} onOpenChange={search.setOpen} />
     </div>
   );
 }

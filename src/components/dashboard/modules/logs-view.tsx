@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ScrollText, Filter } from "lucide-react";
+import { ScrollText, Filter, Download } from "lucide-react";
 import { toast } from "sonner";
 import {
   Select,
@@ -19,8 +19,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDateTime } from "@/lib/format";
+import { exportToCsv } from "@/lib/export";
 import type { ActivityLogItem } from "@/lib/types";
 import {
   PageLoader,
@@ -104,6 +106,28 @@ export function LogsView() {
                 ))}
               </SelectContent>
             </Select>
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-auto"
+              onClick={() => {
+                exportToCsv(
+                  `log-aktivitas-${new Date().toISOString().slice(0, 10)}`,
+                  items,
+                  [
+                    { key: "createdAt", label: "Waktu" },
+                    { key: "userName", label: "Pengguna" },
+                    { key: "action", label: "Aksi" },
+                    { key: "entity", label: "Entitas" },
+                    { key: "detail", label: "Detail" },
+                  ]
+                );
+                toast.success("Log aktivitas diekspor ke CSV.");
+              }}
+              disabled={items.length === 0}
+            >
+              <Download className="size-4" /> Export CSV
+            </Button>
           </div>
 
           {loading ? (

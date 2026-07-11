@@ -66,13 +66,37 @@ export function ContactView() {
     message: "",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const update = (k: keyof typeof form, v: string) =>
+  const update = (k: keyof typeof form, v: string) => {
     setForm((f) => ({ ...f, [k]: v }));
+    // clear error for this field on edit
+    if (errors[k]) setErrors((e) => ({ ...e, [k]: "" }));
+  };
+
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  function validate(): boolean {
+    const next: Record<string, string> = {};
+    if (!form.name.trim()) next.name = "Nama wajib diisi.";
+    if (!form.email.trim()) next.email = "Email wajib diisi.";
+    else if (!EMAIL_RE.test(form.email.trim()))
+      next.email = "Format email tidak valid (contoh: nama@contoh.com).";
+    if (!form.subject.trim()) next.subject = "Subjek wajib diisi.";
+    if (!form.message.trim()) next.message = "Pesan wajib diisi.";
+    else if (form.message.trim().length < 10)
+      next.message = "Pesan terlalu singkat (minimal 10 karakter).";
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  }
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (submitting) return;
+    if (!validate()) {
+      toast.error("Mohon perbaiki isian yang belum sesuai.");
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch("/api/contact", {
@@ -130,14 +154,23 @@ export function ContactView() {
                     autoComplete="name"
                   />
                 </Field>
-                <Field label="Email" required>
+                <Field label="Email" required error={errors.email}>
                   <Input
                     type="email"
                     required
                     value={form.email}
                     onChange={(e) => update("email", e.target.value)}
+                    onBlur={() =>
+                      form.email &&
+                      !EMAIL_RE.test(form.email.trim()) &&
+                      setErrors((e) => ({
+                        ...e,
+                        email: "Format email tidak valid (contoh: nama@contoh.com).",
+                      }))
+                    }
                     placeholder="email@contoh.com"
                     autoComplete="email"
+                    aria-invalid={!!errors.email}
                   />
                 </Field>
               </div>
@@ -151,22 +184,24 @@ export function ContactView() {
                     autoComplete="tel"
                   />
                 </Field>
-                <Field label="Subjek" required>
+                <Field label="Subjek" required error={errors.subject}>
                   <Input
                     required
                     value={form.subject}
                     onChange={(e) => update("subject", e.target.value)}
                     placeholder="Subjek pesan"
+                    aria-invalid={!!errors.subject}
                   />
                 </Field>
               </div>
-              <Field label="Pesan" required>
+              <Field label="Pesan" required error={errors.message}>
                 <Textarea
                   required
                   value={form.message}
                   onChange={(e) => update("message", e.target.value)}
                   placeholder="Tulis pesan Anda di sini…"
                   className="min-h-32"
+                  aria-invalid={!!errors.message}
                 />
               </Field>
               <Button
@@ -336,10 +371,12 @@ export function ContactView() {
 function Field({
   label,
   required,
+  error,
   children,
 }: {
   label: string;
   required?: boolean;
+  error?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -349,6 +386,11 @@ function Field({
         {required && <span className="text-destructive">*</span>}
       </Label>
       {children}
+      {error && (
+        <p className="text-xs font-medium text-destructive" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

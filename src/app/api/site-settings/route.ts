@@ -6,7 +6,7 @@ import { logActivity } from "@/lib/log";
 export async function GET() {
   let settings = await db.siteSetting.findUnique({ where: { id: "singleton" } });
   if (!settings) {
-    settings = await db.siteSetting.create({ data: { id: "singleton", vision: "", mission: "", history: "", principalWelcome: "", ppdbInfo: "" } });
+    settings = await db.siteSetting.create({ data: { id: "singleton", vision: "", mission: "", history: "", principalWelcome: "", spmbInfo: "" } });
   }
   return NextResponse.json(settings);
 }
@@ -38,7 +38,8 @@ export async function PUT(req: NextRequest) {
     teacherCount: Number(body.teacherCount ?? 0) || 0,
     facilityCount: Number(body.facilityCount ?? 0) || 0,
     achievementCount: Number(body.achievementCount ?? 0) || 0,
-    ppdbInfo: String(body.ppdbInfo ?? ""),
+    spmbInfo: String(body.spmbInfo ?? ""),
+    spmbLink: body.spmbLink || null,
   };
 
   const updated = await db.siteSetting.upsert({

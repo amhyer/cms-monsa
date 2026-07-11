@@ -18,6 +18,7 @@ import {
   Award,
   Building2,
   ArrowRight,
+  ExternalLink,
 } from "lucide-react";
 import { useAppStore } from "@/store/app";
 import { Button } from "@/components/ui/button";
@@ -28,7 +29,7 @@ import { SectionHeading } from "@/components/shared/section-heading";
 import { PageBanner, SectionShell } from "./_shared";
 import { toast } from "sonner";
 
-const PPDB_PATHS = [
+const SPMB_PATHS = [
   {
     icon: MapPinned,
     name: "Zonasi",
@@ -129,9 +130,9 @@ export function ContactView() {
   return (
     <>
       <PageBanner
-        eyebrow="Hubungi & PPDB"
-        title="Hubungi Kami & PPDB"
-        description="Sampaikan pertanyaan, saran, atau daftar PPDB 2025/2026 melalui informasi di bawah ini."
+        eyebrow="Hubungi & SPMB"
+        title="Hubungi Kami & SPMB"
+        description="Sampaikan pertanyaan, saran, atau daftar SPMB 2025/2026 melalui informasi di bawah ini."
       />
 
       <SectionShell>
@@ -291,9 +292,9 @@ export function ContactView() {
         </div>
       </SectionShell>
 
-      {/* PPDB section */}
+      {/* SPMB section */}
       <section
-        id="ppdb"
+        id="spmb"
         className="scroll-mt-20 bg-primary text-primary-foreground"
       >
         <div className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6 sm:py-20">
@@ -301,34 +302,45 @@ export function ContactView() {
             <div className="lg:col-span-1">
               <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gold">
                 <span className="h-px w-6 bg-gold" />
-                PPDB 2025/2026
+                SPMB 2025/2026
               </span>
               <h2 className="mt-3 font-sans text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl">
-                Info PPDB 2025/2026
+                Info SPMB 2025/2026
               </h2>
               <p className="mt-4 text-sm leading-relaxed text-primary-foreground/80 sm:text-base">
-                {settings?.ppdbInfo}
+                {settings?.spmbInfo}
               </p>
               <div className="mt-6 flex flex-col gap-3">
-                <a
-                  href="#"
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-gold px-6 text-sm font-medium text-gold-foreground shadow-sm transition-colors hover:bg-gold/90"
-                >
-                  <Globe className="size-4" />
-                  Daftar Online
-                </a>
+                {settings?.spmbLink ? (
+                  <a
+                    href={settings.spmbLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-gold px-6 text-sm font-medium text-gold-foreground shadow-sm transition-colors hover:bg-gold/90"
+                  >
+                    <Globe className="size-4" />
+                    Daftar SPMB Online
+                    <ExternalLink className="size-3.5 opacity-80" />
+                  </a>
+                ) : (
+                  <span className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary-foreground/10 px-6 text-sm font-medium text-primary-foreground/60">
+                    <Globe className="size-4" />
+                    Link SPMB belum diatur
+                  </span>
+                )}
                 <p className="text-xs text-primary-foreground/70">
-                  *Pendaftaran dilakukan melalui portal PPDB resmi.
+                  *Pendaftaran dilakukan melalui portal SPMB resmi Kota Makassar
+                  yang diseragamkan untuk seluruh sekolah.
                 </p>
               </div>
             </div>
 
             <div className="lg:col-span-2">
               <h3 className="font-sans text-lg font-bold">
-                Jalur & Kuota PPDB
+                Jalur & Kuota SPMB
               </h3>
               <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {PPDB_PATHS.map((p) => {
+                {SPMB_PATHS.map((p) => {
                   const Icon = p.icon;
                   return (
                     <div

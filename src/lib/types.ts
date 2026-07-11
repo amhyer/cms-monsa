@@ -132,7 +132,8 @@ export type SiteSettingItem = {
   teacherCount: number;
   facilityCount: number;
   achievementCount: number;
-  ppdbInfo: string;
+  spmbInfo: string;
+  spmbLink: string | null;
   updatedAt: string;
 };
 

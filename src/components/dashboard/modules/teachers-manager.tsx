@@ -9,6 +9,7 @@ import {
   Save,
   Users,
   UserCircle2,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -28,6 +29,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ImageUpload } from "@/components/shared/image-upload";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import type { TeacherItem } from "@/lib/types";
+import { exportToCsv } from "@/lib/export";
 import { PageLoader, EmptyState } from "../_shared";
 
 type FormState = {
@@ -155,12 +157,35 @@ export function TeachersManager() {
             Kelola data profil guru dan staf sekolah.
           </p>
         </div>
-        <Button
-          onClick={openCreate}
-          className="bg-gold text-gold-foreground hover:bg-gold/90"
-        >
-          <Plus className="size-4" /> Tambah Guru
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              exportToCsv(
+                `data-guru-staf-${new Date().toISOString().slice(0, 10)}`,
+                items,
+                [
+                  { key: "name", label: "Nama" },
+                  { key: "position", label: "Jabatan" },
+                  { key: "subject", label: "Mata Pelajaran" },
+                  { key: "education", label: "Pendidikan" },
+                  { key: "isActive", label: "Status" },
+                ]
+              );
+              toast.success("Data guru diekspor ke CSV.");
+            }}
+            disabled={items.length === 0}
+          >
+            <Download className="size-4" /> Export CSV
+          </Button>
+          <Button
+            onClick={openCreate}
+            className="bg-gold text-gold-foreground hover:bg-gold/90"
+          >
+            <Plus className="size-4" /> Tambah Guru
+          </Button>
+        </div>
       </div>
 
       {loading ? (

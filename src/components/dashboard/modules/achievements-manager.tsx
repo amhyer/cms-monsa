@@ -8,6 +8,7 @@ import {
   Loader2,
   Save,
   Trophy,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -45,6 +46,7 @@ import {
   ACHIEVEMENT_CATEGORIES,
 } from "@/lib/nav";
 import { formatDate } from "@/lib/format";
+import { exportToCsv } from "@/lib/export";
 import type { AchievementItem } from "@/lib/types";
 import {
   PageLoader,
@@ -188,12 +190,35 @@ export function AchievementsManager() {
             Kelola daftar prestasi siswa SD Negeri Unggulan Mongisidi 1.
           </p>
         </div>
-        <Button
-          onClick={openCreate}
-          className="bg-gold text-gold-foreground hover:bg-gold/90"
-        >
-          <Plus className="size-4" /> Tambah Prestasi
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              exportToCsv(
+                `data-prestasi-${new Date().toISOString().slice(0, 10)}`,
+                items,
+                [
+                  { key: "title", label: "Judul Prestasi" },
+                  { key: "studentName", label: "Nama Siswa" },
+                  { key: "level", label: "Jenjang" },
+                  { key: "category", label: "Kategori" },
+                  { key: "date", label: "Tanggal" },
+                ]
+              );
+              toast.success("Data prestasi diekspor ke CSV.");
+            }}
+            disabled={items.length === 0}
+          >
+            <Download className="size-4" /> Export CSV
+          </Button>
+          <Button
+            onClick={openCreate}
+            className="bg-gold text-gold-foreground hover:bg-gold/90"
+          >
+            <Plus className="size-4" /> Tambah Prestasi
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -208,10 +233,11 @@ export function AchievementsManager() {
             />
           ) : (
             <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="min-w-[220px]">Judul</TableHead>
+              <div className="table-scroll">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="min-w-[220px]">Judul</TableHead>
                     <TableHead>Siswa</TableHead>
                     <TableHead>Jenjang</TableHead>
                     <TableHead>Kategori</TableHead>
@@ -275,7 +301,8 @@ export function AchievementsManager() {
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table>
+                </Table>
+              </div>
             </div>
           )}
         </CardContent>

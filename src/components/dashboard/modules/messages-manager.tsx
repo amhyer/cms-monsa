@@ -9,6 +9,9 @@ import {
   Phone,
   Mailbox,
   ChevronDown,
+  Reply,
+  Copy,
+  Check,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -102,6 +105,29 @@ export function MessagesManager() {
   }
 
   const unreadCount = items.filter((m) => !m.isRead).length;
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  function replyViaEmail(m: ContactMessageItem) {
+    const subject = encodeURIComponent(`Re: ${m.subject}`);
+    const body = encodeURIComponent(
+      `\n\n---\nPesan asli dari ${m.name} (${m.email}) pada ${formatDateTime(
+        m.createdAt
+      )}):\n${m.message}`
+    );
+    window.location.href = `mailto:${m.email}?subject=${subject}&body=${body}`;
+    toast.success("Membuka aplikasi email Anda…");
+  }
+
+  async function copyEmail(m: ContactMessageItem) {
+    try {
+      await navigator.clipboard.writeText(m.email);
+      setCopiedId(m.id);
+      toast.success("Email disalin ke clipboard.");
+      setTimeout(() => setCopiedId(null), 1500);
+    } catch {
+      toast.error("Gagal menyalin email.");
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -194,6 +220,40 @@ export function MessagesManager() {
                         {m.message}
                       </div>
                       <div className="flex flex-wrap justify-end gap-2">
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="bg-gold text-gold-foreground hover:bg-gold/90"
+                          onClick={() => replyViaEmail(m)}
+                        >
+                          <Reply className="size-3.5" /> Balas via Email
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => copyEmail(m)}
+                        >
+                          {copiedId === m.id ? (
+                            <>
+                              <Check className="size-3.5" /> Tersalin
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="size-3.5" /> Salin Email
+                            </>
+                          )}
+                        </Button>
+                        {m.phone && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            asChild
+                          >
+                            <a href={`tel:${m.phone}`}>
+                              <Phone className="size-3.5" /> Telepon
+                            </a>
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           size="sm"

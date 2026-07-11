@@ -177,7 +177,10 @@ export function NewsDetailView() {
           <div className="mt-4 flex flex-wrap items-center gap-4 border-y py-3 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1.5">
               <User className="size-3.5" />
-              {item.authorName ?? "Redaksi Sekolah"}
+              <span>Oleh</span>
+              <span className="font-medium text-foreground">
+                {item.authorName ?? "Redaksi Sekolah"}
+              </span>
             </span>
             <span className="inline-flex items-center gap-1.5">
               <Clock className="size-3.5" />

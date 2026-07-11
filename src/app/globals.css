@@ -154,6 +154,19 @@
   background-color: hsl(var(--muted-foreground) / 0.6);
 }
 
+/* Horizontal-scrollable table wrapper with subtle edge fade on mobile */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.table-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+.table-scroll::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 9999px;
+}
+
 /* Marquee for running text announcements */
 @keyframes marquee {
   0% { transform: translateX(0); }

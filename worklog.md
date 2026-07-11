@@ -212,3 +212,27 @@ Verification (agent-browser):
 Stage Summary:
 - Site fully rebranded from the fictional SMA to the user's REAL school: UPT SPF SD Negeri Unggulan Mongisidi 1 Makassar. All data verified against Kemendikdasmen Dapodik + DaftarSekolah + faktadelik. Content adjusted for SD jenjang (subjects, ekskul, facilities, news, achievements). New login accounts use mongisidi1.sch.id domain.
 
+
+---
+Task ID: 12 (Bug fixes + feature additions)
+Agent: main (orchestrator)
+Task: Fix all identified bugs (#1,2,4,5,7) and add priority features (#9,10,11,12,15,16) based on audit.
+
+Work Log:
+- Fix #1 (CRITICAL) Toast not showing: Root cause = sonner Toaster calls useTheme() from next-themes but ThemeProvider was never mounted → Toaster crashed, never rendered. Created src/components/theme-provider.tsx wrapping next-themes ThemeProvider, added it to layout.tsx (attribute="class", defaultTheme="light", enableSystem). Also hardened src/components/ui/sonner.tsx to guard against undefined theme. VERIFIED: [data-sonner-toaster] now =1, toasts appear on contact form submit.
+- Fix #15 Dark mode toggle: Created src/components/theme-toggle.tsx (useTheme, hydration-safe placeholder). Added to public site-header (hidden sm:inline-flex) and dashboard topbar. VERIFIED: clicking toggles document.documentElement.classList 'dark'.
+- Fix #2 News author label: Added "Oleh" prefix + bold author name in news-detail-view meta row. VERIFIED: "Oleh Muhammad Yusuf, S.Pd." now visible.
+- Fix #7 Contact email validation: Added errors state, EMAIL_RE regex, validate() function, onBlur validation for email, inline error messages via updated Field component (added error prop), aria-invalid attributes, min-length check for message. VERIFIED: invalid email shows "Format email tidak valid" inline + blocks submit.
+- Fix #4 Loading states: Confirmed all dashboard managers (users, teachers, gallery, agenda, announcements, news) already use PageLoader from _shared. No change needed.
+- Fix #5 Mobile table scroll: Added .table-scroll CSS class (overflow-x auto, thin scrollbar). Wrapped <Table> in news/users/achievements/agenda managers with <div className="table-scroll">.
+- Feature #9 Reply via email: Added replyViaEmail() (mailto: with prefilled subject+body quoting original), copyEmail() (clipboard), and tel: link buttons to messages-manager. Added Reply/Copy/Check/Phone icon imports. VERIFIED: "Balas via Email", "Salin Email" buttons appear on expanded messages.
+- Feature #10 News preview: Added previewMode state + Edit/Pratinjau toggle in news dialog header. Preview renders article with category badge, status, date, title, excerpt, cover image, and content (dangerouslySetInnerHTML with .news-content class). Resets to edit mode on openCreate/openEdit. VERIFIED: toggle works, preview shows live form data.
+- Feature #11 Global search (Ctrl+K): Created src/components/dashboard/dashboard-search.tsx using CommandDialog (cmdk) + useDashboardSearchHotkey hook (Ctrl/Cmd+K). Lists nav items grouped (Ringkasan/Manajemen Konten/Administrasi), filters by query, navigates on select. Added search button with kbd hint to dashboard topbar. VERIFIED: Ctrl+K opens palette, typing "guru" filters to "Guru & Staf" + "Pengaturan Sekolah".
+- Feature #12 Export CSV: Created src/lib/export.ts (exportToCsv with BOM for Excel UTF-8, proper quoting/escaping). Added "Export CSV" buttons to teachers-manager (name/position/subject/education/status), achievements-manager (title/student/level/category/date), and logs-view (time/user/action/entity/detail). VERIFIED: buttons present, disabled when empty.
+- Feature #16 Unread messages badge: Added fetch of /api/stats in SidebarNav (refreshes on route change + 30s interval), renders gold badge with count next to "Pesan Masuk" nav item. VERIFIED: sidebar shows "Pesan Masuk 4" badge.
+
+Stage Summary:
+- All critical bugs fixed and verified in-browser. Toast notifications now work everywhere (the biggest UX win). Dark mode fully functional. 6 new features added (reply email, news preview, global search Ctrl+K, CSV export x3, unread badge, email validation).
+- Files created: theme-provider.tsx, theme-toggle.tsx, dashboard-search.tsx, lib/export.ts.
+- Files modified: layout.tsx, sonner.tsx, site-header.tsx, dashboard-shell.tsx, news-detail-view.tsx, contact-view.tsx, messages-manager.tsx, teachers-manager.tsx, achievements-manager.tsx, logs-view.tsx, news-manager.tsx, users-manager.tsx, agenda-manager.tsx, globals.css.
+- `bun run lint` → 0 errors. Dev server healthy, no runtime errors. All fixes browser-verified.

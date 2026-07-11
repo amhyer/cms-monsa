@@ -192,10 +192,11 @@ export function AgendaManager() {
             />
           ) : (
             <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Tanggal</TableHead>
+              <div className="table-scroll">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Tanggal</TableHead>
                     <TableHead>Waktu</TableHead>
                     <TableHead>Kegiatan</TableHead>
                     <TableHead>Lokasi</TableHead>
@@ -257,7 +258,8 @@ export function AgendaManager() {
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table>
+                </Table>
+              </div>
             </div>
           )}
         </CardContent>

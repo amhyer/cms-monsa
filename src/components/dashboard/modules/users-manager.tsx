@@ -222,10 +222,11 @@ export function UsersManager() {
             />
           ) : (
             <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="min-w-[180px]">Nama</TableHead>
+              <div className="table-scroll">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="min-w-[180px]">Nama</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Peran</TableHead>
                     <TableHead>Status</TableHead>
@@ -342,7 +343,8 @@ export function UsersManager() {
                     );
                   })}
                 </TableBody>
-              </Table>
+                </Table>
+              </div>
             </div>
           )}
         </CardContent>

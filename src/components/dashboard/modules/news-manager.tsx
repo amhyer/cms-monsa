@@ -17,6 +17,8 @@ import {
   Loader2,
   Save,
   Newspaper,
+  Eye,
+  Pencil as PencilIcon,
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -242,6 +244,7 @@ export function NewsManager() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<NewsItem | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [previewMode, setPreviewMode] = useState(false);
 
   // debounce search
   useEffect(() => {
@@ -279,6 +282,7 @@ export function NewsManager() {
   function openCreate() {
     setEditing(null);
     setForm(EMPTY_FORM);
+    setPreviewMode(false);
     setDialogOpen(true);
   }
 
@@ -292,6 +296,7 @@ export function NewsManager() {
       category: n.category,
       status: n.status === "PUBLISHED" ? "PUBLISHED" : "DRAFT",
     });
+    setPreviewMode(false);
     setDialogOpen(true);
   }
 
@@ -417,10 +422,11 @@ export function NewsManager() {
             />
           ) : (
             <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="min-w-[220px]">Judul</TableHead>
+              <div className="table-scroll">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="min-w-[220px]">Judul</TableHead>
                     <TableHead>Kategori</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Penulis</TableHead>
@@ -494,7 +500,8 @@ export function NewsManager() {
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table>
+                </Table>
+              </div>
             </div>
           )}
 
@@ -529,14 +536,88 @@ export function NewsManager() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto custom-scroll">
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit Berita" : "Tambah Berita"}</DialogTitle>
-            <DialogDescription>
-              {editing
-                ? "Perbarui detail berita lalu simpan."
-                : "Lengkapi formulir di bawah untuk menerbitkan berita baru."}
-            </DialogDescription>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <DialogTitle>
+                  {editing ? "Edit Berita" : "Tambah Berita"}
+                  {previewMode && " — Pratinjau"}
+                </DialogTitle>
+                <DialogDescription>
+                  {previewMode
+                    ? "Tampilan pratinjau seperti yang akan dilihat pengunjung."
+                    : editing
+                    ? "Perbarui detail berita lalu simpan."
+                    : "Lengkapi formulir di bawah untuk menerbitkan berita baru."}
+                </DialogDescription>
+              </div>
+              <div className="flex shrink-0 rounded-md border p-0.5">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={!previewMode ? "default" : "ghost"}
+                  className="h-7"
+                  onClick={() => setPreviewMode(false)}
+                >
+                  <PencilIcon className="size-3.5" /> Edit
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={previewMode ? "default" : "ghost"}
+                  className="h-7"
+                  onClick={() => setPreviewMode(true)}
+                >
+                  <Eye className="size-3.5" /> Pratinjau
+                </Button>
+              </div>
+            </div>
           </DialogHeader>
 
+          {previewMode ? (
+            <article className="space-y-4 rounded-lg border bg-background p-5">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className="bg-primary text-primary-foreground">
+                  {form.category}
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className={
+                    form.status === "PUBLISHED"
+                      ? "border-emerald-500 text-emerald-700"
+                      : "text-muted-foreground"
+                  }
+                >
+                  {form.status === "PUBLISHED" ? "Published" : "Draft"}
+                </Badge>
+                <span className="text-xs text-muted-foreground">
+                  {formatDate(new Date().toISOString())}
+                </span>
+              </div>
+              <h1 className="font-sans text-2xl font-bold leading-tight tracking-tight">
+                {form.title.trim() || (
+                  <span className="text-muted-foreground">(Tanpa judul)</span>
+                )}
+              </h1>
+              {form.excerpt && (
+                <p className="text-base font-medium leading-relaxed text-muted-foreground">
+                  {form.excerpt}
+                </p>
+              )}
+              {form.coverImage && (
+                <img
+                  src={form.coverImage}
+                  alt={form.title || "Gambar sampul"}
+                  className="aspect-[16/9] w-full rounded-lg border object-cover"
+                />
+              )}
+              <div
+                className="news-content text-foreground"
+                dangerouslySetInnerHTML={{
+                  __html: form.content || "<p class='text-muted-foreground italic'>Belum ada konten.</p>",
+                }}
+              />
+            </article>
+          ) : (
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="title">Judul</Label>
@@ -614,6 +695,7 @@ export function NewsManager() {
               />
             )}
           </div>
+          )}
 
           <DialogFooter>
             <Button

@@ -3,8 +3,9 @@ import type { NextConfig } from "next";
 const securityHeaders = [
   // Prevent MIME-type sniffing.
   { key: "X-Content-Type-Options", value: "nosniff" },
-  // Prevent clickjacking — no framing allowed.
-  { key: "X-Frame-Options", value: "DENY" },
+  // Allow framing from the preview panel + same-origin.
+  // (The preview panel embeds the app in an iframe; "DENY" blocks it.)
+  { key: "X-Frame-Options", value: "SAMEORIGIN" },
   // Only send origin to same-origin or on downgrade; trim to origin otherwise.
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   // Lock down powerful browser features.
@@ -19,7 +20,7 @@ const securityHeaders = [
   },
   // Content Security Policy — restrict what can load/execute.
   // 'unsafe-inline' needed for style because Next/shadcn inject inline styles.
-  // 'unsafe-eval' omitted (dev-only by Next, not needed in prod build).
+  // 'unsafe-eval' needed for Next.js dev mode (HMR).
   {
     key: "Content-Security-Policy",
     value: [
@@ -33,14 +34,14 @@ const securityHeaders = [
       "media-src 'self' https:",
       // Frames: allow youtube embeds for gallery videos.
       "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com",
-      // Connect: same-origin API only.
-      "connect-src 'self'",
+      // Connect: same-origin API + dev websocket for HMR.
+      "connect-src 'self' ws: wss:",
       // No plugins.
       "object-src 'none'",
       "base-uri 'self'",
-      // No framing (defense in depth with X-Frame-Options).
-      "frame-ancestors 'none'",
-      // Enforce CSP (report-only would be: Content-Security-Policy-Report-Only).
+      // Allow the preview panel to embed this app in an iframe.
+      // 'self' = same-origin; space-z.ai = the preview panel host.
+      "frame-ancestors 'self' https://*.space-z.ai https://space-z.ai",
     ].join("; "),
   },
 ];

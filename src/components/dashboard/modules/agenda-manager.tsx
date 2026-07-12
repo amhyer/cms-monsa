@@ -8,6 +8,7 @@ import {
   Loader2,
   Save,
   CalendarDays,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -44,6 +45,7 @@ import { AGENDA_CATEGORIES } from "@/lib/nav";
 import { formatDate } from "@/lib/format";
 import type { AgendaItem } from "@/lib/types";
 import { PageLoader, EmptyState, toDateInputValue, fromDateInputValue } from "../_shared";
+import { useSearch } from "../use-search";
 
 type FormState = {
   title: string;
@@ -66,6 +68,9 @@ const EMPTY: FormState = {
 export function AgendaManager() {
   const [items, setItems] = useState<AgendaItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const { search, setSearch, filtered } = useSearch(items, (a) =>
+    `${a.title} ${a.location ?? ""} ${a.category}`.toLowerCase()
+  );
   const [saving, setSaving] = useState(false);
 
   const [open, setOpen] = useState(false);
@@ -191,6 +196,26 @@ export function AgendaManager() {
               description="Tambahkan kegiatan atau acara sekolah pertama Anda."
             />
           ) : (
+            <>
+              <div className="mb-4 flex items-center gap-2">
+                <Search className="size-4 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Cari kegiatan atau lokasi…"
+                  className="max-w-xs"
+                />
+                <span className="ml-auto text-xs text-muted-foreground">
+                  {filtered.length} dari {items.length} agenda
+                </span>
+              </div>
+              {filtered.length === 0 ? (
+                <EmptyState
+                  icon={Search}
+                  title="Tidak ditemukan"
+                  description="Tidak ada data yang cocok dengan pencarian Anda."
+                />
+              ) : (
             <div className="rounded-md border">
               <div className="table-scroll">
                 <Table>
@@ -205,7 +230,7 @@ export function AgendaManager() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {items.map((a) => (
+                  {filtered.map((a) => (
                     <TableRow key={a.id}>
                       <TableCell className="whitespace-nowrap font-medium">
                         {formatDate(a.date)}
@@ -261,6 +286,8 @@ export function AgendaManager() {
                 </Table>
               </div>
             </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

@@ -9,6 +9,7 @@ import {
   Save,
   UserCog,
   ShieldAlert,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -50,6 +51,7 @@ import { useAppStore } from "@/store/app";
 import { formatDate } from "@/lib/format";
 import type { UserItem } from "@/lib/types";
 import { PageLoader, EmptyState } from "../_shared";
+import { useSearch } from "../use-search";
 
 type FormState = {
   name: string;
@@ -71,6 +73,9 @@ export function UsersManager() {
   const me = useAppStore((s) => s.user);
   const [items, setItems] = useState<UserItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const { search, setSearch, filtered } = useSearch(items, (u) =>
+    `${u.name} ${u.email} ${u.role}`.toLowerCase()
+  );
   const [saving, setSaving] = useState(false);
 
   const [open, setOpen] = useState(false);
@@ -221,6 +226,26 @@ export function UsersManager() {
               description="Tambahkan akun operator atau admin pertama Anda."
             />
           ) : (
+            <>
+              <div className="mb-4 flex items-center gap-2">
+                <Search className="size-4 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Cari nama atau email…"
+                  className="max-w-xs"
+                />
+                <span className="ml-auto text-xs text-muted-foreground">
+                  {filtered.length} dari {items.length} akun
+                </span>
+              </div>
+              {filtered.length === 0 ? (
+                <EmptyState
+                  icon={Search}
+                  title="Tidak ditemukan"
+                  description="Tidak ada akun yang cocok dengan pencarian Anda."
+                />
+              ) : (
             <div className="rounded-md border">
               <div className="table-scroll">
                 <Table>
@@ -235,7 +260,7 @@ export function UsersManager() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {items.map((u) => {
+                  {filtered.map((u) => {
                     const isSelf = me?.id === u.id;
                     const isAdmin = u.role === "SUPER_ADMIN";
                     return (
@@ -346,6 +371,8 @@ export function UsersManager() {
                 </Table>
               </div>
             </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

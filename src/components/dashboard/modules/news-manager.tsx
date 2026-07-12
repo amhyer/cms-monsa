@@ -50,11 +50,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { ImageUpload } from "@/components/shared/image-upload";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { NEWS_CATEGORIES } from "@/lib/nav";
 import { formatDate } from "@/lib/format";
+import { useAppStore } from "@/store/app";
 import type { NewsItem } from "@/lib/types";
 import { PageLoader, EmptyState } from "../_shared";
 
@@ -231,6 +233,7 @@ const EMPTY_FORM: FormState = {
 };
 
 export function NewsManager() {
+  const navigate = useAppStore((s) => s.navigate);
   const [items, setItems] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalPages, setTotalPages] = useState(1);
@@ -240,6 +243,8 @@ export function NewsManager() {
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
   const [saving, setSaving] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<NewsItem | null>(null);
@@ -268,6 +273,8 @@ export function NewsManager() {
       const data = await res.json();
       setItems(data.items || []);
       setTotalPages(data.totalPages || 1);
+      // Clear selection when list refreshes (items may have changed).
+      setSelected(new Set());
     } catch {
       toast.error("Gagal memuat daftar berita.");
     } finally {
@@ -343,11 +350,64 @@ export function NewsManager() {
       const res = await fetch(`/api/news/${n.id}`, { method: "DELETE" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Gagal menghapus");
-      toast.success("Berita dihapus.");
+      toast.success("Berita dihapus.", {
+        action: {
+          label: "Lihat di Log",
+          onClick: () => navigate("/dashboard/logs"),
+        },
+      });
       fetchList();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal menghapus berita.");
     }
+  }
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    setSelected((prev) =>
+      prev.size === items.length ? new Set() : new Set(items.map((n) => n.id))
+    );
+  }
+
+  async function handleBulkDelete() {
+    if (selected.size === 0) return;
+    setBulkDeleting(true);
+    const ids = [...selected];
+    let ok = 0;
+    let fail = 0;
+    await Promise.all(
+      ids.map(async (id) => {
+        try {
+          const res = await fetch(`/api/news/${id}`, { method: "DELETE" });
+          if (res.ok) ok++;
+          else fail++;
+        } catch {
+          fail++;
+        }
+      })
+    );
+    setBulkDeleting(false);
+    setSelected(new Set());
+    if (ok > 0) {
+      toast.success(`${ok} berita dihapus.`, {
+        action: {
+          label: "Lihat di Log",
+          onClick: () => navigate("/dashboard/logs"),
+        },
+      });
+    }
+    if (fail > 0) {
+      toast.error(`${fail} berita gagal dihapus.`);
+    }
+    fetchList();
   }
 
   return (
@@ -422,10 +482,47 @@ export function NewsManager() {
             />
           ) : (
             <div className="rounded-md border">
+              {selected.size > 0 && (
+                <div className="mb-3 flex items-center gap-3 rounded-md border border-gold/40 bg-gold/10 px-4 py-2">
+                  <span className="text-sm font-medium">
+                    {selected.size} berita dipilih
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive hover:text-destructive"
+                    onClick={handleBulkDelete}
+                    disabled={bulkDeleting}
+                  >
+                    {bulkDeleting ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="size-3.5" />
+                    )}
+                    Hapus Terpilih
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelected(new Set())}
+                  >
+                    Batal
+                  </Button>
+                </div>
+              )}
               <div className="table-scroll">
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={
+                            items.length > 0 && selected.size === items.length
+                          }
+                          onCheckedChange={toggleSelectAll}
+                          aria-label="Pilih semua berita"
+                        />
+                      </TableHead>
                       <TableHead className="min-w-[220px]">Judul</TableHead>
                     <TableHead>Kategori</TableHead>
                     <TableHead>Status</TableHead>
@@ -436,7 +533,14 @@ export function NewsManager() {
                 </TableHeader>
                 <TableBody>
                   {items.map((n) => (
-                    <TableRow key={n.id}>
+                    <TableRow key={n.id} data-selected={selected.has(n.id)}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selected.has(n.id)}
+                          onCheckedChange={() => toggleSelect(n.id)}
+                          aria-label={`Pilih ${n.title}`}
+                        />
+                      </TableCell>
                       <TableCell className="max-w-[280px]">
                         <div className="flex items-center gap-3">
                           {n.coverImage ? (

@@ -3,6 +3,13 @@ import { db } from "@/lib/db";
 import { setSession } from "@/lib/auth";
 import { logActivity } from "@/lib/log";
 import { verifyPassword, isHashed } from "@/lib/password";
+import {
+  isLocked,
+  lockSecondsRemaining,
+  recordFailure,
+  clearFailures,
+  getClientIp,
+} from "@/lib/rate-limit";
 import type { Role } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
@@ -10,6 +17,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const email = String(body.email ?? "").trim().toLowerCase();
     const password = String(body.password ?? "");
+    const ip = getClientIp(req);
 
     if (!email || !password) {
       return NextResponse.json(
@@ -24,6 +32,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Rate limit: reject if this email+ip is currently locked.
+    if (isLocked(email, ip)) {
+      const secs = lockSecondsRemaining(email, ip);
+      return NextResponse.json(
+        {
+          error: `Terlalu banyak percobaan gagal. Coba lagi dalam ${Math.ceil(
+            secs / 60
+          )} menit.`,
+        },
+        { status: 429 }
+      );
+    }
+
     const user = await db.user.findUnique({ where: { email } });
     // Support both hashed and (legacy) plaintext stored passwords.
     const valid = user
@@ -33,6 +54,7 @@ export async function POST(req: NextRequest) {
       : false;
     // Use constant-time-ish failure regardless of whether user exists.
     if (!user || !valid) {
+      recordFailure(email, ip);
       return NextResponse.json(
         { error: "Email atau password salah." },
         { status: 401 }
@@ -44,6 +66,9 @@ export async function POST(req: NextRequest) {
         { status: 403 }
       );
     }
+
+    // Success — clear any prior failure counter.
+    clearFailures(email, ip);
 
     await setSession(user.id, user.role as Role);
 

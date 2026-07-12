@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SectionShell, CategoryBadge } from "./_shared";
 import { formatDate, readingTime, truncate } from "@/lib/format";
+import { copyToClipboard } from "@/lib/clipboard";
 import type { NewsItem } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -90,11 +91,23 @@ export function NewsDetailView() {
       if (navigator.share) {
         await navigator.share({ title: item.title, url });
       } else {
-        await navigator.clipboard.writeText(url);
-        toast.success("Tautan berita disalin ke clipboard.");
+        const copied = await copyToClipboard(url);
+        if (copied) {
+          toast.success("Tautan berita disalin ke clipboard.");
+        } else {
+          toast.info("Salin tautan dari kotak dialog.");
+        }
       }
     } catch {
-      toast.error("Gagal membagikan berita.");
+      // User cancelled share, or share failed — try clipboard as fallback.
+      try {
+        const copied = await copyToClipboard(url);
+        if (copied) {
+          toast.success("Tautan berita disalin ke clipboard.");
+        }
+      } catch {
+        toast.error("Gagal membagikan berita.");
+      }
     }
   };
 

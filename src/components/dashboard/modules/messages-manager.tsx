@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/accordion";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { relativeTime, formatDateTime } from "@/lib/format";
+import { copyToClipboard } from "@/lib/clipboard";
 import type { ContactMessageItem } from "@/lib/types";
 import { PageLoader, EmptyState } from "../_shared";
 
@@ -119,13 +120,13 @@ export function MessagesManager() {
   }
 
   async function copyEmail(m: ContactMessageItem) {
-    try {
-      await navigator.clipboard.writeText(m.email);
+    const copied = await copyToClipboard(m.email);
+    if (copied) {
       setCopiedId(m.id);
       toast.success("Email disalin ke clipboard.");
       setTimeout(() => setCopiedId(null), 1500);
-    } catch {
-      toast.error("Gagal menyalin email.");
+    } else {
+      toast.info("Salin email dari kotak dialog.");
     }
   }
 

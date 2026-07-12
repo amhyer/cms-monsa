@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { logActivity } from "@/lib/log";
+import { parseDateInput } from "@/lib/format";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -22,7 +23,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
       studentName: body.studentName ?? existing.studentName,
       level: String(body.level ?? existing.level),
       category: String(body.category ?? existing.category),
-      date: body.date ? new Date(body.date) : existing.date,
+      date: body.date ? parseDateInput(String(body.date)) : existing.date,
     },
   });
   await logActivity(auth.user, "UPDATE", "Achievement", `Memperbarui prestasi: ${updated.title}`, id);

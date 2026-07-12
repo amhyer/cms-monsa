@@ -17,6 +17,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { PageBanner, SectionShell, CategoryBadge } from "./_shared";
+import { ErrorState } from "@/components/shared/error-state";
 import { GALLERY_CATEGORIES } from "@/lib/nav";
 import { formatDate } from "@/lib/format";
 import type { GalleryItem } from "@/lib/types";
@@ -28,11 +29,13 @@ export function GalleryView() {
   const [items, setItems] = useState<GalleryItem[] | null>(null);
   const [type, setType] = useState<TypeFilter>("ALL");
   const [category, setCategory] = useState<string>("");
+  const [error, setError] = useState(false);
 
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    setError(false);
     (async () => {
       try {
         const params = new URLSearchParams();
@@ -41,11 +44,15 @@ export function GalleryView() {
         const res = await fetch(`/api/gallery?${params.toString()}`, {
           cache: "no-store",
         });
+        if (!res.ok) throw new Error("fetch failed");
         const data = await res.json();
         if (cancelled) return;
         setItems(Array.isArray(data?.items) ? data.items : []);
       } catch {
-        if (!cancelled) setItems([]);
+        if (!cancelled) {
+          setItems([]);
+          setError(true);
+        }
       }
     })();
     return () => {
@@ -113,7 +120,15 @@ export function GalleryView() {
         </div>
 
         {/* Grid */}
-        {items === null ? (
+        {error ? (
+          <div className="mt-8">
+            <ErrorState
+              title="Gagal memuat galeri"
+              description="Terjadi kesalahan saat memuat media galeri. Periksa koneksi Anda lalu coba lagi."
+              onRetry={() => setType((t) => t)}
+            />
+          </div>
+        ) : items === null ? (
           <div className="mt-8 columns-1 gap-4 sm:columns-2 lg:columns-3 [&>*]:mb-4">
             {Array.from({ length: 9 }).map((_, i) => (
               <Skeleton

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { logActivity } from "@/lib/log";
+import { parseDateInput } from "@/lib/format";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
       studentName: body.studentName || null,
       level: String(body.level || "Kabupaten"),
       category: String(body.category || "Akademik"),
-      date: body.date ? new Date(body.date) : new Date(),
+      date: body.date ? parseDateInput(String(body.date)) : new Date(),
     },
   });
   await logActivity(auth.user, "CREATE", "Achievement", `Menambah prestasi: ${title}`, item.id);

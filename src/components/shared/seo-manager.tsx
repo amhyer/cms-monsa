@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useAppStore } from "@/store/app";
+import type { SiteSettingItem } from "@/lib/types";
 
 /**
  * Dynamic SEO metadata manager for the hash-based SPA.
@@ -66,7 +67,7 @@ type SeoConfig = {
   jsonLd?: { id: string; data: object }[];
 };
 
-function getPageSeo(route: string, settings: any | null): SeoConfig {
+function getPageSeo(route: string, settings: SiteSettingItem | null): SeoConfig {
   const schoolName = settings?.schoolName ?? "SD Negeri Unggulan Mongisidi 1";
   const schoolDesc =
     settings?.principalWelcome?.slice(0, 160) ??

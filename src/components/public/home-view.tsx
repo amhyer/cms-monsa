@@ -83,7 +83,7 @@ function HeroCarousel({ items }: { items: NewsItem[] }) {
               Berita Terkini
             </span>
             <AnimatePresence mode="wait">
-              <motion.h1
+              <motion.h2
                 key={items[index].id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -92,7 +92,7 @@ function HeroCarousel({ items }: { items: NewsItem[] }) {
                 className="mt-3 font-sans text-2xl font-bold leading-tight tracking-tight sm:text-4xl md:text-5xl"
               >
                 {items[index].title}
-              </motion.h1>
+              </motion.h2>
             </AnimatePresence>
             <p className="mt-4 hidden max-w-xl text-sm text-primary-foreground/85 sm:block sm:text-base">
               {truncate(items[index].excerpt, 160)}

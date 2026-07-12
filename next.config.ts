@@ -3,9 +3,10 @@ import type { NextConfig } from "next";
 const securityHeaders = [
   // Prevent MIME-type sniffing.
   { key: "X-Content-Type-Options", value: "nosniff" },
-  // Allow framing from the preview panel + same-origin.
-  // (The preview panel embeds the app in an iframe; "DENY" blocks it.)
-  { key: "X-Frame-Options", value: "SAMEORIGIN" },
+  // NOTE: X-Frame-Options is intentionally omitted. It is deprecated in favor
+  // of CSP frame-ancestors, and having both causes the browser to apply the
+  // stricter one — which blocks the preview panel (cross-origin iframe).
+  // CSP frame-ancestors below handles clickjacking protection instead.
   // Only send origin to same-origin or on downgrade; trim to origin otherwise.
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   // Lock down powerful browser features.
@@ -39,9 +40,9 @@ const securityHeaders = [
       // No plugins.
       "object-src 'none'",
       "base-uri 'self'",
-      // Allow the preview panel to embed this app in an iframe.
-      // 'self' = same-origin; space-z.ai = the preview panel host.
-      "frame-ancestors 'self' https://*.space-z.ai https://space-z.ai",
+      // Allow the preview panel (and z.ai chat interface) to embed this app.
+      // In production, restrict to your real domain only.
+      "frame-ancestors 'self' https://*.space-z.ai https://space-z.ai https://*.z.ai https://z.ai",
     ].join("; "),
   },
 ];

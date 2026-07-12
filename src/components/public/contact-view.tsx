@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, useId, type FormEvent } from "react";
+import * as React from "react";
 import {
   MapPin,
   Phone,
@@ -391,13 +392,16 @@ function Field({
   error?: string;
   children: React.ReactNode;
 }) {
+  const id = useId();
   return (
     <div className="flex flex-col gap-1.5">
-      <Label>
+      <Label htmlFor={id}>
         {label}
         {required && <span className="text-destructive">*</span>}
       </Label>
-      {children}
+      {React.isValidElement(children)
+        ? React.cloneElement(children as React.ReactElement<{ id?: string }>, { id })
+        : children}
       {error && (
         <p className="text-xs font-medium text-destructive" role="alert">
           {error}

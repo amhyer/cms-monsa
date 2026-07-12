@@ -423,7 +423,7 @@ export function SettingsManager() {
             <Input
               id="s-spmb-link"
               type="url"
-              value={form.spmbLink}
+              value={form.spmbLink ?? ""}
               onChange={(e) => set("spmbLink", e.target.value)}
               placeholder="https://spmb.makassarkota.go.id"
             />

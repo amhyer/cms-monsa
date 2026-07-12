@@ -24,6 +24,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { RunningAnnouncements } from "./running-announcements";
 import { CategoryBadge, SectionShell } from "./_shared";
+import { ErrorState } from "@/components/shared/error-state";
 import { formatDate, formatDateTime, truncate } from "@/lib/format";
 import type {
   NewsItem,
@@ -285,9 +286,11 @@ export function HomeView() {
   const [latestNews, setLatestNews] = useState<NewsItem[] | null>(null);
   const [agenda, setAgenda] = useState<AgendaItem[]>([]);
   const [achievements, setAchievements] = useState<AchievementItem[]>([]);
+  const [loadError, setLoadError] = useState(false);
 
-  useEffect(() => {
+  const loadHome = () => {
     let cancelled = false;
+    setLoadError(false);
     (async () => {
       try {
         const [newsRes, agendaRes, achRes] = await Promise.all([
@@ -295,6 +298,7 @@ export function HomeView() {
           fetch("/api/agenda?upcoming=true", { cache: "no-store" }),
           fetch("/api/achievements?limit=3", { cache: "no-store" }),
         ]);
+        if (!newsRes.ok || !agendaRes.ok || !achRes.ok) throw new Error("fetch failed");
         const newsData = await newsRes.json();
         const agendaData = await agendaRes.json();
         const achData = await achRes.json();
@@ -314,11 +318,17 @@ export function HomeView() {
         setLatestNews([]);
         setAgenda([]);
         setAchievements([]);
+        setLoadError(true);
       }
     })();
     return () => {
       cancelled = true;
     };
+  };
+
+  useEffect(() => {
+    const cleanup = loadHome();
+    return cleanup;
   }, []);
 
   return (
@@ -335,6 +345,16 @@ export function HomeView() {
       )}
 
       <RunningAnnouncements />
+
+      {loadError && (
+        <SectionShell>
+          <ErrorState
+            title="Gagal memuat beranda"
+            description="Terjadi kesalahan saat memuat konten beranda. Periksa koneksi Anda lalu coba lagi."
+            onRetry={loadHome}
+          />
+        </SectionShell>
+      )}
 
       {/* Sambutan Kepala Sekolah */}
       <SectionShell>

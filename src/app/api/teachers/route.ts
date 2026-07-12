@@ -1,14 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/auth";
+import { requireAuth, requireRole } from "@/lib/auth";
 import { logActivity } from "@/lib/log";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const scope = searchParams.get("scope") || "public";
-  const where = scope === "admin" ? {} : { isActive: true };
+  // scope=admin returns ALL teachers (incl. inactive) — requires auth.
+  if (scope === "admin") {
+    const auth = await requireAuth();
+    if (!auth.ok) return auth.response;
+    const items = await db.teacher.findMany({
+      orderBy: [{ order: "asc" }, { name: "asc" }],
+    });
+    return NextResponse.json({ items });
+  }
+  // public: only active teachers.
   const items = await db.teacher.findMany({
-    where,
+    where: { isActive: true },
     orderBy: [{ order: "asc" }, { name: "asc" }],
   });
   return NextResponse.json({ items });

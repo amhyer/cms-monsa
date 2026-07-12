@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { logActivity } from "@/lib/log";
+import { parseDateInput } from "@/lib/format";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
     data: {
       title,
       description: body.description || null,
-      date: new Date(body.date),
+      date: parseDateInput(String(body.date)),
       time: body.time || null,
       location: body.location || null,
       category: String(body.category || "Umum"),

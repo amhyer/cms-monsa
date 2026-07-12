@@ -61,3 +61,29 @@ export function truncate(text: string, max: number): string {
   if (text.length <= max) return text;
   return text.slice(0, max).trimEnd() + "…";
 }
+
+/**
+ * Parse a date-only input ("YYYY-MM-DD") as a local date at noon.
+ * This avoids the timezone off-by-one bug where `new Date("2026-12-15")`
+ * is interpreted as UTC midnight and, in negative-offset timezones,
+ * displays as the previous day. Noon local time is safe across all
+ * timezones (max offset is ~-12h, so noon stays on the same calendar day).
+ *
+ * For values that already include a time component (ISO with T), the
+ * original value is returned unchanged so existing timestamps are preserved.
+ */
+export function parseDateInput(value: string): Date {
+  if (!value) return new Date();
+  // If it looks like a full ISO timestamp, parse directly.
+  if (/^\d{4}-\d{2}-\d{2}T/.test(value)) return new Date(value);
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (m) {
+    const y = Number(m[1]);
+    const mo = Number(m[2]) - 1;
+    const d = Number(m[3]);
+    return new Date(y, mo, d, 12, 0, 0);
+  }
+  // Fallback: let Date parse it.
+  const parsed = new Date(value);
+  return isNaN(parsed.getTime()) ? new Date() : parsed;
+}

@@ -3,6 +3,12 @@ import { db } from "@/lib/db";
 import { requireAuth, requireRole } from "@/lib/auth";
 import { logActivity } from "@/lib/log";
 import { slugify } from "@/lib/format";
+import { sanitizeHtml } from "@/lib/sanitize";
+
+const NEWS_CATEGORIES = ["Akademik", "Kegiatan", "Prestasi"] as const;
+const MAX_CONTENT_LENGTH = 50000;
+const MAX_TITLE_LENGTH = 200;
+const MAX_EXCERPT_LENGTH = 500;
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -62,6 +68,30 @@ export async function POST(req: NextRequest) {
   if (!title) {
     return NextResponse.json({ error: "Judul wajib diisi." }, { status: 400 });
   }
+  if (title.length > MAX_TITLE_LENGTH) {
+    return NextResponse.json(
+      { error: `Judul maksimal ${MAX_TITLE_LENGTH} karakter.` },
+      { status: 400 }
+    );
+  }
+
+  // Validate category against whitelist (Bug #4).
+  const rawCategory = String(body.category ?? "Kegiatan");
+  const category = (NEWS_CATEGORIES as readonly string[]).includes(rawCategory)
+    ? rawCategory
+    : "Kegiatan";
+
+  // Validate & sanitize content (Bug #1 XSS, Bug #4 length).
+  const rawContent = String(body.content ?? "");
+  if (rawContent.length > MAX_CONTENT_LENGTH) {
+    return NextResponse.json(
+      { error: `Konten terlalu panjang (maksimal ${MAX_CONTENT_LENGTH} karakter).` },
+      { status: 400 }
+    );
+  }
+  const content = sanitizeHtml(rawContent);
+
+  const excerpt = String(body.excerpt ?? "").slice(0, MAX_EXCERPT_LENGTH);
 
   let slug = slugify(title);
   const existing = await db.news.findUnique({ where: { slug } });
@@ -74,10 +104,10 @@ export async function POST(req: NextRequest) {
     data: {
       title,
       slug,
-      excerpt: String(body.excerpt ?? ""),
-      content: String(body.content ?? ""),
+      excerpt,
+      content,
       coverImage: body.coverImage || null,
-      category: String(body.category || "Kegiatan"),
+      category,
       status,
       authorId: auth.user.id,
       publishedAt,

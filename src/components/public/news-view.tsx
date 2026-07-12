@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { PageBanner, SectionShell, CategoryBadge } from "./_shared";
+import { ErrorState } from "@/components/shared/error-state";
 import { NEWS_CATEGORIES } from "@/lib/nav";
 import { formatDate, truncate } from "@/lib/format";
 import type { NewsItem } from "@/lib/types";
@@ -32,6 +33,7 @@ export function NewsView() {
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   // Debounce search input
   useEffect(() => {
@@ -51,6 +53,7 @@ export function NewsView() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setError(false);
     (async () => {
       try {
         const params = new URLSearchParams({
@@ -63,13 +66,17 @@ export function NewsView() {
         const res = await fetch(`/api/news?${params.toString()}`, {
           cache: "no-store",
         });
+        if (!res.ok) throw new Error("fetch failed");
         const data = await res.json();
         if (cancelled) return;
         setItems(Array.isArray(data?.items) ? data.items : []);
         setTotal(data?.total ?? 0);
         setTotalPages(data?.totalPages ?? 1);
       } catch {
-        if (!cancelled) setItems([]);
+        if (!cancelled) {
+          setItems([]);
+          setError(true);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -133,7 +140,15 @@ export function NewsView() {
 
         {/* Grid */}
         <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {loading || items === null
+          {error ? (
+            <div className="col-span-full">
+              <ErrorState
+                title="Gagal memuat berita"
+                description="Terjadi kesalahan saat memuat daftar berita. Periksa koneksi Anda lalu coba lagi."
+                onRetry={() => setDebounced((d) => d + " ")}
+              />
+            </div>
+          ) : loading || items === null
             ? Array.from({ length: PAGE_SIZE }).map((_, i) => (
                 <div
                   key={i}

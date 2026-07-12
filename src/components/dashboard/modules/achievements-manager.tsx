@@ -9,6 +9,7 @@ import {
   Save,
   Trophy,
   Download,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -54,6 +55,7 @@ import {
   toDateInputValue,
   fromDateInputValue,
 } from "../_shared";
+import { useSearch } from "../use-search";
 
 type FormState = {
   title: string;
@@ -86,6 +88,9 @@ function levelBadgeClass(level: string): string {
 export function AchievementsManager() {
   const [items, setItems] = useState<AchievementItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const { search, setSearch, filtered } = useSearch(items, (a) =>
+    `${a.title} ${a.studentName ?? ""} ${a.level} ${a.category}`.toLowerCase()
+  );
   const [saving, setSaving] = useState(false);
 
   const [open, setOpen] = useState(false);
@@ -232,6 +237,26 @@ export function AchievementsManager() {
               description="Tambahkan prestasi siswa pertama Anda."
             />
           ) : (
+            <>
+              <div className="mb-4 flex items-center gap-2">
+                <Search className="size-4 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Cari prestasi atau siswa…"
+                  className="max-w-xs"
+                />
+                <span className="ml-auto text-xs text-muted-foreground">
+                  {filtered.length} dari {items.length} prestasi
+                </span>
+              </div>
+              {filtered.length === 0 ? (
+                <EmptyState
+                  icon={Search}
+                  title="Tidak ditemukan"
+                  description="Tidak ada data yang cocok dengan pencarian Anda."
+                />
+              ) : (
             <div className="rounded-md border">
               <div className="table-scroll">
                 <Table>
@@ -246,7 +271,7 @@ export function AchievementsManager() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {items.map((a) => (
+                  {filtered.map((a) => (
                     <TableRow key={a.id}>
                       <TableCell className="max-w-[260px]">
                         <p className="line-clamp-1 font-medium">{a.title}</p>
@@ -304,6 +329,8 @@ export function AchievementsManager() {
                 </Table>
               </div>
             </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

@@ -10,6 +10,7 @@ import {
   Users,
   UserCircle2,
   Download,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -31,6 +32,7 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import type { TeacherItem } from "@/lib/types";
 import { exportToCsv } from "@/lib/export";
 import { PageLoader, EmptyState } from "../_shared";
+import { useSearch } from "../use-search";
 
 type FormState = {
   name: string;
@@ -53,6 +55,9 @@ const EMPTY: FormState = {
 export function TeachersManager() {
   const [items, setItems] = useState<TeacherItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const { search, setSearch, filtered } = useSearch(items, (t) =>
+    `${t.name} ${t.position} ${t.subject ?? ""}`.toLowerCase()
+  );
   const [saving, setSaving] = useState(false);
 
   const [open, setOpen] = useState(false);
@@ -197,8 +202,28 @@ export function TeachersManager() {
           description="Tambahkan data guru atau staf pertama Anda."
         />
       ) : (
+        <>
+          <div className="mb-4 flex items-center gap-2">
+            <Search className="size-4 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Cari nama, jabatan, atau mapel…"
+              className="max-w-xs"
+            />
+            <span className="ml-auto text-xs text-muted-foreground">
+              {filtered.length} dari {items.length} data
+            </span>
+          </div>
+          {filtered.length === 0 ? (
+            <EmptyState
+              icon={Search}
+              title="Tidak ditemukan"
+              description="Tidak ada data yang cocok dengan pencarian Anda."
+            />
+          ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((t) => (
+          {filtered.map((t) => (
             <Card key={t.id}>
               <CardContent className="flex items-start gap-3 py-4">
                 <div className="size-14 shrink-0 overflow-hidden rounded-full bg-muted">
@@ -268,6 +293,8 @@ export function TeachersManager() {
             </Card>
           ))}
         </div>
+          )}
+        </>
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>

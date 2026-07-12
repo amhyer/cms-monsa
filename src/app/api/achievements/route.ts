@@ -6,12 +6,24 @@ import { parseDateInput } from "@/lib/format";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const limit = Math.min(24, Math.max(1, Number(searchParams.get("limit") || "50")));
-  const items = await db.achievement.findMany({
-    orderBy: { date: "desc" },
-    take: limit,
+  const page = Math.max(1, Number(searchParams.get("page") || "1"));
+  const limit = Math.min(50, Math.max(1, Number(searchParams.get("limit") || "20")));
+
+  const [total, items] = await Promise.all([
+    db.achievement.count(),
+    db.achievement.findMany({
+      orderBy: { date: "desc" },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+  ]);
+  return NextResponse.json({
+    items,
+    total,
+    page,
+    limit,
+    totalPages: Math.max(1, Math.ceil(total / limit)),
   });
-  return NextResponse.json({ items });
 }
 
 export async function POST(req: NextRequest) {

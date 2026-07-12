@@ -331,8 +331,15 @@ export function HomeView() {
     return cleanup;
   }, []);
 
+  const isLoading = hero === null && !loadError;
+
   return (
     <>
+      {/* sr-only H1 for SEO & screen readers */}
+      <h1 className="sr-only">
+        {settings?.schoolName ?? "SD Negeri Unggulan Mongisidi 1"}
+      </h1>
+
       {/* Hero */}
       {hero === null ? (
         <div className="h-[60vh] min-h-[420px] w-full bg-primary sm:h-[70vh]" />
@@ -483,7 +490,20 @@ export function HomeView() {
               </Button>
             </div>
             <div className="flex flex-col gap-3">
-              {agenda.length === 0 ? (
+              {isLoading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="flex items-start gap-4 rounded-xl border bg-card p-4 shadow-sm"
+                  >
+                    <Skeleton className="size-14 shrink-0 rounded-lg" />
+                    <div className="flex flex-1 flex-col gap-2">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-3 w-1/2" />
+                    </div>
+                  </div>
+                ))
+              ) : agenda.length === 0 ? (
                 <div className="rounded-xl border bg-card p-6 text-center text-sm text-muted-foreground">
                   Belum ada agenda mendatang.
                 </div>
@@ -512,7 +532,20 @@ export function HomeView() {
               </Button>
             </div>
             <div className="flex flex-col gap-3">
-              {achievements.length === 0 ? (
+              {isLoading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="flex items-start gap-3 rounded-xl border bg-card p-5 shadow-sm"
+                  >
+                    <Skeleton className="size-10 shrink-0 rounded-full" />
+                    <div className="flex flex-1 flex-col gap-2 pt-1">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-3 w-2/3" />
+                    </div>
+                  </div>
+                ))
+              ) : achievements.length === 0 ? (
                 <div className="rounded-xl border bg-card p-6 text-center text-sm text-muted-foreground">
                   Belum ada prestasi terbaru.
                 </div>

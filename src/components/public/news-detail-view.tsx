@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SectionShell, CategoryBadge } from "./_shared";
 import { formatDate, readingTime, truncate } from "@/lib/format";
 import { copyToClipboard } from "@/lib/clipboard";
+import { injectNewsArticleJsonLd } from "@/components/shared/seo-manager";
 import type { NewsItem } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -48,6 +49,18 @@ export function NewsDetailView() {
         const data = await res.json();
         if (cancelled) return;
         setItem(data);
+        // Inject NewsArticle JSON-LD for SEO (rich results in Google).
+        injectNewsArticleJsonLd(data);
+        // Update page title & OG tags with the actual article title.
+        document.title = `${data.title} — SD Negeri Unggulan Mongisidi 1`;
+        const ogTitle = document.querySelector('meta[property="og:title"]');
+        if (ogTitle) ogTitle.setAttribute("content", data.title);
+        const twTitle = document.querySelector('meta[name="twitter:title"]');
+        if (twTitle) twTitle.setAttribute("content", data.title);
+        if (data.coverImage) {
+          const ogImg = document.querySelector('meta[property="og:image"]');
+          if (ogImg) ogImg.setAttribute("content", data.coverImage);
+        }
       } catch {
         if (!cancelled) setNotFound(true);
       } finally {

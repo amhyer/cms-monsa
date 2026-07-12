@@ -458,3 +458,47 @@ Verification:
 
 Stage Summary:
 - All 10 audit recommendations executed. Security hardened (headers + rate limiting + CSP). Performance improved (pagination on logs/gallery/achievements). UX enhanced (skeletons, SEO H1, search in all tables, bulk operations, undo toast). The app is now production-ready from security, performance, and workflow perspectives.
+
+---
+Task ID: 19 (Q1: PostgreSQL prep + SEO foundation)
+Agent: main (orchestrator)
+Task: Execute Q1 priorities — PostgreSQL migration prep, SEO foundation (sitemap, robots, structured data, dynamic metadata). Real routing deferred to production (sandbox single-route constraint).
+
+PostgreSQL Preparation:
+- prisma/schema.postgres.prisma: PostgreSQL variant of schema (provider="postgresql"). Verified current schema uses only standard Prisma types (String, Int, Boolean, DateTime) — no SQLite-specific features, so it's directly PostgreSQL-compatible.
+- .env.example: comprehensive env template with SQLite (dev) + PostgreSQL (prod) examples, AUTH_SECRET, cloud storage, email config.
+- MIGRATION-GUIDE.md: 7-step migration guide with prerequisites, data migration options (pgloader, custom script), rollback procedure, hosting recommendations (Supabase/Neon/Railway), backup strategy.
+- Next_PUBLIC_SITE_URL added to .env for sitemap/SEO.
+
+Real Routing — DEFERRED:
+- Sandbox constraint: only `/` route allowed (src/app/page.tsx). Real routing (/news/[slug], /profile, etc.) requires deployment to Vercel/hosting.
+- All SEO infrastructure built to be migration-ready: sitemap logic, structured data, metadata manager all work with hash URLs now and can be trivially updated to real URLs when the constraint is lifted.
+
+SEO Foundation:
+- src/app/sitemap.ts: dynamic sitemap generated from DB. 6 static pages + all published news articles. Uses NEXT_PUBLIC_SITE_URL. VERIFIED: /sitemap.xml returns valid XML with 12 URLs.
+- src/app/robots.ts: robots.txt with allow /, disallow /api/ /#/dashboard /#/login /#/admin-login, sitemap reference, host. VERIFIED: /robots.txt returns correct content. (Removed conflicting public/robots.txt.)
+- src/components/shared/seo-manager.tsx: client-side SEO metadata manager that watches route changes via useAppStore and dynamically updates:
+  - document.title per page (home, news, profile, academic, gallery, contact, login, dashboard)
+  - meta description per page
+  - canonical URL per page
+  - Open Graph tags (og:title, og:description, og:url, og:type, og:site_name, og:image)
+  - Twitter Card tags (twitter:card, twitter:title, twitter:description, twitter:image)
+  - JSON-LD structured data:
+    - EducationalOrganization + WebSite (with SearchAction) on home page
+    - BreadcrumbList on profile, academic, news list, gallery, contact
+    - NewsArticle on news detail (injected via injectNewsArticleJsonLd after fetch)
+  - News detail also updates title/OG tags with actual article title + cover image after fetch.
+- Integrated SeoManager into layout.tsx (runs on all routes via ThemeProvider boundary).
+- injectNewsArticleJsonLd exported from seo-manager and called in news-detail-view after article fetch.
+
+Verification (browser):
+- Home: title "UPT SPF SD Negeri Unggulan Mongisidi 1 — Website Resmi Sekolah", EducationalOrganization JSON-LD ✅, WebSite JSON-LD ✅, canonical https://sdn-mongisidi1.sch.id/ ✅
+- News list: title "Berita & Pengumuman — ...", BreadcrumbList JSON-LD ✅
+- News detail: title "Peringatan HUT Kemerdekaan RI ke-80 di SDN Mongisidi 1 — ...", NewsArticle JSON-LD with headline ✅, canonical with slug ✅
+- Profile: title "Profil Sekolah — ...", BreadcrumbList JSON-LD ✅
+- sitemap.xml: 12 URLs (6 static + 6 news) ✅
+- robots.txt: correct rules + sitemap reference ✅
+- `bun run lint` → 0 errors. Dev server healthy.
+
+Stage Summary:
+- Q1 priorities executed. PostgreSQL migration fully prepared (schema + guide + env). SEO foundation complete: dynamic sitemap, robots.txt, structured data (EducationalOrganization, NewsArticle, BreadcrumbList, WebSite with SearchAction), dynamic per-page metadata (title, description, canonical, OG, Twitter). When deployed to production with real routing, only URL patterns need updating — all data logic stays the same.

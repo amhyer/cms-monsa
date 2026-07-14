@@ -69,7 +69,8 @@ export function ProfileView() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/teachers?scope=public", {
+        const _t = Date.now(); // cache-buster
+        const res = await fetch(`/api/teachers?scope=public&_=${_t}`, {
           cache: "no-store",
         });
         const data = await res.json();

@@ -60,8 +60,16 @@ export function SiteHeader() {
           className="group flex items-center gap-3 text-left"
           aria-label={`${schoolName} — Beranda`}
         >
-          <span className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm ring-1 ring-gold/40 transition-transform group-hover:scale-105">
-            <GraduationCap className="size-5 text-gold" />
+          <span className="flex size-10 items-center justify-center overflow-hidden rounded-xl bg-primary text-primary-foreground shadow-sm ring-1 ring-gold/40 transition-transform group-hover:scale-105">
+            {settings?.logo ? (
+              <img
+                src={settings.logo}
+                alt={`Logo ${schoolName}`}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <GraduationCap className="size-5 text-gold" />
+            )}
           </span>
           <span className="flex flex-col leading-tight">
             <span className="text-sm font-bold tracking-tight text-foreground sm:text-base">
@@ -146,8 +154,12 @@ export function SiteHeader() {
             <SheetContent side="right" className="w-3/4 sm:max-w-sm">
               <SheetHeader>
                 <SheetTitle className="flex items-center gap-2">
-                  <span className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                    <GraduationCap className="size-5 text-gold" />
+                  <span className="flex size-9 items-center justify-center overflow-hidden rounded-lg bg-primary text-primary-foreground">
+                    {settings?.logo ? (
+                      <img src={settings.logo} alt="Logo" className="h-full w-full object-cover" />
+                    ) : (
+                      <GraduationCap className="size-5 text-gold" />
+                    )}
                   </span>
                   <span className="flex flex-col">
                     <span className="text-sm font-bold">{schoolName}</span>

@@ -41,8 +41,12 @@ export function SiteFooter() {
           {/* Identity */}
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-3">
-              <span className="flex size-11 items-center justify-center rounded-xl bg-primary-foreground/10 ring-1 ring-gold/40">
-                <GraduationCap className="size-6 text-gold" />
+              <span className="flex size-11 items-center justify-center overflow-hidden rounded-xl bg-primary-foreground/10 ring-1 ring-gold/40">
+                {settings?.logo ? (
+                  <img src={settings.logo} alt="Logo" className="h-full w-full object-cover" />
+                ) : (
+                  <GraduationCap className="size-6 text-gold" />
+                )}
               </span>
               <div className="flex flex-col leading-tight">
                 <span className="text-base font-bold">{schoolName}</span>

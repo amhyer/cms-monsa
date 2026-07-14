@@ -18,7 +18,7 @@ type AppState = {
   // site settings cache
   settings: SiteSettingItem | null;
   settingsLoading: boolean;
-  fetchSettings: () => Promise<void>;
+  fetchSettings: (force?: boolean) => Promise<void>;
 };
 
 function currentHashRoute(): string {
@@ -90,11 +90,15 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   settings: null,
   settingsLoading: false,
-  fetchSettings: async () => {
-    if (get().settings) return;
+  fetchSettings: async (force?: boolean) => {
+    // Skip re-fetch only if we already have settings AND force is not set.
+    if (get().settings && !force) return;
     set({ settingsLoading: true });
     try {
-      const res = await fetch("/api/site-settings", { cache: "no-store" });
+      const res = await fetch("/api/site-settings", {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache" },
+      });
       const data = await res.json();
       set({ settings: data, settingsLoading: false });
     } catch {

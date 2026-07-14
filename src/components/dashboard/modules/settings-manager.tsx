@@ -130,9 +130,8 @@ export function SettingsManager() {
         throw new Error(data.error || "Gagal menyimpan");
       }
       toast.success("Pengaturan berhasil disimpan.");
-      // invalidate store cache so the public site picks up changes
-      useAppStore.setState({ settings: null });
-      void useAppStore.getState().fetchSettings();
+      // Force re-fetch settings so the public site picks up changes immediately.
+      void useAppStore.getState().fetchSettings(true);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal menyimpan.");
     } finally {

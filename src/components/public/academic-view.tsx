@@ -83,9 +83,10 @@ export function AcademicView() {
     let cancelled = false;
     (async () => {
       try {
+        const _t = Date.now(); // cache-buster
         const [tRes, aRes] = await Promise.all([
-          fetch("/api/teachers?scope=public", { cache: "no-store" }),
-          fetch("/api/agenda", { cache: "no-store" }),
+          fetch(`/api/teachers?scope=public&_=${_t}`, { cache: "no-store" }),
+          fetch(`/api/agenda?_=${_t}`, { cache: "no-store" }),
         ]);
         const tData = await tRes.json();
         const aData = await aRes.json();

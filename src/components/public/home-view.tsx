@@ -294,9 +294,9 @@ export function HomeView() {
     (async () => {
       try {
         const [newsRes, agendaRes, achRes] = await Promise.all([
-          fetch("/api/news?scope=public&limit=3", { cache: "no-store" }),
-          fetch("/api/agenda?upcoming=true", { cache: "no-store" }),
-          fetch("/api/achievements?limit=3", { cache: "no-store" }),
+          fetch(`/api/news?scope=public&limit=3&_=${Date.now()}`, { cache: "no-store" }),
+          fetch(`/api/agenda?upcoming=true&_=${Date.now()}`, { cache: "no-store" }),
+          fetch(`/api/achievements?limit=3&_=${Date.now()}`, { cache: "no-store" }),
         ]);
         if (!newsRes.ok || !agendaRes.ok || !achRes.ok) throw new Error("fetch failed");
         const newsData = await newsRes.json();

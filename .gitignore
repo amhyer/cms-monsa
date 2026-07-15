@@ -38,10 +38,15 @@ server.log
 /upload/
 /public/uploads/
 
-# docs & guides
+# docs & guides (not needed for deployment)
 /docs/
 /MIGRATION-GUIDE.md
 /akun-pengguna.md
+
+# agent context & tool results (not needed for deployment)
+/tool-results/
+/agent-ctx/
+/worklog.md
 
 # misc local files
 local-*

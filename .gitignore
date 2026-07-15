@@ -1,17 +1,5 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
 # dependencies
 node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
-
-# testing
-/coverage
 
 # next.js
 /.next/
@@ -30,38 +18,34 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
-
 # vercel
 .vercel
-
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-local-*
-.claude
-.z-ai-config
+
+# logs
 *.log
 dev.log
-dev.out.log
-test
-prompt
-
 server.log
-# Skills directory
-/skills/
 
-# Uploads (user-generated content)
+# skills & examples (not part of the app)
+/skills/
+/examples/
+
+# uploads (user-generated content)
 /upload/
 /public/uploads/
 
-# Docs & migration guides
+# docs & guides
 /docs/
 /MIGRATION-GUIDE.md
 /akun-pengguna.md
 
-# Logs
-/dev.log
-/server.log
+# misc local files
+local-*
+.claude
+.z-ai-config
+test
+prompt

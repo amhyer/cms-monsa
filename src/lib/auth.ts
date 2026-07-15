@@ -81,10 +81,13 @@ export async function setSession(userId: string, role: Role) {
   const store = await cookies();
   store.set(SESSION_COOKIE, encode({ userId, activeRole: role }), {
     httpOnly: true,
-    sameSite: "lax",
+    // "none" is required so the cookie is sent when the app runs inside a
+    // cross-origin iframe (e.g. the preview panel). Browsers treat localhost
+    // as a secure context, so Secure cookies work in local dev too.
+    sameSite: "none",
+    secure: true,
     path: "/",
     maxAge: 60 * 60 * 24 * 7, // 7 days
-    secure: process.env.NODE_ENV === "production",
   });
 }
 
@@ -101,10 +104,10 @@ export async function updateSessionRole(role: Role) {
   if (dbRole === "OPERATOR" && role === "SUPER_ADMIN") return;
   store.set(SESSION_COOKIE, encode({ ...payload, activeRole: role }), {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: "none",
+    secure: true,
     path: "/",
     maxAge: 60 * 60 * 24 * 7,
-    secure: process.env.NODE_ENV === "production",
   });
 }
 

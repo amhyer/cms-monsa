@@ -52,3 +52,16 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# Uploads (user-generated content)
+/upload/
+/public/uploads/
+
+# Docs & migration guides
+/docs/
+/MIGRATION-GUIDE.md
+/akun-pengguna.md
+
+# Logs
+/dev.log
+/server.log

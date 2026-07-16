@@ -54,3 +54,4 @@ local-*
 .z-ai-config
 test
 prompt
+.zscripts/dev.pid

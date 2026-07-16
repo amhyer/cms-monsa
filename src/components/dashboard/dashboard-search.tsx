@@ -16,19 +16,17 @@ import {
   ScrollText,
   LayoutDashboard,
   Eye,
+  X,
 } from "lucide-react";
 import {
-  Command,
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandSeparator,
-} from "@/components/ui/command";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useAppStore } from "@/store/app";
 import { DASHBOARD_NAV } from "@/lib/nav";
+import { cn } from "@/lib/utils";
 
 type Props = {
   open: boolean;
@@ -37,63 +35,107 @@ type Props = {
 
 /**
  * Quick global navigation palette for the dashboard. Opens with Ctrl/Cmd+K.
- * Lets the operator/admin jump to any module quickly.
+ * Built with a plain Dialog + input filter (no cmdk dependency).
  */
 export function DashboardSearch({ open, onOpenChange }: Props) {
   const navigate = useAppStore((s) => s.navigate);
   const user = useAppStore((s) => s.user);
   const isAdmin = user?.role === "SUPER_ADMIN";
+  const [query, setQuery] = React.useState("");
 
   function go(path: string) {
     navigate(path);
     onOpenChange(false);
+    setQuery("");
   }
 
+  const allItems = [
+    { label: "Ringkasan Dashboard", path: "/dashboard", icon: LayoutDashboard, group: "Navigasi" },
+    { label: "Lihat Situs Publik", path: "/", icon: Eye, group: "Navigasi" },
+    ...DASHBOARD_NAV.filter((n) => !n.adminOnly).map((n) => ({
+      label: n.label,
+      path: n.path,
+      icon: n.icon,
+      group: "Manajemen Konten",
+    })),
+    ...(isAdmin
+      ? DASHBOARD_NAV.filter((n) => n.adminOnly).map((n) => ({
+          label: n.label,
+          path: n.path,
+          icon: n.icon,
+          group: "Administrasi (Admin)",
+        }))
+      : []),
+  ];
+
+  const filtered = query.trim()
+    ? allItems.filter((item) =>
+        item.label.toLowerCase().includes(query.toLowerCase())
+      )
+    : allItems;
+
+  const groups = filtered.reduce<Record<string, typeof allItems>>(
+    (acc, item) => {
+      (acc[item.group] = acc[item.group] || []).push(item);
+      return acc;
+    },
+    {}
+  );
+
   return (
-    <CommandDialog open={open} onOpenChange={onOpenChange}>
-      <CommandInput placeholder="Cari menu atau lompat ke halaman…" />
-      <CommandList className="max-h-[60vh]">
-        <CommandEmpty>Tidak ada hasil.</CommandEmpty>
-        <CommandGroup heading="Navigasi">
-          <CommandItem onSelect={() => go("/dashboard")}>
-            <LayoutDashboard className="size-4" />
-            <span>Ringkasan Dashboard</span>
-          </CommandItem>
-          <CommandItem onSelect={() => go("/")}>
-            <Eye className="size-4" />
-            <span>Lihat Situs Publik</span>
-          </CommandItem>
-        </CommandGroup>
-        <CommandSeparator />
-        <CommandGroup heading="Manajemen Konten">
-          {DASHBOARD_NAV.filter((n) => !n.adminOnly).map((n) => {
-            const Icon = n.icon;
-            return (
-              <CommandItem key={n.path} onSelect={() => go(n.path)}>
-                <Icon className="size-4" />
-                <span>{n.label}</span>
-              </CommandItem>
-            );
-          })}
-        </CommandGroup>
-        {isAdmin && (
-          <>
-            <CommandSeparator />
-            <CommandGroup heading="Administrasi (Admin)">
-              {DASHBOARD_NAV.filter((n) => n.adminOnly).map((n) => {
-                const Icon = n.icon;
-                return (
-                  <CommandItem key={n.path} onSelect={() => go(n.path)}>
-                    <Icon className="size-4" />
-                    <span>{n.label}</span>
-                  </CommandItem>
-                );
-              })}
-            </CommandGroup>
-          </>
-        )}
-      </CommandList>
-    </CommandDialog>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md p-0">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Cari menu</DialogTitle>
+        </DialogHeader>
+        <div className="flex items-center border-b px-3">
+          <Search className="size-4 shrink-0 text-muted-foreground" />
+          <input
+            autoFocus
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Cari menu atau lompat ke halaman…"
+            className="h-11 w-full bg-transparent px-2 text-sm outline-none placeholder:text-muted-foreground"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && filtered[0]) {
+                go(filtered[0].path);
+              }
+            }}
+          />
+        </div>
+        <div className="max-h-[50vh] overflow-y-auto custom-scroll p-2">
+          {filtered.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              Tidak ada hasil.
+            </p>
+          ) : (
+            Object.entries(groups).map(([groupName, items]) => (
+              <div key={groupName} className="mb-2">
+                <p className="px-2 py-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  {groupName}
+                </p>
+                {items.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.path}
+                      type="button"
+                      onClick={() => go(item.path)}
+                      className={cn(
+                        "flex w-full items-center gap-3 rounded-md px-2 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+                      )}
+                    >
+                      <Icon className="size-4 shrink-0 text-muted-foreground" />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

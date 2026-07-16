@@ -61,7 +61,8 @@ echo "📦 收集构建产物到 $BUILD_DIR..."
 # 复制 Next.js standalone 构建输出
 if [ -d ".next/standalone" ]; then
     echo "  - 复制 .next/standalone"
-    cp -r .next/standalone "$BUILD_DIR/next-service-dist/"
+    mkdir -p "$BUILD_DIR/next-service-dist"
+    cp -r .next/standalone/. "$BUILD_DIR/next-service-dist/"
 fi
 
 # 复制 Next.js 静态文件

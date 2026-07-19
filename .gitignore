@@ -30,20 +30,20 @@ next-env.d.ts
 dev.log
 server.log
 
-# skills & examples (not part of the app)
+# skills, examples, upload (not part of the app)
 /skills/
 /examples/
+/upload/
+/download/
+/mini-services/
 
 # uploads (user-generated content)
-/upload/
 /public/uploads/
 
-# docs & guides (not needed for deployment)
+# docs, guides, agent context (not needed for deployment)
 /docs/
 /MIGRATION-GUIDE.md
 /akun-pengguna.md
-
-# agent context & tool results (not needed for deployment)
 /tool-results/
 /agent-ctx/
 /worklog.md

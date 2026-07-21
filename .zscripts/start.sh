@@ -121,15 +121,27 @@ else
 fi
 
 # 启动 Caddy（如果存在 Caddyfile）
-echo "🚀 启动 Caddy..."
+if [ -f "Caddyfile" ] && command -v caddy >/dev/null 2>&1; then
+    echo "🚀 启动 Caddy..."
 
-# Caddy 作为前台进程运行（主进程）
-echo "✅ Caddy 已启动（前台运行）"
-echo ""
-echo "🎉 所有服务已启动！"
-echo ""
-echo "💡 按 Ctrl+C 停止所有服务"
-echo ""
+    # Caddy 作为前台进程运行（主进程）
+    echo "✅ Caddy 已启动（前台运行）"
+    echo ""
+    echo "🎉 所有服务已启动！"
+    echo ""
+    echo "💡 按 Ctrl+C 停止所有服务"
+    echo ""
 
-# Caddy 作为主进程运行
-exec caddy run --config Caddyfile --adapter caddyfile
+    # Caddy 作为主进程运行
+    exec caddy run --config Caddyfile --adapter caddyfile
+else
+    echo "ℹ️  Caddy 未安装或 Caddyfile 不存在，跳过"
+    echo ""
+    echo "🎉 Next.js 服务器已启动！"
+    echo ""
+    echo "💡 按 Ctrl+C 停止所有服务"
+    echo ""
+
+    # 保持前台运行，等待 Next.js 进程
+    wait "$NEXT_PID"
+fi

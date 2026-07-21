@@ -62,7 +62,7 @@ export default function Home() {
   }
 
   // Known public routes — handled inside PublicSite.
-  const PUBLIC_PREFIXES = ["/news/", "/profile", "/academic", "/news", "/gallery", "/contact"];
+  const PUBLIC_PREFIXES = ["/news/", "/profile", "/academic", "/news", "/gallery", "/contact", "/complaint"];
   const isPublicRoute =
     route === "/" ||
     route === "" ||

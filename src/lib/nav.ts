@@ -14,6 +14,7 @@ import {
   Building2,
   GraduationCap,
   Phone,
+  ShieldAlert,
   type LucideIcon,
 } from "lucide-react";
 
@@ -30,6 +31,7 @@ export const PUBLIC_NAV: NavItem[] = [
   { label: "Akademik", path: "/academic", icon: GraduationCap },
   { label: "Berita", path: "/news", icon: Newspaper },
   { label: "Galeri", path: "/gallery", icon: Image },
+  { label: "Pengaduan", path: "/complaint", icon: ShieldAlert },
   { label: "Kontak", path: "/contact", icon: Phone },
 ];
 
@@ -41,6 +43,7 @@ export const DASHBOARD_NAV: NavItem[] = [
   { label: "Galeri Media", path: "/dashboard/gallery", icon: Image },
   { label: "Data Prestasi", path: "/dashboard/achievements", icon: Trophy },
   { label: "Guru & Staf", path: "/dashboard/teachers", icon: Users },
+  { label: "Pengaduan", path: "/dashboard/complaints", icon: ShieldAlert },
   { label: "Pesan Masuk", path: "/dashboard/messages", icon: Mail },
   { label: "Manajemen Operator", path: "/dashboard/users", icon: UserCog, adminOnly: true },
   { label: "Pengaturan Sekolah", path: "/dashboard/settings", icon: Settings, adminOnly: true },

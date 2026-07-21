@@ -59,6 +59,7 @@ import { GalleryManager } from "./modules/gallery-manager";
 import { AchievementsManager } from "./modules/achievements-manager";
 import { TeachersManager } from "./modules/teachers-manager";
 import { MessagesManager } from "./modules/messages-manager";
+import { ComplaintsManager } from "./modules/complaints-manager";
 import { UsersManager } from "./modules/users-manager";
 import { SettingsManager } from "./modules/settings-manager";
 import { LogsView } from "./modules/logs-view";
@@ -87,6 +88,8 @@ function renderModule(route: string) {
       return <TeachersManager />;
     case "/dashboard/messages":
       return <MessagesManager />;
+    case "/dashboard/complaints":
+      return <ComplaintsManager />;
     case "/dashboard/users":
       return <UsersManager />;
     case "/dashboard/settings":

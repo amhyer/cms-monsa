@@ -11,6 +11,7 @@ import { NewsView } from "./news-view";
 import { NewsDetailView } from "./news-detail-view";
 import { GalleryView } from "./gallery-view";
 import { ContactView } from "./contact-view";
+import { ComplaintView } from "./complaint-view";
 
 export function PublicSite() {
   const route = useAppStore((s) => s.route);
@@ -45,6 +46,8 @@ export function PublicSite() {
     view = <GalleryView />;
   } else if (route === "/contact") {
     view = <ContactView />;
+  } else if (route === "/complaint") {
+    view = <ComplaintView />;
   } else {
     view = <HomeView />;
   }

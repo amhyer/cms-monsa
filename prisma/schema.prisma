@@ -24,6 +24,7 @@ model User {
   news              News[]
   activityLogs      ActivityLog[]
   contactMessages   ContactMessage[]
+  complaints        Complaint[]
 }
 
 // ---------- CONTENT ----------
@@ -162,4 +163,31 @@ model ContactMessage {
   handledBy String?
   User      User?    @relation(fields: [handledBy], references: [id])
   createdAt DateTime @default(now())
+}
+
+// ---------- PENGADUAN ----------
+model Complaint {
+  id           String   @id @default(cuid())
+  // Identitas pelapor
+  name         String
+  email        String
+  phone        String
+  role         String   @default("Orang Tua") // Orang Tua | Siswa | Masyarakat | Alumni
+  // Detail pengaduan
+  category     String   @default("Akademik") // Akademik | Fasilitas | Tata Tertib | Tenaga Pendidik | Lainnya
+  subject      String
+  message      String
+  isAnonymous  Boolean  @default(false)
+  // Status & response
+  status       String   @default("BARU") // BARU | DIPROSES | SELESAI | DITOLAK
+  priority     String   @default("NORMAL") // RENDAH | NORMAL | TINGGI
+  response     String?
+  responseBy   String?
+  User         User?    @relation(fields: [responseBy], references: [id])
+  respondedAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
 }

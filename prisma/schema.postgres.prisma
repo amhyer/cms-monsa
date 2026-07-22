@@ -1,0 +1,166 @@
+// Prisma schema (PostgreSQL variant) — School CMS
+// Usage: cp schema.postgres.prisma schema.prisma when switching to PostgreSQL
+// learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- RBAC ----------
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("OPERATOR") // SUPER_ADMIN | OPERATOR
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  news              News[]
+  activityLogs      ActivityLog[]
+  contactMessages   ContactMessage[]
+}
+
+// ---------- CONTENT ----------
+model News {
+  id           String    @id @default(cuid())
+  title        String
+  slug         String    @unique
+  excerpt      String
+  content      String
+  coverImage   String?
+  category     String    @default("Kegiatan") // Akademik | Kegiatan | Prestasi
+  status       String    @default("DRAFT") // DRAFT | PUBLISHED
+  authorId     String
+  author       User      @relation(fields: [authorId], references: [id])
+  publishedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([status, publishedAt])
+  @@index([category])
+}
+
+model Announcement {
+  id          String    @id @default(cuid())
+  title       String
+  content     String
+  isPinned    Boolean   @default(false)
+  expiresAt   DateTime?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Agenda {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  date        DateTime
+  time        String?
+  location    String?
+  category    String   @default("Umum") // Akademik | Kegiatan | Libur | Umum
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Teacher {
+  id          String   @id @default(cuid())
+  name        String
+  position    String
+  subject     String?
+  education   String?
+  photo       String?
+  order       Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model GalleryItem {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  type        String   @default("PHOTO") // PHOTO | VIDEO
+  url         String
+  thumbnail   String?
+  category    String   @default("Kegiatan") // Kegiatan | Prestasi | Fasilitas | Upacara
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Achievement {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  studentName String?
+  level       String   @default("Kabupaten") // Sekolah | Kecamatan | Kabupaten | Provinsi | Nasional | Internasional
+  category    String   @default("Akademik") // Akademik | Non-Akademik
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ---------- SITE ----------
+model SiteSetting {
+  id                String   @id @default("singleton")
+  schoolName        String   @default("SMA Negeri 1 Nusantara")
+  npsn              String   @default("20100001")
+  logo              String?
+  address           String   @default("Jl. Pendidikan No. 1, Nusantara")
+  phone             String   @default("(021) 1234567")
+  email             String   @default("info@sman1nusantara.sch.id")
+  mapEmbed          String?
+  vision            String
+  mission           String
+  history           String
+  principalName     String   @default("Dr. Bambang Sutrisno, M.Pd.")
+  principalPhoto    String?
+  principalWelcome  String
+  facebook          String?
+  instagram         String?
+  youtube           String?
+  tiktok            String?
+  // quick stats
+  studentCount      Int      @default(1240)
+  teacherCount      Int      @default(78)
+  facilityCount     Int      @default(24)
+  achievementCount  Int      @default(156)
+  spmbInfo          String
+  spmbLink          String?
+  updatedAt         DateTime @updatedAt
+}
+
+model ActivityLog {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  userName   String
+  action     String   // CREATE | UPDATE | DELETE | LOGIN | LOGOUT
+  entity     String   // News | Announcement | Agenda | Teacher | Gallery | User | SiteSetting | Achievement
+  entityId   String?
+  detail     String
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId])
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String
+  message   String
+  isRead    Boolean  @default(false)
+  handledBy String?
+  User      User?    @relation(fields: [handledBy], references: [id])
+  createdAt DateTime @default(now())
+}

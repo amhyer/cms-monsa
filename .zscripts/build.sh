@@ -24,6 +24,13 @@ echo "📁 Next.js 项目路径: $NEXTJS_PROJECT_DIR"
 # 切换到 Next.js 项目目录
 cd "$NEXTJS_PROJECT_DIR" || exit 1
 
+# Ensure .env has relative DATABASE_URL (sandbox reset may revert to absolute path)
+if grep -q "file:/home" .env 2>/dev/null; then
+    echo "[FIX] Correcting .env DATABASE_URL to relative path..."
+    echo 'DATABASE_URL="file:./db/custom.db"' > .env
+fi
+export DATABASE_URL="file:./db/custom.db"
+
 # 设置环境变量
 export NEXT_TELEMETRY_DISABLED=1
 

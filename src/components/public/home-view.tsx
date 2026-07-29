@@ -369,11 +369,17 @@ export function HomeView() {
           <div className="flex flex-col items-center md:col-span-1">
             <div className="relative">
               <div className="absolute -inset-1 rounded-full bg-gold/30 blur-sm" />
-              <img
-                src={settings?.principalPhoto ?? ""}
-                alt={settings?.principalName ?? "Kepala Sekolah"}
-                className="relative size-40 rounded-full border-4 border-gold object-cover sm:size-52"
-              />
+              {settings?.principalPhoto ? (
+                <img
+                  src={settings.principalPhoto}
+                  alt={settings.principalName ?? "Kepala Sekolah"}
+                  className="relative size-40 rounded-full border-4 border-gold object-cover sm:size-52"
+                />
+              ) : (
+                <div className="relative flex size-40 items-center justify-center rounded-full border-4 border-gold bg-muted sm:size-52">
+                  <GraduationCap className="size-16 text-muted-foreground" />
+                </div>
+              )}
             </div>
             <Quote className="mt-4 size-6 text-gold" />
           </div>

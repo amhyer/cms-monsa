@@ -1,6 +1,11 @@
-// Prisma schema (PostgreSQL variant) — School CMS
+// Prisma schema for UPT SPF SD Negeri Unggulan Mongisidi 1 — School CMS
 // Usage: cp schema.postgres.prisma schema.prisma when switching to PostgreSQL
-// learn more: https://pris.ly/d/prisma-schema
+// NOTE: This file MUST stay in sync with schema.prisma (SQLite dev). Any model
+// added to schema.prisma must be mirrored here so the production Postgres
+// variant does not lose features.
+//
+// Untuk PostgreSQL: ubah provider menjadi "postgresql" di bawah ini
+// Untuk SQLite (development): gunakan "sqlite" seperti saat ini
 
 generator client {
   provider = "prisma-client-js"
@@ -17,14 +22,21 @@ model User {
   name      String
   email     String   @unique
   password  String
-  role      String   @default("OPERATOR") // SUPER_ADMIN | OPERATOR
+  role      String   @default("OPERATOR") // SUPER_ADMIN | OPERATOR | GURU
+  guardianClassId String? // Wali kelas untuk role GURU (hanya boleh absen di kelas ini)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  guardianClass     Class?            @relation(fields: [guardianClassId], references: [id])
   news              News[]
   activityLogs      ActivityLog[]
   contactMessages   ContactMessage[]
+  complaints        Complaint[]
+  uploadedDocuments Document[]
+  reviewedEnrollments Enrollment[]
+  attendanceRecords Attendance[]
+  paymentRecords    Payment[]
 }
 
 // ---------- CONTENT ----------
@@ -81,6 +93,8 @@ model Teacher {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  homeroomClasses Class[]
 }
 
 model GalleryItem {
@@ -107,20 +121,164 @@ model Achievement {
   updatedAt   DateTime @updatedAt
 }
 
+// ---------- STUDENT & CLASS MANAGEMENT ----------
+model Class {
+  id          String   @id @default(cuid())
+  name        String   @unique // e.g., "Kelas 1A", "Kelas 2B"
+  grade       String   // 1, 2, 3, 4, 5, 6 (Kelas 1–6)
+  stream      String?  // opsional: label rombel (misal: A, B) — SD tanpa jurusan
+  academicYear String  // e.g., "2025/2026"
+  homeroomTeacherId String?
+  homeroomTeacher Teacher? @relation(fields: [homeroomTeacherId], references: [id])
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  students    Student[]
+  attendances Attendance[]
+  guardianUsers User[] // akun User (role GURU) yang menjadi wali kelas ini
+
+  @@index([grade, academicYear])
+}
+
+model Student {
+  id          String   @id @default(cuid())
+  nis         String   @unique // Nomor Induk Siswa
+  nisn        String?  // Nomor Induk Siswa Nasional
+  name        String
+  dateOfBirth DateTime?
+  gender      String?  // LAKI_LAKI | PEREMPUAN
+  address     String?
+  phone       String?
+  email       String?
+  parentName  String?
+  parentPhone String?
+  classId     String
+  class       Class    @relation(fields: [classId], references: [id])
+  isActive    Boolean  @default(true)
+  enrollmentDate DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  attendances Attendance[]
+  payments    Payment[]
+
+  @@index([classId])
+  @@index([nis])
+}
+
+// ---------- KEHADIRAN (ABSENSI) ----------
+model Attendance {
+  id        String   @id @default(cuid())
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id])
+  classId   String
+  class     Class    @relation(fields: [classId], references: [id])
+  date      DateTime
+  status    String   @default("HADIR") // HADIR | SAKIT | IZIN | ALFA
+  note      String?
+  createdById String?
+  createdBy User?    @relation(fields: [createdById], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, date])
+  @@index([classId, date])
+}
+
+// ---------- KEUANGAN / SPP ----------
+model Payment {
+  id           String   @id @default(cuid())
+  studentId    String
+  student      Student  @relation(fields: [studentId], references: [id])
+  amount       Int      // dalam Rupiah
+  paymentDate  DateTime @default(now())
+  monthPeriod  String   // e.g., "2026-07" (periode yang dibayar)
+  status       String   @default("PAID") // PAID | UNPAID
+  note         String?
+  recordedById String?
+  recordedBy   User?    @relation(fields: [recordedById], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([studentId, monthPeriod])
+  @@index([monthPeriod])
+}
+
+// ---------- DOCUMENT MANAGEMENT ----------
+model Document {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  fileUrl     String
+  fileName    String
+  fileSize    Int      // in bytes
+  mimeType    String
+  category    String   @default("Umum") // Akademik | Administrasi | Kurikulum | Lainnya
+  uploadedById String
+  uploadedBy  User     @relation(fields: [uploadedById], references: [id])
+  isPublic    Boolean  @default(false)
+  downloadCount Int    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@index([isPublic])
+}
+
+// ---------- SPMB/PPDB ----------
+model Enrollment {
+  id              String   @id @default(cuid())
+  // Data Siswa
+  nisn            String
+  fullName        String
+  gender          String   // LAKI_LAKI | PEREMPUAN
+  dateOfBirth     DateTime
+  placeOfBirth    String
+  address         String
+  phone           String?
+  email           String?
+  // Data Orang Tua/Wali
+  parentName      String
+  parentPhone     String
+  parentEmail     String?
+  parentOccupation String?
+  // Asal Sekolah
+  previousSchool  String
+  previousSchoolAddress String?
+  // Pilihan (Jalur SPMB SD)
+  programChoice   String   // Zonasi | Afirmasi | Prestasi | Perpindahan Tugas
+  // Dokumen
+  birthCertUrl    String?
+  diplomaUrl      String?
+  photoUrl        String?
+  // Status
+  status          String   @default("PENDING") // PENDING | REVIEWING | ACCEPTED | REJECTED
+  notes           String?
+  reviewedById    String?
+  reviewedBy      User?    @relation(fields: [reviewedById], references: [id])
+  reviewedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
 // ---------- SITE ----------
 model SiteSetting {
   id                String   @id @default("singleton")
-  schoolName        String   @default("SMA Negeri 1 Nusantara")
-  npsn              String   @default("20100001")
+  schoolName        String   @default("UPT SPF SD Negeri Unggulan Mongisidi 1")
+  npsn              String   @default("40313912")
   logo              String?
-  address           String   @default("Jl. Pendidikan No. 1, Nusantara")
-  phone             String   @default("(021) 1234567")
-  email             String   @default("info@sman1nusantara.sch.id")
+  address           String   @default("Jln. Wr. Monginsidi No.13, Maricaya Baru, Makassar, Sulawesi Selatan")
+  phone             String   @default("04118918116")
+  email             String   @default("sdn.unggulanmonginsidi@yahoo.co.id")
   mapEmbed          String?
   vision            String
   mission           String
   history           String
-  principalName     String   @default("Dr. Bambang Sutrisno, M.Pd.")
+  principalName     String   @default("Nawawi Hamzah, S.Pd., M.Pd.")
   principalPhoto    String?
   principalWelcome  String
   facebook          String?
@@ -128,10 +286,10 @@ model SiteSetting {
   youtube           String?
   tiktok            String?
   // quick stats
-  studentCount      Int      @default(1240)
-  teacherCount      Int      @default(78)
-  facilityCount     Int      @default(24)
-  achievementCount  Int      @default(156)
+  studentCount      Int      @default(402)
+  teacherCount      Int      @default(28)
+  facilityCount     Int      @default(18)
+  achievementCount  Int      @default(45)
   spmbInfo          String
   spmbLink          String?
   updatedAt         DateTime @updatedAt
@@ -163,4 +321,31 @@ model ContactMessage {
   handledBy String?
   User      User?    @relation(fields: [handledBy], references: [id])
   createdAt DateTime @default(now())
+}
+
+// ---------- PENGADUAN ----------
+model Complaint {
+  id           String   @id @default(cuid())
+  // Identitas pelapor
+  name         String
+  email        String
+  phone        String
+  role         String   @default("Orang Tua") // Orang Tua | Siswa | Masyarakat | Alumni
+  // Detail pengaduan
+  category     String   @default("Akademik") // Akademik | Fasilitas | Tata Tertib | Tenaga Pendidik | Lainnya
+  subject      String
+  message      String
+  isAnonymous  Boolean  @default(false)
+  // Status & response
+  status       String   @default("BARU") // BARU | DIPROSES | SELESAI | DITOLAK
+  priority     String   @default("NORMAL") // RENDAH | NORMAL | TINGGI
+  response     String?
+  responseBy   String?
+  User         User?    @relation(fields: [responseBy], references: [id])
+  respondedAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
 }

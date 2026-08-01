@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
-import { slugify } from "../src/lib/format";
-import { hashPassword } from "../src/lib/password";
+import { slugify } from "../src/lib/format.ts";
+import { hashPassword } from "../src/lib/password.ts";
 
 const db = new PrismaClient();
 
@@ -14,7 +14,16 @@ function avatar(n: number) {
 async function main() {
   console.log("🌱 Seeding UPT SPF SD Negeri Unggulan Mongisidi 1...");
 
-  // Wipe
+  // Guard: jangan pernah menimpa database yang sudah berisi data.
+  // Seed hanya boleh dijalankan sekali di database kosong (fresh install).
+  const existingUsers = await db.user.count();
+  if (existingUsers > 0) {
+    console.log(`⚠️  Database sudah berisi ${existingUsers} akun — seed dilewati.`);
+    console.log("    (Jalankan hanya di database kosong: reset DB atau db push baru)");
+    return;
+  }
+
+  // Wipe (hanya aman di database baru/duplikat dev)
   await db.activityLog.deleteMany();
   await db.contactMessage.deleteMany();
   await db.news.deleteMany();
@@ -57,7 +66,20 @@ async function main() {
     },
   });
 
-  const op3 = await db.user.create({
+  // Akun guru contoh — wali kelas diisi manual oleh admin di dashboard
+  // (Manajemen Akun → role "Guru" → pilih Wali Kelas).
+  await db.user.create({
+    data: {
+      name: "Andi Mappangara, S.Pd.",
+      email: "guru@mongisidi1.sch.id",
+      password: hashPassword("guru123"),
+      role: "GURU",
+      guardianClassId: null,
+      isActive: true,
+    },
+  });
+
+  await db.user.create({
     data: {
       name: "Fatimah Zahra, S.Pd.",
       email: "fatimah@mongisidi1.sch.id",
@@ -493,6 +515,7 @@ async function main() {
   console.log("✅ Seed selesai!");
   console.log("   Login Admin   : admin@mongisidi1.sch.id / admin123");
   console.log("   Login Operator: operator@mongisidi1.sch.id / operator123");
+  console.log("   Login Guru    : guru@mongisidi1.sch.id / guru123 (isi wali kelas via dashboard)");
 }
 
 main()

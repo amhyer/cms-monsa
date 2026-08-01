@@ -13,7 +13,12 @@ import { GalleryView } from "./gallery-view";
 import { ContactView } from "./contact-view";
 import { ComplaintView } from "./complaint-view";
 
-export function PublicSite() {
+interface PublicSiteProps {
+  initialView?: string;
+  initialSlug?: string;
+}
+
+export function PublicSite({ initialView, initialSlug }: PublicSiteProps) {
   const route = useAppStore((s) => s.route);
   const settings = useAppStore((s) => s.settings);
 
@@ -31,22 +36,29 @@ export function PublicSite() {
     );
   }
 
+  // Use initialView if provided (for App Router), otherwise use hash-based route
+  const currentView = initialView || route;
+
   let view: React.ReactNode;
-  if (route === "/" || route === "") {
+  if (currentView === "/" || currentView === "" || currentView === "home") {
     view = <HomeView />;
-  } else if (route === "/profile") {
+  } else if (currentView === "profile" || currentView === "/profile") {
     view = <ProfileView />;
-  } else if (route === "/academic") {
+  } else if (currentView === "academic" || currentView === "/academic") {
     view = <AcademicView />;
-  } else if (route === "/news") {
-    view = <NewsView />;
-  } else if (route.startsWith("/news/")) {
+  } else if (currentView === "news" || currentView === "/news") {
+    if (initialSlug) {
+      view = <NewsDetailView slug={initialSlug} />;
+    } else {
+      view = <NewsView />;
+    }
+  } else if (currentView.startsWith("/news/")) {
     view = <NewsDetailView />;
-  } else if (route === "/gallery") {
+  } else if (currentView === "gallery" || currentView === "/gallery") {
     view = <GalleryView />;
-  } else if (route === "/contact") {
+  } else if (currentView === "contact" || currentView === "/contact") {
     view = <ContactView />;
-  } else if (route === "/complaint") {
+  } else if (currentView === "complaint" || currentView === "/complaint") {
     view = <ComplaintView />;
   } else {
     view = <HomeView />;

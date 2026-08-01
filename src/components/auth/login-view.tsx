@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   GraduationCap,
   Eye,
@@ -41,7 +41,6 @@ const DEMO = [
 
 export function LoginView() {
   const navigate = useAppStore((s) => s.navigate);
-  const user = useAppStore((s) => s.user);
   const login = useAppStore((s) => s.login);
 
   const [email, setEmail] = useState("");
@@ -50,9 +49,8 @@ export function LoginView() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (user) navigate("/dashboard");
-  }, [user, navigate]);
+  // NOTE: post-login redirect is handled by src/app/login/page.tsx
+  // (router.push("/dashboard") when `user` becomes set).
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -70,7 +68,6 @@ export function LoginView() {
       return;
     }
     toast.success("Selamat datang kembali!");
-    navigate("/dashboard");
   }
 
   function autofill(d: (typeof DEMO)[number]) {

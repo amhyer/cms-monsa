@@ -6,6 +6,7 @@ import { useAppStore } from "@/store/app";
 import { PUBLIC_NAV } from "@/lib/nav";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { LanguageSwitcher } from "@/components/shared/language-switcher";
 import {
   Sheet,
   SheetContent,
@@ -115,6 +116,7 @@ export function SiteHeader() {
 
         {/* Actions */}
         <div className="flex items-center gap-2">
+          <LanguageSwitcher />
           <ThemeToggle className="hidden sm:inline-flex" />
           <Button
             type="button"

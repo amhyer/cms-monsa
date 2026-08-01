@@ -1,0 +1,228 @@
+{
+  "common": {
+    "home": "Home",
+    "profile": "Profile",
+    "academic": "Academic",
+    "news": "News",
+    "gallery": "Gallery",
+    "contact": "Contact",
+    "complaint": "Complaint",
+    "login": "Login",
+    "logout": "Logout",
+    "dashboard": "Dashboard",
+    "search": "Search",
+    "readMore": "Read More",
+    "loading": "Loading...",
+    "noData": "No data available",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "back": "Back",
+    "submit": "Submit",
+    "close": "Close",
+    "confirm": "Confirm",
+    "success": "Success",
+    "error": "Error",
+    "all": "All",
+    "filter": "Filter",
+    "export": "Export",
+    "import": "Import",
+    "download": "Download",
+    "upload": "Upload",
+    "viewAll": "View All",
+    "learnMore": "Learn More",
+    "callNow": "Call Now",
+    "email": "Email",
+    "phone": "Phone",
+    "address": "Address",
+    "name": "Name",
+    "message": "Message",
+    "subject": "Subject",
+    "send": "Send",
+    "required": "Required",
+    "optional": "Optional"
+  },
+  "home": {
+    "welcome": "Welcome to",
+    "schoolName": "UPT SPF SD Negeri Unggulan Mongisidi 1",
+    "tagline": "Educating the Nation's Children from an Early Age",
+    "latestNews": "Latest News",
+    "viewAllNews": "View All News",
+    "announcements": "Announcements",
+    "achievements": "Achievements",
+    "stats": {
+      "students": "Students",
+      "teachers": "Teachers & Staff",
+      "facilities": "Facilities",
+      "achievements": "Achievements"
+    },
+    "cta": {
+      "register": "Register Now",
+      "learnMore": "Learn More"
+    }
+  },
+  "news": {
+    "title": "Latest News",
+    "subtitle": "Follow the latest updates from our school",
+    "noNews": "No news yet",
+    "category": "Category",
+    "allCategories": "All Categories",
+    "academic": "Academic",
+    "activity": "Activity",
+    "achievement": "Achievement",
+    "publishedAt": "Published",
+    "author": "Author",
+    "readTime": "Read Time",
+    "relatedNews": "Related News",
+    "share": "Share",
+    "shareSuccess": "Link copied to clipboard"
+  },
+  "profile": {
+    "title": "School Profile",
+    "vision": "Vision",
+    "mission": "Mission",
+    "history": "History",
+    "principal": "Principal",
+    "principalMessage": "Principal's Message",
+    "location": "Location"
+  },
+  "academic": {
+    "title": "Academic",
+    "teachers": "Teachers & Staff",
+    "noTeachers": "No teachers yet",
+    "programs": "Featured Programs",
+    "facilities": "Facilities"
+  },
+  "gallery": {
+    "title": "Gallery",
+    "subtitle": "Documentation of school activities and facilities",
+    "noPhotos": "No photos yet",
+    "allCategories": "All Categories",
+    "photos": "Photos",
+    "videos": "Videos"
+  },
+  "contact": {
+    "title": "Contact Us",
+    "subtitle": "Send a message or visit our school",
+    "form": {
+      "name": "Full Name",
+      "email": "Email Address",
+      "phone": "Phone Number",
+      "subject": "Subject",
+      "message": "Message",
+      "submit": "Send Message",
+      "success": "Message sent successfully!",
+      "error": "Failed to send message. Please try again."
+    },
+    "info": {
+      "address": "Address",
+      "phone": "Phone",
+      "email": "Email",
+      "hours": "Operating Hours"
+    }
+  },
+  "complaint": {
+    "title": "Complaint",
+    "subtitle": "Submit your complaint or feedback",
+    "form": {
+      "name": "Full Name",
+      "email": "Email Address",
+      "phone": "Phone Number",
+      "subject": "Subject",
+      "message": "Message",
+      "category": "Category",
+      "anonymous": "Submit Anonymously",
+      "submit": "Submit Complaint",
+      "success": "Complaint submitted successfully!",
+      "error": "Failed to submit complaint. Please try again."
+    },
+    "categories": {
+      "academic": "Academic",
+      "facility": "Facility",
+      "discipline": "Discipline",
+      "teacher": "Teacher",
+      "other": "Other"
+    }
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "overview": "Overview",
+    "news": "News",
+    "announcements": "Announcements",
+    "gallery": "Gallery",
+    "teachers": "Teachers",
+    "students": "Students",
+    "classes": "Classes",
+    "documents": "Documents",
+    "enrollments": "Enrollments",
+    "messages": "Messages",
+    "complaints": "Complaints",
+    "users": "Users",
+    "settings": "Settings",
+    "logs": "Activity Logs",
+    "welcome": "Welcome",
+    "stats": {
+      "totalNews": "Total News",
+      "totalStudents": "Total Students",
+      "totalTeachers": "Total Teachers",
+      "totalViews": "Total Views"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Login",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Login",
+      "forgotPassword": "Forgot Password?",
+      "noAccount": "Don't have an account?",
+      "register": "Register",
+      "error": "Invalid email or password",
+      "success": "Login successful"
+    },
+    "adminLogin": {
+      "title": "Admin Login",
+      "subtitle": "Portal for Administrators"
+    }
+  },
+  "spmb": {
+    "title": "SPMB Registration",
+    "subtitle": "New Student Admission",
+    "form": {
+      "studentData": "Student Data",
+      "parentData": "Parent Data",
+      "schoolData": "Previous School Data",
+      "programChoice": "Program Choice",
+      "documents": "Documents",
+      "submit": "Register Now",
+      "success": "Registration successful!",
+      "error": "Registration failed. Please try again."
+    },
+    "programs": {
+      "zonasi": "Zonation",
+      "afirmasi": "Affirmation",
+      "prestasi": "Achievement",
+      "perpindahanTugas": "Parent Job Transfer"
+    },
+    "status": {
+      "pending": "Pending",
+      "reviewing": "Reviewing",
+      "accepted": "Accepted",
+      "rejected": "Rejected"
+    }
+  },
+  "footer": {
+    "copyright": "© 2026 UPT SPF SD Negeri Unggulan Mongisidi 1",
+    "allRightsReserved": "All Rights Reserved",
+    "address": "Jl. Pendidikan No. 1, Makassar",
+    "phone": "(0411) 123456",
+    "email": "info@mongisidi1.sch.id",
+    "quickLinks": "Quick Links",
+    "followUs": "Follow Us",
+    "newsletter": "Newsletter",
+    "newsletterDesc": "Subscribe to receive the latest updates",
+    "subscribe": "Subscribe"
+  }
+}

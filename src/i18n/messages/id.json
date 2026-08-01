@@ -1,0 +1,228 @@
+{
+  "common": {
+    "home": "Beranda",
+    "profile": "Profil",
+    "academic": "Akademik",
+    "news": "Berita",
+    "gallery": "Galeri",
+    "contact": "Kontak",
+    "complaint": "Pengaduan",
+    "login": "Masuk",
+    "logout": "Keluar",
+    "dashboard": "Dashboard",
+    "search": "Cari",
+    "readMore": "Baca Selengkapnya",
+    "loading": "Memuat...",
+    "noData": "Tidak ada data",
+    "save": "Simpan",
+    "cancel": "Batal",
+    "delete": "Hapus",
+    "edit": "Ubah",
+    "create": "Tambah",
+    "back": "Kembali",
+    "submit": "Kirim",
+    "close": "Tutup",
+    "confirm": "Konfirmasi",
+    "success": "Berhasil",
+    "error": "Gagal",
+    "all": "Semua",
+    "filter": "Filter",
+    "export": "Ekspor",
+    "import": "Impor",
+    "download": "Unduh",
+    "upload": "Unggah",
+    "viewAll": "Lihat Semua",
+    "learnMore": "Pelajari Lebih Lanjut",
+    "callNow": "Hubungi Sekarang",
+    "email": "Email",
+    "phone": "Telepon",
+    "address": "Alamat",
+    "name": "Nama",
+    "message": "Pesan",
+    "subject": "Subjek",
+    "send": "Kirim",
+    "required": "Wajib diisi",
+    "optional": "Opsional"
+  },
+  "home": {
+    "welcome": "Selamat Datang di",
+    "schoolName": "UPT SPF SD Negeri Unggulan Mongisidi 1",
+    "tagline": "Mencerdaskan Anak Bangsa Sejak Dini",
+    "latestNews": "Berita Terbaru",
+    "viewAllNews": "Lihat Semua Berita",
+    "announcements": "Pengumuman",
+    "achievements": "Prestasi",
+    "stats": {
+      "students": "Siswa",
+      "teachers": "Guru & Staf",
+      "facilities": "Fasilitas",
+      "achievements": "Prestasi"
+    },
+    "cta": {
+      "register": "Daftar Sekarang",
+      "learnMore": "Pelajari Lebih Lanjut"
+    }
+  },
+  "news": {
+    "title": "Berita Terbaru",
+    "subtitle": "Ikuti perkembangan terkini dari sekolah kami",
+    "noNews": "Belum ada berita",
+    "category": "Kategori",
+    "allCategories": "Semua Kategori",
+    "academic": "Akademik",
+    "activity": "Kegiatan",
+    "achievement": "Prestasi",
+    "publishedAt": "Diterbitkan",
+    "author": "Penulis",
+    "readTime": "Waktu Baca",
+    "relatedNews": "Berita Terkait",
+    "share": "Bagikan",
+    "shareSuccess": "Tautan disalin ke clipboard"
+  },
+  "profile": {
+    "title": "Profil Sekolah",
+    "vision": "Visi",
+    "mission": "Misi",
+    "history": "Sejarah",
+    "principal": "Kepala Sekolah",
+    "principalMessage": "Sambutan Kepala Sekolah",
+    "location": "Lokasi"
+  },
+  "academic": {
+    "title": "Akademik",
+    "teachers": "Guru & Staf",
+    "noTeachers": "Belum ada data guru",
+    "programs": "Program Unggulan",
+    "facilities": "Fasilitas"
+  },
+  "gallery": {
+    "title": "Galeri",
+    "subtitle": "Dokumentasi kegiatan dan fasilitas sekolah",
+    "noPhotos": "Belum ada foto",
+    "allCategories": "Semua Kategori",
+    "photos": "Foto",
+    "videos": "Video"
+  },
+  "contact": {
+    "title": "Hubungi Kami",
+    "subtitle": "Kirim pesan atau kunjungi sekolah kami",
+    "form": {
+      "name": "Nama Lengkap",
+      "email": "Alamat Email",
+      "phone": "Nomor Telepon",
+      "subject": "Subjek",
+      "message": "Pesan",
+      "submit": "Kirim Pesan",
+      "success": "Pesan berhasil dikirim!",
+      "error": "Gagal mengirim pesan. Silakan coba lagi."
+    },
+    "info": {
+      "address": "Alamat",
+      "phone": "Telepon",
+      "email": "Email",
+      "hours": "Jam Operasional"
+    }
+  },
+  "complaint": {
+    "title": "Pengaduan",
+    "subtitle": "Sampaikan keluhan atau masukan Anda",
+    "form": {
+      "name": "Nama Lengkap",
+      "email": "Alamat Email",
+      "phone": "Nomor Telepon",
+      "subject": "Subjek",
+      "message": "Pesan",
+      "category": "Kategori",
+      "anonymous": "Kirim Sebagai Anonim",
+      "submit": "Kirim Pengaduan",
+      "success": "Pengaduan berhasil dikirim!",
+      "error": "Gagal mengirim pengaduan. Silakan coba lagi."
+    },
+    "categories": {
+      "academic": "Akademik",
+      "facility": "Fasilitas",
+      "discipline": "Tata Tertib",
+      "teacher": "Tenaga Pendidik",
+      "other": "Lainnya"
+    }
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "overview": "Ringkasan",
+    "news": "Berita",
+    "announcements": "Pengumuman",
+    "gallery": "Galeri",
+    "teachers": "Guru",
+    "students": "Siswa",
+    "classes": "Kelas",
+    "documents": "Dokumen",
+    "enrollments": "Pendaftaran",
+    "messages": "Pesan",
+    "complaints": "Pengaduan",
+    "users": "Pengguna",
+    "settings": "Pengaturan",
+    "logs": "Aktivitas",
+    "welcome": "Selamat Datang",
+    "stats": {
+      "totalNews": "Total Berita",
+      "totalStudents": "Total Siswa",
+      "totalTeachers": "Total Guru",
+      "totalViews": "Total Dilihat"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Masuk",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Masuk",
+      "forgotPassword": "Lupa Password?",
+      "noAccount": "Belum punya akun?",
+      "register": "Daftar",
+      "error": "Email atau password salah",
+      "success": "Login berhasil"
+    },
+    "adminLogin": {
+      "title": "Masuk Admin",
+      "subtitle": "Portal untuk Administrator"
+    }
+  },
+  "spmb": {
+    "title": "Pendaftaran SPMB",
+    "subtitle": "Pendaftaran Peserta Didik Baru",
+    "form": {
+      "studentData": "Data Siswa",
+      "parentData": "Data Orang Tua",
+      "schoolData": "Data Sekolah Asal",
+      "programChoice": "Pilihan Program",
+      "documents": "Dokumen",
+      "submit": "Daftar Sekarang",
+      "success": "Pendaftaran berhasil!",
+      "error": "Gagal mendaftar. Silakan coba lagi."
+    },
+    "programs": {
+      "zonasi": "Zonasi",
+      "afirmasi": "Afirmasi",
+      "prestasi": "Prestasi",
+      "perpindahanTugas": "Perpindahan Tugas"
+    },
+    "status": {
+      "pending": "Menunggu",
+      "reviewing": "Ditinjau",
+      "accepted": "Diterima",
+      "rejected": "Ditolak"
+    }
+  },
+  "footer": {
+    "copyright": "© 2026 UPTD SPF SD Negeri Unggulan Mongisidi 1",
+    "allRightsReserved": "Hak Cipta Dilindungi",
+    "address": "Jl.R. W . Monginsidi No.13, Makassar",
+    "phone": "(0411) 123456",
+    "email": "info@mongisidi1.sch.id",
+    "quickLinks": "Tautan Cepat",
+    "followUs": "Ikuti Kami",
+    "newsletter": "Buletin",
+    "newsletterDesc": "Berlangganan untuk mendapatkan informasi terbaru",
+    "subscribe": "Berlangganan"
+  }
+}

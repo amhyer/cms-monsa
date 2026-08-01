@@ -3,11 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Search,
-  GraduationCap,
   BookMarked,
   BookOpen,
-  Trophy,
-  Users,
   Compass,
   Globe,
   Music,
@@ -22,12 +19,10 @@ import {
   Clock,
   MapPin,
 } from "lucide-react";
-import { useAppStore } from "@/store/app";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { PageBanner, SectionShell, CategoryBadge } from "./_shared";
-import { formatDate } from "@/lib/format";
 import type { TeacherItem, AgendaItem } from "@/lib/types";
 
 const EKSKUL = [

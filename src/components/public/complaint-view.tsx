@@ -10,7 +10,6 @@ import {
   Phone,
   Mail,
   Lock,
-  User,
 } from "lucide-react";
 import { useAppStore } from "@/store/app";
 import { Button } from "@/components/ui/button";

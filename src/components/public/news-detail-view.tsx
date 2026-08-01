@@ -14,17 +14,22 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SectionShell, CategoryBadge } from "./_shared";
 import { formatDate, readingTime, truncate } from "@/lib/format";
+import { sanitizeHtml } from "@/lib/sanitize";
 import { copyToClipboard } from "@/lib/clipboard";
 import { injectNewsArticleJsonLd } from "@/components/shared/seo-manager";
 import type { NewsItem } from "@/lib/types";
 import { toast } from "sonner";
 
-export function NewsDetailView() {
+interface NewsDetailViewProps {
+  slug?: string;
+}
+
+export function NewsDetailView({ slug: propSlug }: NewsDetailViewProps = {}) {
   const route = useAppStore((s) => s.route);
   const navigate = useAppStore((s) => s.navigate);
   const settings = useAppStore((s) => s.settings);
 
-  const slug = route.split("/")[2] ?? "";
+  const slug = propSlug || (route.split("/")[2] ?? "");
 
   const [item, setItem] = useState<NewsItem | null>(null);
   const [loading, setLoading] = useState(true);
@@ -238,7 +243,7 @@ export function NewsDetailView() {
 
           <div
             className="news-content mt-4 text-foreground"
-            dangerouslySetInnerHTML={{ __html: item.content }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.content) }}
           />
         </article>
 

@@ -1,4 +1,9 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
+
+const isProd = process.env.NODE_ENV === "production";
+// Production domain — frame-ancestors only allows embedding from the school site itself.
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://sdn-mongisidi1.sch.id";
 
 const securityHeaders = [
   // Prevent MIME-type sniffing.
@@ -21,12 +26,14 @@ const securityHeaders = [
   },
   // Content Security Policy — restrict what can load/execute.
   // 'unsafe-inline' needed for style because Next/shadcn inject inline styles.
-  // 'unsafe-eval' needed for Next.js dev mode (HMR).
+  // 'unsafe-eval' is needed ONLY for Next.js dev mode (HMR) and is removed in
+  // production. frame-ancestors in production is restricted to the school
+  // domain only (z.ai / space-z.ai preview panels are dev-only).
   {
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"}`,
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com data:",
       // Images: allow self + external (picsum, pravatar, uploads) + data URIs.
@@ -40,9 +47,12 @@ const securityHeaders = [
       // No plugins.
       "object-src 'none'",
       "base-uri 'self'",
-      // Allow the preview panel (and z.ai chat interface) to embed this app.
-      // In production, restrict to your real domain only.
-      "frame-ancestors 'self' https://*.space-z.ai https://space-z.ai https://*.z.ai https://z.ai",
+      // In production, only the school site itself may embed this app
+      // (clickjacking protection). The z.ai/space-z.ai preview panels are
+      // allowed in development only.
+      isProd
+        ? `frame-ancestors 'self' ${siteUrl}`
+        : "frame-ancestors 'self' https://*.space-z.ai https://space-z.ai https://*.z.ai https://z.ai",
     ].join("; "),
   },
 ];
@@ -50,10 +60,7 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  reactStrictMode: false,
+  reactStrictMode: true,
   async headers() {
     return [
       {
@@ -64,4 +71,7 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// next-intl: menghubungkan konfigurasi request (src/i18n/request.ts) ke next-intl.
+const withNextIntl = createNextIntlPlugin();
+
+export default withNextIntl(nextConfig);

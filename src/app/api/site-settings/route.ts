@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
+import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
 
 export async function GET() {
@@ -12,6 +13,9 @@ export async function GET() {
 }
 
 export async function PUT(req: NextRequest) {
+  const csrfError = await requireCsrf(req);
+  if (csrfError) return csrfError;
+
   const auth = await requireRole("SUPER_ADMIN");
   if (!auth.ok) return auth.response;
 

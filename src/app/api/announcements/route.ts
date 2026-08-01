@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth, requireRole } from "@/lib/auth";
+import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
+import { createAnnouncementSchema, validateBody } from "@/lib/validations";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -30,17 +32,22 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const csrfError = await requireCsrf(req);
+  if (csrfError) return csrfError;
+
   const auth = await requireRole("OPERATOR");
   if (!auth.ok) return auth.response;
   const body = await req.json();
-  const title = String(body.title ?? "").trim();
-  if (!title) {
-    return NextResponse.json({ error: "Judul wajib diisi." }, { status: 400 });
+  const validation = validateBody(createAnnouncementSchema, body);
+  if (!validation.ok) {
+    return NextResponse.json({ error: validation.error }, { status: 400 });
   }
+
+  const { title, content } = validation.data;
   const item = await db.announcement.create({
     data: {
       title,
-      content: String(body.content ?? ""),
+      content,
       isPinned: Boolean(body.isPinned),
       expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
       isActive: body.isActive !== false,

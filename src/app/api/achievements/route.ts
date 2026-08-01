@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
+import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
 import { parseDateInput } from "@/lib/format";
 
@@ -27,6 +28,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const csrfError = await requireCsrf(req);
+  if (csrfError) return csrfError;
+
   const auth = await requireRole("OPERATOR");
   if (!auth.ok) return auth.response;
   const body = await req.json();

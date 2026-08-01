@@ -160,7 +160,7 @@ npm run hooks:install  # set git config core.hooksPath .githooks
 ```
 
 Selain validasi kode, hook juga **menolak commit** yang melanggar aturan
-repository (lihat `REPO_HEALTH_AUDIT.md` bagian C.9):
+repository (lihat [REPO_HEALTH_AUDIT.md](REPO_HEALTH_AUDIT.md) bagian C.9):
 
 - **File `.db` / `.db-journal` / `.env*` ter-stage** (kecuali
   `.env.example`) — mencegah database/secret ter-commit secara tidak sengaja.
@@ -218,6 +218,11 @@ Caddyfile akan reverse proxy dari port 8080 ke port 3000.
 
 ```
 CMS MONSA/
+├── .github/
+│   └── workflows/
+│       └── ci.yml            # CI pipeline (typecheck, lint, test, build)
+├── .githooks/
+│   └── pre-commit            # Pre-commit hook (npm run check + guard repo)
 ├── prisma/
 │   ├── schema.prisma          # Database schema (SQLite)
 │   ├── schema.postgres.prisma # PostgreSQL variant

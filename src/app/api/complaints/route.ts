@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
+import { createComplaintSchema, validateBody } from "@/lib/validations";
+import { sendEmail, emailTemplates } from "@/lib/email";
+import { rateLimitPublicForm } from "@/lib/rate-limit";
 
 export async function GET(req: NextRequest) {
   const auth = await requireRole("OPERATOR");
@@ -20,32 +23,53 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const rateLimited = rateLimitPublicForm(req);
+    if (rateLimited) return rateLimited;
+
     const body = await req.json();
-    const name = String(body.name ?? "").trim();
-    const email = String(body.email ?? "").trim();
-    const phone = String(body.phone ?? "").trim();
-    const subject = String(body.subject ?? "").trim();
-    const message = String(body.message ?? "").trim();
-    if (!subject || !message) {
-      return NextResponse.json({ error: "Subjek dan pesan wajib diisi." }, { status: 400 });
+    const validation = validateBody(createComplaintSchema, body);
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
     }
+
+    const { name, email, subject, message, category } = validation.data;
+    const phone = body.phone ? String(body.phone) : "";
+    const isAnonymous = Boolean(body.isAnonymous);
+
     if (!email && !phone) {
       return NextResponse.json({ error: "Email atau telepon wajib diisi untuk respons." }, { status: 400 });
     }
-    const isAnonymous = Boolean(body.isAnonymous);
+
     const item = await db.complaint.create({
       data: {
         name: isAnonymous ? "Anonim" : name || "Anonim",
         email: isAnonymous ? "-" : email || "-",
         phone: isAnonymous ? "-" : phone || "-",
         role: String(body.role || "Orang Tua"),
-        category: String(body.category || "Akademik"),
+        category: category || "Akademik",
         subject,
         message,
         isAnonymous,
         priority: body.priority === "TINGGI" ? "TINGGI" : "NORMAL",
       },
     });
+
+    // Send email notification to admin
+    const adminEmail = process.env.ADMIN_EMAIL;
+    if (adminEmail) {
+      const template = emailTemplates.complaintNotification(
+        isAnonymous ? "Anonim" : name,
+        subject,
+        message,
+        category || "Akademik"
+      );
+      await sendEmail({
+        to: adminEmail,
+        subject: template.subject,
+        html: template.html,
+      });
+    }
+
     return NextResponse.json({ ok: true, id: item.id });
   } catch (e) {
     console.error("[complaint-create]", e);

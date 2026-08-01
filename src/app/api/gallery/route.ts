@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
+import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
+import { createGallerySchema, validateBody } from "@/lib/validations";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -31,22 +33,26 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const csrfError = await requireCsrf(req);
+  if (csrfError) return csrfError;
+
   const auth = await requireRole("OPERATOR");
   if (!auth.ok) return auth.response;
   const body = await req.json();
-  const title = String(body.title ?? "").trim();
-  const url = String(body.url ?? "").trim();
-  if (!title || !url) {
-    return NextResponse.json({ error: "Judul dan URL media wajib diisi." }, { status: 400 });
+  const validation = validateBody(createGallerySchema, body);
+  if (!validation.ok) {
+    return NextResponse.json({ error: validation.error }, { status: 400 });
   }
+
+  const { title, description, imageUrl, url, category } = validation.data;
   const item = await db.galleryItem.create({
     data: {
       title,
-      description: body.description || null,
+      description: description || null,
       type: body.type === "VIDEO" ? "VIDEO" : "PHOTO",
-      url,
+      url: url || imageUrl || "",
       thumbnail: body.thumbnail || null,
-      category: String(body.category || "Kegiatan"),
+      category: category || "Kegiatan",
     },
   });
   await logActivity(auth.user, "CREATE", "Gallery", `Menambah media galeri: ${title}`, item.id);

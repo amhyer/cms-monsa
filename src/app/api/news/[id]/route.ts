@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole, getSession } from "@/lib/auth";
+import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
 import { slugify } from "@/lib/format";
 import { sanitizeHtml } from "@/lib/sanitize";
@@ -34,6 +35,9 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 }
 
 export async function PUT(req: NextRequest, { params }: Ctx) {
+  const csrfError = await requireCsrf(req);
+  if (csrfError) return csrfError;
+
   const auth = await requireRole("OPERATOR");
   if (!auth.ok) return auth.response;
   const { id } = await params;
@@ -122,7 +126,10 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   return NextResponse.json({ ...updated, authorName: updated.author?.name });
 }
 
-export async function DELETE(_req: NextRequest, { params }: Ctx) {
+export async function DELETE(req: NextRequest, { params }: Ctx) {
+  const csrfError = await requireCsrf(req);
+  if (csrfError) return csrfError;
+
   const auth = await requireRole("OPERATOR");
   if (!auth.ok) return auth.response;
   const { id } = await params;

@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
+import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
 import { hashPassword } from "@/lib/password";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function PUT(req: NextRequest, { params }: Ctx) {
+  const csrfError = await requireCsrf(req);
+  if (csrfError) return csrfError;
+
   const auth = await requireRole("SUPER_ADMIN");
   if (!auth.ok) return auth.response;
   const { id } = await params;
@@ -24,7 +28,17 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     }
     data.email = email;
   }
-  if (typeof body.role === "string") data.role = body.role === "SUPER_ADMIN" ? "SUPER_ADMIN" : "OPERATOR";
+  // Role yang berlaku setelah update (nilai baru jika ada, selainnya role lama).
+  const nextRole = typeof body.role === "string" ? body.role : existing.role;
+  if (typeof body.role === "string") {
+    if (!["SUPER_ADMIN", "OPERATOR", "GURU"].includes(body.role)) {
+      return NextResponse.json({ error: "Role tidak valid." }, { status: 400 });
+    }
+    data.role = body.role;
+  }
+  if (body.guardianClassId !== undefined) {
+    data.guardianClassId = nextRole === "GURU" ? body.guardianClassId || null : null;
+  }
   if (typeof body.isActive === "boolean") data.isActive = body.isActive;
   if (typeof body.password === "string" && body.password.length >= 6) {
     data.password = hashPassword(body.password);
@@ -39,7 +53,10 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   return NextResponse.json(updated);
 }
 
-export async function DELETE(_req: NextRequest, { params }: Ctx) {
+export async function DELETE(req: NextRequest, { params }: Ctx) {
+  const csrfError = await requireCsrf(req);
+  if (csrfError) return csrfError;
+
   const auth = await requireRole("SUPER_ADMIN");
   if (!auth.ok) return auth.response;
   const { id } = await params;

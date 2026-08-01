@@ -10,21 +10,21 @@ import {
   clearFailures,
   getClientIp,
 } from "@/lib/rate-limit";
+import { loginSchema, validateBody } from "@/lib/validations";
 import type { Role } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const email = String(body.email ?? "").trim().toLowerCase();
-    const password = String(body.password ?? "");
+    const validation = validateBody(loginSchema, body);
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
+    }
+
+    const { email, password } = validation.data;
+    const normalizedEmail = email.toLowerCase();
     const ip = getClientIp(req);
 
-    if (!email || !password) {
-      return NextResponse.json(
-        { error: "Email dan password wajib diisi." },
-        { status: 400 }
-      );
-    }
     if (password.length > 1024) {
       return NextResponse.json(
         { error: "Password terlalu panjang." },
@@ -33,8 +33,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Rate limit: reject if this email+ip is currently locked.
-    if (isLocked(email, ip)) {
-      const secs = lockSecondsRemaining(email, ip);
+    if (isLocked(normalizedEmail, ip)) {
+      const secs = lockSecondsRemaining(normalizedEmail, ip);
       return NextResponse.json(
         {
           error: `Terlalu banyak percobaan gagal. Coba lagi dalam ${Math.ceil(
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const user = await db.user.findUnique({ where: { email } });
+    const user = await db.user.findUnique({ where: { email: normalizedEmail } });
     // Support both hashed and (legacy) plaintext stored passwords.
     const valid = user
       ? isHashed(user.password)
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
       : false;
     // Use constant-time-ish failure regardless of whether user exists.
     if (!user || !valid) {
-      recordFailure(email, ip);
+      recordFailure(normalizedEmail, ip);
       return NextResponse.json(
         { error: "Email atau password salah." },
         { status: 401 }
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Success — clear any prior failure counter.
-    clearFailures(email, ip);
+    clearFailures(normalizedEmail, ip);
 
     await setSession(user.id, user.role as Role);
 
@@ -79,6 +79,7 @@ export async function POST(req: NextRequest) {
         email: user.email,
         role: user.role as Role,
         isActive: user.isActive,
+        guardianClassId: user.guardianClassId ?? null,
       },
       "LOGIN",
       "Auth",

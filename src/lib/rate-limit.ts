@@ -34,6 +34,11 @@ function cleanup() {
       store.delete(key);
     }
   }
+  for (const [key, rec] of formStore) {
+    if (now - rec.windowStart >= FORM_WINDOW) {
+      formStore.delete(key);
+    }
+  }
 }
 
 function key(email: string, ip: string) {
@@ -88,4 +93,58 @@ export function recordFailure(email: string, ip: string): void {
 /** Clear failures for this email+ip on successful login. */
 export function clearFailures(email: string, ip: string): void {
   store.delete(key(email, ip));
+}
+
+// ---------- Public form rate limiting (per IP) ----------
+// Protects public submission endpoints (contact, complaint, SPMB enrollment)
+// from spam floods. Unlike the login limiter this is purely IP-based since
+// the forms are open to anyone.
+
+const FORM_WINDOW = 10 * 60 * 1000; // 10 minutes
+const FORM_MAX = 10; // max submissions per window per IP
+
+type IpRecord = {
+  count: number;
+  windowStart: number;
+};
+
+const formStore = new Map<string, IpRecord>();
+
+/**
+ * Register one submission from `ip`. Returns true when the IP has exceeded
+ * the limit within the window (the request should be rejected).
+ */
+export function isFormRateLimited(
+  ip: string,
+  max = FORM_MAX,
+  windowMs = FORM_WINDOW
+): boolean {
+  cleanup();
+  const now = Date.now();
+  const rec = formStore.get(ip);
+  if (!rec || now - rec.windowStart >= windowMs) {
+    formStore.set(ip, { count: 1, windowStart: now });
+    return false;
+  }
+  rec.count += 1;
+  return rec.count > max;
+}
+
+/**
+ * Enforce the public-form rate limit for a request.
+ * Returns a 429 Response if the IP is over the limit, otherwise null.
+ */
+export function rateLimitPublicForm(
+  req: Request,
+  max?: number,
+  windowMs?: number
+): Response | null {
+  const ip = getClientIp(req);
+  if (isFormRateLimited(ip, max, windowMs)) {
+    return Response.json(
+      { error: "Terlalu banyak permintaan. Silakan coba lagi beberapa saat." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(windowMs ?? FORM_WINDOW) / 1000) } }
+    );
+  }
+  return null;
 }

@@ -3,15 +3,43 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { db } from "@/lib/db";
 import type { Role, SessionUser } from "@/lib/types";
 
-export const SESSION_COOKIE = "smansara_session";
+export const SESSION_COOKIE = "monsa_session";
+
+const DEFAULT_DEV_SECRET = "monsa-dev-secret-DO-NOT-USE-IN-PROD-9f2a7c1e";
 
 /**
  * HMAC secret used to sign the session cookie so it cannot be tampered with.
- * In production this MUST be set via the AUTH_SECRET env var. A dev fallback
- * is provided so the app still runs locally without configuration.
+ * MUST be set via the AUTH_SECRET env var in production.
  */
-const SESSION_SECRET =
-  process.env.AUTH_SECRET || "smansara-dev-secret-DO-NOT-USE-IN-PROD-9f2a7c1e";
+function getSessionSecret(): string {
+  const secret = process.env.AUTH_SECRET;
+  if (!secret) {
+    console.error(
+      "[AUTH] CRITICAL: AUTH_SECRET tidak di-set. " +
+      "Session cookies tidak akan aman. " +
+      "Set AUTH_SECRET di .env atau environment variables."
+    );
+    // Use dev fallback only in development, throw in production
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "AUTH_SECRET harus di-set untuk production environment. " +
+        "Generate dengan: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\""
+      );
+    }
+    console.warn("[AUTH] Menggunakan dev fallback secret. JANGAN gunakan di production!");
+    return DEFAULT_DEV_SECRET;
+  }
+  if (secret === DEFAULT_DEV_SECRET) {
+    console.warn(
+      "[AUTH] WARNING: AUTH_SECRET masih menggunakan default dev value. " +
+      "Generate secret baru untuk keamanan: " +
+      "node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\""
+    );
+  }
+  return secret;
+}
+
+const SESSION_SECRET = getSessionSecret();
 
 type SessionPayload = {
   userId: string;
@@ -63,17 +91,19 @@ export async function getSession(): Promise<SessionUser | null> {
   if (!payload) return null;
   const user = await db.user.findUnique({ where: { id: payload.userId } });
   if (!user || !user.isActive) return null;
-  // Clamp the active role: an operator cannot escalate to admin via switch-role
-  // if their DB role is OPERATOR. (Switch-role mock only lets admin↔operator.)
+  // The DB role is the source of truth: only SUPER_ADMIN may keep the
+  // role stored in the cookie (the switch-role mock). OPERATOR and GURU
+  // can never escalate by tampering with the cookie.
   const dbRole = user.role as Role;
   const effectiveRole: Role =
-    dbRole === "OPERATOR" ? "OPERATOR" : payload.activeRole;
+    dbRole === "SUPER_ADMIN" ? payload.activeRole : dbRole;
   return {
     id: user.id,
     name: user.name,
     email: user.email,
     role: effectiveRole,
     isActive: user.isActive,
+    guardianClassId: user.guardianClassId ?? null,
   };
 }
 
@@ -81,10 +111,11 @@ export async function setSession(userId: string, role: Role) {
   const store = await cookies();
   store.set(SESSION_COOKIE, encode({ userId, activeRole: role }), {
     httpOnly: true,
-    // "none" is required so the cookie is sent when the app runs inside a
-    // cross-origin iframe (e.g. the preview panel). Browsers treat localhost
-    // as a secure context, so Secure cookies work in local dev too.
-    sameSite: "none",
+    // "lax" in production blocks CSRF via cross-site requests; "none" is only
+    // used in development so the cookie is sent when the app runs inside the
+    // cross-origin preview iframe. Browsers treat localhost as a secure
+    // context, so Secure cookies work in local dev too.
+    sameSite: process.env.NODE_ENV === "production" ? "lax" : "none",
     secure: true,
     path: "/",
     maxAge: 60 * 60 * 24 * 7, // 7 days
@@ -97,14 +128,12 @@ export async function updateSessionRole(role: Role) {
   if (!token) return;
   const payload = decode(token);
   if (!payload) return;
-  // Prevent privilege escalation: operators cannot switch themselves to admin.
+  // Only SUPER_ADMIN may switch roles; OPERATOR/GURU cannot escalate.
   const user = await db.user.findUnique({ where: { id: payload.userId } });
-  if (!user) return;
-  const dbRole = user.role as Role;
-  if (dbRole === "OPERATOR" && role === "SUPER_ADMIN") return;
+  if (!user || user.role !== "SUPER_ADMIN") return;
   store.set(SESSION_COOKIE, encode({ ...payload, activeRole: role }), {
     httpOnly: true,
-    sameSite: "none",
+    sameSite: process.env.NODE_ENV === "production" ? "lax" : "none",
     secure: true,
     path: "/",
     maxAge: 60 * 60 * 24 * 7,
@@ -133,6 +162,16 @@ export async function requireAuth(): Promise<
   return { ok: true, user };
 }
 
+/**
+ * Role hierarchy: SUPER_ADMIN (3) > OPERATOR (2) > GURU (1).
+ * `requireRole(min)` passes when the user's level is >= the minimum level.
+ */
+const ROLE_LEVEL: Record<Role, number> = {
+  SUPER_ADMIN: 3,
+  OPERATOR: 2,
+  GURU: 1,
+};
+
 /** Require a specific minimum role. SUPER_ADMIN can do everything an OPERATOR can. */
 export async function requireRole(
   min: Role
@@ -141,11 +180,7 @@ export async function requireRole(
 > {
   const auth = await requireAuth();
   if (!auth.ok) return auth;
-  const allowed =
-    min === "OPERATOR"
-      ? true // any authenticated user
-      : auth.user.role === "SUPER_ADMIN";
-  if (!allowed) {
+  if (ROLE_LEVEL[auth.user.role] < ROLE_LEVEL[min]) {
     return {
       ok: false,
       response: Response.json(
@@ -159,6 +194,11 @@ export async function requireRole(
 
 export function hasRole(user: SessionUser | null, min: Role): boolean {
   if (!user) return false;
-  if (min === "OPERATOR") return true;
-  return user.role === "SUPER_ADMIN";
+  return ROLE_LEVEL[user.role] >= ROLE_LEVEL[min];
+}
+
+/** A GURU may only work with their own wali class; other roles are unrestricted. */
+export function canAccessClass(user: SessionUser, classId: string): boolean {
+  if (user.role === "GURU") return user.guardianClassId === classId;
+  return true;
 }

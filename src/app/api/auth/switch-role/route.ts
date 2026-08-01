@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, updateSessionRole } from "@/lib/auth";
+import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
 import type { Role } from "@/lib/types";
 
 /** Mock role switcher for testing RBAC without re-login. */
 export async function POST(req: NextRequest) {
+  const csrfError = await requireCsrf(req);
+  if (csrfError) return csrfError;
+
   const user = await getSession();
   if (!user) {
     return NextResponse.json(

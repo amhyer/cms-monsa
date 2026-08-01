@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Typecheck, Lint, Test & Build
+    runs-on: ubuntu-latest
+    env:
+      # PrismaClient membaca DATABASE_URL saat konstruksi (sitemap.ts
+      # di-prerender saat build). Test unit memakai mock penuh, jadi DB
+      # dummy cukup — tidak ada koneksi nyata yang dibutuhkan.
+      DATABASE_URL: "file:./ci.db"
+      # AUTH_SECRET tidak wajib saat build, tapi diset untuk menghindari
+      # peringatan dari src/lib/auth.ts. Ganti dengan secret asli di
+      # production (jangan pernah commit secret di sini).
+      AUTH_SECRET: "ci-insecure-build-secret"
+      NEXT_PUBLIC_SITE_URL: "https://sdn-mongisidi1.sch.id"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.x
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Test (unit)
+        run: bun run test
+
+      - name: Build
+        run: bun run build

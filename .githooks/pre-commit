@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# ============================================================
+# Pre-commit hook: jalankan typecheck + lint + test sebelum commit.
+#
+# Pemasangan (sekali per clone):
+#   git config core.hooksPath .githooks
+#
+# Lewati sementara (tidak disarankan):
+#   git commit --no-verify
+# ============================================================
+set -euo pipefail
+
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+cd "$ROOT_DIR"
+
+echo "🔍 [pre-commit] Menjalankan typecheck + lint + test..."
+
+# npm run check = typecheck && lint && test (lihat package.json)
+npm run check
+
+echo "✅ [pre-commit] Semua validasi lulus — commit diizinkan."

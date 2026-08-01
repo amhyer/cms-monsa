@@ -113,16 +113,67 @@ npx tsx prisma/seed.ts
 ## Scripts
 
 ```bash
-bun run dev          # Development server (port 3000)
-bun run build        # Production build
-bun run start        # Production server
-bun run lint         # ESLint
-npm test             # Unit & integration tests (Vitest)
-bun run test:watch   # Tests dalam mode watch
+bun run dev           # Development server (port 3000)
+bun run build         # Production build
+bun run start         # Production server
+npm run lint          # ESLint
+npm run typecheck     # TypeScript type checking (tsc --noEmit)
+npm run check         # Gerbang validasi: typecheck + lint + test
+npm test              # Unit & integration tests (Vitest)
+bun run test:watch    # Tests dalam mode watch
 bun run test:coverage # Tests dengan coverage report
-bun run test:e2e     # End-to-end tests (Playwright)
-bun run db:push      # Push schema ke database
-bun run db:generate  # Generate Prisma client
+bun run test:e2e      # End-to-end tests (Playwright)
+npm run hooks:install # Aktifkan pre-commit hook (core.hooksPath)
+bun run db:push       # Push schema ke database
+bun run db:generate   # Generate Prisma client
+```
+
+## Development
+
+### Script Validasi
+
+Sebelum commit, jalankan gerbang validasi untuk memastikan kode sehat:
+
+```bash
+npm run typecheck  # TypeScript: tsc --noEmit (0 error)
+npm run lint       # ESLint (0 error)
+npm run test       # Vitest — unit & integration tests
+npm run check      # Semua di atas sekaligus (typecheck && lint && test)
+```
+
+`npm run check` adalah gerbang tunggal yang dipakai oleh pre-commit hook.
+Perintah ini berhenti (short-circuit) di kegagalan pertama dan mengembalikan
+exit code non-zero — cocok untuk pipeline CI maupun pre-commit. CI
+(`.github/workflows/ci.yml`) menjalankan typecheck, lint, dan test sebagai
+step terpisah agar setiap kegagalan terlihat jelas di laporan GitHub Actions.
+
+### Pre-commit Hook
+
+Hook ter-versi di `.githooks/pre-commit` otomatis menjalankan `npm run check`
+(typecheck + lint + test) **sebelum setiap commit**. Jika salah satu gagal,
+commit ditolak dan error ditampilkan.
+
+Aktifkan sekali per clone:
+
+```bash
+npm run hooks:install  # set git config core.hooksPath .githooks
+```
+
+Selain validasi kode, hook juga **menolak commit** yang melanggar aturan
+repository (lihat `REPO_HEALTH_AUDIT.md` bagian C.9):
+
+- **File `.db` / `.db-journal` / `.env*` ter-stage** (kecuali
+  `.env.example`) — mencegah database/secret ter-commit secara tidak sengaja.
+- **Penghapusan `src/app/api/upload/route.ts` / `src/proxy.ts`** — file
+  kritikal yang wajib selalu ada di repository.
+
+Guard ini berjalan **sebelum** validasi kode, jadi pelanggaran aturan
+langsung ditolak tanpa menunggu typecheck/lint/test.
+
+Lewati sementara (tidak disarankan):
+
+```bash
+git commit --no-verify
 ```
 
 ## Default Credentials

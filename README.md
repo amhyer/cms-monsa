@@ -75,7 +75,7 @@ Buka http://localhost:3000 di browser.
 
 ## Configuration
 
-Buat file `.env` di root project:
+Buat file `.env` di root project (template: [.env.example](.env.example)):
 
 ```env
 # Database
@@ -176,7 +176,7 @@ Selain validasi kode, hook juga **menolak commit** yang melanggar aturan
 repository (lihat [REPO_HEALTH_AUDIT.md](REPO_HEALTH_AUDIT.md) bagian C.9):
 
 - **File `.db` / `.db-journal` / `.env*` ter-stage** (kecuali
-  `.env.example`) — mencegah database/secret ter-commit secara tidak sengaja.
+  [.env.example](.env.example)) — mencegah database/secret ter-commit secara tidak sengaja.
 - **Penghapusan [src/app/api/upload/route.ts](src/app/api/upload/route.ts) /
   [src/proxy.ts](src/proxy.ts)** — file
   kritikal yang wajib selalu ada di repository.

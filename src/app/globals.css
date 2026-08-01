@@ -207,3 +207,131 @@
 .news-content ul { list-style: disc; padding-left: 1.5rem; margin-bottom: 1rem; }
 .news-content ol { list-style: decimal; padding-left: 1.5rem; margin-bottom: 1rem; }
 .news-content img { border-radius: 0.5rem; margin: 1rem 0; }
+
+/* Print Styles */
+@media print {
+  /* Hide non-essential elements */
+  nav, footer, .no-print, button, [data-sidebar], aside {
+    display: none !important;
+  }
+
+  /* Reset colors for printing */
+  body, html {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Ensure links show URL */
+  a[href]:after {
+    content: " (" attr(href) ")";
+    font-size: 0.875rem;
+    color: #666;
+  }
+
+  /* Don't show URL for navigation links */
+  nav a[href]:after, .nav-link[href]:after, a[href^="#"]:after {
+    content: none !important;
+  }
+
+  /* Page breaks */
+  h1, h2, h3 {
+    page-break-after: avoid;
+  }
+
+  img {
+    max-width: 100% !important;
+    page-break-inside: avoid;
+  }
+
+  p, li {
+    orphans: 3;
+    widows: 3;
+  }
+
+  /* Clean borders */
+  table, th, td {
+    border: 1px solid #ccc !important;
+  }
+
+  /* Print header */
+  .print-header {
+    display: block !important;
+    text-align: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #000;
+  }
+
+  /* Remove shadows and backgrounds */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+}
+
+/* Print header (hidden by default, shown in print) */
+.print-header {
+  display: none;
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .animate-marquee {
+    animation: none !important;
+  }
+
+  .animate-fade-in-up {
+    animation: none !important;
+  }
+}
+
+/* Accessibility - Focus styles */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Skip to main content link (for keyboard navigation) */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  padding: 8px 16px;
+  z-index: 100;
+  transition: top 0.3s;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+/* Screen reader only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* High contrast mode support */
+@media (forced-colors: active) {
+  .btn-primary, .btn-secondary {
+    border: 1px solid ButtonText;
+  }
+}

@@ -12,7 +12,6 @@ import { useAppStore } from "@/store/app";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SectionHeading } from "@/components/shared/section-heading";
 import { PageBanner, SectionShell, CategoryBadge } from "./_shared";
 import { ErrorState } from "@/components/shared/error-state";
 import { NEWS_CATEGORIES } from "@/lib/nav";

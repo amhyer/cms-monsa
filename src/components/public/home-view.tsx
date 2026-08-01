@@ -25,7 +25,7 @@ import { SectionHeading } from "@/components/shared/section-heading";
 import { RunningAnnouncements } from "./running-announcements";
 import { CategoryBadge, SectionShell } from "./_shared";
 import { ErrorState } from "@/components/shared/error-state";
-import { formatDate, formatDateTime, truncate } from "@/lib/format";
+import { formatDate, truncate } from "@/lib/format";
 import type {
   NewsItem,
   AgendaItem,

@@ -1,0 +1,5 @@
+# Hook scripts harus selalu LF agar berjalan di Git Bash/Windows.
+# Mencegah error "$'\r': command not found" pada pre-commit.
+# Catatan: nama file hook TIDAK punya ekstensi .sh, jadi pakai pola .githooks/*
+.githooks/* text eol=lf
+*.sh text eol=lf

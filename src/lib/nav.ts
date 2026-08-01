@@ -15,6 +15,11 @@ import {
   GraduationCap,
   Phone,
   ShieldAlert,
+  ClipboardCheck,
+  LayoutGrid,
+  UserSquare2,
+  Wallet,
+  BarChart3,
   type LucideIcon,
 } from "lucide-react";
 
@@ -43,6 +48,11 @@ export const DASHBOARD_NAV: NavItem[] = [
   { label: "Galeri Media", path: "/dashboard/gallery", icon: Image },
   { label: "Data Prestasi", path: "/dashboard/achievements", icon: Trophy },
   { label: "Guru & Staf", path: "/dashboard/teachers", icon: Users },
+  { label: "Data Siswa", path: "/dashboard/students", icon: UserSquare2 },
+  { label: "Kelas", path: "/dashboard/classes", icon: LayoutGrid },
+  { label: "Kehadiran Siswa", path: "/dashboard/attendance", icon: ClipboardCheck },
+  { label: "Pembayaran (SPP)", path: "/dashboard/payments", icon: Wallet },
+  { label: "Laporan", path: "/dashboard/reports", icon: BarChart3 },
   { label: "Pengaduan", path: "/dashboard/complaints", icon: ShieldAlert },
   { label: "Pesan Masuk", path: "/dashboard/messages", icon: Mail },
   { label: "Manajemen Operator", path: "/dashboard/users", icon: UserCog, adminOnly: true },

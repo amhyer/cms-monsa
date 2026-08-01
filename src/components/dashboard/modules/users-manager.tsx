@@ -57,7 +57,8 @@ type FormState = {
   name: string;
   email: string;
   password: string;
-  role: "OPERATOR" | "SUPER_ADMIN";
+  role: "OPERATOR" | "SUPER_ADMIN" | "GURU";
+  guardianClassId: string;
   isActive: boolean;
 };
 
@@ -66,12 +67,14 @@ const EMPTY: FormState = {
   email: "",
   password: "",
   role: "OPERATOR",
+  guardianClassId: "",
   isActive: true,
 };
 
 export function UsersManager() {
   const me = useAppStore((s) => s.user);
   const [items, setItems] = useState<UserItem[]>([]);
+  const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const { search, setSearch, filtered } = useSearch(items, (u) =>
     `${u.name} ${u.email} ${u.role}`.toLowerCase()
@@ -101,9 +104,27 @@ export function UsersManager() {
     }
   }, []);
 
+  const fetchClasses = useCallback(async () => {
+    try {
+      const res = await fetch("/api/classes?scope=admin", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      setClasses((data.items || []).map((c: { id: string; name: string }) => ({
+        id: c.id,
+        name: c.name,
+      })));
+    } catch {
+      // non-critical
+    }
+  }, []);
+
   useEffect(() => {
     fetchList();
   }, [fetchList]);
+
+  useEffect(() => {
+    if (open && form.role === "GURU" && classes.length === 0) fetchClasses();
+  }, [open, form.role, classes.length, fetchClasses]);
 
   function openCreate() {
     setEditing(null);
@@ -117,7 +138,8 @@ export function UsersManager() {
       name: u.name,
       email: u.email,
       password: "",
-      role: u.role === "SUPER_ADMIN" ? "SUPER_ADMIN" : "OPERATOR",
+      role: u.role === "SUPER_ADMIN" ? "SUPER_ADMIN" : u.role === "GURU" ? "GURU" : "OPERATOR",
+      guardianClassId: u.guardianClassId ?? "",
       isActive: u.isActive,
     });
     setOpen(true);
@@ -140,6 +162,9 @@ export function UsersManager() {
         role: form.role,
         isActive: form.isActive,
       };
+      if (form.role === "GURU") {
+        body.guardianClassId = form.guardianClassId || null;
+      }
       if (editing) {
         if (form.password) body.password = form.password;
       } else {
@@ -201,17 +226,17 @@ export function UsersManager() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold tracking-tight">
-            Manajemen Operator
+            Manajemen Akun
           </h2>
           <p className="text-sm text-muted-foreground">
-            Kelola akun operator dan administrator sistem.
+            Kelola akun admin, operator, dan guru.
           </p>
         </div>
         <Button
           onClick={openCreate}
           className="bg-gold text-gold-foreground hover:bg-gold/90"
         >
-          <Plus className="size-4" /> Tambah Operator
+          <Plus className="size-4" /> Tambah Akun
         </Button>
       </div>
 
@@ -263,6 +288,7 @@ export function UsersManager() {
                   {filtered.map((u) => {
                     const isSelf = me?.id === u.id;
                     const isAdmin = u.role === "SUPER_ADMIN";
+                    const isGuru = u.role === "GURU";
                     return (
                       <TableRow key={u.id}>
                         <TableCell className="font-medium">
@@ -284,11 +310,18 @@ export function UsersManager() {
                             className={
                               isAdmin
                                 ? "bg-gold text-gold-foreground"
-                                : "bg-primary text-primary-foreground"
+                                : isGuru
+                                  ? "bg-violet-600 text-white"
+                                  : "bg-primary text-primary-foreground"
                             }
                           >
-                            {isAdmin ? "Admin" : "Operator"}
+                            {isAdmin ? "Admin" : isGuru ? "Guru" : "Operator"}
                           </Badge>
+                          {isGuru && u.guardianClassName && (
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              Wali: {u.guardianClassName}
+                            </span>
+                          )}
                         </TableCell>
                         <TableCell>
                           {u.isActive ? (
@@ -381,12 +414,12 @@ export function UsersManager() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              {editing ? "Edit Akun" : "Tambah Akun Operator"}
+              {editing ? "Edit Akun" : "Tambah Akun"}
             </DialogTitle>
             <DialogDescription>
               {editing
                 ? "Perbarui detail akun. Kosongkan password jika tidak ingin mengubah."
-                : "Isi data akun operator atau administrator baru."}
+                : "Isi data akun admin, operator, atau guru baru."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -434,7 +467,10 @@ export function UsersManager() {
                 <Select
                   value={form.role}
                   onValueChange={(v) =>
-                    setForm({ ...form, role: v as "OPERATOR" | "SUPER_ADMIN" })
+                    setForm({
+                      ...form,
+                      role: v as "OPERATOR" | "SUPER_ADMIN" | "GURU",
+                    })
                   }
                 >
                   <SelectTrigger className="w-full">
@@ -443,10 +479,36 @@ export function UsersManager() {
                   <SelectContent>
                     <SelectItem value="OPERATOR">Operator</SelectItem>
                     <SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
+                    <SelectItem value="GURU">Guru</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
+            {form.role === "GURU" && (
+              <div className="space-y-2">
+                <Label>Wali Kelas</Label>
+                <Select
+                  value={form.guardianClassId}
+                  onValueChange={(v) =>
+                    setForm({ ...form, guardianClassId: v })
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Pilih kelas wali" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {classes.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Guru hanya dapat mengisi absensi di kelas wali-nya.
+                </p>
+              </div>
+            )}
             {editing && (
               <div className="flex items-center gap-2">
                 <Switch

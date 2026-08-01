@@ -8,6 +8,15 @@ export function slugify(text: string): string {
     .slice(0, 80);
 }
 
+/** Format a Rupiah amount, e.g. 50000 → "Rp 50.000". */
+export function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+  }).format(amount);
+}
+
 export function formatDate(
   date: string | Date | null,
   opts: Intl.DateTimeFormatOptions = {

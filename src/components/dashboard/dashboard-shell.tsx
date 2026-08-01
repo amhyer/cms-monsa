@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { ErrorBoundary } from "@/components/shared/error-boundary";
 import {
   DashboardSearch,
   useDashboardSearchHotkey,
@@ -58,6 +59,11 @@ import { AgendaManager } from "./modules/agenda-manager";
 import { GalleryManager } from "./modules/gallery-manager";
 import { AchievementsManager } from "./modules/achievements-manager";
 import { TeachersManager } from "./modules/teachers-manager";
+import { StudentsManager } from "./modules/students-manager";
+import { ClassesManager } from "./modules/classes-manager";
+import { AttendanceManager } from "./modules/attendance-manager";
+import { PaymentsManager } from "./modules/payments-manager";
+import { ReportsManager } from "./modules/reports-manager";
 import { MessagesManager } from "./modules/messages-manager";
 import { ComplaintsManager } from "./modules/complaints-manager";
 import { UsersManager } from "./modules/users-manager";
@@ -86,6 +92,16 @@ function renderModule(route: string) {
       return <AchievementsManager />;
     case "/dashboard/teachers":
       return <TeachersManager />;
+    case "/dashboard/students":
+      return <StudentsManager />;
+    case "/dashboard/classes":
+      return <ClassesManager />;
+    case "/dashboard/attendance":
+      return <AttendanceManager />;
+    case "/dashboard/payments":
+      return <PaymentsManager />;
+    case "/dashboard/reports":
+      return <ReportsManager />;
     case "/dashboard/messages":
       return <MessagesManager />;
     case "/dashboard/complaints":
@@ -114,6 +130,8 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const user = useAppStore((s) => s.user);
 
   const isAdmin = user?.role === "SUPER_ADMIN";
+  // GURU hanya melihat Ringkasan + Kehadiran (kelas wali-nya).
+  const isGuru = user?.role === "GURU";
 
   // Unread message count badge for "Pesan Masuk" nav item.
   const [unread, setUnread] = useState(0);
@@ -142,7 +160,9 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
 
   const groups = useMemo(() => {
     const items = DASHBOARD_NAV.filter(
-      (n) => !n.adminOnly || isAdmin
+      (n) =>
+        (!n.adminOnly || isAdmin) &&
+        (!isGuru || n.path === "/dashboard" || n.path === "/dashboard/attendance")
     );
     const management: NavItem[] = [];
     const admin: NavItem[] = [];
@@ -153,7 +173,7 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
       else management.push(n);
     });
     return { ringkasan, management, admin };
-  }, [isAdmin]);
+  }, [isAdmin, isGuru]);
 
   function go(path: string) {
     navigate(path);
@@ -280,10 +300,12 @@ export function DashboardShell() {
   }
 
   const isAdmin = user.role === "SUPER_ADMIN";
+  const isGuru = user.role === "GURU";
   const isAdminRoute = ADMIN_PATHS.has(route);
   const showAccessDenied = isAdminRoute && !isAdmin;
 
   async function handleSwitchRole() {
+    if (isGuru) return;
     const next = isAdmin ? "OPERATOR" : "SUPER_ADMIN";
     await switchRole(next);
     toast.success(`Berhasil beralih ke peran ${next === "SUPER_ADMIN" ? "Admin" : "Operator"}.`);
@@ -297,7 +319,7 @@ export function DashboardShell() {
   return (
     <div className="flex min-h-screen flex-col bg-muted/30">
       {/* Topbar */}
-      <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background px-4 sm:px-6">
+      <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background px-4 sm:px-6 print:hidden">
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger asChild>
             <Button
@@ -354,28 +376,32 @@ export function DashboardShell() {
             className={
               isAdmin
                 ? "bg-gold text-gold-foreground"
-                : "bg-primary text-primary-foreground"
+                : isGuru
+                  ? "bg-violet-600 text-white"
+                  : "bg-primary text-primary-foreground"
             }
           >
-            Login sebagai: {isAdmin ? "Admin" : "Operator"}
+            Login sebagai: {isAdmin ? "Admin" : isGuru ? "Guru" : "Operator"}
           </Badge>
 
           <ThemeToggle className="hidden sm:inline-flex" />
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSwitchRole}
-                className="hidden md:inline-flex"
-              >
-                <Repeat className="size-4" />
-                <span className="hidden lg:inline">Switch Role (Mock)</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Beralih peran untuk uji coba hak akses</TooltipContent>
-          </Tooltip>
+          {!isGuru && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSwitchRole}
+                  className="hidden md:inline-flex"
+                >
+                  <Repeat className="size-4" />
+                  <span className="hidden lg:inline">Switch Role (Mock)</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Beralih peran untuk uji coba hak akses</TooltipContent>
+            </Tooltip>
+          )}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -404,12 +430,14 @@ export function DashboardShell() {
                 </span>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="sm:hidden"
-                onClick={handleSwitchRole}
-              >
-                <Repeat className="size-4" /> Beralih Peran
-              </DropdownMenuItem>
+              {!isGuru && (
+                <DropdownMenuItem
+                  className="sm:hidden"
+                  onClick={handleSwitchRole}
+                >
+                  <Repeat className="size-4" /> Beralih Peran
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
                 className="sm:hidden"
                 onClick={() => navigate("/")}
@@ -430,7 +458,7 @@ export function DashboardShell() {
 
       <div className="flex flex-1">
         {/* Desktop sidebar */}
-        <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] w-[260px] shrink-0 overflow-y-auto bg-sidebar text-sidebar-foreground lg:block">
+        <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] w-[260px] shrink-0 overflow-y-auto bg-sidebar text-sidebar-foreground lg:block print:hidden">
           <div className="flex items-center gap-2 border-b border-sidebar-border px-4 py-4">
             <span className="flex size-9 items-center justify-center rounded-lg bg-gold text-gold-foreground">
               <GraduationCap className="size-5" />
@@ -458,12 +486,14 @@ export function DashboardShell() {
               <AccessDenied />
             </div>
           ) : (
-            renderModule(route)
+            <ErrorBoundary onReset={() => window.location.reload()}>
+              {renderModule(route)}
+            </ErrorBoundary>
           )}
         </main>
       </div>
 
-      <footer className="mt-auto border-t bg-background px-4 py-3 text-center text-xs text-muted-foreground sm:px-6">
+      <footer className="mt-auto border-t bg-background px-4 py-3 text-center text-xs text-muted-foreground sm:px-6 print:hidden">
         © {new Date().getFullYear()} {settings?.schoolName ?? "SD Negeri Unggulan Mongisidi 1"} — CMS v1.0
       </footer>
 

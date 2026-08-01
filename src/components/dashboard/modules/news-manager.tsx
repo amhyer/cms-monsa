@@ -56,6 +56,7 @@ import { ImageUpload } from "@/components/shared/image-upload";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { NEWS_CATEGORIES } from "@/lib/nav";
 import { formatDate } from "@/lib/format";
+import { sanitizeHtml } from "@/lib/sanitize";
 import { useAppStore } from "@/store/app";
 import type { NewsItem } from "@/lib/types";
 import { PageLoader, EmptyState } from "../_shared";
@@ -91,6 +92,7 @@ function RichTextEditor({ value, onChange, label = "Konten" }: RichTextEditorPro
     // fresh mount happens whenever the dialog opens on a different item,
     // which avoids the need to sync props -> DOM after mount (that would
     // reset the user's caret position).
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount (see comment above)
   }, []);
 
   const handleInput = useCallback(() => {
@@ -717,7 +719,7 @@ export function NewsManager() {
               <div
                 className="news-content text-foreground"
                 dangerouslySetInnerHTML={{
-                  __html: form.content || "<p class='text-muted-foreground italic'>Belum ada konten.</p>",
+                  __html: sanitizeHtml(form.content) || "<p class='text-muted-foreground italic'>Belum ada konten.</p>",
                 }}
               />
             </article>

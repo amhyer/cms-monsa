@@ -5,7 +5,6 @@ import {
   Mail,
   MailOpen,
   Trash2,
-  Loader2,
   Phone,
   Mailbox,
   ChevronDown,

@@ -45,8 +45,11 @@ jobs:
       - name: Typecheck
         run: bun run typecheck
 
-      - name: Lint
+      - name: Lint (ESLint)
         run: bun run lint
+
+      - name: Lint (Markdown)
+        run: bun run lint:md
 
       - name: Test (unit)
         run: bun run test

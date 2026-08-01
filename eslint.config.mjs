@@ -44,6 +44,8 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "next-env.d.ts",
     "examples/**",
     "skills",
+    // CommonJS tooling scripts (markdownlint custom rules) — bukan TS
+    "scripts/**/*.cjs",
   ]
 }];
 

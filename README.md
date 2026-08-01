@@ -12,7 +12,7 @@ Sistem Manajemen Konten (CMS) untuk website sekolah UPT SPF SD Negeri Unggulan M
 | Styling | Tailwind CSS v4 |
 | State | Zustand |
 | Animation | Framer Motion |
-| Database | Prisma ORM + SQLite (dev) / PostgreSQL (produksi via `schema.postgres.prisma`) |
+| Database | Prisma ORM + SQLite (dev) / PostgreSQL (produksi via [schema.postgres.prisma](prisma/schema.postgres.prisma)) |
 | Auth | Custom HMAC-signed cookie sessions |
 | Package Manager | bun (lockfile: `bun.lock`) |
 
@@ -117,8 +117,9 @@ bun run dev           # Development server (port 3000)
 bun run build         # Production build
 bun run start         # Production server
 npm run lint          # ESLint
+npm run lint:md       # Markdown lint (fence seimbang, tautan tidak rusak)
 npm run typecheck     # TypeScript type checking (tsc --noEmit)
-npm run check         # Gerbang validasi: typecheck + lint + test
+npm run check         # Gerbang validasi: typecheck + lint + lint:md + test
 npm test              # Unit & integration tests (Vitest)
 bun run test:watch    # Tests dalam mode watch
 bun run test:coverage # Tests dengan coverage report
@@ -137,19 +138,31 @@ Sebelum commit, jalankan gerbang validasi untuk memastikan kode sehat:
 ```bash
 npm run typecheck  # TypeScript: tsc --noEmit (0 error)
 npm run lint       # ESLint (0 error)
+npm run lint:md    # Markdown lint (markdownlint-cli2 + custom rules)
 npm run test       # Vitest — unit & integration tests
-npm run check      # Semua di atas sekaligus (typecheck && lint && test)
+npm run check      # Semua di atas sekaligus (typecheck && lint && lint:md && test)
 ```
 
 `npm run check` adalah gerbang tunggal yang dipakai oleh pre-commit hook.
 Perintah ini berhenti (short-circuit) di kegagalan pertama dan mengembalikan
 exit code non-zero — cocok untuk pipeline CI maupun pre-commit. CI
-(`.github/workflows/ci.yml`) menjalankan typecheck, lint, dan test sebagai
-step terpisah agar setiap kegagalan terlihat jelas di laporan GitHub Actions.
+([.github/workflows/ci.yml](.github/workflows/ci.yml)) menjalankan typecheck, lint, lint:md, dan test
+sebagai step terpisah agar setiap kegagalan terlihat jelas di laporan GitHub
+Actions.
+
+`lint:md` menggunakan `markdownlint-cli2` (config [.markdownlint-cli2.cjs](.markdownlint-cli2.cjs))
+dengan rule core MD042/MD055/MD056 plus dua custom rule di
+`scripts/markdownlint/`:
+
+- **CUSTOM001** — tautan relatif `[text](file.md)` harus menunjuk ke file yang
+  benar-benar ada di disk (mencegah "tautan rusak" ter-commit).
+- **CUSTOM002** — fence kode (` ``` ` / ` ~~~ `) harus ditutup; parser
+  markdown menutup fence yang tak tertutup secara diam-diam, jadi dicek
+  eksplisit.
 
 ### Pre-commit Hook
 
-Hook ter-versi di `.githooks/pre-commit` otomatis menjalankan `npm run check`
+Hook ter-versi di [.githooks/pre-commit](.githooks/pre-commit) otomatis menjalankan `npm run check`
 (typecheck + lint + test) **sebelum setiap commit**. Jika salah satu gagal,
 commit ditolak dan error ditampilkan.
 
@@ -164,7 +177,8 @@ repository (lihat [REPO_HEALTH_AUDIT.md](REPO_HEALTH_AUDIT.md) bagian C.9):
 
 - **File `.db` / `.db-journal` / `.env*` ter-stage** (kecuali
   `.env.example`) — mencegah database/secret ter-commit secara tidak sengaja.
-- **Penghapusan `src/app/api/upload/route.ts` / `src/proxy.ts`** — file
+- **Penghapusan [src/app/api/upload/route.ts](src/app/api/upload/route.ts) /
+  [src/proxy.ts](src/proxy.ts)** — file
   kritikal yang wajib selalu ada di repository.
 
 Guard ini berjalan **sebelum** validasi kode, jadi pelanggaran aturan

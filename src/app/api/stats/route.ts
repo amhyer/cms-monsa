@@ -6,6 +6,10 @@ export async function GET() {
   const auth = await requireAuth();
   if (!auth.ok) return auth.response;
 
+  const user = auth.user;
+  const isGuru = user.role === "GURU";
+  const waliClassId = user.guardianClassId;
+
   const [
     totalNews,
     publishedNews,
@@ -16,6 +20,8 @@ export async function GET() {
     achievementCount,
     unreadMessages,
     userCount,
+    studentCount,
+    classCount,
     recentLogs,
     recentMessages,
   ] = await Promise.all([
@@ -33,9 +39,65 @@ export async function GET() {
     db.achievement.count(),
     db.contactMessage.count({ where: { isRead: false } }),
     db.user.count(),
-    db.activityLog.findMany({ orderBy: { createdAt: "desc" }, take: 8 }),
+    db.student.count({
+      where: {
+        isActive: true,
+        ...(isGuru && waliClassId ? { classId: waliClassId } : {}),
+      },
+    }),
+    db.class.count({
+      where: {
+        isActive: true,
+        ...(isGuru && waliClassId ? { id: waliClassId } : {}),
+      },
+    }),
+    db.activityLog.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 8,
+      ...(isGuru ? { where: { userId: user.id } } : {}),
+    }),
     db.contactMessage.findMany({ orderBy: { createdAt: "desc" }, take: 5 }),
   ]);
+
+  // Today's attendance summary
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const attendanceToday = await db.attendance.groupBy({
+    by: ["status"],
+    where: {
+      date: {
+        gte: today,
+        lt: tomorrow,
+      },
+      ...(isGuru && waliClassId ? { classId: waliClassId } : {}),
+    },
+    _count: true,
+  });
+
+  const attendance = {
+    hadir: attendanceToday.find((a) => a.status === "HADIR")?._count ?? 0,
+    sakit: attendanceToday.find((a) => a.status === "SAKIT")?._count ?? 0,
+    izin: attendanceToday.find((a) => a.status === "IZIN")?._count ?? 0,
+    alfa: attendanceToday.find((a) => a.status === "ALFA")?._count ?? 0,
+    total: attendanceToday.reduce((acc, curr) => acc + curr._count, 0),
+  };
+
+  // Payment summary (current month) - Only for non-Guru
+  let payments: { monthPeriod: string; totalAmount: number } | null = null;
+  if (!isGuru) {
+    const monthPeriod = today.toISOString().slice(0, 7); // YYYY-MM
+    const paidAmount = await db.payment.aggregate({
+      where: { monthPeriod },
+      _sum: { amount: true },
+    });
+    payments = {
+      monthPeriod,
+      totalAmount: paidAmount._sum.amount ?? 0,
+    };
+  }
 
   // crude "visits" mock — derive a pseudo number
   const visits = 18420 + Math.floor((Date.now() / 86400000) % 500);
@@ -51,8 +113,12 @@ export async function GET() {
       achievementCount,
       unreadMessages,
       userCount,
+      studentCount,
+      classCount,
       visits,
     },
+    attendance,
+    payments,
     recentLogs,
     recentMessages,
   });

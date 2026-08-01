@@ -37,16 +37,33 @@ server.log
 /download/
 /mini-services/
 
+# database files (SQLite dev database & backups — jangan commit)
+/db/
+/prisma/db/
+*.db
+*.db-journal
+
+# test coverage output
+/coverage/
+
+# test output (Playwright)
+/test-results/
+/playwright-report/
+
 # uploads (user-generated content)
 /public/uploads/
 
 # docs, guides, agent context (not needed for deployment)
-/docs/
 /MIGRATION-GUIDE.md
 /akun-pengguna.md
 /tool-results/
 /agent-ctx/
 /worklog.md
+
+# environment variables (JANGAN commit - berisi secret)
+# .env.example tetap di-track sebagai template
+.env*
+!.env.example
 
 # misc local files
 local-*

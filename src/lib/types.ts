@@ -3,9 +3,17 @@
 export const ROLES = {
   SUPER_ADMIN: "SUPER_ADMIN",
   OPERATOR: "OPERATOR",
+  GURU: "GURU",
 } as const;
 
 export type Role = (typeof ROLES)[keyof typeof ROLES];
+
+/** Human-readable labels for the dashboard UI. */
+export const ROLE_LABELS: Record<Role, string> = {
+  SUPER_ADMIN: "Super Admin",
+  OPERATOR: "Operator",
+  GURU: "Guru",
+};
 
 export type SessionUser = {
   id: string;
@@ -13,6 +21,7 @@ export type SessionUser = {
   email: string;
   role: Role;
   isActive: boolean;
+  guardianClassId: string | null;
 };
 
 export type NewsCategory = "Akademik" | "Kegiatan" | "Prestasi";
@@ -94,6 +103,8 @@ export type UserItem = {
   name: string;
   email: string;
   role: string;
+  guardianClassId: string | null;
+  guardianClassName?: string;
   isActive: boolean;
   createdAt: string;
 };
@@ -146,4 +157,61 @@ export type ContactMessageItem = {
   message: string;
   isRead: boolean;
   createdAt: string;
+};
+
+export type StudentItem = {
+  id: string;
+  nis: string;
+  nisn: string | null;
+  name: string;
+  dateOfBirth: string | null;
+  gender: string | null;
+  address: string | null;
+  phone: string | null;
+  email: string | null;
+  parentName: string | null;
+  parentPhone: string | null;
+  classId: string;
+  className?: string;
+  isActive: boolean;
+  createdAt: string;
+};
+
+export type ClassItem = {
+  id: string;
+  name: string;
+  grade: string;
+  stream: string | null;
+  academicYear: string;
+  homeroomTeacherId: string | null;
+  homeroomTeacherName?: string;
+  studentCount?: number;
+  isActive: boolean;
+};
+
+export type AttendanceStatus = "HADIR" | "SAKIT" | "IZIN" | "ALFA";
+
+export type AttendanceRow = {
+  studentId: string;
+  nis: string;
+  nisn: string | null;
+  name: string;
+  gender: string | null;
+  parentName: string | null;
+  attendanceId: string | null;
+  status: AttendanceStatus | null;
+  note: string | null;
+};
+
+export type PaymentItem = {
+  id: string;
+  amount: number;
+  paymentDate: string;
+  monthPeriod: string;
+  status: string;
+  note: string | null;
+  studentId: string;
+  studentNis: string;
+  studentName: string;
+  studentClassId: string;
 };

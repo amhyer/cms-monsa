@@ -27,12 +27,45 @@ function currentHashRoute(): string {
   return h || "/";
 }
 
+/** Top-level App Router pages (each has its own route file under src/app). */
+const APP_PAGE_ROUTES = new Set([
+  "/",
+  "/login",
+  "/admin-login",
+  "/dashboard",
+  "/profile",
+  "/academic",
+  "/news",
+  "/gallery",
+  "/contact",
+  "/complaint",
+]);
+
+/** True for real App Router pages, including the `/news/:slug` detail route. */
+function isAppPageRoute(r: string): boolean {
+  if (APP_PAGE_ROUTES.has(r)) return true;
+  return r.startsWith("/news/");
+}
+
 export const useAppStore = create<AppState>((set, get) => ({
   route: "/",
   setRoute: (r) => set({ route: r }),
   navigate: (r) => {
     if (typeof window !== "undefined") {
-      if (currentHashRoute() === r) {
+      const path = window.location.pathname;
+      if (isAppPageRoute(r)) {
+        // Real App Router page — full navigation so the server renders it.
+        if (path !== r) {
+          window.location.href = r;
+          return;
+        }
+        // Already on the target page — clear any stale hash sub-route so the
+        // route store matches the pathname (e.g. back to Ringkasan on /dashboard).
+        if (window.location.hash) {
+          window.location.hash = "";
+        }
+        set({ route: r });
+      } else if (currentHashRoute() === r) {
         set({ route: r });
       } else {
         window.location.hash = r;
@@ -107,10 +140,21 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 }));
 
-/** Subscribe to hashchange so the store route stays in sync with the URL. */
-export function initHashRouter() {
+/**
+ * Subscribe to hashchange so the store route stays in sync with the URL.
+ * Prefers the hash sub-route (e.g. `/dashboard#/dashboard/news`), falling back
+ * to the App Router pathname for top-level pages (`/login`, `/dashboard`, …).
+ * Returns a cleanup function so callers (e.g. RouteSync under React StrictMode)
+ * can remove the listener and avoid double registration on remount.
+ */
+export function initHashRouter(): (() => void) | void {
   if (typeof window === "undefined") return;
-  const apply = () => useAppStore.getState().setRoute(currentHashRoute());
+  const apply = () => {
+    const hash = currentHashRoute();
+    const route = hash !== "/" ? hash : window.location.pathname || "/";
+    useAppStore.getState().setRoute(route);
+  };
   apply();
   window.addEventListener("hashchange", apply);
+  return () => window.removeEventListener("hashchange", apply);
 }

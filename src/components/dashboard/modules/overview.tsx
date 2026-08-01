@@ -16,14 +16,19 @@ import {
   Activity,
   UserCircle2,
   CalendarDays,
+  GraduationCap,
+  ClipboardCheck,
+  Wallet,
+  CheckCircle2,
+  Stethoscope,
+  UserX,
 } from "lucide-react";
 import { useAppStore } from "@/store/app";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { PageLoader, actionBadgeClass, actionLabel } from "../_shared";
-import { relativeTime } from "@/lib/format";
+import { relativeTime, formatCurrency } from "@/lib/format";
 import type { ActivityLogItem, ContactMessageItem } from "@/lib/types";
 
 type Stats = {
@@ -37,30 +42,43 @@ type Stats = {
     achievementCount: number;
     unreadMessages: number;
     userCount: number;
+    studentCount: number;
+    classCount: number;
     visits: number;
   };
+  attendance: {
+    hadir: number;
+    sakit: number;
+    izin: number;
+    alfa: number;
+    total: number;
+  };
+  payments?: {
+    monthPeriod: string;
+    totalAmount: number;
+  } | null;
   recentLogs: ActivityLogItem[];
   recentMessages: ContactMessageItem[];
 };
 
-const primaryCards = (s: Stats) => [
+const primaryCards = (s: Stats, isGuru: boolean) => [
+  {
+    label: isGuru ? "Siswa Saya" : "Total Siswa",
+    value: s.counts.studentCount,
+    icon: GraduationCap,
+    color: "bg-indigo-100 text-indigo-700",
+  },
+  {
+    label: isGuru ? "Kelas Saya" : "Total Kelas",
+    value: s.counts.classCount,
+    icon: Users,
+    color: "bg-emerald-100 text-emerald-700",
+  },
   {
     label: "Total Berita",
     value: s.counts.totalNews,
     icon: Newspaper,
     color: "bg-gold/15 text-gold-foreground",
-  },
-  {
-    label: "Pengumuman Aktif",
-    value: s.counts.activeAnnouncements,
-    icon: Megaphone,
-    color: "bg-primary/10 text-primary",
-  },
-  {
-    label: "Jumlah Guru",
-    value: s.counts.teacherCount,
-    icon: Users,
-    color: "bg-emerald-100 text-emerald-700",
   },
   {
     label: "Total Kunjungan",
@@ -72,6 +90,9 @@ const primaryCards = (s: Stats) => [
 
 export function Overview() {
   const navigate = useAppStore((s) => s.navigate);
+  const user = useAppStore((s) => s.user);
+  const isGuru = user?.role === "GURU";
+
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -104,36 +125,38 @@ export function Overview() {
   }
 
   const quickActions = [
-    { label: "Tambah Berita", path: "/dashboard/news", icon: Newspaper },
-    { label: "Buat Pengumuman", path: "/dashboard/announcements", icon: Megaphone },
-    { label: "Jadwalkan Agenda", path: "/dashboard/agenda", icon: CalendarDays },
-    { label: "Tambah Galeri", path: "/dashboard/gallery", icon: ImageIcon },
-    { label: "Tambah Prestasi", path: "/dashboard/achievements", icon: Trophy },
-  ];
+    { label: "Catat Kehadiran", path: "/dashboard/attendance", icon: ClipboardCheck, show: true },
+    { label: "Tambah Berita", path: "/dashboard/news", icon: Newspaper, show: !isGuru },
+    { label: "Buat Pengumuman", path: "/dashboard/announcements", icon: Megaphone, show: !isGuru },
+    { label: "Jadwalkan Agenda", path: "/dashboard/agenda", icon: CalendarDays, show: !isGuru },
+    { label: "Tambah Siswa", path: "/dashboard/students", icon: Plus, show: !isGuru },
+  ].filter((a) => a.show);
 
   const secondary = [
-    { label: "Berita Terbit", value: stats.counts.publishedNews, icon: FileText },
-    { label: "Draf Berita", value: stats.counts.draftNews, icon: FileText },
-    { label: "Galeri Media", value: stats.counts.galleryCount, icon: ImageIcon },
+    { label: "Pengumuman Aktif", value: stats.counts.activeAnnouncements, icon: Megaphone },
     { label: "Prestasi", value: stats.counts.achievementCount, icon: Trophy },
-    { label: "Pesan Belum Dibaca", value: stats.counts.unreadMessages, icon: Mail },
-    { label: "Pengguna", value: stats.counts.userCount, icon: Users },
-  ];
+    { label: "Galeri Media", value: stats.counts.galleryCount, icon: ImageIcon },
+    { label: "Pesan Baru", value: stats.counts.unreadMessages, icon: Mail },
+    { label: "Guru & Staf", value: stats.counts.teacherCount, icon: Users, hide: isGuru },
+    { label: "User Admin", value: stats.counts.userCount, icon: UserCircle2, hide: isGuru },
+  ].filter((s) => !s.hide);
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
-          Selamat datang kembali 👋
+          Selamat datang kembali, {user?.name} 👋
         </h2>
         <p className="text-sm text-muted-foreground">
-          Berikut ringkasan aktivitas dan statistik konten SD Negeri Unggulan Mongisidi 1.
+          {isGuru
+            ? "Berikut ringkasan kelas wali dan aktivitas Anda hari ini."
+            : "Berikut ringkasan aktivitas dan statistik SD Negeri Unggulan Mongisidi 1."}
         </p>
       </div>
 
       {/* Primary stat cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {primaryCards(stats).map((c) => {
+        {primaryCards(stats, isGuru).map((c) => {
           const Icon = c.icon;
           return (
             <Card key={c.label} className="overflow-hidden">
@@ -155,6 +178,85 @@ export function Overview() {
             </Card>
           );
         })}
+      </div>
+
+      {/* Attendance & Payment Highlight */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Card className="border-indigo-100 bg-indigo-50/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base font-semibold text-indigo-900">
+              <ClipboardCheck className="size-4" />
+              Kehadiran Hari Ini
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {stats.attendance.total === 0 ? (
+              <div className="flex flex-col items-center justify-center py-6 text-center">
+                <p className="text-sm text-indigo-600/70">Belum ada absensi hari ini.</p>
+                <Button 
+                  variant="link" 
+                  size="sm" 
+                  className="mt-1 text-indigo-600"
+                  onClick={() => navigate("/dashboard/attendance")}
+                >
+                  Buka Absensi <ArrowRight className="ml-1 size-3" />
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-4 gap-2">
+                <div className="flex flex-col items-center gap-1 rounded-lg bg-emerald-100/50 p-2 text-emerald-700">
+                  <CheckCircle2 className="size-4" />
+                  <span className="text-lg font-bold">{stats.attendance.hadir}</span>
+                  <span className="text-[10px] font-medium uppercase">Hadir</span>
+                </div>
+                <div className="flex flex-col items-center gap-1 rounded-lg bg-amber-100/50 p-2 text-amber-700">
+                  <Stethoscope className="size-4" />
+                  <span className="text-lg font-bold">{stats.attendance.sakit}</span>
+                  <span className="text-[10px] font-medium uppercase">Sakit</span>
+                </div>
+                <div className="flex flex-col items-center gap-1 rounded-lg bg-blue-100/50 p-2 text-blue-700">
+                  <FileText className="size-4" />
+                  <span className="text-lg font-bold">{stats.attendance.izin}</span>
+                  <span className="text-[10px] font-medium uppercase">Izin</span>
+                </div>
+                <div className="flex flex-col items-center gap-1 rounded-lg bg-rose-100/50 p-2 text-rose-700">
+                  <UserX className="size-4" />
+                  <span className="text-lg font-bold">{stats.attendance.alfa}</span>
+                  <span className="text-[10px] font-medium uppercase">Alfa</span>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {!isGuru && stats.payments && (
+          <Card className="border-emerald-100 bg-emerald-50/30">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base font-semibold text-emerald-900">
+                <Wallet className="size-4" />
+                Pendapatan Bulan Ini ({stats.payments.monthPeriod})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex items-center justify-between">
+              <div>
+                <p className="text-2xl font-bold text-emerald-700">
+                  {formatCurrency(stats.payments.totalAmount)}
+                </p>
+                <p className="text-xs text-emerald-600/80">
+                  Total iuran terkumpul periode berjalan.
+                </p>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50"
+                onClick={() => navigate("/dashboard/payments")}
+              >
+                Detail
+              </Button>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Secondary stat pills */}
@@ -190,7 +292,7 @@ export function Overview() {
                 size="sm"
                 onClick={() => navigate(a.path)}
               >
-                <Plus className="size-3.5" />
+                <Icon className="size-3.5" />
                 {a.label}
               </Button>
             );

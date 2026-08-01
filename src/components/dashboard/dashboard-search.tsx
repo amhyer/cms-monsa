@@ -3,20 +3,8 @@
 import * as React from "react";
 import {
   Search,
-  Home,
-  Newspaper,
-  Megaphone,
-  CalendarDays,
-  Image as ImageIcon,
-  Trophy,
-  Users,
-  Mail,
-  UserCog,
-  Settings,
-  ScrollText,
   LayoutDashboard,
   Eye,
-  X,
 } from "lucide-react";
 import {
   Dialog,

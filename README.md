@@ -237,6 +237,8 @@ CMS MONSA/
 │       └── ci.yml            # CI pipeline (typecheck, lint, test, build)
 ├── .githooks/
 │   └── pre-commit            # Pre-commit hook (npm run check + guard repo)
+├── .env.example              # Environment template (copy to .env)
+├── .markdownlint-cli2.cjs    # Markdownlint config (lint:md)
 ├── prisma/
 │   ├── schema.prisma          # Database schema (SQLite)
 │   ├── schema.postgres.prisma # PostgreSQL variant
@@ -244,6 +246,8 @@ CMS MONSA/
 ├── public/
 │   ├── uploads/               # User-uploaded files
 │   └── ...
+├── scripts/
+│   └── markdownlint/          # Custom markdownlint rules (CUSTOM001/002)
 ├── src/
 │   ├── app/
 │   │   ├── api/               # REST API routes

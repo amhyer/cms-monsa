@@ -6,9 +6,9 @@
 
 | ID | Severity | Temuan | Area |
 |----|----------|--------|------|
-| C1 | 🔴 Kritikal | Sanitizer HTML memakai regex lemah di produksi (DOMParser `undefined` di Node) → potensi **stored XSS** via berita | `src/lib/sanitize.ts` |
-| C2 | 🔴 Kritikal | Upload memvalidasi MIME dari klien, bukan isi file → bisa upload `.html`/`.svg` → **stored XSS di domain sekolah** | `src/app/api/upload/route.ts` |
-| C3 | 🔴 Kritikal | Caddyfile `?XTransformPort=` = **open proxy ke port localhost mana pun** (SSRF/lateral) | `Caddyfile` |
+| C1 | ✅ Sudah diperbaiki² | Sanitizer HTML regex lemah di produksi (DOMParser `undefined` di Node) → potensi **stored XSS** via berita — diganti isomorphic-dompurify | `src/lib/sanitize.ts` |
+| C2 | ✅ Sudah diperbaiki² | Upload memvalidasi MIME dari klien, bukan isi file → bisa upload `.html`/`.svg` → **stored XSS di domain sekolah** — kini deteksi magic bytes | `src/app/api/upload/route.ts` |
+| C3 | ✅ Sudah diperbaiki² | Caddyfile `?XTransformPort=` = **open proxy ke port localhost mana pun** (SSRF/lateral) — blok telah dihapus | `Caddyfile` |
 | H1 | 🟠 Tinggi | `getClientIp()` percaya `X-Forwarded-For` → **bypass rate limit** jika app diakses langsung | `src/lib/rate-limit.ts` |
 | H2 | 🟠 Tinggi | Template email meng-interpolasi input user tanpa escape → **HTML injection di email admin** | `src/lib/email.ts`, `enrollments/route.ts` |
 | H3 | 🟠 Tinggi | Session tidak punya expiry server-side (`exp`/`iat`), hanya cookie maxAge 7 hari | `src/lib/auth.ts` |
@@ -26,7 +26,12 @@
 
 ## Temuan Detail
 
-### C1 — Sanitizer HTML regex (stored XSS)
+### C1 — Sanitizer HTML regex (stored XSS) — ✅ SUDAH DIPERBAIKI (2026-08-02)
+
+Diganti dengan **`isomorphic-dompurify`** (DOMPurify + jsdom di server, bundle
+browser tanpa jsdom). Jalur regex (`sanitizeRegex`) dihapus total — tidak ada
+lagi fallback lemah; test ditambah kasus obfuscation (nested tag, entity-encoded
+`javascript:`, SVG script, style phishing).
 
 **Bukti (terverifikasi):**
 - `node -e "console.log(typeof globalThis.DOMParser)"` → **`undefined`** (Node v26.4.0).
@@ -46,7 +51,13 @@
 
 ---
 
-### C2 — Upload file: MIME klien ≠ isi file (stored XSS)
+### C2 — Upload file: MIME klien ≠ isi file (stored XSS) — ✅ SUDAH DIPERBAIKI (2026-08-02)
+
+Upload kini memvalidasi **magic bytes dari isi file** (`src/lib/upload.ts`,
+`detectImageType`: JPEG/PNG/GIF/WebP) dan **memaksa ekstensi dari tipe
+yang terdeteksi** (`IMAGE_TYPE_EXT`), bukan dari `file.name`/`file.type`
+yang dikontrol attacker. HTML/SVG dengan nama `.html`/`.svg` ditolak;
+tambah unit test `src/lib/__tests__/upload.test.ts`.
 
 **Bukti:** `src/app/api/upload/route.ts`
 - L.35: `ALLOWED_TYPES` (image/jpeg, png, gif, webp) divalidasi dari `file.type` — **nilai dari klien**.
@@ -64,7 +75,9 @@
 
 ---
 
-### C3 — Open proxy `XTransformPort` di Caddyfile
+### C3 — Open proxy `XTransformPort` di Caddyfile — ✅ SUDAH DIPERBAIKI (2026-08-02)
+
+Blok `@transform_port_query` telah dihapus dari `Caddyfile`; hanya `handle { reverse_proxy localhost:3000 }` yang tersisa.
 
 **Bukti:** `Caddyfile:4-14`
 ```
@@ -209,9 +222,10 @@ Upload hanya dibatasi `requireAuth` + ukuran 5 MB, tanpa kuota per-user/jam. Aku
 
 ## Prioritas Perbaikan
 
-1. **Segera** (hari ini): C3 hapus `XTransformPort` di Caddyfile; C2 perbaiki validasi upload (magic bytes + ekstensi whitelist).
-2. **Minggu ini**: C1 ganti sanitizer (isomorphic-dompurify atau hapus regex); H2 escape email; H4 gate switch-role.
+1. **Segera** (hari ini): ~~C3 hapus `XTransformPort` di Caddyfile~~ **✅ selesai (2026-08-02)**; ~~C2 perbaiki validasi upload (magic bytes + ekstensi whitelist)~~ **✅ selesai (2026-08-02)**.
+2. **Minggu ini**: ~~C1 ganti sanitizer (isomorphic-dompurify atau hapus regex)~~ **✅ selesai (2026-08-02)**; H2 escape email; H4 gate switch-role.
 3. **Minggu depan**: H1 kebijakan trusted proxy; H3 `exp` di session; M1–M3 + **M5 (cap per-IP login)** hardening.
 4. **Opsional**: M4 Redis, M6 CSRF login, M7 kuota upload.
 
 > ¹ **Aman** = bukan temuan celah; hasil audit positif (CORS sudah benar). Lihat bagian C4.
+> ² **Sudah diperbaiki** pada 2026-08-02 — blok `@transform_port_query` dihapus dari `Caddyfile`.

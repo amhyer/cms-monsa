@@ -76,6 +76,51 @@ Sesudah:  /dashboard              → overview (ringkasan)
 - E2E Playwright: `login`, `news-crud`, `rbac`, `announcements-crud`, `agenda-crud`, `gallery-crud` — semua harus tetap lulus; tambahkan spec `dashboard-navigation` yang mengeklik tiap menu sidebar dan memastikan URL benar.
 - Manual smoke: login sebagai SUPER_ADMIN, OPERATOR, GURU → sidebar menampilkan menu sesuai role; deep-link `#/dashboard/news` → redirect.
 
+### ✅ Status: SELESAI (2026-08-02)
+
+Tahap 1A–1F selesai penuh: layout dashboard bersama (`layout.tsx` + guard URL tunggal),
+17 `page.tsx` per modul, `navigate()` → `useRouter`/`usePathname` di semua komponen
+publik & auth, routing store dihapus total (`navigate`, `route`, `setRoute`,
+`initHashRouter`, `APP_PAGE_ROUTES`, `isAppPageRoute`, `currentHashRoute`),
+`route-sync.tsx` → `client-hooks.tsx` (CSRF interceptor dipertahankan), URL hash
+dibersihkan dari sitemap/search/RSS, dan verifikasi Playwright 27/27 hijau.
+
+### 🐛 Temuan & perbaikan: guard GURU (prefix-match → exact-match)
+
+**Gejala (ditangkap e2e):** test RBAC baru "guru should be denied content
+management (news)" gagal — halaman `/dashboard/news` tetap menampilkan
+NewsManager padahal login sebagai GURU (badge "Login sebagai: Guru", sidebar
+sudah benar hanya menampilkan Ringkasan + Kehadiran).
+
+**Akar masalah** — `isGuruDeniedPath` di `src/app/dashboard/layout.tsx`:
+
+```ts
+// Sebelum (BOCOR): '/dashboard' prefix-match SEMUA sub-route → GURU bisa
+// mengakses seluruh modul dashboard (news, users, settings, …).
+const GURU_PATHS = ["/dashboard", "/dashboard/attendance"];
+return !GURU_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
+```
+
+`"/dashboard/news".startsWith("/dashboard/")` bernilai `true`, sehingga guard
+menganggap GURU diizinkan di semua `/dashboard/*`.
+
+**Perbaikan** — exact-match untuk `/dashboard`, prefix-match hanya untuk
+sub-halaman attendance (future-proof):
+
+```ts
+// Sesudah: '/dashboard' exact-match; hanya '/dashboard/attendance/...' prefix.
+return !(
+  pathname === "/dashboard" ||
+  pathname === "/dashboard/attendance" ||
+  pathname.startsWith("/dashboard/attendance/")
+);
+```
+
+**Validasi:** `tsc --noEmit` 0 error, lint bersih, e2e RBAC 6/6 (termasuk 2 test
+GURU baru) dan full suite 27/27. Pelajaran: guard otorisasi berbasis path harus
+exact-match untuk segmen akar, jangan pernah mengandalkan prefix-match kecuali
+memang ingin mengizinkan seluruh subtree.
+
 ---
 
 ## 2. 🟡 Campuran bun/npm
@@ -186,7 +231,7 @@ Sesudah:  /dashboard              → overview (ringkasan)
 - Super-commit & file hilang → ikuti rencana `REPO_HEALTH_AUDIT.md` (commit logis, pre-commit hook).
 - `src/lib/db.ts`: `log: ["query"]` — verbose di produksi; jadikan kondisional `NODE_ENV !== "production"`.
 - Bersihkan `upload/pasted_image_*.png` dari history (sudah di-ignore; opsional rewrite history dengan filter-repo).
-- Sinkronkan `schema.prisma` ↔ `schema.postgres.prisma` (jaga agar fitur baru tidak tertinggal di varian Postgres).
+- ~~Sinkronkan `schema.prisma` ↔ `schema.postgres.prisma`~~ **✅ SELESAI (2026-08-02)** — verifikasi diff: bagian model kedua schema identik; tambah guard permanen `scripts/check-schema-sync.mjs` (dijalankan via `npm run check:schema` di gate `check` + CI step `Check schema sync`). Setiap model/field baru yang tidak dicerminkan ke varian Postgres kini menolak commit & pipeline.
 
 ---
 
@@ -196,7 +241,7 @@ Sesudah:  /dashboard              → overview (ringkasan)
 |------|-----|----------|--------|
 | **Fase 1** (aman, cepat) | #7 switch-role gate · #3 build.sh path · #6 toast dedup · #2 bun/npm docs · #5 wrapper i18n | 1–1.5 hari | Rendah |
 | **Fase 2** (perlu hati-hati) | #4 dual DB path standarisasi | 0.5 hari | Sedang |
-| **Fase 3** (besar) | #1 migrasi dashboard ke App Router murni (tahap 1A–1F) | 2–3 hari | Sedang |
+| **Fase 3** (besar) | ~~#1 migrasi dashboard ke App Router murni (tahap 1A–1F)~~ **✅ SELESAI (2026-08-02)** — termasuk fix guard GURU prefix-match → exact-match | 2–3 hari | Sedang |
 | **Fase 4** (berkelanjutan) | #8 kebiasaan repo + cleanup berkala | on-going | Rendah |
 
 **Aturan emas tiap fase:** satu commit per tahap, `lint` + `tsc` + `npm test` + e2e hijau sebelum lanjut, dan setiap fase dikerjakan di branch terpisah (bukan di main langsung).

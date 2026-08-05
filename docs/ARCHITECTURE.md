@@ -57,6 +57,7 @@ flowchart TD
     COMP --> C3["auth/ (login views)"]
     COMP --> C4["shared/ (error-boundary, seo, dll)"]
     COMP --> C5["ui/ (shadcn/ui)"]
+    COMP --> C6["client-hooks.tsx (CSRF interceptor)"]
 
     I18N --> I1["request.ts (next-intl v4)"]
     I18N --> I2["locales.ts"]
@@ -68,8 +69,9 @@ flowchart TD
     LIB --> L3["email.ts (Nodemailer) · log.ts"]
     LIB --> L4["format.ts · sanitize.ts · password.ts"]
     LIB --> L5["types.ts · nav.ts · export.ts · utils.ts"]
+    LIB --> L6["access.ts (guard akses dashboard — isGuruDeniedPath)"]
 
-    STORE --> S1["app.ts (Zustand + hash router)"]
+    STORE --> S1["app.ts (Zustand — auth + settings cache)"]
     PUBLIC --> U1["uploads/ (file user)"]
 ```
 
@@ -150,11 +152,16 @@ sequenceDiagram
     Login-->>Browser: 200 { user }
 ```
 
-### 2.3 Routing Hybrid (App Router + hash sub-route)
+### 2.3 Routing — App Router murni (dashboard + halaman publik)
+
+Setelah refactor (FASE 26, 2026-08-02), dashboard bukan lagi SPA dengan hash
+sub-routing. Setiap modul adalah route App Router dengan URL bersih yang bisa
+di-index dan di-deep-link:
 
 ```mermaid
 flowchart LR
-    subgraph SSR["Next.js App Router (server-rendered)"]
+    subgraph APP["Next.js App Router (semua halaman)"]
+        direction TB
         HOME["/"]
         LOGIN["/login"]
         ADMIN["/admin-login"]
@@ -164,31 +171,52 @@ flowchart LR
         GAL["/gallery"]
         CON["/contact"]
         COM["/complaint"]
-        DASH["/dashboard (shell)"]
+        DASH["/dashboard (Ringkasan)"]
+        DASHN["/dashboard/news · announcements<br/>agenda · gallery · payments · dsb."]
+        DASHA["/dashboard/attendance (Kehadiran)"]
+        DASHU["/dashboard/users · settings · logs<br/>(admin-only)"]
     end
 
-    subgraph SPA["Dashboard SPA (hash sub-routing)"]
+    subgraph GUARD["Guard akses — src/app/dashboard/layout.tsx"]
         direction TB
-        H1["#/dashboard (Ringkasan)"]
-        H2["#/dashboard/news"]
-        H3["#/dashboard/attendance"]
-        H4["#/dashboard/payments"]
-        H5["#/dashboard/reports"]
-        H6["... 17 modul total"]
+        AUTH{"terautentikasi?"}
+        ADMINP{"path di ADMIN_PATHS?"}
+        GURU{"role GURU?"}
+        DENY["AccessDenied — Akses Ditolak"]
+        OK["Render modul"]
+        AUTH -- "tidak" --> LOGIN
+        AUTH -- "ya" --> ADMINP
+        ADMINP -- "ya & bukan SUPER_ADMIN" --> DENY
+        ADMINP -- "tidak" --> GURU
+        GURU -- "ya & path dilarang" --> DENY
+        GURU -- "tidak / path diizinkan" --> OK
     end
 
-    subgraph STORE["Zustand store (app.ts)"]
-        NAV["navigate(r)"]
-        ISAPP{"isAppPageRoute(r)?"}
-        NAV --> ISAPP
-        ISAPP -- "Ya → App Router" --> SSR
-        ISAPP -- "Tidak → hash" --> SPA
-    end
-
-    Browser["Browser"] --> NAV
-    DASH --> STORE
-    RouteSync["RouteSync (hashchange listener)"] --> STORE
+    Browser["Browser"] --> DASH
+    DASH --> AUTH
+    OK --> DASHN
+    OK --> DASHA
+    OK --> DASHU
+    CH["ClientHooks (csrf interceptor)"] -.->|dipasang di root layout| APP
 ```
+
+Konsekuensi refactor:
+
+- **URL bersih**: `/dashboard/news`, `/dashboard/attendance`, dst. — tanpa `#`.
+- **Tanpa routing store**: `navigate()`, `route`, `setRoute`, `initHashRouter`,
+  `isAppPageRoute`, `currentHashRoute` dihapus dari `src/store/app.ts`.
+- **Tanpa hashchange listener**: `route-sync.tsx` diganti `client-hooks.tsx`
+  yang hanya memasang CSRF interceptor (`setupCsrfInterceptor`).
+- **Guard terpusat** di `src/app/dashboard/layout.tsx` (satu guard untuk
+  seluruh 17 route):
+  - Belum login → redirect `/login`.
+  - GURU hanya boleh `/dashboard` (exact-match, bukan prefix — mencegah
+    `/dashboard/news` dll. bocor; lihat [REFACTOR_PLAN.md](../REFACTOR_PLAN.md)
+    bagian #1) dan area `/dashboard/attendance/...`.
+  - `ADMIN_PATHS` (`/dashboard/users`, `/dashboard/settings`,
+    `/dashboard/logs`) khusus SUPER_ADMIN; selainnya `AccessDenied`.
+- **Redirect legacy**: `#/dashboard/...` dari bookmark lama diarahkan via
+  `router.replace(hash.slice(1))` di layout selama masa transisi.
 
 ---
 
@@ -432,6 +460,12 @@ erDiagram
 
 ## Catatan Akurasi (perbaikan vs. dokumentasi lama)
 
+- **Routing dashboard kini App Router murni** — hash router (`navigate()`,
+  `initHashRouter`, `isAppPageRoute`, `RouteSync`) sudah dihapus pada
+  2026-08-02 (lihat [REFACTOR_PLAN.md](../REFACTOR_PLAN.md) bagian #1 dan
+  PROGRESS_LOG.md FASE 26). Guard akses dashboard terpusat di
+  `src/app/dashboard/layout.tsx`; guard GURU dipindah ke modul murni
+  `src/lib/access.ts` (di-unit-test).
 - CORS ditangani oleh **`src/proxy.ts`** (matcher `/api/:path*`) — *bukan*
   `src/middleware.ts` / `src/lib/cors.ts` seperti yang tertulis di `DEPLOYMENT.md`.
 - Konfigurasi next-intl ada di **`src/i18n/request.ts`** (pola next-intl v4),

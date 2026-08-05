@@ -856,6 +856,208 @@ function MyComponent() {
 
 ---
 
+---
+
+## 2026-08-02 — FASE 26: Refactor Routing — App Router Murni + Fix Guard GURU
+
+### Status: SELESAI
+
+### Latar Belakang
+
+Utang teknis #1 di REFACTOR_PLAN.md: routing hybrid (hash router + App Router)
+yang membuat dua sistem navigasi berjalan bersamaan. Fase ini memigrasi dashboard
+& situs publik ke App Router murni dan menghapus routing store total.
+
+### File yang Dibuat
+
+| File | Deskripsi |
+|------|-----------|
+| `src/app/dashboard/layout.tsx` | Layout dashboard (pengganti shell): guard auth + admin + GURU di level URL, `fetchMe`/`fetchSettings` sekali, redirect hash lama |
+| `src/app/dashboard/{16 modul}/page.tsx` | 16 halaman App Router baru (news, announcements, agenda, gallery, achievements, teachers, students, classes, attendance, payments, reports, complaints, messages, users, settings, logs) |
+| `src/components/client-hooks.tsx` | Pengganti `route-sync.tsx` — hanya memasang CSRF interceptor (`setupCsrfInterceptor`) |
+
+### File yang Diupdate
+
+| File | Perubahan |
+|------|-----------|
+| `src/app/dashboard/page.tsx` | Render `<Overview />` langsung |
+| `src/components/dashboard/modules/overview.tsx` | `navigate()` → `useRouter().push()` |
+| `src/components/dashboard/modules/news-manager.tsx` | `navigate()` → `useRouter().push()` |
+| `src/components/dashboard/dashboard-search.tsx` | `navigate()` → `useRouter().push()` |
+| `src/store/app.ts` | Hapus `route`/`setRoute`/`navigate`/`initHashRouter`/`currentHashRoute`/`APP_PAGE_ROUTES`/`isAppPageRoute`; `logout()` tidak lagi menavigasi |
+| `src/components/public/*` (site-header, site-footer, home-view, news-view, news-detail-view, not-found-view) | `useAppStore(s => s.route)`/`navigate()` → `usePathname()`/`useRouter()` |
+| `src/components/auth/login-view.tsx`, `admin-login-view.tsx` | `navigate()` → `useRouter()` (push/replace) |
+| `src/components/shared/seo-manager.tsx` | `route` → `usePathname()`; URL hash di canonical/JSON-LD dibersihkan |
+| `src/components/public/public-site.tsx` | `route` → `usePathname()` (fallback `initialView` atau `pathname`) |
+| `src/app/sitemap.ts`, `api/search/route.ts`, `api/rss/route.ts` | URL hash `#/` → URL App Router bersih |
+| `src/app/robots.ts`, `src/app/error.tsx`, `src/app/not-found.tsx`, `src/app/dashboard/error.tsx`, `error-boundary.tsx` | Bersihkan `window.location.hash` hacks |
+| `src/app/layout.tsx` | `RouteSync` → `ClientHooks` |
+| `e2e/*.spec.ts` | URL hash → URL bersih App Router |
+
+### File yang Dihapus
+
+- `src/components/dashboard/dashboard-shell.tsx` (giant switch 17-case)
+- `src/components/route-sync.tsx`
+
+### 🐛 Temuan & Perbaikan: Bug Guard GURU (prefix-match → exact-match)
+
+**Gejala:** Test e2e baru "guru should be denied content management (news)" gagal —
+login sebagai GURU tetap bisa mengakses halaman `/dashboard/news` (NewsManager
+renders) padahal seharusnya diblokir.
+
+**Akar masalah:** `isGuruDeniedPath` di `src/app/dashboard/layout.tsx` memakai
+`GURU_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))` dengan
+`GURU_PATHS = ["/dashboard", "/dashboard/attendance"]`. Karena `"/dashboard/news"`
+memiliki prefix `"/dashboard/"`, guard menganggap GURU diizinkan di **semua**
+sub-route dashboard — celah RBAC yang membocorkan seluruh modul ke GURU.
+
+**Perbaikan:** exact-match untuk `/dashboard`, prefix-match hanya untuk
+`/dashboard/attendance/...`:
+
+```ts
+function isGuruDeniedPath(pathname: string): boolean {
+  return !(
+    pathname === "/dashboard" ||
+    pathname === "/dashboard/attendance" ||
+    pathname.startsWith("/dashboard/attendance/")
+  );
+}
+```
+
+**Validasi:** e2e RBAC 6/6 (termasuk 2 test GURU baru) → full suite 27/27 lulus.
+
+### Testing
+
+- `tsc --noEmit` — 0 error
+- ESLint — bersih
+- Vitest — 187/187 lulus (17 file)
+- Playwright e2e — 27/27 lulus (8 spec: rbac, login, news/announcements/agenda/gallery CRUD, public, csrf-header)
+- `next build` — sukses (65 route ter-generate)
+- DB dev dibersihkan dari residu e2e (10 news, 2 agenda, 140 activity logs, fixture kelas `4-B`)
+
+### Catatan
+
+- URL lama `#/dashboard/news` → redirect otomatis ke `/dashboard/news` di layout (backward compat).
+- Akun GURU `guru@mongisidi1.sch.id / guru123` perlu wali kelas diisi manual (guardianClassId) untuk akses modul Kehadiran penuh.
+- Pelajaran: guard otorisasi berbasis path harus exact-match di segmen akar; prefix-match hanya untuk subtree yang memang diizinkan.
+
+---
+
+## 2026-08-02 — FASE 27: Sinkronisasi Dokumentasi Routing (README + ARCHITECTURE + DEPLOYMENT)
+
+### Status: SELESAI
+
+### Latar Belakang
+
+Setelah migrasi routing ke App Router murni (FASE 26), dokumentasi masih
+menyebutkan hash routing lama (`#/dashboard/...`, `navigate()`, `isAppPageRoute`,
+`RouteSync`) dan struktur folder yang usang. Fase ini menyinkronkan seluruh
+dokumentasi dengan arsitektur App Router murni agar tidak makin melenceng dari
+kode.
+
+### File yang Diupdate
+
+| File | Perubahan |
+|------|-----------|
+| `README.md` | Tambah section `## Routing (App Router murni)` — daftar halaman publik + tabel 17 route dashboard dengan kolom akses + catatan guard di `layout.tsx`; perbaiki folder structure (hapus komentar `SPA entry point`, tambah `dashboard/` — 17 modul, satu route per modul) |
+| `docs/ARCHITECTURE.md` | Hapus diagram hash router lama (section 2.3) — `navigate(r)`, `isAppPageRoute(r)`, `#/dashboard/news`, `RouteSync` → flowchart App Router murni + subgraph guard `layout.tsx`; update diagram struktur folder (`app.ts (Zustand + hash router)` → auth + settings cache; tambah `client-hooks.tsx` dan `access.ts`); tambah bullet di Catatan Akurasi |
+| `DEPLOYMENT.md` | Tidak ada referensi hash routing (verified 0 match); perbaiki referensi file usang: CORS `src/middleware.ts` + `src/lib/cors.ts` (tidak ada di repo) → `src/proxy.ts` (`handleApiCors`, matcher `/api/:path*`) |
+
+### File Pendukung (dirujuk dokumentasi, dibuat sesi yang sama)
+
+| File | Deskripsi |
+|------|-----------|
+| `src/lib/access.ts` | Modul murni `isGuruDeniedPath` (diekstrak dari `layout.tsx` agar bisa di-unit-test) |
+| `src/lib/__tests__/access.test.ts` | Unit test guard GURU — exact-match vs prefix-match (9 test) |
+
+### Detail Perubahan README
+
+- Section `## Routing (App Router murni)`:
+  - Halaman publik: `/`, `/profile`, `/academic`, `/news` + `/news/:slug`, `/gallery`, `/complaint`, `/contact`, `/login`, `/admin-login`.
+  - Tabel 17 route dashboard dengan kolom akses (Semua role / Super Admin + Operator / Super Admin only).
+  - Catatan guard: GURU hanya `/dashboard` (exact-match, bukan prefix) + area `/dashboard/attendance`; admin-only `users`/`settings`/`logs`.
+- Folder structure: `page.tsx # SPA entry point` → `# Home page (public site)`; tambah `dashboard/ # Admin panel — 17 modul`.
+
+### Detail Perubahan ARCHITECTURE
+
+- Section 2.3 "Routing Hybrid" → "Routing — App Router murni":
+  - Flowchart: semua halaman sebagai route App Router; subgraph GUARD (`src/app/dashboard/layout.tsx`): terautentikasi → `/login`; `ADMIN_PATHS` → AccessDenied; role GURU → AccessDenied untuk path terlarang; else → render modul.
+  - Bullet konsekuensi refactor: URL bersih tanpa `#`, fungsi routing store yang dihapus, `route-sync.tsx` → `client-hooks.tsx`, guard terpusat, redirect legacy hash `#/dashboard/...`.
+- Diagram struktur folder: `STORE` → `app.ts (Zustand — auth + settings cache)`; tambah node `client-hooks.tsx` dan `access.ts`.
+- Catatan Akurasi: bullet migrasi routing 2026-08-02 + guard dipindah ke `src/lib/access.ts` (di-unit-test).
+
+### Detail Perubahan DEPLOYMENT
+
+- Hasil pemeriksaan: **0 referensi hash routing** (grep `hash`/`#/dashboard`/`navigate`/`RouteSync`/`isAppPageRoute`/`initHashRouter` → 0 match) — tidak ada yang perlu disesuaikan untuk App Router murni.
+- Perbaikan item 6: `src/middleware.ts` + `src/lib/cors.ts` (file tidak ada) → `src/proxy.ts` (`handleApiCors`, matcher `/api/:path*`) — dikonfirmasi via `src/lib/__tests__/cors.test.ts` yang import dari `@/proxy`.
+
+### Testing
+
+- `npm run lint:md` — 0 issues (7 file; markdownlint + custom rules CUSTOM001 tautan relatif & CUSTOM002 fence seimbang)
+- Code review — verdict bersih (akurasi vs kode: `DASHBOARD_NAV` 17 item, guard GURU exact-match, sintaks mermaid valid)
+- Unit test guard (sesi sebelumnya): Vitest 196/196 lulus, `tsc --noEmit` 0 error, ESLint bersih
+
+### Catatan
+
+- Tidak ada perubahan kode runtime di fase ini (kecuali `access.ts` + unit test pendukung yang memastikan dokumentasi guard akurat terhadap implementasi).
+- `docs/ARCHITECTURE.md` section 2.1/2.2 (alur keamanan) dan section 3 (ERD) tetap utuh.
+- Item bun/npm standarisasi (#2 REFACTOR_PLAN) belum dikerjakan — perintah `npm ci`/`npm run db:*` di DEPLOYMENT.md menunggu keputusan package manager.
+
+---
+
+## 2026-08-02 — FASE 28: Guard Sinkronisasi Schema Prisma (item #8 REFACTOR_PLAN)
+
+### Status: SELESAI
+
+### Latar Belakang
+
+Item #8 REFACTOR_PLAN: "Sinkronkan `schema.prisma` ↔ `schema.postgres.prisma`
+(jaga agar fitur baru tidak tertinggal di varian Postgres)". Verifikasi diff
+menunjukkan bagian model kedua schema **sudah identik** (fitur GURU, Class,
+Attendance, Payment, Enrollment, dll. sudah tercermin di varian Postgres).
+Fase ini menambahkan **guard permanen** agar drift tidak pernah terjadi lagi
+ke depan — inti dari aksi "jaga".
+
+### File yang Dibuat
+
+| File | Deskripsi |
+|------|-----------|
+| `scripts/check-schema-sync.mjs` | Guard Node ESM: membandingkan bagian model kedua schema (dari marker `---------- RBAC ----------` sampai akhir), normalisasi CRLF→LF + trailing whitespace; exit 0 jika identik, cetak baris pertama yang berbeda + exit 1 jika drift |
+
+### File yang Diupdate
+
+| File | Perubahan |
+|------|-----------|
+| `package.json` | Tambah script `check:schema` dan gabungkan ke gate `check`: `typecheck && lint && lint:md && check:schema && test` |
+| `.github/workflows/ci.yml` | Tambah step `Check schema sync` (`bun run check:schema`) antara Lint (Markdown) dan Test |
+| `README.md` | Scripts table + Development section + paragraf CI menyebut `check:schema` |
+
+### Detail
+
+- Guard hanya membandingkan **bagian model** — header komentar dan `provider`
+  datasource (sqlite vs postgresql) memang sengaja berbeda dan diabaikan.
+- Di-enforce di **pre-commit hook** (via `npm run check`) **dan CI** — setiap
+  model/field/index baru di `schema.prisma` yang tidak dicerminkan ke
+  `schema.postgres.prisma` akan menolak commit & pipeline.
+
+### Testing
+
+- Guard 3 jalur: sinkron → exit 0 · drift (tambah baris komentar) → exit 1
+  dengan pesan baris pertama yang berbeda · restore → exit 0.
+- `tsc --noEmit` — 0 error · ESLint — bersih · `lint:md` — 0 issues.
+- Code review — verdict bersih (dengan perbaikan: normalisasi CRLF + update
+  README deskripsi `check` + typo spasi `check:schema #`).
+
+### Catatan
+
+- `prisma validate` pada schema PG sempat error di mesin dev — **bukan masalah
+  skema**: hanya karena `.env` lokal memakai `DATABASE_URL` sqlite; di
+  produksi dengan URL Postgres validasi akan lolos.
+- Guard memakai `node` (bukan bun) agar tetap jalan di mesin tanpa bun; CI
+  memanggilnya via `bun run check:schema`.
+
+---
+
 ## 🎉 SEMUA FASE SELESAI
 
 ### Ringkasan Implementasi
@@ -887,5 +1089,8 @@ function MyComponent() {
 | 23 | ✅ | UX — Reduced Motion & Accessibility |
 | 24 | ✅ | UX — Image Optimization & Dark Mode |
 | 25 | ✅ | UX — Bulk Operations |
+| 26 | ✅ | Refactor Routing — App Router murni + fix guard GURU (prefix-match → exact-match) |
+| 27 | ✅ | Sinkronisasi Dokumentasi Routing — README + ARCHITECTURE + DEPLOYMENT (App Router murni) |
+| 28 | ✅ | Guard Sinkronisasi Schema Prisma — `check:schema` di gate check + CI (item #8) |
 
-**Total: 25 dari 25 fase selesai (100%)**
+**Total: 28 dari 28 fase selesai (100%)**

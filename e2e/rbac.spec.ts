@@ -10,6 +10,11 @@ const OPERATOR = {
   password: "operator123",
 };
 
+const GURU = {
+  email: "guru@mongisidi1.sch.id",
+  password: "guru123",
+};
+
 async function login(page: Page, email: string, password: string) {
   await page.goto("/login");
   await page.getByLabel("Email").fill(email);
@@ -29,7 +34,7 @@ test.describe("RBAC - Role-Based Access Control", () => {
     await login(page, OPERATOR.email, OPERATOR.password);
     // Admin-only module → dashboard shell shows "Akses Ditolak".
     // CardTitle is a <div>, so assert by text, not heading role.
-    await page.goto("/dashboard#/dashboard/users");
+    await page.goto("/dashboard/users");
     await expect(page.getByText("Akses Ditolak")).toBeVisible();
     await expect(
       page.getByText(/Halaman ini hanya tersedia untuk Super Admin/)
@@ -38,7 +43,7 @@ test.describe("RBAC - Role-Based Access Control", () => {
 
   test("super admin should access user management", async ({ page }) => {
     await login(page, ADMIN.email, ADMIN.password);
-    await page.goto("/dashboard#/dashboard/users");
+    await page.goto("/dashboard/users");
     // The module's own <h2> is "Manajemen Akun"; "Manajemen Operator" only
     // appears in the topbar as an <h1>, so match the module heading here.
     await expect(
@@ -48,12 +53,32 @@ test.describe("RBAC - Role-Based Access Control", () => {
 
   test("operator can access content management (news)", async ({ page }) => {
     await login(page, OPERATOR.email, OPERATOR.password);
-    await page.goto("/dashboard#/dashboard/news");
+    await page.goto("/dashboard/news");
     await expect(
       page.getByRole("heading", { name: "Berita & Artikel", level: 2 })
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Tambah Berita" })
+    ).toBeVisible();
+  });
+
+  test("guru can access dashboard and attendance (wali kelas)", async ({ page }) => {
+    await login(page, GURU.email, GURU.password);
+    // GURU diizinkan di /dashboard (Ringkasan) dan /dashboard/attendance.
+    await expect(page).toHaveURL(/\/dashboard$/);
+    await page.goto("/dashboard/attendance");
+    await expect(
+      page.getByRole("heading", { name: "Kehadiran (Absensi)", level: 2 })
+    ).toBeVisible();
+  });
+
+  test("guru should be denied content management (news)", async ({ page }) => {
+    await login(page, GURU.email, GURU.password);
+    // GURU diblokir di level URL untuk semua modul selain Ringkasan/Kehadiran.
+    await page.goto("/dashboard/news");
+    await expect(page.getByText("Akses Ditolak")).toBeVisible();
+    await expect(
+      page.getByText(/Akun Guru hanya dapat mengakses Ringkasan dan Kehadiran/)
     ).toBeVisible();
   });
 });

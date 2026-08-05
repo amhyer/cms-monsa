@@ -18,6 +18,7 @@ import { hashPassword } from "@/lib/password";
 // Mock rate-limit to avoid state leakage between tests
 vi.mock("@/lib/rate-limit", () => ({
   isLocked: vi.fn(() => false),
+  isIpLocked: vi.fn(() => false),
   lockSecondsRemaining: vi.fn(() => 0),
   recordFailure: vi.fn(),
   clearFailures: vi.fn(),

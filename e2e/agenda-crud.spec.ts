@@ -27,7 +27,7 @@ test.describe("Agenda CRUD", () => {
     await expect(
       page.getByRole("heading", { name: "Agenda Sekolah", level: 2 })
     ).toBeVisible();
-    await expect(page).toHaveURL(/#\/dashboard\/agenda/);
+    await expect(page).toHaveURL(/\/dashboard\/agenda/);
   });
 
   test("should create, read, edit and delete an agenda item", async ({ page }) => {

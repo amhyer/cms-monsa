@@ -27,7 +27,7 @@ test.describe("Announcements CRUD", () => {
     await expect(
       page.getByRole("heading", { name: "Pengumuman", level: 2 })
     ).toBeVisible();
-    await expect(page).toHaveURL(/#\/dashboard\/announcements/);
+    await expect(page).toHaveURL(/\/dashboard\/announcements/);
   });
 
   test("should create, read, edit and delete an announcement", async ({ page }) => {

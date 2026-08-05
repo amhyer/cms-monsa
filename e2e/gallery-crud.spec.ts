@@ -27,7 +27,7 @@ test.describe("Gallery CRUD", () => {
     await expect(
       page.getByRole("heading", { name: "Galeri Media", level: 2 })
     ).toBeVisible();
-    await expect(page).toHaveURL(/#\/dashboard\/gallery/);
+    await expect(page).toHaveURL(/\/dashboard\/gallery/);
   });
 
   test("should create, read, edit and delete a gallery item", async ({ page }) => {

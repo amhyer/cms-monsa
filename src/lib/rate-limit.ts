@@ -18,8 +18,10 @@ type AttemptRecord = {
 const WINDOW = 15 * 60 * 1000; // 15 minutes rolling window
 const MAX_FAILURES = 5; // lock after 5 failed attempts
 const LOCK_DURATION = 15 * 60 * 1000; // lock for 15 minutes
+const IP_MAX_ATTEMPTS = 20; // max attempts per IP across all accounts
 
 const store = new Map<string, AttemptRecord>();
+const ipStore = new Map<string, AttemptRecord>(); // Per-IP tracking for credential stuffing protection
 
 // Periodically purge expired entries to avoid memory growth.
 const CLEANUP_INTERVAL = 5 * 60 * 1000;
@@ -32,6 +34,11 @@ function cleanup() {
   for (const [key, rec] of store) {
     if (now > rec.lockedUntil && now - rec.firstFailureAt > WINDOW) {
       store.delete(key);
+    }
+  }
+  for (const [key, rec] of ipStore) {
+    if (now > rec.lockedUntil && now - rec.firstFailureAt > WINDOW) {
+      ipStore.delete(key);
     }
   }
   for (const [key, rec] of formStore) {
@@ -74,7 +81,20 @@ export function lockSecondsRemaining(email: string, ip: string): number {
 export function recordFailure(email: string, ip: string): void {
   cleanup();
   const k = key(email, ip);
+  const ipKey = `ip:${ip}`;
   const now = Date.now();
+
+  // Track per-IP attempts across all accounts (prevents credential stuffing)
+  const ipRec = ipStore.get(ipKey);
+  if (!ipRec || now - ipRec.firstFailureAt > WINDOW) {
+    ipStore.set(ipKey, { failures: 1, firstFailureAt: now, lockedUntil: 0 });
+  } else {
+    ipRec.failures += 1;
+    if (ipRec.failures >= IP_MAX_ATTEMPTS) {
+      ipRec.lockedUntil = now + LOCK_DURATION;
+    }
+  }
+
   const existing = store.get(k);
   if (!existing || now - existing.firstFailureAt > WINDOW) {
     store.set(k, {
@@ -88,6 +108,13 @@ export function recordFailure(email: string, ip: string): void {
   if (existing.failures >= MAX_FAILURES) {
     existing.lockedUntil = now + LOCK_DURATION;
   }
+}
+
+/** Check if an IP is rate-limited across all accounts (credential stuffing protection). */
+export function isIpLocked(ip: string): boolean {
+  const ipRec = ipStore.get(`ip:${ip}`);
+  if (!ipRec) return false;
+  return Date.now() < ipRec.lockedUntil;
 }
 
 /** Clear failures for this email+ip on successful login. */

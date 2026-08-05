@@ -40,7 +40,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     data.guardianClassId = nextRole === "GURU" ? body.guardianClassId || null : null;
   }
   if (typeof body.isActive === "boolean") data.isActive = body.isActive;
-  if (typeof body.password === "string" && body.password.length >= 6) {
+  if (typeof body.password === "string" && body.password.length >= 6 && body.password.length <= 100) {
     data.password = hashPassword(body.password);
   }
 

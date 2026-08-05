@@ -32,14 +32,15 @@ export async function GET() {
   const items = [
     ...news.map((n) => ({
       title: n.title,
-      link: `${siteUrl}/#/news/${n.slug}`,
+      link: `${siteUrl}/news/${n.slug}`,
       description: n.excerpt || n.content.slice(0, 200),
       pubDate: (n.publishedAt || n.createdAt).toUTCString(),
       category: "Berita",
     })),
     ...announcements.map((a) => ({
       title: a.title,
-      link: `${siteUrl}/#/announcements`,
+      // Announcements are published on the home page.
+      link: `${siteUrl}/`,
       description: a.content.slice(0, 200),
       pubDate: a.createdAt.toUTCString(),
       category: "Pengumuman",

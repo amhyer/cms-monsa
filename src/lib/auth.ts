@@ -44,6 +44,8 @@ const SESSION_SECRET = getSessionSecret();
 type SessionPayload = {
   userId: string;
   activeRole: Role;
+  /** Server-side session creation timestamp (ms since epoch). */
+  createdAt: number;
 };
 
 function b64encode(s: string): string {
@@ -64,7 +66,7 @@ function encode(payload: SessionPayload): string {
   return `${data}.${sign(data)}`;
 }
 
-/** Verify signature and return payload, or null if tampered/invalid. */
+/** Verify signature and return payload, or null if tampered/expired/invalid. */
 function decode(token: string): SessionPayload | null {
   try {
     const dot = token.lastIndexOf(".");
@@ -77,6 +79,11 @@ function decode(token: string): SessionPayload | null {
     const json = b64decode(data);
     const parsed = JSON.parse(json) as SessionPayload;
     if (!parsed.userId || !parsed.activeRole) return null;
+    // H3: server-side session expiry check (7 days)
+    const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+    if (parsed.createdAt && Date.now() - parsed.createdAt > SESSION_MAX_AGE_MS) {
+      return null; // Session expired server-side
+    }
     return parsed;
   } catch {
     return null;
@@ -109,7 +116,7 @@ export async function getSession(): Promise<SessionUser | null> {
 
 export async function setSession(userId: string, role: Role) {
   const store = await cookies();
-  store.set(SESSION_COOKIE, encode({ userId, activeRole: role }), {
+  store.set(SESSION_COOKIE, encode({ userId, activeRole: role, createdAt: Date.now() }), {
     httpOnly: true,
     // "lax" in production blocks CSRF via cross-site requests; "none" is only
     // used in development so the cookie is sent when the app runs inside the

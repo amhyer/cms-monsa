@@ -52,12 +52,27 @@ function key(email: string, ip: string) {
   return `${email.toLowerCase()}::${ip}`;
 }
 
-/** Returns the client IP from a Next.js request, best-effort. */
+/**
+ * Returns the client IP from a Next.js request, best-effort.
+ *
+ * SECURITY NOTE (H1): X-Forwarded-For can be spoofed by clients when the
+ * app is accessed directly (not behind a reverse proxy). For production,
+ * ensure the app is behind a trusted proxy (Caddy, nginx, Cloudflare)
+ * that strips/overwrites client-supplied X-Forwarded-For headers.
+ * X-Real-IP is more reliable when set by the proxy.
+ *
+ * For multi-instance deployments, this in-memory rate limiter should be
+ * replaced with Redis or a shared store (M4).
+ */
 export function getClientIp(req: Request): string {
-  const xff = req.headers.get("x-forwarded-for");
-  if (xff) return xff.split(",")[0].trim();
   const real = req.headers.get("x-real-ip");
-  if (real) return real;
+  if (real) return real; // Prefer X-Real-IP (set by trusted proxy)
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) {
+    // Take the first IP (closest to client), but note this can be spoofed
+    // if the app is not behind a trusted reverse proxy.
+    return xff.split(",")[0].trim();
+  }
   return "unknown";
 }
 

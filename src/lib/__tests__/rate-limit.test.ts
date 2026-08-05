@@ -35,14 +35,14 @@ describe("rate-limit utilities", () => {
       expect(getClientIp(req)).toBe("unknown");
     });
 
-    it("prefers x-forwarded-for over x-real-ip", () => {
+    it("prefers x-real-ip over x-forwarded-for (H1 security fix)", () => {
       const req = new Request("http://localhost", {
         headers: {
           "x-forwarded-for": "1.2.3.4",
           "x-real-ip": "9.8.7.6",
         },
       });
-      expect(getClientIp(req)).toBe("1.2.3.4");
+      expect(getClientIp(req)).toBe("9.8.7.6");
     });
   });
 

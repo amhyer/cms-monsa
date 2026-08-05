@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
-import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SeoManager } from "@/components/shared/seo-manager";
 import { ErrorBoundary } from "@/components/shared/error-boundary";
-import { RouteSync } from "@/components/route-sync";
+import { ClientHooks } from "@/components/client-hooks";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale } from "next-intl/server";
 
@@ -60,12 +59,11 @@ export default async function RootLayout({
           disableTransitionOnChange
         >
           <NextIntlClientProvider>
-            <RouteSync />
+            <ClientHooks />
             <SeoManager />
             <ErrorBoundary>
               {children}
             </ErrorBoundary>
-            <Toaster />
             <SonnerToaster richColors position="top-right" />
           </NextIntlClientProvider>
         </ThemeProvider>

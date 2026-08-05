@@ -115,4 +115,63 @@ describe("sanitizeHtml", () => {
   it("handles plain text without HTML", () => {
     expect(sanitizeHtml("Just plain text")).toBe("Just plain text");
   });
+
+  // --- Regression tests for C1 (regex fallback bypasses) ---
+  // The old regex fallback could be tricked by nested/obfuscated markup;
+  // DOMPurify parses with a real DOM, so none of these must survive.
+
+  it("blocks nested script tags (parser bypass attempt)", () => {
+    const input = "<scr<script>ipt>alert(1)</script>";
+    const result = sanitizeHtml(input);
+    expect(result).not.toMatch(/<\s*script/i);
+    expect(result).not.toMatch(/on\w+\s*=/i);
+  });
+
+  it("removes scripts inside SVG", () => {
+    const result = sanitizeHtml("<svg><script>alert(1)</script></svg>");
+    expect(result).not.toContain("svg");
+    expect(result).not.toMatch(/<\s*script/i);
+  });
+
+  it("blocks entity-encoded javascript: URLs", () => {
+    const result = sanitizeHtml(
+      '<a href="java&#x73;cript:alert(1)">Click</a>'
+    );
+    expect(result).not.toMatch(/javascript\s*:/i);
+  });
+
+  it("blocks mixed-case and numeric-entity javascript: URLs", () => {
+    expect(sanitizeHtml('<a href="JaVaScRiPt:alert(1)">x</a>')).not.toMatch(
+      /javascript\s*:/i
+    );
+    expect(sanitizeHtml('<a href="&#106;avascript:alert(1)">x</a>')).not.toMatch(
+      /javascript\s*:/i
+    );
+  });
+
+  it("removes unquoted event handlers", () => {
+    const result = sanitizeHtml("<img src=x onerror=alert(1)>");
+    expect(result).not.toMatch(/onerror/i);
+  });
+
+  it("removes unsafe CSS such as position:fixed phishing overlays", () => {
+    const input =
+      '<div style="position:fixed;top:0;left:0;width:100%;height:100%">phishing</div>';
+    const result = sanitizeHtml(input);
+    expect(result).not.toContain("position");
+    expect(result).toContain("phishing");
+  });
+
+  it("keeps only safe style declarations", () => {
+    const result = sanitizeHtml('<span style="color:red;position:absolute">t</span>');
+    expect(result).toContain("color");
+    expect(result).not.toContain("position");
+  });
+
+  it("drops iframe/object/embed entirely", () => {
+    const result = sanitizeHtml(
+      '<iframe src="https://evil.example"></iframe><object data="x"></object><embed src="y">'
+    );
+    expect(result).not.toMatch(/<\s*(iframe|object|embed)/i);
+  });
 });

@@ -29,8 +29,8 @@ test.describe("News CRUD", () => {
     await expect(
       page.getByRole("heading", { name: "Berita & Artikel", level: 2 })
     ).toBeVisible();
-    // Hash sub-route is set and the store route switched (URL reflects it).
-    await expect(page).toHaveURL(/#\/dashboard\/news/);
+    // App Router sub-route (URL reflects the clean path).
+    await expect(page).toHaveURL(/\/dashboard\/news/);
   });
 
   test("should create, read, edit and delete a news item", async ({ page }) => {

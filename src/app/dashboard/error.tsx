@@ -23,8 +23,7 @@ export default function DashboardError({
   }, [error]);
 
   function handleGoHome() {
-    window.location.hash = "/dashboard";
-    window.location.reload();
+    window.location.href = "/dashboard";
   }
 
   return (

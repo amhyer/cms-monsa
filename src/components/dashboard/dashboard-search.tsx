@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import {
   Search,
   LayoutDashboard,
@@ -26,13 +27,13 @@ type Props = {
  * Built with a plain Dialog + input filter (no cmdk dependency).
  */
 export function DashboardSearch({ open, onOpenChange }: Props) {
-  const navigate = useAppStore((s) => s.navigate);
+  const router = useRouter();
   const user = useAppStore((s) => s.user);
   const isAdmin = user?.role === "SUPER_ADMIN";
   const [query, setQuery] = React.useState("");
 
   function go(path: string) {
-    navigate(path);
+    router.push(path);
     onOpenChange(false);
     setQuery("");
   }

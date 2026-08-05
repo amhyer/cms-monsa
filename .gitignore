@@ -18,6 +18,10 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# package lockfiles — kanonik: bun.lock (jangan pernah commit lockfile lain)
+package-lock.json
+pnpm-lock.yaml
+
 # vercel
 .vercel
 

@@ -5,6 +5,7 @@ import { logActivity } from "@/lib/log";
 import { verifyPassword, isHashed } from "@/lib/password";
 import {
   isLocked,
+  isIpLocked,
   lockSecondsRemaining,
   recordFailure,
   clearFailures,
@@ -40,6 +41,16 @@ export async function POST(req: NextRequest) {
           error: `Terlalu banyak percobaan gagal. Coba lagi dalam ${Math.ceil(
             secs / 60
           )} menit.`,
+        },
+        { status: 429 }
+      );
+    }
+
+    // IP-level rate limit: prevent credential stuffing attacks across multiple accounts
+    if (isIpLocked(ip)) {
+      return NextResponse.json(
+        {
+          error: `Terlalu banyak percobaan dari alamat ini. Coba lagi dalam 15 menit.`,
         },
         { status: 429 }
       );

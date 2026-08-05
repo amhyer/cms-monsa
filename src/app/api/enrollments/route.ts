@@ -3,6 +3,10 @@ import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
 import { rateLimitPublicForm } from "@/lib/rate-limit";
+import { createEnrollmentSchema, validateBody } from "@/lib/validations";
+
+// Note: createEnrollmentSchema and validateBody are used for Zod validation
+// This ensures proper input validation for all enrollment fields
 
 export async function GET(req: NextRequest) {
   const auth = await requireAuth();
@@ -41,25 +45,16 @@ export async function POST(req: NextRequest) {
     if (rateLimited) return rateLimited;
 
     const body = await req.json();
-
-    // Validate required fields
-    const requiredFields = [
-      "nisn", "fullName", "gender", "dateOfBirth", "placeOfBirth",
-      "address", "parentName", "parentPhone", "previousSchool", "programChoice"
-    ];
-
-    for (const field of requiredFields) {
-      if (!body[field]) {
-        return NextResponse.json(
-          { error: `Field ${field} wajib diisi.` },
-          { status: 400 }
-        );
-      }
+    const validation = validateBody(createEnrollmentSchema, body);
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
     }
+
+    const data = validation.data;
 
     // Check for duplicate NISN
     const existing = await db.enrollment.findFirst({
-      where: { nisn: String(body.nisn).trim() },
+      where: { nisn: data.nisn },
     });
     if (existing) {
       return NextResponse.json(
@@ -70,40 +65,48 @@ export async function POST(req: NextRequest) {
 
     const item = await db.enrollment.create({
       data: {
-        nisn: String(body.nisn).trim(),
-        fullName: String(body.fullName).trim(),
-        gender: body.gender,
-        dateOfBirth: new Date(body.dateOfBirth),
-        placeOfBirth: String(body.placeOfBirth).trim(),
-        address: String(body.address).trim(),
-        phone: body.phone || null,
-        email: body.email || null,
-        parentName: String(body.parentName).trim(),
-        parentPhone: String(body.parentPhone).trim(),
-        parentEmail: body.parentEmail || null,
-        parentOccupation: body.parentOccupation || null,
-        previousSchool: String(body.previousSchool).trim(),
-        previousSchoolAddress: body.previousSchoolAddress || null,
-        programChoice: body.programChoice,
-        birthCertUrl: body.birthCertUrl || null,
-        diplomaUrl: body.diplomaUrl || null,
-        photoUrl: body.photoUrl || null,
+        nisn: data.nisn,
+        fullName: data.fullName,
+        gender: data.gender,
+        dateOfBirth: new Date(data.dateOfBirth),
+        placeOfBirth: data.placeOfBirth,
+        address: data.address,
+        phone: data.phone || null,
+        email: data.email || null,
+        parentName: data.parentName,
+        parentPhone: data.parentPhone,
+        parentEmail: data.parentEmail || null,
+        parentOccupation: data.parentOccupation || null,
+        previousSchool: data.previousSchool,
+        previousSchoolAddress: data.previousSchoolAddress || null,
+        programChoice: data.programChoice,
+        birthCertUrl: data.birthCertUrl || null,
+        diplomaUrl: data.diplomaUrl || null,
+        photoUrl: data.photoUrl || null,
       },
     });
 
     // Send email notification to admin
     const adminEmail = process.env.ADMIN_EMAIL;
     if (adminEmail) {
+      // Escape user input to prevent HTML injection in email
+      const escapeHtml = (str: string) => str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+      
       await sendEmail({
         to: adminEmail,
-        subject: `[CMS] Pendaftaran SPMB Baru: ${body.fullName}`,
+        subject: `[CMS] Pendaftaran SPMB Baru: ${escapeHtml(data.fullName)}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #1e40af;">Pendaftaran SPMB Baru</h2>
-            <p><strong>Nama:</strong> ${body.fullName}</p>
-            <p><strong>NISN:</strong> ${body.nisn}</p>
-            <p><strong>Jalur SPMB:</strong> ${body.programChoice}</p>
-            <p><strong>Asal Sekolah:</strong> ${body.previousSchool}</p>
+            <p><strong>Nama:</strong> ${escapeHtml(data.fullName)}</p>
+            <p><strong>NISN:</strong> ${escapeHtml(data.nisn)}</p>
+            <p><strong>Jalur SPMB:</strong> ${escapeHtml(data.programChoice)}</p>
+            <p><strong>Asal Sekolah:</strong> ${escapeHtml(data.previousSchool)}</p>
             <hr style="border: 1px solid #e5e7eb;" />
             <p style="color: #6b7280; font-size: 12px;">
               Email ini dikirim otomatis dari CMS UPT SPF SD Negeri Unggulan Mongisidi 1

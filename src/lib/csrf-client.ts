@@ -10,7 +10,7 @@
  *  2. installs a small `window.fetch` interceptor that automatically attaches
  *     the token as the `x-csrf-token` header on non-safe requests.
  *
- * Install it once from a client component (RouteSync) — no per-call changes
+ * Install it once from a client component (ClientHooks) — no per-call changes
  * needed in any manager component.
  */
 

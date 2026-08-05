@@ -6,6 +6,14 @@ import type { Role } from "@/lib/types";
 
 /** Mock role switcher for testing RBAC without re-login. */
 export async function POST(req: NextRequest) {
+  // Dev-only mock (REFACTOR_PLAN #7 / SECURITY_AUDIT H4): tidak boleh aktif di produksi.
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json(
+      { error: "Not found." },
+      { status: 404 }
+    );
+  }
+
   const csrfError = await requireCsrf(req);
   if (csrfError) return csrfError;
 

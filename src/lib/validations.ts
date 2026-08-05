@@ -228,6 +228,59 @@ export const updateSiteSettingsSchema = z.object({
     .optional(),
 });
 
+// --- Enrollment (SPMB) ---
+export const genderEnum = z.enum(["LAKI_LAKI", "PEREMPUAN"]);
+export const programChoiceEnum = z.enum(["Zonasi", "Afirmasi", "Prestasi", "Perpindahan Tugas"]);
+
+export const createEnrollmentSchema = z.object({
+  nisn: z
+    .string()
+    .trim()
+    .min(1, "NISN wajib diisi.")
+    .max(20, "NISN maksimal 20 karakter."),
+  fullName: z
+    .string()
+    .trim()
+    .min(1, "Nama lengkap wajib diisi.")
+    .max(200, "Nama maksimal 200 karakter."),
+  gender: genderEnum,
+  dateOfBirth: z.string().min(1, "Tanggal lahir wajib diisi."),
+  placeOfBirth: z
+    .string()
+    .trim()
+    .min(1, "Tempat lahir wajib diisi.")
+    .max(100, "Tempat lahir maksimal 100 karakter."),
+  address: z
+    .string()
+    .trim()
+    .min(1, "Alamat wajib diisi.")
+    .max(500, "Alamat maksimal 500 karakter."),
+  phone: z.string().max(20, "Telepon maksimal 20 karakter.").optional(),
+  email: z.string().email("Format email tidak valid.").max(200).optional(),
+  parentName: z
+    .string()
+    .trim()
+    .min(1, "Nama orang tua wajib diisi.")
+    .max(200, "Nama orang tua maksimal 200 karakter."),
+  parentPhone: z
+    .string()
+    .trim()
+    .min(1, "Telepon orang tua wajib diisi.")
+    .max(20, "Telepon orang tua maksimal 20 karakter."),
+  parentEmail: z.string().email("Format email tidak valid.").max(200).optional(),
+  parentOccupation: z.string().max(100, "Pekerjaan orang tua maksimal 100 karakter.").optional(),
+  previousSchool: z
+    .string()
+    .trim()
+    .min(1, "Asal sekolah wajib diisi.")
+    .max(200, "Asal sekolah maksimal 200 karakter."),
+  previousSchoolAddress: z.string().max(500, "Alamat sekolah maksimal 500 karakter.").optional(),
+  programChoice: programChoiceEnum,
+  birthCertUrl: z.string().url("URL akta lahir tidak valid.").optional(),
+  diplomaUrl: z.string().url("URL ijazah tidak valid.").optional(),
+  photoUrl: z.string().url("URL foto tidak valid.").optional(),
+});
+
 // --- Auth ---
 export const loginSchema = z.object({
   email: z.string().email("Format email tidak valid."),

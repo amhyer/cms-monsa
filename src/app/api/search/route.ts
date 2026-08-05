@@ -98,16 +98,17 @@ export async function GET(req: NextRequest) {
       title: n.title,
       description: n.excerpt,
       category: n.category,
-      url: `/#/news/${n.slug}`,
+      url: `/news/${n.slug}`,
       date: n.publishedAt,
     })),
+    // Announcements are shown on the home page (RunningAnnouncements).
     ...announcements.map((a) => ({
       type: "announcement" as const,
       id: a.id,
       title: a.title,
       description: a.content.slice(0, 150),
       category: "Pengumuman",
-      url: "/#/announcements",
+      url: "/",
       date: a.createdAt,
     })),
     ...teachers.map((t) => ({
@@ -116,7 +117,7 @@ export async function GET(req: NextRequest) {
       title: t.name,
       description: t.subject || t.position,
       category: "Guru",
-      url: "/#/academic",
+      url: "/academic",
       date: null,
     })),
     ...achievements.map((a) => ({
@@ -124,8 +125,9 @@ export async function GET(req: NextRequest) {
       id: a.id,
       title: a.studentName ? `${a.title} - ${a.studentName}` : a.title,
       description: a.description,
+      // Achievements are highlighted on the home page.
       category: `${a.level} - ${a.category}`,
-      url: "/#/achievements",
+      url: "/",
       date: a.date,
     })),
   ].sort((a, b) => {

@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "lint:md": "markdownlint-cli2",
     "typecheck": "tsc --noEmit",
-    "check": "npm run typecheck && npm run lint && npm run lint:md && npm run test",
+    "check": "npm run typecheck && npm run lint && npm run lint:md && npm run check:schema && npm run test",
+    "check:schema": "node scripts/check-schema-sync.mjs",
     "hooks:install": "git config core.hooksPath .githooks",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -20,12 +21,12 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:migrate:prod": "prisma migrate deploy --schema prisma/schema.postgres.prisma",
-    "db:seed": "node prisma/seed.ts",
+    "db:seed": "bunx tsx prisma/seed.ts",
     "backup:db": "powershell -ExecutionPolicy Bypass -File scripts/backup-db.ps1",
     "postinstall": "prisma generate"
   },
   "prisma": {
-    "seed": "node prisma/seed.ts"
+    "seed": "bunx tsx prisma/seed.ts"
   },
   "engines": {
     "node": ">=20.9.0"
@@ -54,6 +55,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.23.2",
+    "isomorphic-dompurify": "^3.21.0",
     "lucide-react": "^0.525.0",
     "next": "^16.1.1",
     "next-intl": "^4.13.4",

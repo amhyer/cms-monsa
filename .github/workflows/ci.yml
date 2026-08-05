@@ -51,6 +51,9 @@ jobs:
       - name: Lint (Markdown)
         run: bun run lint:md
 
+      - name: Check schema sync
+        run: bun run check:schema
+
       - name: Test (unit)
         run: bun run test
 

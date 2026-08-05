@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import {
   GraduationCap,
   Menu,
@@ -46,29 +47,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { isGuruDeniedPath } from "@/lib/access";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ErrorBoundary } from "@/components/shared/error-boundary";
 import {
   DashboardSearch,
   useDashboardSearchHotkey,
-} from "./dashboard-search";
-import { Overview } from "./modules/overview";
-import { NewsManager } from "./modules/news-manager";
-import { AnnouncementsManager } from "./modules/announcements-manager";
-import { AgendaManager } from "./modules/agenda-manager";
-import { GalleryManager } from "./modules/gallery-manager";
-import { AchievementsManager } from "./modules/achievements-manager";
-import { TeachersManager } from "./modules/teachers-manager";
-import { StudentsManager } from "./modules/students-manager";
-import { ClassesManager } from "./modules/classes-manager";
-import { AttendanceManager } from "./modules/attendance-manager";
-import { PaymentsManager } from "./modules/payments-manager";
-import { ReportsManager } from "./modules/reports-manager";
-import { MessagesManager } from "./modules/messages-manager";
-import { ComplaintsManager } from "./modules/complaints-manager";
-import { UsersManager } from "./modules/users-manager";
-import { SettingsManager } from "./modules/settings-manager";
-import { LogsView } from "./modules/logs-view";
+} from "@/components/dashboard/dashboard-search";
 
 const ADMIN_PATHS = new Set<string>([
   "/dashboard/users",
@@ -76,57 +61,18 @@ const ADMIN_PATHS = new Set<string>([
   "/dashboard/logs",
 ]);
 
-function renderModule(route: string) {
-  switch (route) {
-    case "/dashboard":
-      return <Overview />;
-    case "/dashboard/news":
-      return <NewsManager />;
-    case "/dashboard/announcements":
-      return <AnnouncementsManager />;
-    case "/dashboard/agenda":
-      return <AgendaManager />;
-    case "/dashboard/gallery":
-      return <GalleryManager />;
-    case "/dashboard/achievements":
-      return <AchievementsManager />;
-    case "/dashboard/teachers":
-      return <TeachersManager />;
-    case "/dashboard/students":
-      return <StudentsManager />;
-    case "/dashboard/classes":
-      return <ClassesManager />;
-    case "/dashboard/attendance":
-      return <AttendanceManager />;
-    case "/dashboard/payments":
-      return <PaymentsManager />;
-    case "/dashboard/reports":
-      return <ReportsManager />;
-    case "/dashboard/messages":
-      return <MessagesManager />;
-    case "/dashboard/complaints":
-      return <ComplaintsManager />;
-    case "/dashboard/users":
-      return <UsersManager />;
-    case "/dashboard/settings":
-      return <SettingsManager />;
-    case "/dashboard/logs":
-      return <LogsView />;
-    default:
-      return <Overview />;
-  }
-}
-
-function currentTitle(route: string): string {
+/** Topbar title from the active App Router pathname (replaces currentTitle). */
+function currentTitle(pathname: string): string {
   const match = DASHBOARD_NAV.find(
-    (n) => n.path === route || (n.path !== "/dashboard" && route.startsWith(n.path))
+    (n) =>
+      n.path === pathname || (n.path !== "/dashboard" && pathname.startsWith(n.path))
   );
   return match?.label ?? "Dashboard";
 }
 
 function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
-  const route = useAppStore((s) => s.route);
-  const navigate = useAppStore((s) => s.navigate);
+  const pathname = usePathname();
+  const router = useRouter();
   const user = useAppStore((s) => s.user);
 
   const isAdmin = user?.role === "SUPER_ADMIN";
@@ -150,13 +96,12 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
       }
     }
     load();
-    // refresh when returning to dashboard overview
     const interval = setInterval(load, 30000);
     return () => {
       active = false;
       clearInterval(interval);
     };
-  }, [route]);
+  }, [pathname]);
 
   const groups = useMemo(() => {
     const items = DASHBOARD_NAV.filter(
@@ -176,12 +121,13 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   }, [isAdmin, isGuru]);
 
   function go(path: string) {
-    navigate(path);
+    router.push(path);
     onNavigate?.();
   }
 
   function renderItem(n: NavItem) {
-    const active = route === n.path || (n.path !== "/dashboard" && route.startsWith(n.path));
+    const active =
+      pathname === n.path || (n.path !== "/dashboard" && pathname.startsWith(n.path));
     const Icon = n.icon;
     const showBadge = n.path === "/dashboard/messages" && unread > 0;
     return (
@@ -243,8 +189,8 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-function AccessDenied() {
-  const navigate = useAppStore((s) => s.navigate);
+function AccessDenied({ description }: { description?: string }) {
+  const router = useRouter();
   return (
     <div className="flex min-h-[60vh] items-center justify-center">
       <Card className="max-w-md text-center">
@@ -254,12 +200,12 @@ function AccessDenied() {
           </div>
           <CardTitle className="text-xl">Akses Ditolak</CardTitle>
           <CardDescription>
-            Halaman ini hanya tersedia untuk Super Admin. Akun Anda saat ini
-            berperan sebagai Operator.
+            {description ??
+              "Halaman ini hanya tersedia untuk Super Admin. Akun Anda saat ini berperan sebagai Operator."}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button onClick={() => navigate("/dashboard")}>
+          <Button onClick={() => router.push("/dashboard")}>
             <ChevronLeft className="size-4" /> Kembali ke Dashboard
           </Button>
         </CardContent>
@@ -268,14 +214,20 @@ function AccessDenied() {
   );
 }
 
-export function DashboardShell() {
-  const route = useAppStore((s) => s.route);
-  const navigate = useAppStore((s) => s.navigate);
+// Dev-only mock (REFACTOR_PLAN #7): tombol Switch Role disembunyikan di produksi.
+// process.env.NODE_ENV di-inline oleh Next.js pada build untuk client component.
+const IS_PROD = process.env.NODE_ENV === "production";
+
+export function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
   const user = useAppStore((s) => s.user);
   const authLoading = useAppStore((s) => s.authLoading);
   const logout = useAppStore((s) => s.logout);
   const switchRole = useAppStore((s) => s.switchRole);
   const settings = useAppStore((s) => s.settings);
+  const fetchMe = useAppStore((s) => s.fetchMe);
+  const fetchSettings = useAppStore((s) => s.fetchSettings);
   const search = useDashboardSearchHotkey();
 
   const brandShort = settings?.schoolName
@@ -284,9 +236,28 @@ export function DashboardShell() {
 
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Load session + site settings once, in the layout (not 17× per page).
   useEffect(() => {
-    if (!user && !authLoading) navigate("/login");
-  }, [user, authLoading, navigate]);
+    fetchMe();
+    fetchSettings();
+  }, [fetchMe, fetchSettings]);
+
+  // Legacy hash redirect (refactor 1A): /dashboard#/dashboard/news →
+  // /dashboard/news so old bookmarks/links keep working during transition.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const hash = window.location.hash;
+    // Only migrate legacy dashboard hash sub-routes (`#/dashboard/...`),
+    // never a bare `#/dashboardx` which would 404 after the strip.
+    if (hash === "#/dashboard" || hash.startsWith("#/dashboard/")) {
+      router.replace(hash.slice(1));
+    }
+  }, [router]);
+
+  // Unauth guard — one guard protects all dashboard routes.
+  useEffect(() => {
+    if (!user && !authLoading) router.replace("/login");
+  }, [user, authLoading, router]);
 
   if (authLoading || !user) {
     return (
@@ -301,19 +272,23 @@ export function DashboardShell() {
 
   const isAdmin = user.role === "SUPER_ADMIN";
   const isGuru = user.role === "GURU";
-  const isAdminRoute = ADMIN_PATHS.has(route);
-  const showAccessDenied = isAdminRoute && !isAdmin;
+  const isAdminRoute = ADMIN_PATHS.has(pathname);
+  const showAccessDenied =
+    (isAdminRoute && !isAdmin) || (isGuru && isGuruDeniedPath(pathname));
 
   async function handleSwitchRole() {
     if (isGuru) return;
     const next = isAdmin ? "OPERATOR" : "SUPER_ADMIN";
     await switchRole(next);
-    toast.success(`Berhasil beralih ke peran ${next === "SUPER_ADMIN" ? "Admin" : "Operator"}.`);
+    toast.success(
+      `Berhasil beralih ke peran ${next === "SUPER_ADMIN" ? "Admin" : "Operator"}.`
+    );
   }
 
   async function handleLogout() {
     await logout();
     toast.success("Anda telah keluar dari sistem.");
+    router.replace("/login");
   }
 
   return (
@@ -331,7 +306,10 @@ export function DashboardShell() {
               <Menu className="size-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-[260px] border-0 bg-sidebar p-0 text-sidebar-foreground">
+          <SheetContent
+            side="left"
+            className="w-[260px] border-0 bg-sidebar p-0 text-sidebar-foreground"
+          >
             <SheetHeader className="border-b border-sidebar-border px-4 py-4 text-left">
               <SheetTitle className="flex items-center gap-2 text-sidebar-foreground">
                 <span className="flex size-9 items-center justify-center rounded-lg bg-gold text-gold-foreground">
@@ -339,7 +317,9 @@ export function DashboardShell() {
                 </span>
                 <span className="flex flex-col">
                   <span className="text-sm font-bold leading-tight">{brandShort}</span>
-                  <span className="text-[11px] text-sidebar-foreground/70">Panel CMS</span>
+                  <span className="text-[11px] text-sidebar-foreground/70">
+                    Panel CMS
+                  </span>
                 </span>
               </SheetTitle>
             </SheetHeader>
@@ -351,7 +331,7 @@ export function DashboardShell() {
 
         <div className="flex flex-col">
           <h1 className="text-base font-semibold leading-tight sm:text-lg">
-            {currentTitle(route)}
+            {currentTitle(pathname)}
           </h1>
           <p className="hidden text-xs text-muted-foreground sm:block">
             Panel Manajemen Konten Sekolah
@@ -386,7 +366,7 @@ export function DashboardShell() {
 
           <ThemeToggle className="hidden sm:inline-flex" />
 
-          {!isGuru && (
+          {!isGuru && !IS_PROD && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -407,7 +387,7 @@ export function DashboardShell() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => navigate("/")}
+                onClick={() => router.push("/")}
                 className="hidden sm:inline-flex"
               >
                 <ExternalLink className="size-4" /> Lihat Situs
@@ -430,17 +410,14 @@ export function DashboardShell() {
                 </span>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {!isGuru && (
-                <DropdownMenuItem
-                  className="sm:hidden"
-                  onClick={handleSwitchRole}
-                >
+              {!isGuru && !IS_PROD && (
+                <DropdownMenuItem className="sm:hidden" onClick={handleSwitchRole}>
                   <Repeat className="size-4" /> Beralih Peran
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem
                 className="sm:hidden"
-                onClick={() => navigate("/")}
+                onClick={() => router.push("/")}
               >
                 <ExternalLink className="size-4" /> Lihat Situs
               </DropdownMenuItem>
@@ -464,12 +441,8 @@ export function DashboardShell() {
               <GraduationCap className="size-5" />
             </span>
             <span className="flex flex-col">
-              <span className="text-sm font-bold leading-tight">
-                {brandShort}
-              </span>
-              <span className="text-[11px] text-sidebar-foreground/70">
-                Panel CMS
-              </span>
+              <span className="text-sm font-bold leading-tight">{brandShort}</span>
+              <span className="text-[11px] text-sidebar-foreground/70">Panel CMS</span>
             </span>
           </div>
           <SidebarNav />
@@ -483,18 +456,25 @@ export function DashboardShell() {
                 <ShieldAlert className="size-4" />
                 Anda tidak memiliki izin untuk mengakses modul ini.
               </div>
-              <AccessDenied />
+              <AccessDenied
+                description={
+                  isGuru
+                    ? "Akun Guru hanya dapat mengakses Ringkasan dan Kehadiran (kelas wali Anda)."
+                    : undefined
+                }
+              />
             </div>
           ) : (
             <ErrorBoundary onReset={() => window.location.reload()}>
-              {renderModule(route)}
+              {children}
             </ErrorBoundary>
           )}
         </main>
       </div>
 
       <footer className="mt-auto border-t bg-background px-4 py-3 text-center text-xs text-muted-foreground sm:px-6 print:hidden">
-        © {new Date().getFullYear()} {settings?.schoolName ?? "SD Negeri Unggulan Mongisidi 1"} — CMS v1.0
+        © {new Date().getFullYear()}{" "}
+        {settings?.schoolName ?? "SD Negeri Unggulan Mongisidi 1"} — CMS v1.0
       </footer>
 
       <DashboardSearch open={search.open} onOpenChange={search.setOpen} />
@@ -502,4 +482,4 @@ export function DashboardShell() {
   );
 }
 
-export default DashboardShell;
+export default DashboardLayout;

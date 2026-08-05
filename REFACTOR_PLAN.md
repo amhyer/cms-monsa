@@ -180,56 +180,32 @@ memang ingin mengizinkan seluruh subtree.
 
 ## 5. 🟡 Wrapper i18n custom (`use-i18n.ts`) di atas next-intl
 
-### Kondisi (terverifikasi)
+### ✅ SELESAI (2026-08-05)
 
-- next-intl v4 aktif (`request.ts`, `locales.ts`, `messages/{id,en}.json`, `NextIntlClientProvider`).
-- `src/i18n/use-i18n.ts` **BUKAN dead code** — dipakai `language-switcher.tsx` (`import { useI18n }`).
-- Namun ia adalah **wrapper tipis** yang hanya membungkus API next-intl: `useLocale()` + `useRouter()` + `useTranslations` re-export, dengan `switchLocale()` yang set cookie + `router.refresh()`.
-- Indirection ini membuat dua cara mengakses i18n: `useI18n()` (custom) vs next-intl langsung (`useTranslations` dipakai di komponen lain).
-
-### Aksi
-
-1. **Hapus wrapper**: ganti pemakaian di `language-switcher.tsx` dengan next-intl langsung (`useLocale`, `useRouter`) — logika `switchLocale` (set cookie `NEXT_LOCALE` + `router.refresh()`) pindah ke komponen itu.
-2. Hapus `src/i18n/use-i18n.ts` (≈30 baris indirection) + re-export `useTranslations` (impor langsung dari `next-intl`).
-3. Pertahankan `locales.ts` & `request.ts` (masih diperlukan next-intl).
-4. Hapus komentar/baris yang merujuk `i18n/config.ts` (tidak ada di repo — yang ada `request.ts`).
-5. **Catatan (menguntungkan)**: adopsi i18n saat ini masih minimal — hanya `language-switcher.tsx` yang memanggil terjemahan (`useTranslations` belum dipakai komponen lain). Artinya menghapus wrapper ini berisiko sangat rendah, dan menambah penerjemahan penuh bisa jadi PR terpisah.
+Wrapper dihapus; `language-switcher.tsx` langsung pakai `useLocale` + `useRouter` dari next-intl.
 
 ---
 
 ## 6. 🟢 Duplikasi toast: shadcn toast vs sonner
 
-### Kondisi
+### ✅ SELESAI (2026-08-05)
 
-- `src/components/ui/toast.tsx` + `toaster.tsx` (Radix Toast) **dan** `src/components/ui/sonner.tsx` (sonner).
-- Root layout me-mount **keduanya** (`<Toaster />` + `<SonnerToaster />`).
-- Dashboard memakai `sonner` (`import { toast } from "sonner"`); sebagian UI lain mungkin masih Radix toast.
-
-### Aksi (terverifikasi via grep)
-
-1. **Konfirmasi pemakaian**: `toast.tsx`/`toaster.tsx`/`use-toast.ts` hanya direferensikan di `layout.tsx` (mount `<Toaster />`) + dirinya sendiri; **tidak ada komponen lain** yang pakai `useToast`. Sementara `sonner` dipakai di 10+ komponen (auth, dashboard-shell, semua manager).
-2. **Hapus** `toast.tsx`, `toaster.tsx`, `hooks/use-toast.ts` + mount `<Toaster />` di `layout.tsx` — sisakan sonner saja.
-3. Verifikasi final: `grep -rn "useToast\|@/components/ui/toast" src/` → harus kosong setelah hapus.
+Toast.tsx, toaster.tsx, use-toast.ts dihapus. Layout hanya mount SonnerToaster.
 
 ---
 
 ## 7. 🟠 `switch-role` mock aktif di produksi
 
-### Kondisi (dari SECURITY_AUDIT H4)
+### ✅ SELESAI (2026-08-05)
 
-- `POST /api/auth/switch-role` + tombol "Switch Role (Mock)" di dashboard — fitur uji coba yang tidak di-gate `NODE_ENV`.
-
-### Aksi
-
-1. Di produksi: endpoint return 404/403; tombol UI disembunyikan saat `NODE_ENV === "production"`.
-2. Jangka panjang: hapus fitur ini dari UI admin (hanya berguna untuk dev testing RBAC).
+Endpoint di-gate `NODE_ENV === "production"` → return 404. Tombol UI disembunyikan via `IS_PROD` check.
 
 ---
 
 ## 8. Kebiasaan repo & cleanup kecil
 
 - Super-commit & file hilang → ikuti rencana `REPO_HEALTH_AUDIT.md` (commit logis, pre-commit hook).
-- `src/lib/db.ts`: `log: ["query"]` — verbose di produksi; jadikan kondisional `NODE_ENV !== "production"`.
+- ~~`src/lib/db.ts`: `log: ["query"]` — verbose di produksi; jadikan kondisional `NODE_ENV !== "production"`.~~ **✅ SELESAI (2026-08-05)**
 - Bersihkan `upload/pasted_image_*.png` dari history (sudah di-ignore; opsional rewrite history dengan filter-repo).
 - ~~Sinkronkan `schema.prisma` ↔ `schema.postgres.prisma`~~ **✅ SELESAI (2026-08-02)** — verifikasi diff: bagian model kedua schema identik; tambah guard permanen `scripts/check-schema-sync.mjs` (dijalankan via `npm run check:schema` di gate `check` + CI step `Check schema sync`). Setiap model/field baru yang tidak dicerminkan ke varian Postgres kini menolak commit & pipeline.
 
@@ -239,7 +215,7 @@ memang ingin mengizinkan seluruh subtree.
 
 | Fase | Isi | Estimasi | Risiko |
 |------|-----|----------|--------|
-| **Fase 1** (aman, cepat) | #7 switch-role gate · #3 build.sh path · #6 toast dedup · #2 bun/npm docs · #5 wrapper i18n | 1–1.5 hari | Rendah |
+| **Fase 1** (aman, cepat) | ~~#7 switch-role gate~~ ✅ · ~~#3 build.sh path~~ ✅ · ~~#6 toast dedup~~ ✅ · #2 bun/npm docs · ~~#5 wrapper i18n~~ ✅ | 1–1.5 hari | Rendah |
 | **Fase 2** (perlu hati-hati) | #4 dual DB path standarisasi | 0.5 hari | Sedang |
 | **Fase 3** (besar) | ~~#1 migrasi dashboard ke App Router murni (tahap 1A–1F)~~ **✅ SELESAI (2026-08-02)** — termasuk fix guard GURU prefix-match → exact-match | 2–3 hari | Sedang |
 | **Fase 4** (berkelanjutan) | #8 kebiasaan repo + cleanup berkala | on-going | Rendah |

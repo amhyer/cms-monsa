@@ -12,7 +12,7 @@ import {
 
 export default function NotFound() {
   function handleGoHome() {
-    window.location.hash = "/";
+    window.location.href = "/";
   }
 
   function handleGoBack() {

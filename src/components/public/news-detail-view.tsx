@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   CalendarDays,
@@ -25,11 +26,11 @@ interface NewsDetailViewProps {
 }
 
 export function NewsDetailView({ slug: propSlug }: NewsDetailViewProps = {}) {
-  const route = useAppStore((s) => s.route);
-  const navigate = useAppStore((s) => s.navigate);
+  const pathname = usePathname();
+  const router = useRouter();
   const settings = useAppStore((s) => s.settings);
 
-  const slug = propSlug || (route.split("/")[2] ?? "");
+  const slug = propSlug || (pathname.split("/")[2] ?? "");
 
   const [item, setItem] = useState<NewsItem | null>(null);
   const [loading, setLoading] = useState(true);
@@ -104,7 +105,7 @@ export function NewsDetailView({ slug: propSlug }: NewsDetailViewProps = {}) {
 
   const onShare = async () => {
     if (typeof window === "undefined" || !item) return;
-    const url = `${window.location.origin}/#/news/${item.slug}`;
+    const url = `${window.location.origin}/news/${item.slug}`;
     try {
       if (navigator.share) {
         await navigator.share({ title: item.title, url });
@@ -169,7 +170,7 @@ export function NewsDetailView({ slug: propSlug }: NewsDetailViewProps = {}) {
           <p className="max-w-md text-sm text-muted-foreground">
             Berita yang Anda cari mungkin telah dihapus atau tautan tidak valid.
           </p>
-          <Button type="button" onClick={() => navigate("/news")}>
+          <Button type="button" onClick={() => router.push("/news")}>
             <ArrowLeft className="size-4" />
             Kembali ke Berita
           </Button>
@@ -187,7 +188,7 @@ export function NewsDetailView({ slug: propSlug }: NewsDetailViewProps = {}) {
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => navigate("/news")}
+            onClick={() => router.push("/news")}
             className="mb-5"
           >
             <ArrowLeft className="size-4" />
@@ -262,7 +263,7 @@ export function NewsDetailView({ slug: propSlug }: NewsDetailViewProps = {}) {
                 <button
                   key={r.id}
                   type="button"
-                  onClick={() => navigate(`/news/${r.slug}`)}
+                  onClick={() => router.push(`/news/${r.slug}`)}
                   className="group flex gap-3 rounded-xl border bg-card p-3 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
                 >
                   <div className="relative size-20 shrink-0 overflow-hidden rounded-lg bg-muted">
@@ -302,7 +303,7 @@ export function NewsDetailView({ slug: propSlug }: NewsDetailViewProps = {}) {
                   if (settings?.spmbLink) {
                     window.open(settings.spmbLink, "_blank", "noopener,noreferrer");
                   } else {
-                    navigate("/contact");
+                    router.push("/contact");
                   }
                 }}
               >

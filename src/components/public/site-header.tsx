@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { GraduationCap, Menu, LogIn, PencilLine, ExternalLink } from "lucide-react";
 import { useAppStore } from "@/store/app";
 import { PUBLIC_NAV } from "@/lib/nav";
@@ -18,8 +19,8 @@ import {
 import { cn } from "@/lib/utils";
 
 export function SiteHeader() {
-  const route = useAppStore((s) => s.route);
-  const navigate = useAppStore((s) => s.navigate);
+  const pathname = usePathname();
+  const router = useRouter();
   const settings = useAppStore((s) => s.settings);
   const [open, setOpen] = useState(false);
 
@@ -31,23 +32,23 @@ export function SiteHeader() {
     if (spmbLink) {
       window.open(spmbLink, "_blank", "noopener,noreferrer");
     } else {
-      navigate("/contact");
+      router.push("/contact");
     }
     setOpen(false);
   };
   const npsn = settings?.npsn ?? "";
 
   const isActive = (path: string) => {
-    if (path === "/") return route === "/" || route === "";
+    if (path === "/") return pathname === "/" || pathname === "";
     if (path === "/news") {
       // news list active only when not in detail
-      return route === "/news";
+      return pathname === "/news";
     }
-    return route === path || route.startsWith(path + "/");
+    return pathname === path || pathname.startsWith(path + "/");
   };
 
   const go = (path: string) => {
-    navigate(path);
+    router.push(path);
     setOpen(false);
   };
 

@@ -45,8 +45,7 @@ export class ErrorBoundary extends React.Component<
   };
 
   handleGoHome = () => {
-    window.location.hash = "/";
-    this.handleReset();
+    window.location.href = "/";
   };
 
   render() {

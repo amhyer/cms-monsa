@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight,
@@ -34,7 +35,7 @@ import type {
 
 /* ----------------------------- Hero carousel ----------------------------- */
 function HeroCarousel({ items }: { items: NewsItem[] }) {
-  const navigate = useAppStore((s) => s.navigate);
+  const router = useRouter();
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
@@ -101,7 +102,7 @@ function HeroCarousel({ items }: { items: NewsItem[] }) {
               <Button
                 type="button"
                 className="bg-gold text-gold-foreground hover:bg-gold/90"
-                onClick={() => navigate(`/news/${items[index].slug}`)}
+                onClick={() => router.push(`/news/${items[index].slug}`)}
               >
                 Baca Selengkapnya
                 <ArrowRight className="size-4" />
@@ -136,14 +137,14 @@ function HeroCarousel({ items }: { items: NewsItem[] }) {
 
 /* ----------------------------- News card ----------------------------- */
 function NewsCard({ item }: { item: NewsItem }) {
-  const navigate = useAppStore((s) => s.navigate);
+  const router = useRouter();
   return (
     <article
-      onClick={() => navigate(`/news/${item.slug}`)}
+      onClick={() => router.push(`/news/${item.slug}`)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          navigate(`/news/${item.slug}`);
+          router.push(`/news/${item.slug}`);
         }
       }}
       role="button"
@@ -279,8 +280,8 @@ function AchievementCard({ item }: { item: AchievementItem }) {
 
 /* ----------------------------- HomeView ----------------------------- */
 export function HomeView() {
+  const router = useRouter();
   const settings = useAppStore((s) => s.settings);
-  const navigate = useAppStore((s) => s.navigate);
 
   const [hero, setHero] = useState<NewsItem[] | null>(null);
   const [latestNews, setLatestNews] = useState<NewsItem[] | null>(null);
@@ -447,7 +448,7 @@ export function HomeView() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => navigate("/news")}
+            onClick={() => router.push("/news")}
           >
             Lihat semua
             <ArrowRight className="size-4" />
@@ -488,7 +489,7 @@ export function HomeView() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => navigate("/academic")}
+                onClick={() => router.push("/academic")}
                 className="hidden sm:inline-flex"
               >
                 Lihat semua
@@ -530,7 +531,7 @@ export function HomeView() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => navigate("/news")}
+                onClick={() => router.push("/news")}
                 className="hidden sm:inline-flex"
               >
                 Lihat semua
@@ -590,7 +591,7 @@ export function HomeView() {
               if (settings?.spmbLink) {
                 window.open(settings.spmbLink, "_blank", "noopener,noreferrer");
               } else {
-                navigate("/contact");
+                router.push("/contact");
               }
             }}
           >

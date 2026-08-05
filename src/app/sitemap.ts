@@ -4,11 +4,8 @@ import { db } from "@/lib/db";
 /**
  * Dynamic sitemap generated from database content.
  *
- * NOTE: This app currently uses hash-based routing (/#/news/slug) due to the
- * single-route sandbox constraint. Hash fragments are not sent to the server,
- * so Google may not fully index them. When migrating to real Next.js App
- * Router routes (/news/[slug]), update the URL builder below — the data
- * fetching logic stays the same.
+ * Routes are real Next.js App Router pages (refactor 1A–1F) — clean paths like
+ * `/news/[slug]` are fully indexable by search engines.
  *
  * The base URL should match your production domain. Set NEXT_PUBLIC_SITE_URL
  * in your environment, or update the fallback below.
@@ -22,11 +19,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Static pages — always present.
   const staticPages: MetadataRoute.Sitemap = [
     { url: `${SITE_URL}/`, lastModified: now, changeFrequency: "daily", priority: 1.0 },
-    { url: `${SITE_URL}/#/profile`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
-    { url: `${SITE_URL}/#/academic`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
-    { url: `${SITE_URL}/#/news`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
-    { url: `${SITE_URL}/#/gallery`, lastModified: now, changeFrequency: "weekly", priority: 0.6 },
-    { url: `${SITE_URL}/#/contact`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
+    { url: `${SITE_URL}/profile`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${SITE_URL}/academic`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
+    { url: `${SITE_URL}/news`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
+    { url: `${SITE_URL}/gallery`, lastModified: now, changeFrequency: "weekly", priority: 0.6 },
+    { url: `${SITE_URL}/contact`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
   ];
 
   // Dynamic news articles.
@@ -38,7 +35,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       orderBy: { publishedAt: "desc" },
     });
     newsPages = news.map((n) => ({
-      url: `${SITE_URL}/#/news/${n.slug}`,
+      url: `${SITE_URL}/news/${n.slug}`,
       lastModified: n.updatedAt,
       changeFrequency: "monthly" as const,
       priority: 0.8,

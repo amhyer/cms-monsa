@@ -9,7 +9,7 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: "*",
       allow: "/",
       // Block API routes and admin areas from indexing.
-      disallow: ["/api/", "/#/dashboard", "/#/login", "/#/admin-login"],
+      disallow: ["/api/", "/dashboard", "/login", "/admin-login"],
     },
     sitemap: `${SITE_URL}/sitemap.xml`,
     host: SITE_URL,

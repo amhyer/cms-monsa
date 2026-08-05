@@ -23,8 +23,7 @@ export default function GlobalError({
   }, [error]);
 
   function handleGoHome() {
-    window.location.hash = "/";
-    window.location.reload();
+    window.location.href = "/";
   }
 
   return (

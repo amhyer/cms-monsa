@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Newspaper,
   Megaphone,
@@ -89,7 +90,7 @@ const primaryCards = (s: Stats, isGuru: boolean) => [
 ];
 
 export function Overview() {
-  const navigate = useAppStore((s) => s.navigate);
+  const router = useRouter();
   const user = useAppStore((s) => s.user);
   const isGuru = user?.role === "GURU";
 
@@ -197,7 +198,7 @@ export function Overview() {
                   variant="link" 
                   size="sm" 
                   className="mt-1 text-indigo-600"
-                  onClick={() => navigate("/dashboard/attendance")}
+                  onClick={() => router.push("/dashboard/attendance")}
                 >
                   Buka Absensi <ArrowRight className="ml-1 size-3" />
                 </Button>
@@ -250,7 +251,7 @@ export function Overview() {
                 variant="outline" 
                 size="sm" 
                 className="border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50"
-                onClick={() => navigate("/dashboard/payments")}
+                onClick={() => router.push("/dashboard/payments")}
               >
                 Detail
               </Button>
@@ -290,7 +291,7 @@ export function Overview() {
                 key={a.path}
                 variant="outline"
                 size="sm"
-                onClick={() => navigate(a.path)}
+                onClick={() => router.push(a.path)}
               >
                 <Icon className="size-3.5" />
                 {a.label}
@@ -311,7 +312,7 @@ export function Overview() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate("/dashboard/logs")}
+              onClick={() => router.push("/dashboard/logs")}
             >
               Lihat semua <ArrowRight className="size-3.5" />
             </Button>
@@ -354,7 +355,7 @@ export function Overview() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate("/dashboard/messages")}
+              onClick={() => router.push("/dashboard/messages")}
             >
               Kelola <ArrowRight className="size-3.5" />
             </Button>

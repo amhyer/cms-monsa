@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Bold,
   Italic,
@@ -57,7 +58,6 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { NEWS_CATEGORIES } from "@/lib/nav";
 import { formatDate } from "@/lib/format";
 import { sanitizeHtml } from "@/lib/sanitize";
-import { useAppStore } from "@/store/app";
 import type { NewsItem } from "@/lib/types";
 import { PageLoader, EmptyState } from "../_shared";
 
@@ -235,7 +235,7 @@ const EMPTY_FORM: FormState = {
 };
 
 export function NewsManager() {
-  const navigate = useAppStore((s) => s.navigate);
+  const router = useRouter();
   const [items, setItems] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalPages, setTotalPages] = useState(1);
@@ -355,7 +355,7 @@ export function NewsManager() {
       toast.success("Berita dihapus.", {
         action: {
           label: "Lihat di Log",
-          onClick: () => navigate("/dashboard/logs"),
+          onClick: () => router.push("/dashboard/logs"),
         },
       });
       fetchList();
@@ -402,7 +402,7 @@ export function NewsManager() {
       toast.success(`${ok} berita dihapus.`, {
         action: {
           label: "Lihat di Log",
-          onClick: () => navigate("/dashboard/logs"),
+          onClick: () => router.push("/dashboard/logs"),
         },
       });
     }

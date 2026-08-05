@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ShieldCheck,
   Eye,
@@ -31,7 +32,7 @@ const ADMIN_DEMO = {
 };
 
 export function AdminLoginView() {
-  const navigate = useAppStore((s) => s.navigate);
+  const router = useRouter();
   const user = useAppStore((s) => s.user);
   const login = useAppStore((s) => s.login);
   const logout = useAppStore((s) => s.logout);
@@ -44,8 +45,8 @@ export function AdminLoginView() {
 
   // If a Super Admin is already logged in, go straight to dashboard.
   useEffect(() => {
-    if (user?.role === "SUPER_ADMIN") navigate("/dashboard");
-  }, [user, navigate]);
+    if (user?.role === "SUPER_ADMIN") router.replace("/dashboard");
+  }, [user, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -71,11 +72,11 @@ export function AdminLoginView() {
       );
       // sign out so the operator session isn't dangling on the admin portal
       await logout();
-      setTimeout(() => navigate("/login"), 2200);
+      setTimeout(() => router.replace("/login"), 2200);
       return;
     }
     toast.success("Selamat datang, Administrator!");
-    navigate("/dashboard");
+    router.replace("/dashboard");
   }
 
   function autofillAdmin() {
@@ -96,7 +97,7 @@ export function AdminLoginView() {
 
       <button
         type="button"
-        onClick={() => navigate("/")}
+        onClick={() => router.push("/")}
         className="group absolute left-5 top-5 inline-flex items-center gap-2 text-sm font-medium text-primary-foreground/80 transition hover:text-primary-foreground"
       >
         <ArrowLeft className="size-4 transition group-hover:-translate-x-0.5" />
@@ -235,7 +236,7 @@ export function AdminLoginView() {
 
             <button
               type="button"
-              onClick={() => navigate("/login")}
+              onClick={() => router.push("/login")}
               className="mt-4 flex w-full items-center justify-center gap-1.5 text-center text-xs text-muted-foreground transition hover:text-foreground"
             >
               Login sebagai Operator?

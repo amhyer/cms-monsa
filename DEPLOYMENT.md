@@ -9,19 +9,19 @@ konfigurasinya benar saat deploy.
 | No | Item | Status di kode | Langkah di server |
 |----|------|----------------|-------------------|
 | 1 | Debug / stack trace | Sudah aman. Kode tidak punya `APP_DEBUG`; Next.js produksi tidak menampilkan stack trace. | Set `APP_DEBUG="false"` di `.env.production` sebagai penanda. |
-| 2 | Database PostgreSQL | `prisma/schema.postgres.prisma` siap. | Buat DB, isi `DATABASE_URL` di `.env.production`, jalankan `npm run db:migrate:prod`. |
+| 2 | Database PostgreSQL | `prisma/schema.postgres.prisma` siap. | Buat DB, isi `DATABASE_URL` di `.env.production`, jalankan `bun run db:migrate:prod`. |
 | 3 | Session secret kuat | Sudah: `auth.ts` melempar error di produksi jika `AUTH_SECRET` kosong/default. | Set `AUTH_SECRET` random 64-hex (generate: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`). |
 | 4 | HTTPS | HSTS `max-age=63072000; includeSubDomains; preload` sudah di `next.config.ts`; `Caddyfile` tersedia. | Pastikan Caddy/nginx dengan sertifikat valid; situs hanya bisa diakses via `https://`. |
-| 5 | Backup database | Script: `npm run backup:db` (`scripts/backup-db.ps1` untuk Windows, `scripts/backup-db.sh` untuk Linux). | Pasang cron setiap 02.00 (contoh di bawah). |
-| 6 | CORS `/api/*` | `src/middleware.ts` + `src/lib/cors.ts`: origin yang tidak dikenal → 403; allowlist via `ALLOWED_ORIGINS`. | Set `ALLOWED_ORIGINS` hanya jika ada frontend terpisah; default kosong = hanya same-origin. |
+| 5 | Backup database | Script: `bun run backup:db` (`scripts/backup-db.ps1` untuk Windows, `scripts/backup-db.sh` untuk Linux). | Pasang cron setiap 02.00 (contoh di bawah). |
+| 6 | CORS `/api/*` | `src/proxy.ts` (`handleApiCors`, matcher `/api/:path*`): origin yang tidak dikenal → 403; allowlist via `ALLOWED_ORIGINS`. | Set `ALLOWED_ORIGINS` hanya jika ada frontend terpisah; default kosong = hanya same-origin. |
 | 7 | Hapus kelas hanya SUPER_ADMIN | Sudah: `DELETE /api/classes/[id]` memakai `requireRole("SUPER_ADMIN")` + proteksi kelas berisi siswa. | Tidak perlu langkah tambahan. |
 
 ## Langkah deploy (ringkas)
 
 ```bash
 # 1. Klon & install
-npm ci
-npx prisma generate
+bun install --frozen-lockfile
+bunx prisma generate
 
 # 2. Siapkan .env.production (lihat template di .env.example / .env.production)
 #    - DATABASE_URL PostgreSQL
@@ -29,14 +29,14 @@ npx prisma generate
 #    - ALLOWED_ORIGINS sesuai kebutuhan
 
 # 3. Migrasi skema ke PostgreSQL
-npm run db:migrate:prod
+bun run db:migrate:prod
 
-# 4. Seed akun awal (idempotent — hanya dijalankan sekali)
-npm run db:seed
+# 4. Seed akun awal (idempotent — hanya dijalankan sekali di DB kosong)
+bun run db:seed
 
 # 5. Build & start
-npm run build
-npm start          # atau jalankan via pm2/systemd dengan output standalone: .next/standalone
+bun run build
+bun run start      # atau jalankan via pm2/systemd dengan output standalone: .next/standalone
 
 # 6. HTTPS — Caddyfile sudah disediakan; sesuaikan domain.
 ```
@@ -76,8 +76,8 @@ Backup menyimpan `custom.db` (SQLite) atau dump `pg_dump` (PostgreSQL) +
 
 ## Catatan verifikasi saat deploy
 
-- `npm test` → semua unit/integration test lulus.
-- `npx eslint .` → 0 error.
-- `npm run build` → sukses (statis/dinamis terdaftar di output).
+- `bun run test` → semua unit/integration test lulus.
+- `bun run lint` → 0 error.
+- `bun run build` → sukses (statis/dinamis terdaftar di output).
 - Buka `/login` → login admin seed → cek menu baru (Kehadiran, Pembayaran,
   Laporan) dan uji guru: buat akun GURU → login → hanya menu Kehadiran.

@@ -45,10 +45,55 @@ Sistem Manajemen Konten (CMS) untuk website sekolah UPT SPF SD Negeri Unggulan M
 - Pengaturan sekolah (super admin only)
 - Log aktivitas
 
+## Routing (App Router murni)
+
+Seluruh aplikasi memakai **Next.js App Router** — tidak ada hash router
+(`#/dashboard/...`) maupun routing store. Setiap halaman punya URL bersih yang
+bisa di-index, di-deep-link, dan didukung penuh oleh back/forward browser.
+
+### Halaman Publik
+
+- `/` — Beranda
+- `/profile` — Profil sekolah
+- `/academic` — Akademik
+- `/news` dan `/news/:slug` — Berita & artikel
+- `/gallery` — Galeri
+- `/complaint` — Form pengaduan
+- `/contact` — Kontak
+- `/login` / `/admin-login` — Autentikasi
+
+### Dashboard — satu route App Router per modul
+
+| Route | Modul | Akses |
+|-------|-------|-------|
+| `/dashboard` | Ringkasan | Semua role |
+| `/dashboard/news` | Berita & Artikel | Super Admin / Operator |
+| `/dashboard/announcements` | Pengumuman | Super Admin / Operator |
+| `/dashboard/agenda` | Agenda Sekolah | Super Admin / Operator |
+| `/dashboard/gallery` | Galeri Media | Super Admin / Operator |
+| `/dashboard/achievements` | Data Prestasi | Super Admin / Operator |
+| `/dashboard/teachers` | Guru & Staf | Super Admin / Operator |
+| `/dashboard/students` | Data Siswa | Super Admin / Operator |
+| `/dashboard/classes` | Kelas | Super Admin / Operator |
+| `/dashboard/attendance` | Kehadiran Siswa | Semua role (GURU hanya kelas wali) |
+| `/dashboard/payments` | Pembayaran (SPP) | Super Admin / Operator |
+| `/dashboard/reports` | Laporan | Super Admin / Operator |
+| `/dashboard/complaints` | Pengaduan | Super Admin / Operator |
+| `/dashboard/messages` | Pesan Masuk | Super Admin / Operator |
+| `/dashboard/users` | Manajemen Operator | **Super Admin only** |
+| `/dashboard/settings` | Pengaturan Sekolah | **Super Admin only** |
+| `/dashboard/logs` | Log Aktivitas | **Super Admin only** |
+
+Guard akses diterapkan **satu kali** di `src/app/dashboard/layout.tsx` untuk
+semua route dashboard: GURU hanya dapat membuka `/dashboard` (exact-match,
+bukan prefix — lihat [REFACTOR_PLAN.md](REFACTOR_PLAN.md) bagian #1) dan area
+`/dashboard/attendance` (termasuk sub-halamannya), sedangkan route admin
+(`users` / `settings` / `logs`) khusus Super Admin.
+
 ## Prerequisites
 
 - Node.js >= 20.9.0
-- bun (atau npm)
+- bun (package manager kanonik — lockfile `bun.lock`)
 - Git
 
 ## Installation
@@ -106,8 +151,8 @@ bun run db:push
 # Generate Prisma client
 bun run db:generate
 
-# Seed data contoh
-npx tsx prisma/seed.ts
+# Seed data contoh (database kosong saja — seed dilewati jika sudah berisi data)
+bun run db:seed
 ```
 
 ## Scripts
@@ -116,17 +161,19 @@ npx tsx prisma/seed.ts
 bun run dev           # Development server (port 3000)
 bun run build         # Production build
 bun run start         # Production server
-npm run lint          # ESLint
-npm run lint:md       # Markdown lint (fence seimbang, tautan tidak rusak)
-npm run typecheck     # TypeScript type checking (tsc --noEmit)
-npm run check         # Gerbang validasi: typecheck + lint + lint:md + test
-npm test              # Unit & integration tests (Vitest)
+bun run lint          # ESLint
+bun run lint:md       # Markdown lint (fence seimbang, tautan tidak rusak)
+bun run typecheck     # TypeScript type checking (tsc --noEmit)
+bun run check:schema  # Cek sinkronisasi schema.prisma ↔ schema.postgres.prisma
+bun run check         # Gerbang validasi: typecheck + lint + lint:md + check:schema + test
+bun run test          # Unit & integration tests (Vitest)
 bun run test:watch    # Tests dalam mode watch
 bun run test:coverage # Tests dengan coverage report
 bun run test:e2e      # End-to-end tests (Playwright)
-npm run hooks:install # Aktifkan pre-commit hook (core.hooksPath)
+bun run hooks:install # Aktifkan pre-commit hook (core.hooksPath)
 bun run db:push       # Push schema ke database
 bun run db:generate   # Generate Prisma client
+bun run db:seed       # Seed data contoh (database kosong saja)
 ```
 
 ## Development
@@ -136,17 +183,18 @@ bun run db:generate   # Generate Prisma client
 Sebelum commit, jalankan gerbang validasi untuk memastikan kode sehat:
 
 ```bash
-npm run typecheck  # TypeScript: tsc --noEmit (0 error)
-npm run lint       # ESLint (0 error)
-npm run lint:md    # Markdown lint (markdownlint-cli2 + custom rules)
-npm run test       # Vitest — unit & integration tests
-npm run check      # Semua di atas sekaligus (typecheck && lint && lint:md && test)
+bun run typecheck   # TypeScript: tsc --noEmit (0 error)
+bun run lint        # ESLint (0 error)
+bun run lint:md     # Markdown lint (markdownlint-cli2 + custom rules)
+bun run check:schema # Cek sinkronisasi skema Prisma (dev ↔ postgres)
+bun run test        # Vitest — unit & integration tests
+bun run check       # Semua di atas sekaligus (typecheck && lint && lint:md && check:schema && test)
 ```
 
 `npm run check` adalah gerbang tunggal yang dipakai oleh pre-commit hook.
 Perintah ini berhenti (short-circuit) di kegagalan pertama dan mengembalikan
 exit code non-zero — cocok untuk pipeline CI maupun pre-commit. CI
-([.github/workflows/ci.yml](.github/workflows/ci.yml)) menjalankan typecheck, lint, lint:md, dan test
+([.github/workflows/ci.yml](.github/workflows/ci.yml)) menjalankan typecheck, lint, lint:md, check:schema, dan test
 sebagai step terpisah agar setiap kegagalan terlihat jelas di laporan GitHub
 Actions.
 
@@ -162,14 +210,17 @@ dengan rule core MD042/MD055/MD056 plus dua custom rule di
 
 ### Pre-commit Hook
 
-Hook ter-versi di [.githooks/pre-commit](.githooks/pre-commit) otomatis menjalankan `npm run check`
-(typecheck + lint + test) **sebelum setiap commit**. Jika salah satu gagal,
-commit ditolak dan error ditampilkan.
+Hook ter-versi di [.githooks/pre-commit](.githooks/pre-commit) otomatis menjalankan
+`npm run check` (typecheck + lint + test) **sebelum setiap commit**. Hook
+memakai `npm run check` (bukan `bun run check`) agar tetap berjalan di mesin
+developer yang belum menginstal bun — kedua perintah mengeksekusi script
+`package.json` yang sama. Jika salah satu gagal, commit ditolak dan error
+ditampilkan.
 
 Aktifkan sekali per clone:
 
 ```bash
-npm run hooks:install  # set git config core.hooksPath .githooks
+bun run hooks:install  # set git config core.hooksPath .githooks
 ```
 
 Selain validasi kode, hook juga **menolak commit** yang melanggar aturan
@@ -223,7 +274,7 @@ bun run start
 bun run build
 
 # Jalankan Next.js standalone + Caddy
-npx caddy run --config Caddyfile
+bunx caddy run --config Caddyfile
 ```
 
 Caddyfile akan reverse proxy dari port 8080 ke port 3000.
@@ -251,7 +302,8 @@ CMS MONSA/
 ├── src/
 │   ├── app/
 │   │   ├── api/               # REST API routes
-│   │   ├── page.tsx           # SPA entry point
+│   │   ├── dashboard/         # Admin panel — 17 modul, satu route App Router per modul
+│   │   ├── page.tsx           # Home page (public site)
 │   │   └── layout.tsx         # Root layout
 │   ├── components/
 │   │   ├── auth/              # Login views

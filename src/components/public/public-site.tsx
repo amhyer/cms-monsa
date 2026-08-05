@@ -1,6 +1,7 @@
 "use client";
 
 import { GraduationCap } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useAppStore } from "@/store/app";
 import { SiteHeader } from "./site-header";
 import { SiteFooter } from "./site-footer";
@@ -19,7 +20,7 @@ interface PublicSiteProps {
 }
 
 export function PublicSite({ initialView, initialSlug }: PublicSiteProps) {
-  const route = useAppStore((s) => s.route);
+  const pathname = usePathname();
   const settings = useAppStore((s) => s.settings);
 
   if (!settings) {
@@ -36,8 +37,9 @@ export function PublicSite({ initialView, initialSlug }: PublicSiteProps) {
     );
   }
 
-  // Use initialView if provided (for App Router), otherwise use hash-based route
-  const currentView = initialView || route;
+  // Use initialView if provided (for App Router), otherwise fall back to the
+  // real pathname (the hash router was removed in the App Router migration).
+  const currentView = initialView || pathname;
 
   let view: React.ReactNode;
   if (currentView === "/" || currentView === "" || currentView === "home") {

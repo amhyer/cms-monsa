@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Search,
   Newspaper,
@@ -8,7 +9,6 @@ import {
   ChevronRight,
   CalendarDays,
 } from "lucide-react";
-import { useAppStore } from "@/store/app";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 const PAGE_SIZE = 9;
 
 export function NewsView() {
-  const navigate = useAppStore((s) => s.navigate);
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
   const [category, setCategory] = useState<string>("");
@@ -178,11 +178,11 @@ export function NewsView() {
               : items.map((n) => (
                   <article
                     key={n.id}
-                    onClick={() => navigate(`/news/${n.slug}`)}
+                    onClick={() => router.push(`/news/${n.slug}`)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        navigate(`/news/${n.slug}`);
+                        router.push(`/news/${n.slug}`);
                       }
                     }}
                     role="button"

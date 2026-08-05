@@ -1,16 +1,9 @@
 :8080 {
-	@transform_port_query {
-		query XTransformPort=*
-	}
-
-	handle @transform_port_query {
-		reverse_proxy localhost:{query.XTransformPort} {
-			header_up Host {host}
-			header_up X-Forwarded-For {remote_host}
-			header_up X-Forwarded-Proto {scheme}
-			header_up X-Real-IP {remote_host}
-		}
-	}
+	# CATATAN KEAMANAN (temuan C3 di SECURITY_AUDIT.md):
+	# Blok debug `@transform_port_query` (query ?XTransformPort=<port>)
+	# yang me-reverse-proxy ke localhost:port mana pun telah DIHAPUS —
+	# itu adalah open proxy (SSRF / lateral movement) ke layanan internal.
+	# Hanya reverse proxy ke aplikasi Next.js yang diizinkan.
 
 	handle {
 		reverse_proxy localhost:3000 {

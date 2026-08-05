@@ -1,15 +1,31 @@
 /**
- * Minimal HTML sanitizer for user-supplied rich-text content (news articles).
+ * HTML sanitizer for user-supplied rich-text content (news articles).
  *
- * Goal: prevent stored XSS while preserving common formatting. We allow a
- * conservative set of tags/attributes and strip everything else — including
- * <script>, event handlers (onerror, onload, …), and javascript: URLs.
+ * Uses DOMPurify via isomorphic-dompurify — the industry-standard XSS
+ * sanitizer — which runs the same trusted DOM-parsing logic on the server
+ * (jsdom) and in the browser (the package's "browser" export keeps jsdom
+ * out of client bundles).
  *
- * This runs server-side before storing to DB so the sanitized HTML is what
- * gets rendered via dangerouslySetInnerHTML on the public news detail page.
+ * This replaces the previous homemade sanitizer whose regex fallback could
+ * be bypassed (nested/obfuscated tags, entity-encoded `javascript:`, SVG,
+ * etc.). The weak regex path has been removed entirely. See
+ * SECURITY_AUDIT.md finding C1.
+ *
+ * Security model (kept from the previous implementation):
+ * - Conservative allow-list of tags; strip everything else.
+ * - Per-tag attribute allow-list (enforced via DOMPurify hook, since
+ *   DOMPurify's ALLOWED_ATTR is global).
+ * - Drop event handlers and unsafe URLs (javascript:, data:, vbscript:, …).
+ * - Only safe inline CSS declarations survive on `style`.
+ * - Force `rel="noopener noreferrer"` on `target="_blank"` links.
  */
 
-const ALLOWED_TAGS = new Set([
+import DOMPurify, {
+  type Config,
+  type UponSanitizeAttributeHook,
+} from "isomorphic-dompurify";
+
+const ALLOWED_TAGS = [
   "p", "br", "hr", "strong", "b", "em", "i", "u", "s", "strike",
   "h2", "h3", "h4", "h5", "h6",
   "ul", "ol", "li",
@@ -17,10 +33,11 @@ const ALLOWED_TAGS = new Set([
   "a", "img",
   "span", "div",
   "table", "thead", "tbody", "tr", "th", "td",
-]);
+];
 
-const ALLOWED_ATTRS: Record<string, Set<string>> = {
-  a: new Set(["href", "title", "target", "rel"]),
+/** Per-tag attribute allow-list — an attribute is only kept on its own tag. */
+const ALLOWED_ATTRS: Record<string, ReadonlySet<string>> = {
+  a: new Set(["href", "title", "target"]),
   img: new Set(["src", "alt", "title", "width", "height"]),
   span: new Set(["style"]),
   div: new Set(["style"]),
@@ -28,137 +45,76 @@ const ALLOWED_ATTRS: Record<string, Set<string>> = {
   th: new Set(["colspan", "rowspan"]),
 };
 
+const ALL_ALLOWED_ATTRS = [
+  ...new Set(Object.values(ALLOWED_ATTRS).flatMap((s) => [...s])),
+];
+
 // Allow only safe inline styles (text alignment, basic spacing).
-const SAFE_STYLE = /^(text-align|padding|margin|font-weight|font-style|color|background-color)\s*:/i;
+const SAFE_STYLE =
+  /^(text-align|padding|margin|font-weight|font-style|color|background-color)\s*:/i;
 
-function isSafeUrl(url: string): boolean {
-  const trimmed = url.trim().toLowerCase();
-  // Block javascript: and data: URLs (data: can carry XSS in some contexts).
-  if (trimmed.startsWith("javascript:") || trimmed.startsWith("data:")) {
-    return false;
-  }
-  // Allow http(s), relative, and anchor URLs.
-  return (
-    trimmed.startsWith("http://") ||
-    trimmed.startsWith("https://") ||
-    trimmed.startsWith("/") ||
-    trimmed.startsWith("#") ||
-    trimmed.startsWith("mailto:") ||
-    trimmed.startsWith("tel:") ||
-    !trimmed.includes(":")
-  );
-}
+// Block javascript:/data:/vbscript: etc.; allow http(s), mailto, tel, ftp,
+// file, sms, relative URLs, and values without a scheme separator.
+const SAFE_URI_REGEXP =
+  /^(?:(?:https?|mailto|ftp|tel|file|sms):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i;
 
-function sanitizeAttributes(tag: string, attrName: string, attrValue: string): string | null {
+const SANITIZE_CONFIG: Config = {
+  ALLOWED_TAGS,
+  ALLOWED_ATTR: ALL_ALLOWED_ATTRS,
+  ALLOW_DATA_ATTR: false,
+  ALLOW_ARIA_ATTR: false,
+  ALLOWED_URI_REGEXP: SAFE_URI_REGEXP,
+};
+
+/**
+ * Enforce the per-tag attribute allow-list and filter inline styles to the
+ * safe CSS allow-list. DOMPurify removes event handlers and unsafe URLs
+ * itself; this hook additionally enforces our per-tag policy.
+ */
+const uponSanitizeAttribute: UponSanitizeAttributeHook = (node, data) => {
+  const tag = (node.tagName ?? "").toLowerCase();
   const allowed = ALLOWED_ATTRS[tag];
-  if (!allowed || !allowed.has(attrName)) return null;
-
-  // Block event handlers regardless of allow-list (defense in depth).
-  if (attrName.startsWith("on")) return null;
-
-  if (attrName === "href" || attrName === "src") {
-    if (!isSafeUrl(attrValue)) return null;
-    return attrValue;
+  if (!allowed || !allowed.has(data.attrName)) {
+    data.keepAttr = false;
+    return;
   }
-
-  if (attrName === "style") {
-    // Keep only declarations that match the safe-style allow-list.
-    const safe = attrValue
+  if (data.attrName === "style") {
+    const safe = data.attrValue
       .split(";")
       .map((d) => d.trim())
       .filter((d) => d && SAFE_STYLE.test(d))
       .join("; ");
-    return safe || null;
+    if (safe) data.attrValue = safe;
+    else data.keepAttr = false;
+    return;
   }
-
-  if (attrName === "target") {
-    // Only allow _blank (with rel=noreferrer enforced below).
-    return attrValue === "_blank" ? "_blank" : null;
+  if (data.attrName === "target" && data.attrValue !== "_blank") {
+    data.keepAttr = false;
   }
+};
 
-  return attrValue;
-}
+/** Force rel="noopener noreferrer" on any link that opens in a new tab. */
+const afterSanitizeAttributes = (node: Element) => {
+  if (
+    (node.tagName ?? "").toLowerCase() === "a" &&
+    node.getAttribute("target") === "_blank"
+  ) {
+    node.setAttribute("rel", "noopener noreferrer");
+  }
+};
+
+// Hooks are global on the DOMPurify instance. Registering them here at
+// module scope runs once per bundle (server & client have separate
+// instances). Both hooks are idempotent — even if a dev-only re-evaluation
+// stacked them, the output would be identical.
+DOMPurify.addHook("uponSanitizeAttribute", uponSanitizeAttribute);
+DOMPurify.addHook("afterSanitizeAttributes", afterSanitizeAttributes);
 
 /**
- * Sanitize an HTML string. Strips disallowed tags (keeping their text
- * content), disallowed attributes, event handlers, and unsafe URLs.
+ * Sanitize an HTML string, stripping disallowed tags, attributes, event
+ * handlers, and unsafe URLs. Safe on both server (Node) and browser.
  */
 export function sanitizeHtml(html: string): string {
   if (!html) return "";
-  try {
-    // Use the DOMParser available in Node 20+ via the global scope when
-    // running in the Next.js server runtime. Fall back to regex-based
-    // stripping if the DOM API is not available.
-    if (typeof globalThis.DOMParser !== "undefined") {
-      const doc = new DOMParser().parseFromString(html, "text/html");
-      return sanitizeNode(doc.body);
-    }
-    return sanitizeRegex(html);
-  } catch {
-    // If anything throws, fall back to a strict regex strip of the most
-    // dangerous patterns so we never store raw untrusted HTML.
-    return sanitizeRegex(html);
-  }
-}
-
-function sanitizeNode(node: Element): string {
-  // Process children first (depth-first), collecting sanitized output.
-  let out = "";
-  node.childNodes.forEach((child) => {
-    if (child.nodeType === 3 /* TEXT_NODE */) {
-      out += child.textContent ?? "";
-    } else if (child.nodeType === 1 /* ELEMENT_NODE */) {
-      const el = child as Element;
-      const tag = el.tagName.toLowerCase();
-      if (ALLOWED_TAGS.has(tag)) {
-        const inner = sanitizeNode(el);
-        const attrs = collectAttrs(tag, el);
-        out += `<${tag}${attrs}>${inner}</${tag}>`;
-      } else {
-        // Disallowed tag: keep its text content (strip the tag itself).
-        out += sanitizeNode(el);
-      }
-    }
-  });
-  return out;
-}
-
-function collectAttrs(tag: string, el: Element): string {
-  let attrs = "";
-  for (const attr of Array.from(el.attributes)) {
-    const name = attr.name.toLowerCase();
-    const value = attr.value;
-    const safe = sanitizeAttributes(tag, name, value);
-    if (safe !== null) {
-      attrs += ` ${name}="${escapeAttr(safe)}"`;
-      // Force rel on target=_blank links for safety.
-      if (name === "target" && safe === "_blank" && tag === "a") {
-        attrs += ` rel="noopener noreferrer"`;
-      }
-    }
-  }
-  return attrs;
-}
-
-function escapeAttr(s: string): string {
-  return s.replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-/** Regex fallback used when the DOM API is unavailable. */
-function sanitizeRegex(html: string): string {
-  let s = html;
-  // Drop <script> and <style> blocks entirely.
-  s = s.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
-  s = s.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "");
-  s = s.replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, "");
-  // Remove all on* event handler attributes.
-  s = s.replace(/\son\w+\s*=\s*"[^"]*"/gi, "");
-  s = s.replace(/\son\w+\s*=\s*'[^']*'/gi, "");
-  s = s.replace(/\son\w+\s*=\s*[^\s>]+/gi, "");
-  // Block javascript: and data: URLs in href/src.
-  s = s.replace(/(href|src)\s*=\s*"\s*javascript:[^"]*"/gi, '$1="#"');
-  s = s.replace(/(href|src)\s*=\s*"\s*data:[^"]*"/gi, '$1="#"');
-  s = s.replace(/(href|src)\s*=\s*'\s*javascript:[^']*'/gi, "$1='#'");
-  s = s.replace(/(href|src)\s*=\s*'\s*data:[^']*'/gi, "$1='#'");
-  return s;
+  return DOMPurify.sanitize(html, SANITIZE_CONFIG);
 }

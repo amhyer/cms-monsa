@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   GraduationCap,
   Eye,
@@ -40,7 +41,7 @@ const DEMO = [
 ];
 
 export function LoginView() {
-  const navigate = useAppStore((s) => s.navigate);
+  const router = useRouter();
   const login = useAppStore((s) => s.login);
 
   const [email, setEmail] = useState("");
@@ -88,7 +89,7 @@ export function LoginView() {
 
       <button
         type="button"
-        onClick={() => navigate("/")}
+        onClick={() => router.push("/")}
         className="group absolute left-5 top-5 inline-flex items-center gap-2 text-sm font-medium text-primary-foreground/80 transition hover:text-primary-foreground"
       >
         <ArrowLeft className="size-4 transition group-hover:-translate-x-0.5" />

@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Home, ArrowLeft, Search } from "lucide-react";
-import { useAppStore } from "@/store/app";
 import { Button } from "@/components/ui/button";
 
 export function NotFoundView() {
-  const navigate = useAppStore((s) => s.navigate);
+  const router = useRouter();
 
   useEffect(() => {
     document.title = "404 — Halaman Tidak Ditemukan";
@@ -26,7 +26,7 @@ export function NotFoundView() {
           Silakan kembali ke beranda atau periksa kembali tautan Anda.
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <Button onClick={() => navigate("/")} className="bg-gold text-gold-foreground hover:bg-gold/90">
+          <Button onClick={() => router.push("/")} className="bg-gold text-gold-foreground hover:bg-gold/90">
             <Home className="size-4" /> Ke Beranda
           </Button>
           <Button variant="outline" onClick={() => window.history.back()}>
@@ -48,7 +48,7 @@ export function NotFoundView() {
               <button
                 key={l.path}
                 type="button"
-                onClick={() => navigate(l.path)}
+                onClick={() => router.push(l.path)}
                 className="rounded-md border bg-background px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
               >
                 {l.label}

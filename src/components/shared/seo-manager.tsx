@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { useAppStore } from "@/store/app";
 import type { SiteSettingItem } from "@/lib/types";
 
 /**
- * Dynamic SEO metadata manager for the hash-based SPA.
+ * Dynamic SEO metadata manager for the App Router site.
  *
- * Watches route changes and updates:
+ * Watches pathname changes and updates:
  * - document.title
  * - meta description
  * - canonical link
@@ -15,8 +16,9 @@ import type { SiteSettingItem } from "@/lib/types";
  * - Twitter card tags
  * - JSON-LD structured data (EducationalOrganization, NewsArticle, BreadcrumbList)
  *
- * This is essential because the app is a client-side SPA — without this,
- * every "page" shares the same static title/description from layout.tsx.
+ * This is essential because most content metadata (titles, OG tags) is only
+ * known client-side after fetching data — without this, every "page" would
+ * share the same static title/description from layout.tsx.
  */
 
 const SITE_URL =
@@ -67,14 +69,14 @@ type SeoConfig = {
   jsonLd?: { id: string; data: object }[];
 };
 
-function getPageSeo(route: string, settings: SiteSettingItem | null): SeoConfig {
+function getPageSeo(pathname: string, settings: SiteSettingItem | null): SeoConfig {
   const schoolName = settings?.schoolName ?? "SD Negeri Unggulan Mongisidi 1";
   const schoolDesc =
     settings?.principalWelcome?.slice(0, 160) ??
     "Website resmi SD Negeri Unggulan Mongisidi 1 Makassar. Berita, profil, galeri, direktori guru, dan informasi SPMB.";
 
   // Home
-  if (route === "/" || route === "") {
+  if (pathname === "/" || pathname === "") {
     return {
       title: `${schoolName} — Website Resmi Sekolah`,
       description: schoolDesc,
@@ -116,7 +118,7 @@ function getPageSeo(route: string, settings: SiteSettingItem | null): SeoConfig 
             url: SITE_URL,
             potentialAction: {
               "@type": "SearchAction",
-              target: `${SITE_URL}/#/news?search={search_term_string}`,
+              target: `${SITE_URL}/news?search={search_term_string}`,
               "query-input": "required name=search_term_string",
             },
           },
@@ -126,11 +128,11 @@ function getPageSeo(route: string, settings: SiteSettingItem | null): SeoConfig 
   }
 
   // News list
-  if (route === "/news") {
+  if (pathname === "/news") {
     return {
       title: `Berita & Pengumuman — ${schoolName}`,
       description: `Berita terbaru, kegiatan, prestasi, dan pengumuman resmi dari ${schoolName}.`,
-      canonicalPath: "/#/news",
+      canonicalPath: "/news",
       ogType: "website",
       jsonLd: [
         {
@@ -140,7 +142,7 @@ function getPageSeo(route: string, settings: SiteSettingItem | null): SeoConfig 
             "@type": "BreadcrumbList",
             itemListElement: [
               { "@type": "ListItem", position: 1, name: "Beranda", item: SITE_URL },
-              { "@type": "ListItem", position: 2, name: "Berita", item: `${SITE_URL}/#/news` },
+              { "@type": "ListItem", position: 2, name: "Berita", item: `${SITE_URL}/news` },
             ],
           },
         },
@@ -149,22 +151,22 @@ function getPageSeo(route: string, settings: SiteSettingItem | null): SeoConfig 
   }
 
   // News detail
-  if (route.startsWith("/news/")) {
+  if (pathname.startsWith("/news/")) {
     return {
       title: `Berita — ${schoolName}`,
       description: "Berita dan kegiatan terbaru dari " + schoolName,
-      canonicalPath: route,
+      canonicalPath: pathname,
       ogType: "article",
       jsonLd: [], // NewsArticle JSON-LD is injected by NewsDetailView after fetch
     };
   }
 
   // Profile
-  if (route === "/profile") {
+  if (pathname === "/profile") {
     return {
       title: `Profil Sekolah — ${schoolName}`,
       description: `Sejarah, visi-misi, struktur organisasi, dan fasilitas ${schoolName}.`,
-      canonicalPath: "/#/profile",
+      canonicalPath: "/profile",
       ogType: "website",
       jsonLd: [
         {
@@ -174,7 +176,7 @@ function getPageSeo(route: string, settings: SiteSettingItem | null): SeoConfig 
             "@type": "BreadcrumbList",
             itemListElement: [
               { "@type": "ListItem", position: 1, name: "Beranda", item: SITE_URL },
-              { "@type": "ListItem", position: 2, name: "Profil", item: `${SITE_URL}/#/profile` },
+              { "@type": "ListItem", position: 2, name: "Profil", item: `${SITE_URL}/profile` },
             ],
           },
         },
@@ -183,11 +185,11 @@ function getPageSeo(route: string, settings: SiteSettingItem | null): SeoConfig 
   }
 
   // Academic
-  if (route === "/academic") {
+  if (pathname === "/academic") {
     return {
       title: `Akademik & Direktori — ${schoolName}`,
       description: `Direktori guru & staf, kalender akademik, dan ekstrakurikuler ${schoolName}.`,
-      canonicalPath: "/#/academic",
+      canonicalPath: "/academic",
       ogType: "website",
       jsonLd: [
         {
@@ -197,7 +199,7 @@ function getPageSeo(route: string, settings: SiteSettingItem | null): SeoConfig 
             "@type": "BreadcrumbList",
             itemListElement: [
               { "@type": "ListItem", position: 1, name: "Beranda", item: SITE_URL },
-              { "@type": "ListItem", position: 2, name: "Akademik", item: `${SITE_URL}/#/academic` },
+              { "@type": "ListItem", position: 2, name: "Akademik", item: `${SITE_URL}/academic` },
             ],
           },
         },
@@ -206,11 +208,11 @@ function getPageSeo(route: string, settings: SiteSettingItem | null): SeoConfig 
   }
 
   // Gallery
-  if (route === "/gallery") {
+  if (pathname === "/gallery") {
     return {
       title: `Galeri Kegiatan — ${schoolName}`,
       description: `Dokumentasi foto dan video kegiatan, prestasi, serta fasilitas ${schoolName}.`,
-      canonicalPath: "/#/gallery",
+      canonicalPath: "/gallery",
       ogType: "website",
       jsonLd: [
         {
@@ -220,7 +222,7 @@ function getPageSeo(route: string, settings: SiteSettingItem | null): SeoConfig 
             "@type": "BreadcrumbList",
             itemListElement: [
               { "@type": "ListItem", position: 1, name: "Beranda", item: SITE_URL },
-              { "@type": "ListItem", position: 2, name: "Galeri", item: `${SITE_URL}/#/gallery` },
+              { "@type": "ListItem", position: 2, name: "Galeri", item: `${SITE_URL}/gallery` },
             ],
           },
         },
@@ -229,11 +231,11 @@ function getPageSeo(route: string, settings: SiteSettingItem | null): SeoConfig 
   }
 
   // Contact
-  if (route === "/contact") {
+  if (pathname === "/contact") {
     return {
       title: `Hubungi Kami & SPMB — ${schoolName}`,
       description: `Hubungi ${schoolName} atau daftar SPMB online. Alamat, telepon, email, dan lokasi sekolah.`,
-      canonicalPath: "/#/contact",
+      canonicalPath: "/contact",
       ogType: "website",
       jsonLd: [
         {
@@ -243,7 +245,7 @@ function getPageSeo(route: string, settings: SiteSettingItem | null): SeoConfig 
             "@type": "BreadcrumbList",
             itemListElement: [
               { "@type": "ListItem", position: 1, name: "Beranda", item: SITE_URL },
-              { "@type": "ListItem", position: 2, name: "Kontak", item: `${SITE_URL}/#/contact` },
+              { "@type": "ListItem", position: 2, name: "Kontak", item: `${SITE_URL}/contact` },
             ],
           },
         },
@@ -252,15 +254,19 @@ function getPageSeo(route: string, settings: SiteSettingItem | null): SeoConfig 
   }
 
   // Login / admin (noindex implied, minimal SEO)
-  if (route === "/login" || route === "/admin-login" || route.startsWith("/dashboard")) {
+  if (
+    pathname === "/login" ||
+    pathname === "/admin-login" ||
+    pathname.startsWith("/dashboard")
+  ) {
     return {
-      title: route.includes("admin")
+      title: pathname.includes("admin")
         ? `Portal Admin — ${schoolName}`
-        : route.startsWith("/dashboard")
+        : pathname.startsWith("/dashboard")
         ? `Dashboard — ${schoolName}`
         : `Login — ${schoolName}`,
       description: "Portal manajemen konten sekolah.",
-      canonicalPath: "/#/login",
+      canonicalPath: "/login",
       ogType: "website",
     };
   }
@@ -306,17 +312,17 @@ export function injectNewsArticleJsonLd(news: {
     },
     mainEntityOfPage: {
       "@type": "WebPage",
-      "@id": `${SITE_URL}/#/news/${news.slug}`,
+      "@id": `${SITE_URL}/news/${news.slug}`,
     },
   });
 }
 
 export function SeoManager() {
-  const route = useAppStore((s) => s.route);
+  const pathname = usePathname();
   const settings = useAppStore((s) => s.settings);
 
   useEffect(() => {
-    const seo = getPageSeo(route, settings);
+    const seo = getPageSeo(pathname, settings);
     const fullUrl = `${SITE_URL}${seo.canonicalPath}`;
 
     // Title
@@ -348,12 +354,12 @@ export function SeoManager() {
 
     // JSON-LD structured data
     // Clean up stale NewsArticle when not on a news detail page.
-    if (!route.startsWith("/news/")) {
+    if (!pathname.startsWith("/news/")) {
       removeJsonLd("ld-newsarticle");
     }
     // Inject page-specific JSON-LD.
     seo.jsonLd?.forEach(({ id, data }) => upsertJsonLd(id, data));
-  }, [route, settings]);
+  }, [pathname, settings]);
 
   return null; // This component only manages head, renders nothing.
 }

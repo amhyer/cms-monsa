@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
   Facebook,
   Instagram,
@@ -15,8 +16,8 @@ import { useAppStore } from "@/store/app";
 import { PUBLIC_NAV } from "@/lib/nav";
 
 export function SiteFooter() {
+  const router = useRouter();
   const settings = useAppStore((s) => s.settings);
-  const navigate = useAppStore((s) => s.navigate);
 
   const year = new Date().getFullYear();
   const schoolName = settings?.schoolName ?? "SD Negeri Unggulan Mongisidi 1";
@@ -88,7 +89,7 @@ export function SiteFooter() {
                 <li key={item.path}>
                   <button
                     type="button"
-                    onClick={() => navigate(item.path)}
+                    onClick={() => router.push(item.path)}
                     className="text-left text-primary-foreground/80 transition-colors hover:text-gold"
                   >
                     {item.label}
@@ -135,7 +136,7 @@ export function SiteFooter() {
           </p>
           <button
             type="button"
-            onClick={() => navigate("/admin-login")}
+            onClick={() => router.push("/admin-login")}
             className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-primary-foreground/50 transition-colors hover:bg-primary-foreground/10 hover:text-gold"
             title="Portal login khusus Super Admin"
           >

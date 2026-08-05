@@ -115,11 +115,8 @@ trap cleanup EXIT INT TERM
 
 cd "$PROJECT_DIR"
 
-# Ensure .env has relative DATABASE_URL (sandbox reset may revert to absolute path)
-if grep -q "file:/home" .env 2>/dev/null; then
-    echo "[FIX] Correcting .env DATABASE_URL to relative path..."
-    echo 'DATABASE_URL="file:./db/custom.db"' > .env
-fi
+# .env jangan pernah ditulis/di-overwrite dari script (REFACTOR_PLAN #3).
+# .env yang hilang/salah → error Prisma yang jelas, bukan korup diam-diam.
 export DATABASE_URL="file:./db/custom.db"
 
 if ! command -v bun >/dev/null 2>&1; then

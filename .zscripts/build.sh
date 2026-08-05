@@ -9,8 +9,8 @@ set -e
 # 使用 $0 获取脚本路径（兼容 sh 和 bash）
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# Next.js 项目路径
-NEXTJS_PROJECT_DIR="/home/z/my-project"
+# Next.js 项目路径 — relatif ke script (tidak hardcode sandbox path)
+NEXTJS_PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # 检查 Next.js 项目目录是否存在
 if [ ! -d "$NEXTJS_PROJECT_DIR" ]; then
@@ -24,11 +24,8 @@ echo "📁 Next.js 项目路径: $NEXTJS_PROJECT_DIR"
 # 切换到 Next.js 项目目录
 cd "$NEXTJS_PROJECT_DIR" || exit 1
 
-# Ensure .env has relative DATABASE_URL (sandbox reset may revert to absolute path)
-if grep -q "file:/home" .env 2>/dev/null; then
-    echo "[FIX] Correcting .env DATABASE_URL to relative path..."
-    echo 'DATABASE_URL="file:./db/custom.db"' > .env
-fi
+# .env jangan pernah ditulis/di-overwrite dari script (REFACTOR_PLAN #3).
+# .env yang hilang/salah → error Prisma yang jelas, bukan korup diam-diam.
 export DATABASE_URL="file:./db/custom.db"
 
 # 设置环境变量

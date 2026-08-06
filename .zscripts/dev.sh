@@ -117,7 +117,8 @@ cd "$PROJECT_DIR"
 
 # .env jangan pernah ditulis/di-overwrite dari script (REFACTOR_PLAN #3).
 # .env yang hilang/salah → error Prisma yang jelas, bukan korup diam-diam.
-export DATABASE_URL="file:./db/custom.db"
+# DB kanonik: prisma/db/custom.db (Prisma resolve file: relatif ke lokasi schema)
+export DATABASE_URL="file:../db/custom.db"
 
 if ! command -v bun >/dev/null 2>&1; then
         echo "ERROR: bun is not installed or not in PATH"

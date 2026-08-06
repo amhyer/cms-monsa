@@ -26,7 +26,6 @@ if [[ "$DB_URL" == postgresql://* || "$DB_URL" == postgres://* ]]; then
     echo "Backup PostgreSQL -> $BACKUP_DIR/db-$STAMP.sql"
 elif [[ "$DB_URL" == file:* || -f "$ROOT/prisma/db/custom.db" ]]; then
     DB_FILE="$ROOT/prisma/db/custom.db"
-    [ -f "$DB_FILE" ] || DB_FILE="$ROOT/db/custom.db"
     cp "$DB_FILE" "$BACKUP_DIR/db-$STAMP.db"
     echo "Backup SQLite -> $BACKUP_DIR/db-$STAMP.db"
 else

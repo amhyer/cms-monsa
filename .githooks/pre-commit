@@ -2,7 +2,7 @@
 # ============================================================
 # Pre-commit hook: guard kebersihan repo + typecheck/lint/test.
 #
-# Guard cepat (dijalankan SEBELUM npm check — gagal seketika):
+# Guard cepat (dijalankan SEBELUM bun check — gagal seketika):
 #   1. Tolak commit yang meng-stage file .db / .db-journal / .env*
 #      (kecuali .env.example)
 #      → mencegah pola lama terulang: "fix: .env path" &
@@ -13,7 +13,7 @@
 #        (REPO_HEALTH_AUDIT 1.2).
 #
 # Pemasangan (sekali per clone):
-#   npm run hooks:install   # atau: git config core.hooksPath .githooks
+#   bun run hooks:install   # atau: git config core.hooksPath .githooks
 #
 # Lewati sementara (tidak disarankan):
 #   git commit --no-verify
@@ -66,6 +66,6 @@ if [[ "$BLOCKED" -eq 1 ]]; then
 fi
 
 echo "🔍 [pre-commit] Guard repo bersih — menjalankan typecheck + lint + test..."
-npm run check
+bun run check
 
 echo "✅ [pre-commit] Semua validasi lulus — commit diizinkan."

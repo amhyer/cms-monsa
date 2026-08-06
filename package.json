@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "lint:md": "markdownlint-cli2",
     "typecheck": "tsc --noEmit",
-    "check": "npm run typecheck && npm run lint && npm run lint:md && npm run check:schema && npm run test",
+    "check": "tsc --noEmit && eslint . && markdownlint-cli2 && node scripts/check-schema-sync.mjs && vitest run",
     "check:schema": "node scripts/check-schema-sync.mjs",
     "hooks:install": "git config core.hooksPath .githooks",
     "test": "vitest run",

@@ -8,7 +8,7 @@
  * dibandingkan — header komentar dan `provider` datasource (sqlite vs
  * postgresql) memang sengaja berbeda dan diabaikan.
  *
- * Dipakai oleh `npm run check` (pre-commit hook + CI) agar fitur baru
+ * Dipakai oleh `bun run check` (pre-commit hook + CI) agar fitur baru
  * (model/field/index baru) tidak pernah tertinggal di varian Postgres.
  */
 import { readFileSync } from "node:fs";

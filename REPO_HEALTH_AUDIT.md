@@ -152,7 +152,7 @@ dibuat commit baru yang hanya menambal gejala.
    di-stage, atau `src/app/api/upload/route.ts` / `src/proxy.ts` terhapus.
 
 10. **Simpan salinan backup di luar repo** — database tidak pernah di-commit,
-    jadi backup berkala via `npm run backup:db` menjadi satu-satunya jaring
+    jadi backup berkala via `bun run backup:db` menjadi satu-satunya jaring
     pengaman; pastikan cron aktif.
 
 ---

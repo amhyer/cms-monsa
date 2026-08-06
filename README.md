@@ -191,7 +191,7 @@ bun run test        # Vitest — unit & integration tests
 bun run check       # Semua di atas sekaligus (typecheck && lint && lint:md && check:schema && test)
 ```
 
-`npm run check` adalah gerbang tunggal yang dipakai oleh pre-commit hook.
+`bun run check` adalah gerbang tunggal yang dipakai oleh pre-commit hook.
 Perintah ini berhenti (short-circuit) di kegagalan pertama dan mengembalikan
 exit code non-zero — cocok untuk pipeline CI maupun pre-commit. CI
 ([.github/workflows/ci.yml](.github/workflows/ci.yml)) menjalankan typecheck, lint, lint:md, check:schema, dan test
@@ -211,11 +211,8 @@ dengan rule core MD042/MD055/MD056 plus dua custom rule di
 ### Pre-commit Hook
 
 Hook ter-versi di [.githooks/pre-commit](.githooks/pre-commit) otomatis menjalankan
-`npm run check` (typecheck + lint + test) **sebelum setiap commit**. Hook
-memakai `npm run check` (bukan `bun run check`) agar tetap berjalan di mesin
-developer yang belum menginstal bun — kedua perintah mengeksekusi script
-`package.json` yang sama. Jika salah satu gagal, commit ditolak dan error
-ditampilkan.
+`bun run check` (typecheck + lint + test) **sebelum setiap commit**. Jika gagal,
+commit ditolak dan error ditampilkan.
 
 Aktifkan sekali per clone:
 
@@ -287,7 +284,7 @@ CMS MONSA/
 │   └── workflows/
 │       └── ci.yml            # CI pipeline (typecheck, lint, test, build)
 ├── .githooks/
-│   └── pre-commit            # Pre-commit hook (npm run check + guard repo)
+│   └── pre-commit            # Pre-commit hook (bun run check + guard repo)
 ├── .env.example              # Environment template (copy to .env)
 ├── .markdownlint-cli2.cjs    # Markdownlint config (lint:md)
 ├── prisma/

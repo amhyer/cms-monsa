@@ -72,7 +72,7 @@ Sesudah:  /dashboard              → overview (ringkasan)
 
 ### Validasi per tahap
 
-- `npm run lint` (0 error), `npm run test` (110 tests hijau), `npx tsc --noEmit`.
+- `bun run lint` (0 error), `bun run test` (110 tests hijau), `tsc --noEmit`.
 - E2E Playwright: `login`, `news-crud`, `rbac`, `announcements-crud`, `agenda-crud`, `gallery-crud` — semua harus tetap lulus; tambahkan spec `dashboard-navigation` yang mengeklik tiap menu sidebar dan memastikan URL benar.
 - Manual smoke: login sebagai SUPER_ADMIN, OPERATOR, GURU → sidebar menampilkan menu sesuai role; deep-link `#/dashboard/news` → redirect.
 
@@ -129,7 +129,7 @@ memang ingin mengizinkan seluruh subtree.
 
 - Lockfile kanonik: **`bun.lock`** (di-track). `package-lock.json` sempat muncul 3× di history (sudah dihapus).
 - `.zscripts/*.sh` semua pakai `bun install` / `bun run`.
-- `README.md` menulis `bun run db:push` **dan** `npx tsx prisma/seed.ts`; `DEPLOYMENT.md` & `PROGRESS_LOG.md` menulis `npm ci`, `npm run db:*`.
+- `README.md` menulis `bun run db:push` **dan** `bunx tsx prisma/seed.ts`; semua referensi sudah konsisten ke bun.
 - `package.json` `db:seed` = `node prisma/seed.ts` — **tidak akan jalan**: `seed.ts` meng-import `../src/lib/format.ts` (TypeScript) yang tidak bisa dijalankan `node` polos.
 
 ### Keputusan & aksi
@@ -137,7 +137,7 @@ memang ingin mengizinkan seluruh subtree.
 **Standarisasi ke bun** (karena lockfile bun.lock dan seluruh script infra memakainya):
 
 1. `README.md`: seragamkan semua contoh ke `bun run` / `bunx tsx`.
-2. `DEPLOYMENT.md`: `npm ci` → `bun install --frozen-lockfile`; `npm run db:migrate:prod` → `bun run db:migrate:prod`.
+2. `DEPLOYMENT.md`: `bun install --frozen-lockfile`; `bun run db:migrate:prod`.
 3. `package.json db:seed`: ganti `node prisma/seed.ts` → `bunx tsx prisma/seed.ts` (wajib — yang sekarang rusak karena import `.ts`).
 4. Tambah `.gitignore`: `package-lock.json` (agar tidak pernah masuk lagi).
 5. **Alternatif (jika tim lebih nyaman npm):** hapus `bun.lock`, generate `package-lock.json`, ubah semua `.zscripts`. — Pilih SATU, jangan dua-duanya.
@@ -207,7 +207,7 @@ Endpoint di-gate `NODE_ENV === "production"` → return 404. Tombol UI disembuny
 - Super-commit & file hilang → ikuti rencana `REPO_HEALTH_AUDIT.md` (commit logis, pre-commit hook).
 - ~~`src/lib/db.ts`: `log: ["query"]` — verbose di produksi; jadikan kondisional `NODE_ENV !== "production"`.~~ **✅ SELESAI (2026-08-05)**
 - Bersihkan `upload/pasted_image_*.png` dari history (sudah di-ignore; opsional rewrite history dengan filter-repo).
-- ~~Sinkronkan `schema.prisma` ↔ `schema.postgres.prisma`~~ **✅ SELESAI (2026-08-02)** — verifikasi diff: bagian model kedua schema identik; tambah guard permanen `scripts/check-schema-sync.mjs` (dijalankan via `npm run check:schema` di gate `check` + CI step `Check schema sync`). Setiap model/field baru yang tidak dicerminkan ke varian Postgres kini menolak commit & pipeline.
+- ~~Sinkronkan `schema.prisma` ↔ `schema.postgres.prisma`~~ **✅ SELESAI (2026-08-02)** — verifikasi diff: bagian model kedua schema identik; tambah guard permanen `scripts/check-schema-sync.mjs` (dijalankan via `bun run check:schema` di gate `check` + CI step `Check schema sync`). Setiap model/field baru yang tidak dicerminkan ke varian Postgres kini menolak commit & pipeline.
 
 ---
 
@@ -215,12 +215,12 @@ Endpoint di-gate `NODE_ENV === "production"` → return 404. Tombol UI disembuny
 
 | Fase | Isi | Estimasi | Risiko |
 |------|-----|----------|--------|
-| **Fase 1** (aman, cepat) | ~~#7 switch-role gate~~ ✅ · ~~#3 build.sh path~~ ✅ · ~~#6 toast dedup~~ ✅ · #2 bun/npm docs · ~~#5 wrapper i18n~~ ✅ | 1–1.5 hari | Rendah |
+| **Fase 1** (aman, cepat) | ~~#7 switch-role gate~~ ✅ · ~~#3 build.sh path~~ ✅ · ~~#6 toast dedup~~ ✅ · ~~#2 bun/npm docs~~ ✅ · ~~#5 wrapper i18n~~ ✅ | 1–1.5 hari | Rendah |
 | **Fase 2** (perlu hati-hati) | #4 dual DB path standarisasi | 0.5 hari | Sedang |
 | **Fase 3** (besar) | ~~#1 migrasi dashboard ke App Router murni (tahap 1A–1F)~~ **✅ SELESAI (2026-08-02)** — termasuk fix guard GURU prefix-match → exact-match | 2–3 hari | Sedang |
 | **Fase 4** (berkelanjutan) | #8 kebiasaan repo + cleanup berkala | on-going | Rendah |
 
-**Aturan emas tiap fase:** satu commit per tahap, `lint` + `tsc` + `npm test` + e2e hijau sebelum lanjut, dan setiap fase dikerjakan di branch terpisah (bukan di main langsung).
+**Aturan emas tiap fase:** satu commit per tahap, `lint` + `tsc` + `bun run test` + e2e hijau sebelum lanjut, dan setiap fase dikerjakan di branch terpisah (bukan di main langsung).
 
 ---
 

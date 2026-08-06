@@ -83,16 +83,16 @@
 ### Perintah yang Sering Digunakan
 ```bash
 # Jalankan semua unit + integration tests
-npm test
+bun run test
 
 # Jalankan tests dalam mode watch
-npm run test:watch
+bun run test:watch
 
 # Jalankan tests dengan coverage report
-npm run test:coverage
+bun run test:coverage
 
 # Jalankan E2E tests (pastikan dev server running)
-npm run test:e2e
+bun run test:e2e
 ```
 
 ---
@@ -993,7 +993,7 @@ kode.
 
 ### Testing
 
-- `npm run lint:md` — 0 issues (7 file; markdownlint + custom rules CUSTOM001 tautan relatif & CUSTOM002 fence seimbang)
+- `bun run lint:md` — 0 issues (7 file; markdownlint + custom rules CUSTOM001 tautan relatif & CUSTOM002 fence seimbang)
 - Code review — verdict bersih (akurasi vs kode: `DASHBOARD_NAV` 17 item, guard GURU exact-match, sintaks mermaid valid)
 - Unit test guard (sesi sebelumnya): Vitest 196/196 lulus, `tsc --noEmit` 0 error, ESLint bersih
 
@@ -1001,7 +1001,7 @@ kode.
 
 - Tidak ada perubahan kode runtime di fase ini (kecuali `access.ts` + unit test pendukung yang memastikan dokumentasi guard akurat terhadap implementasi).
 - `docs/ARCHITECTURE.md` section 2.1/2.2 (alur keamanan) dan section 3 (ERD) tetap utuh.
-- Item bun/npm standarisasi (#2 REFACTOR_PLAN) belum dikerjakan — perintah `npm ci`/`npm run db:*` di DEPLOYMENT.md menunggu keputusan package manager.
+- Item bun/npm standarisasi (#2 REFACTOR_PLAN) **SELESAI** — semua referensi npm di dokumentasi telah diganti dengan bun.
 
 ---
 
@@ -1036,7 +1036,7 @@ ke depan — inti dari aksi "jaga".
 
 - Guard hanya membandingkan **bagian model** — header komentar dan `provider`
   datasource (sqlite vs postgresql) memang sengaja berbeda dan diabaikan.
-- Di-enforce di **pre-commit hook** (via `npm run check`) **dan CI** — setiap
+- Di-enforce di **pre-commit hook** (via `bun run check`) **dan CI** — setiap
   model/field/index baru di `schema.prisma` yang tidak dicerminkan ke
   `schema.postgres.prisma` akan menolak commit & pipeline.
 

@@ -1,0 +1,19 @@
+{
+  "name": "dapodik-client",
+  "version": "1.0.0",
+  "description": "Client library for Dapodik Web Service (PHP + TypeScript)",
+  "main": "dist/DapodikClient.js",
+  "types": "dist/DapodikClient.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "vitest": "^4.1.10"
+  }
+}

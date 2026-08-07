@@ -8,6 +8,7 @@ export default defineConfig({
     setupFiles: ["./src/lib/__tests__/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
     exclude: ["node_modules", "e2e", ".next"],
+    testTimeout: 30000, // 30s for scrypt password hashing
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],

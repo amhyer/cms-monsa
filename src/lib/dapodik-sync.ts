@@ -158,17 +158,29 @@ export async function runSync(
 ): Promise<DryRunResult | CommitResult> {
   const client = await getDapodikClient();
 
-  const [sekolahRaw, siswaRaw, gtkRaw, rombelRaw] = await Promise.all([
-    client.getSekolah(),
-    client.getPesertaDidik(),
-    client.getGTK(),
-    client.getRombonganBelajar(),
-  ]);
+  // Ditarik berurutan (bukan Promise.all): server Dapodik lokal sering gagal
+  // bila menerima beberapa request database sekaligus — sama seperti perilaku
+  // tombol "Tarik Data" di dashboard yang berjalan step-by-step.
+  let sekolah: DapodikSekolah;
+  let siswaRaw: unknown;
+  let gtkRaw: unknown;
+  let rombelRaw: unknown;
+  try {
+    sekolah = (await client.getSekolah()) as DapodikSekolah;
+    siswaRaw = await client.getPesertaDidik();
+    gtkRaw = await client.getGTK();
+    rombelRaw = await client.getRombonganBelajar();
+  } catch (err) {
+    const cause = err instanceof Error ? err.message : "respons tidak dikenal";
+    throw new Error(
+      `Tarik data dari server Dapodik gagal: ${cause}. ` +
+        `Pastikan aplikasi Dapodik terbuka dan database-nya terhubung (bukan "Tidak terhubung dengan database"), lalu coba lagi.`
+    );
+  }
 
   const siswaList = (Array.isArray(siswaRaw) ? siswaRaw : [siswaRaw]) as DapodikSiswa[];
   const gtkList = (Array.isArray(gtkRaw) ? gtkRaw : [gtkRaw]) as DapodikGTK[];
   const rombelList = (Array.isArray(rombelRaw) ? rombelRaw : [rombelRaw]) as DapodikRombel[];
-  const sekolah = sekolahRaw as DapodikSekolah;
 
   // Existing DB state
   const existingStudents = await db.student.findMany({
@@ -266,12 +278,23 @@ export async function runSync(
 
   // ---- Commit mode ----
   await db.$transaction(async (tx) => {
-    await tx.siteSetting.update({
+    await tx.siteSetting.upsert({
       where: { id: "singleton" },
-      data: {
+      update: {
         npsn: sekolah.npsn,
         schoolName: sekolah.nama,
         address: sekolah.alamat,
+      },
+      create: {
+        id: "singleton",
+        npsn: sekolah.npsn,
+        schoolName: sekolah.nama,
+        address: sekolah.alamat,
+        vision: "",
+        mission: "",
+        history: "",
+        principalWelcome: "",
+        spmbInfo: "",
       },
     });
 
@@ -382,7 +405,7 @@ export async function runSync(
 
   const log = await db.activityLog.create({
     data: {
-      userId: "",
+      userId: null,
       userName: "System",
       action: "CREATE",
       entity: "DapodikSync",

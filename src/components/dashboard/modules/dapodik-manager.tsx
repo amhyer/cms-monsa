@@ -45,10 +45,22 @@ import {
 import { EmptyState } from "../_shared";
 
 type DapodikData = {
-  sekolah?: { nama: string; npsn: string; alamat: string; provinsi: string; kabupaten: string; kecamatan: string; kelurahan: string };
-  peserta_didik?: Array<{ nama_siswa: string; nisn: string; tempat_lahir: string; tanggal_lahir: string; jenis_kelamin: string; alamat: string; nama_ortu: string }>;
+  sekolah?: { nama: string; npsn: string; alamat_jalan: string; provinsi: string; kabupaten_kota: string; kecamatan: string; desa_kelurahan: string };
+  peserta_didik?: Array<{
+    nama: string;
+    nisn: string;
+    nipd: string;
+    tempat_lahir: string;
+    tanggal_lahir: string;
+    jenis_kelamin: string;
+    alamat_jalan: string;
+    nama_ayah: string;
+    nama_ibu: string;
+    nama_wali: string;
+    nama_rombel: string;
+  }>;
   gtk?: Array<{ nama: string; nuptk: string; nip: string; jabatan: string }>;
-  rombel?: Array<{ nama_rombel: string; tingkat: string; wali_kelas: string }>;
+  rombel?: Array<{ nama: string; tingkat_pendidikan_id_str: string; ptk_id_str: string }>;
 };
 
 type SyncPreview = {
@@ -413,16 +425,18 @@ export function DapodikManager() {
                     <TableBody>
                       {data.peserta_didik.map((s, i) => (
                         <TableRow key={i}>
-                          <TableCell className="font-medium">{s.nama_siswa}</TableCell>
-                          <TableCell>{s.nisn}</TableCell>
-                          <TableCell>{s.tempat_lahir}, {s.tanggal_lahir}</TableCell>
+                          <TableCell className="font-medium">{s.nama ?? "-"}</TableCell>
+                          <TableCell>{s.nisn ?? "-"}</TableCell>
+                          <TableCell>{[s.tempat_lahir, s.tanggal_lahir].filter(Boolean).join(", ") || "-"}</TableCell>
                           <TableCell>
-                            <Badge variant={s.jenis_kelamin === "Laki-laki" ? "default" : "secondary"}>
-                              {s.jenis_kelamin}
+                            <Badge variant={s.jenis_kelamin === "L" ? "default" : "secondary"}>
+                              {s.jenis_kelamin === "L" ? "Laki-laki" : s.jenis_kelamin === "P" ? "Perempuan" : s.jenis_kelamin ?? "-"}
                             </Badge>
                           </TableCell>
-                          <TableCell className="max-w-[200px] truncate">{s.alamat}</TableCell>
-                          <TableCell>{s.nama_ortu}</TableCell>
+                          <TableCell className="max-w-[200px] truncate">{s.alamat_jalan ?? "-"}</TableCell>
+                          <TableCell>
+                            {[s.nama_ayah, s.nama_ibu].filter(Boolean).join(" / ") || s.nama_wali || "-"}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -498,9 +512,9 @@ export function DapodikManager() {
                     <TableBody>
                       {data.rombel.map((r, i) => (
                         <TableRow key={i}>
-                          <TableCell className="font-medium">{r.nama_rombel}</TableCell>
-                          <TableCell>{r.tingkat}</TableCell>
-                          <TableCell>{r.wali_kelas}</TableCell>
+                          <TableCell className="font-medium">{r.nama ?? "-"}</TableCell>
+                          <TableCell>{r.tingkat_pendidikan_id_str ?? "-"}</TableCell>
+                          <TableCell>{r.ptk_id_str ?? "-"}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -523,11 +537,11 @@ export function DapodikManager() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <InfoRow label="Nama" value={data.sekolah.nama} />
                   <InfoRow label="NPSN" value={data.sekolah.npsn} />
-                  <InfoRow label="Alamat" value={data.sekolah.alamat} />
+                  <InfoRow label="Alamat" value={data.sekolah.alamat_jalan} />
                   <InfoRow label="Provinsi" value={data.sekolah.provinsi} />
-                  <InfoRow label="Kabupaten" value={data.sekolah.kabupaten} />
+                  <InfoRow label="Kabupaten" value={data.sekolah.kabupaten_kota} />
                   <InfoRow label="Kecamatan" value={data.sekolah.kecamatan} />
-                  <InfoRow label="Kelurahan" value={data.sekolah.kelurahan} />
+                  <InfoRow label="Kelurahan" value={data.sekolah.desa_kelurahan} />
                 </div>
               )}
             </CardContent>

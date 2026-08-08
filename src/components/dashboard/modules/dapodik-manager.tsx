@@ -48,16 +48,28 @@ type DapodikData = {
   sekolah?: { nama: string; npsn: string; alamat_jalan: string; provinsi: string; kabupaten_kota: string; kecamatan: string; desa_kelurahan: string };
   peserta_didik?: Array<{
     nama: string;
-    nisn: string;
     nipd: string;
+    nisn: string;
+    nik: string;
     tempat_lahir: string;
     tanggal_lahir: string;
     jenis_kelamin: string;
     alamat_jalan: string;
+    nomor_telepon_seluler: string;
+    nomor_telepon_rumah: string;
+    email: string;
     nama_ayah: string;
+    pekerjaan_ayah_id_str: string;
     nama_ibu: string;
+    pekerjaan_ibu_id_str: string;
     nama_wali: string;
+    pekerjaan_wali_id_str: string;
     nama_rombel: string;
+    sekolah_asal: string;
+    anak_keberapa: string;
+    berat_badan: string;
+    tinggi_badan: string;
+    kebutuhan_khusus: string;
   }>;
   gtk?: Array<{ nama: string; nuptk: string; nip: string; jabatan: string }>;
   rombel?: Array<{ nama: string; tingkat_pendidikan_id_str: string; ptk_id_str: string }>;
@@ -414,29 +426,68 @@ export function DapodikManager() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead rowSpan={2}>No</TableHead>
+                        <TableHead rowSpan={2}>Nama</TableHead>
+                        <TableHead rowSpan={2}>NIPD</TableHead>
+                        <TableHead rowSpan={2}>JK</TableHead>
+                        <TableHead rowSpan={2}>NISN</TableHead>
+                        <TableHead rowSpan={2}>Tempat, Tanggal Lahir</TableHead>
+                        <TableHead rowSpan={2}>NIK</TableHead>
+                        <TableHead rowSpan={2}>Alamat</TableHead>
+                        <TableHead rowSpan={2}>HP</TableHead>
+                        <TableHead rowSpan={2}>E-Mail</TableHead>
+                        <TableHead colSpan={2}>Data Ayah</TableHead>
+                        <TableHead colSpan={2}>Data Ibu</TableHead>
+                        <TableHead colSpan={2}>Data Wali</TableHead>
+                        <TableHead rowSpan={2}>Rombel Saat Ini</TableHead>
+                        <TableHead rowSpan={2}>Sekolah Asal</TableHead>
+                        <TableHead rowSpan={2}>Anak Ke-</TableHead>
+                        <TableHead rowSpan={2}>BB</TableHead>
+                        <TableHead rowSpan={2}>TB</TableHead>
+                        <TableHead rowSpan={2}>Kebutuhan Khusus</TableHead>
+                      </TableRow>
+                      <TableRow>
                         <TableHead>Nama</TableHead>
-                        <TableHead>NISN</TableHead>
-                        <TableHead>Lahir</TableHead>
-                        <TableHead>Jenis Kelamin</TableHead>
-                        <TableHead>Alamat</TableHead>
-                        <TableHead>Orang Tua</TableHead>
+                        <TableHead>Pekerjaan</TableHead>
+                        <TableHead>Nama</TableHead>
+                        <TableHead>Pekerjaan</TableHead>
+                        <TableHead>Nama</TableHead>
+                        <TableHead>Pekerjaan</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {data.peserta_didik.map((s, i) => (
                         <TableRow key={i}>
-                          <TableCell className="font-medium">{s.nama ?? "-"}</TableCell>
-                          <TableCell>{s.nisn ?? "-"}</TableCell>
-                          <TableCell>{[s.tempat_lahir, s.tanggal_lahir].filter(Boolean).join(", ") || "-"}</TableCell>
+                          <TableCell className="text-muted-foreground">{i + 1}</TableCell>
+                          <TableCell className="font-medium whitespace-nowrap">{s.nama ?? "-"}</TableCell>
+                          <TableCell className="whitespace-nowrap">{s.nipd ?? "-"}</TableCell>
                           <TableCell>
                             <Badge variant={s.jenis_kelamin === "L" ? "default" : "secondary"}>
-                              {s.jenis_kelamin === "L" ? "Laki-laki" : s.jenis_kelamin === "P" ? "Perempuan" : s.jenis_kelamin ?? "-"}
+                              {s.jenis_kelamin === "L" ? "L" : s.jenis_kelamin === "P" ? "P" : s.jenis_kelamin ?? "-"}
                             </Badge>
                           </TableCell>
-                          <TableCell className="max-w-[200px] truncate">{s.alamat_jalan ?? "-"}</TableCell>
-                          <TableCell>
-                            {[s.nama_ayah, s.nama_ibu].filter(Boolean).join(" / ") || s.nama_wali || "-"}
+                          <TableCell className="whitespace-nowrap">{s.nisn ?? "-"}</TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {[s.tempat_lahir, s.tanggal_lahir].filter(Boolean).join(", ") || "-"}
                           </TableCell>
+                          <TableCell className="whitespace-nowrap">{s.nik ?? "-"}</TableCell>
+                          <TableCell className="max-w-[220px] truncate">{s.alamat_jalan ?? "-"}</TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {s.nomor_telepon_seluler || s.nomor_telepon_rumah || "-"}
+                          </TableCell>
+                          <TableCell className="max-w-[180px] truncate">{s.email ?? "-"}</TableCell>
+                          <TableCell>{s.nama_ayah ?? "-"}</TableCell>
+                          <TableCell>{s.pekerjaan_ayah_id_str ?? "-"}</TableCell>
+                          <TableCell>{s.nama_ibu ?? "-"}</TableCell>
+                          <TableCell>{s.pekerjaan_ibu_id_str ?? "-"}</TableCell>
+                          <TableCell>{s.nama_wali ?? "-"}</TableCell>
+                          <TableCell>{s.pekerjaan_wali_id_str ?? "-"}</TableCell>
+                          <TableCell className="whitespace-nowrap">{s.nama_rombel ?? "-"}</TableCell>
+                          <TableCell className="max-w-[180px] truncate">{s.sekolah_asal ?? "-"}</TableCell>
+                          <TableCell>{s.anak_keberapa ?? "-"}</TableCell>
+                          <TableCell>{s.berat_badan ?? "-"}</TableCell>
+                          <TableCell>{s.tinggi_badan ?? "-"}</TableCell>
+                          <TableCell>{s.kebutuhan_khusus ?? "-"}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

@@ -1,37 +1,37 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth";
-import { requireCsrf } from "@/lib/csrf";
-import { logActivity } from "@/lib/log";
 import { runSync } from "@/lib/dapodik-sync";
+import { logActivity } from "@/lib/log";
 
-export const dynamic = "force-dynamic";
-
-// Sinkronisasi NYATA: tarik data Dapodik lalu tulis ke database CMS
-// (Student, Teacher, Class). Melaporkan jumlah yang dibuat/diperbarui/error.
-export async function POST(req: NextRequest) {
-  const csrfError = await requireCsrf(req);
-  if (csrfError) return csrfError;
+export async function POST(req: Request) {
   const auth = await requireRole("OPERATOR");
   if (!auth.ok) return auth.response;
 
-  const body = await req.json().catch(() => ({}));
-  const semesterId = body.semesterId ? String(body.semesterId) : undefined;
+  const url = new URL(req.url);
+  const mode = url.searchParams.get("mode") === "commit" ? "commit" : "dry-run";
 
   try {
-    const result = await runSync({
-      semesterId,
-      byUser: { id: auth.user.id, name: auth.user.name },
-    });
-    const c = result.counts;
-    await logActivity(
-      auth.user,
-      "UPDATE",
-      "Dapodik",
-      `Sinkronisasi Dapodik (semester ${semesterId ?? "aktif"}): siswa ${c.siswa.update}+${c.siswa.create} (${c.siswa.error} error), guru ${c.gtk.update}+${c.gtk.create} (${c.gtk.error} error), rombel ${c.rombel.update}+${c.rombel.create}`
-    );
-    return NextResponse.json({ success: true, ...result });
-  } catch (e) {
-    const message = e instanceof Error ? e.message : "Gagal sinkronisasi Dapodik";
-    return NextResponse.json({ success: false, error: message }, { status: 502 });
+    const result = await runSync(mode);
+
+    if (mode === "commit") {
+      await logActivity(
+        auth.user,
+        "CREATE",
+        "DapodikSync",
+        `Sinkronisasi Dapodik (commit): ${result.siswa.created + result.siswa.updated} siswa, ${result.gtk.created + result.gtk.updated} guru, ${result.rombel.created + result.rombel.updated} rombel`
+      );
+    }
+
+    return NextResponse.json({ ok: true, ...result });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Gagal melakukan sinkronisasi";
+    return NextResponse.json({ error: message }, { status: 502 });
   }
+}
+
+export async function GET() {
+  return NextResponse.json(
+    { error: "Gunakan POST untuk sync." },
+    { status: 405 }
+  );
 }

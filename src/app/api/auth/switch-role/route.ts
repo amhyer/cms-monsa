@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession, updateSessionRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
-import type { Role } from "@/lib/types";
+import { ROLES, type Role } from "@/lib/types";
+
+const VALID_ROLES = Object.keys(ROLES);
 
 /** Mock role switcher for testing RBAC without re-login. */
 export async function POST(req: NextRequest) {
@@ -24,9 +26,15 @@ export async function POST(req: NextRequest) {
       { status: 401 }
     );
   }
+  if (user.role !== "SUPER_ADMIN") {
+    return NextResponse.json(
+      { error: "Hanya SUPER_ADMIN yang boleh mengganti peran." },
+      { status: 403 }
+    );
+  }
   const body = await req.json().catch(() => ({}));
   const target = String(body.role ?? "") as Role;
-  if (target !== "SUPER_ADMIN" && target !== "OPERATOR") {
+  if (!VALID_ROLES.includes(target)) {
     return NextResponse.json(
       { error: "Role tidak valid." },
       { status: 400 }

@@ -1,0 +1,275 @@
+/**
+ * WhatsApp notification service (Fonnte).
+ *
+ * Digunakan untuk notifikasi broadcast ke nomor HP orang tua siswa yang
+ * tersimpan di field `parentPhone` pada model Student.
+ *
+ * Konfigurasi (env):
+ *   FONNTE_TOKEN = token API dari dashboard Fonnte (WAJIB untuk mengirim).
+ *   FONNTE_DEVICE_ID = id device jika akun punya >1 perangkat (opsional).
+ *
+ * Tanpa FONNTE_TOKEN, semua fungsi mengembalikan false — app tetap berjalan
+ * normal (fitur ini opsional, seperti SMTP).
+ */
+
+const FONNTE_API_URL = "https://api.fonnte.com/send";
+
+/** Token API Fonnte — dibaca sekali (lazy, agar test mudah di-mock). */
+function fonnteToken(): string | null {
+  return process.env.FONNTE_TOKEN || null;
+}
+
+/**
+ * Normalisasi nomor HP Indonesia ke format internasional 628xxx.
+ * - Hapus semua karakter non-digit (spasi, strip, tanda kurung).
+ * - "08xx" → "628xx"
+ * - Sudah "62..." → dibiarkan.
+ * - Nomor < 9 digit atau berisi huruf → null (tidak valid).
+ */
+export function normalizePhone(raw: string): string | null {
+  if (!raw) return null;
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length < 9 || digits.length > 15) return null;
+  if (digits.startsWith("0")) return `62${digits.slice(1)}`;
+  if (digits.startsWith("62")) return digits;
+  // Nomor asing / format tidak dikenal — jangan dikirim (default aman).
+  return null;
+}
+
+export interface SendWhatsAppResult {
+  ok: boolean;
+  message?: string;
+  detail?: string;
+  id?: string;
+}
+
+/**
+ * Kirim satu pesan WA ke satu nomor (format internasional).
+ * Mengembalikan true jika Fonnte menerima pengiriman.
+ */
+export async function sendWhatsApp(
+  phone: string,
+  message: string
+): Promise<SendWhatsAppResult> {
+  const token = fonnteToken();
+  if (!token) {
+    console.warn("[whatsapp] FONNTE_TOKEN belum di-set — pengiriman dilewati.");
+    return { ok: false, message: "FONNTE_TOKEN belum dikonfigurasi." };
+  }
+  try {
+    const body = new URLSearchParams();
+    body.append("target", phone);
+    body.append("message", message);
+
+    const res = await fetch(FONNTE_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: body.toString(),
+      signal: AbortSignal.timeout(20_000),
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      status?: boolean;
+      detail?: string;
+      id?: string;
+      message?: string;
+    };
+
+    if (!res.ok || data.status === false) {
+      console.error("[whatsapp] Gagal mengirim ke", phone, data.detail || data);
+      return { ok: false, message: data.detail || "Gagal mengirim." };
+    }
+    console.log(`[whatsapp] Terkirim ke ${phone}: ${message.slice(0, 60)}…`);
+    return { ok: true, detail: data.detail, id: data.id };
+  } catch (e) {
+    console.error("[whatsapp] Error:", e);
+    return { ok: false, message: e instanceof Error ? e.message : "Network error." };
+  }
+}
+
+/**
+ * Kirim pesan ke banyak nomor (sequential, dengan jeda kecil per pesan
+ * untuk menghindari rate-limit Fonnte). Nomor yang tidak valid dilewati.
+ *
+ * `message` bisa berupa string (sama untuk semua) atau fungsi per-nomor
+ * (untuk pesan yang dipersonalisasi per penerima).
+ */
+export async function sendBulkWhatsApp(
+  phones: string[],
+  message: string | ((phone: string) => string),
+  opts: { delayMs?: number; onProgress?: (sent: number, total: number) => void } = {}
+): Promise<{ sent: number; failed: number; skipped: number; errors: string[] }> {
+  const delayMs = opts.delayMs ?? 1500;
+  const errors: string[] = [];
+  let sent = 0;
+  let skipped = 0;
+
+  for (let i = 0; i < phones.length; i++) {
+    const phone = phones[i];
+    opts.onProgress?.(sent, phones.length);
+    const body =
+      typeof message === "function" ? message(phone) : message;
+    const result = await sendWhatsApp(phone, body);
+    if (result.ok) {
+      sent++;
+    } else {
+      errors.push(`${phone}: ${result.message ?? "gagal"}`);
+    }
+    if (i < phones.length - 1 && delayMs > 0) {
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+
+  skipped = Math.max(0, phones.length - sent - errors.length);
+  return { sent, failed: errors.length, skipped, errors };
+}
+
+/**
+ * Kirim satu notifikasi WhatsApp ke orang tua secara NON-BLOKIR.
+ *
+ * `build` adalah pembuat pesan yang dieksekusi LAZY di dalam try/catch — jadi
+ * kegagalan apa pun (token belum di-set, network error, bahkan error saat
+ * menyiapkan pesan seperti membaca setting sekolah) hanya dicatat di console,
+ * tidak pernah melempar ke pemanggil. Dipakai oleh route yang aksinya tidak
+ * boleh gagal karena notifikasi (buat akun portal, catat pembayaran).
+ */
+export async function notifyParentWhatsApp(
+  phone: string,
+  build: () => string | Promise<string>
+): Promise<void> {
+  try {
+    const message = await build();
+    const result = await sendWhatsApp(phone, message);
+    if (!result.ok) {
+      console.warn("[whatsapp] Notifikasi orang tua gagal:", result.message);
+    }
+  } catch (e) {
+    console.warn("[whatsapp] Notifikasi orang tua gagal:", e);
+  }
+}
+
+/** "2026-07" → "Juli 2026" (untuk template pesan). */
+export function monthLabel(period: string): string {
+  const [y, m] = period.split("-");
+  const names = [
+    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+    "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+  ];
+  const idx = Number(m) - 1;
+  return idx >= 0 && idx < 12 && y ? `${names[idx]} ${y}` : period;
+}
+
+/**
+ * Template pesan pengingat tagihan SPP untuk orang tua.
+ * Mendukung 1 siswa atau beberapa siswa (jika satu nomor dipakai 2+ anak).
+ */
+export function sppReminderMessage(opts: {
+  schoolName: string;
+  monthPeriod: string;
+  studentNames: string[];
+}): string {
+  const period = monthLabel(opts.monthPeriod);
+  const names = opts.studentNames.join(", ");
+  return [
+    "Kepada Bapak/Ibu Orang Tua/Wali Siswa,",
+    "",
+    `Pembayaran SPP periode *${period}* untuk ${names} belum tercatat di sekolah.`,
+    "",
+    "Mohon segera melakukan pembayaran. Terima kasih atas perhatiannya.",
+    "",
+    `— ${opts.schoolName}`,
+  ].join("\n");
+}
+
+/**
+ * Template pesan WhatsApp saat akun Portal Orang Tua dibuat untuk orang tua
+ * (dikirim otomatis oleh operator melalui dashboard). Menyertakan kredensial
+ * login (email + password) sesuai keputusan sekolah.
+ */
+export function parentAccountCreatedMessage(opts: {
+  schoolName: string;
+  parentName?: string | null;
+  studentName: string;
+  email: string;
+  password: string;
+  portalUrl: string;
+}): string {
+  const greeting = opts.parentName
+    ? `Kepada Bapak/Ibu ${opts.parentName},`
+    : "Kepada Bapak/Ibu Orang Tua/Wali Siswa,";
+  return [
+    greeting,
+    "",
+    "Selamat, akun *Portal Orang Tua* untuk anak Anda telah dibuat oleh sekolah.",
+    "",
+    `Siswa: *${opts.studentName}*`,
+    `Email: ${opts.email}`,
+    `Password: ${opts.password}`,
+    "",
+    `Masuk di: ${opts.portalUrl}`,
+    "",
+    "Silakan segera login dan ubah password untuk keamanan akun Anda.",
+    "",
+    `— ${opts.schoolName}`,
+  ].join("\n");
+}
+
+/**
+ * Template konfirmasi pembayaran SPP untuk orang tua — dikirim otomatis
+ * setiap operator mencatat pembayaran berstatus PAID.
+ */
+export function paymentConfirmationMessage(opts: {
+  schoolName: string;
+  parentName?: string | null;
+  studentName: string;
+  amount: number;
+  monthPeriod: string;
+  note?: string | null;
+}): string {
+  const greeting = opts.parentName
+    ? `Kepada Bapak/Ibu ${opts.parentName},`
+    : "Kepada Bapak/Ibu Orang Tua/Wali Siswa,";
+  const period = monthLabel(opts.monthPeriod);
+  const rupiah = `Rp${opts.amount.toLocaleString("id-ID")}`;
+  return [
+    greeting,
+    "",
+    "Pembayaran SPP anak Anda telah kami terima. ✅",
+    "",
+    `Siswa: *${opts.studentName}*`,
+    `Periode: *${period}*`,
+    `Nominal: *${rupiah}*`,
+    ...(opts.note ? [`Catatan: ${opts.note}`] : []),
+    "",
+    "Terima kasih atas pembayarannya.",
+    "",
+    `— ${opts.schoolName}`,
+  ].join("\n");
+}
+
+/**
+ * Template pesan pengumuman untuk orang tua.
+ */
+export function announcementMessage(opts: {
+  schoolName: string;
+  title: string;
+  content: string;
+  parentName?: string | null;
+}): string {
+  const greeting = opts.parentName
+    ? `Kepada Bapak/Ibu ${opts.parentName},`
+    : "Kepada Bapak/Ibu Orang Tua/Wali Siswa,";
+  const content = opts.content.trim();
+  const body = content.length > 800 ? `${content.slice(0, 800)}…` : content;
+  return [
+    greeting,
+    "",
+    `📢 *${opts.title.trim()}*`,
+    "",
+    body,
+    "",
+    `— ${opts.schoolName}`,
+  ].join("\n");
+}

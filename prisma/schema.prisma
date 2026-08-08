@@ -86,20 +86,17 @@ model Teacher {
   subject     String?
   education   String?
   photo       String?
-  // Identitas dari Dapodik — dipakai sinkronisasi agar match akurat
-  // (bukan hanya by nama). Dibiarkan tanpa @unique karena data lama bisa
-  // berisi duplikat/kolom kosong; sync memastikan tidak dobel.
-  nip         String?
-  nuptk       String?
+  nuptk       String?  // NUPTK dari Dapodik (identifier sync)
+  nip         String?  // NIP dari Dapodik
   order       Int      @default(0)
   isActive    Boolean  @default(true)
+  archivedAt  DateTime? // null = aktif, DateTime = diarsipkan oleh sync Dapodik
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   homeroomClasses Class[]
 
   @@index([nuptk])
-  @@index([nip])
 }
 
 model GalleryItem {
@@ -133,6 +130,7 @@ model Class {
   grade       String   // 1, 2, 3, 4, 5, 6 (Kelas 1–6)
   stream      String?  // opsional: label rombel (misal: A, B) — SD tanpa jurusan
   academicYear String  // e.g., "2025/2026"
+  dapodikId   String?  // ID rombel dari Dapodik (stabil untuk matching sync)
   homeroomTeacherId String?
   homeroomTeacher Teacher? @relation(fields: [homeroomTeacherId], references: [id])
   isActive    Boolean  @default(true)
@@ -144,6 +142,7 @@ model Class {
   guardianUsers User[] // akun User (role GURU) yang menjadi wali kelas ini
 
   @@index([grade, academicYear])
+  @@index([dapodikId])
 }
 
 model Student {
@@ -161,6 +160,7 @@ model Student {
   classId     String
   class       Class    @relation(fields: [classId], references: [id])
   isActive    Boolean  @default(true)
+  archivedAt  DateTime? // null = aktif, DateTime = diarsipkan oleh sync Dapodik
   enrollmentDate DateTime @default(now())
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -170,6 +170,7 @@ model Student {
 
   @@index([classId])
   @@index([nis])
+  @@index([nisn])
 }
 
 // ---------- KEHADIRAN (ABSENSI) ----------
@@ -300,6 +301,19 @@ model SiteSetting {
   updatedAt         DateTime @updatedAt
 }
 
+// ---------- DAPODIK SYNC ----------
+model DapodikConfig {
+  id          String   @id @default("singleton")
+  npsn        String
+  token       String   // simpan token (tidak di-expose utuh ke client)
+  host        String   @default("localhost")
+  port        Int      @default(5774)
+  protocol    String   @default("http") // http | https
+  lastSyncAt  DateTime?
+  lastSyncBy  String?  // userId
+  updatedAt   DateTime @updatedAt
+}
+
 model ActivityLog {
   id         String   @id @default(cuid())
   userId     String
@@ -353,24 +367,4 @@ model Complaint {
 
   @@index([status])
   @@index([createdAt])
-}
-
-model DapodikConfig {
-  id         String    @id
-  npsn       String
-  token      String
-  host       String
-  port       Int
-  protocol   String
-  lastSyncAt DateTime?
-  lastSyncBy String?
-
-  // Sinkronisasi otomatis (jadwal berkala tanpa klik manual).
-  autoSyncEnabled     Boolean   @default(false)
-  autoSyncIntervalHours Int     @default(24)
-  autoSyncLastRunAt   DateTime?
-  autoSyncLastStatus  String? // "OK" | "ERROR"
-  autoSyncLastError   String?
-
-  updatedAt  DateTime  @updatedAt
 }

@@ -5,10 +5,19 @@ import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
 import { sendEmail } from "@/lib/email";
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
-  const auth = await requireAuth();
+  const auth = await requireRole("OPERATOR");
   if (!auth.ok) return auth.response;
 
   const { id } = await params;
@@ -56,7 +65,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
               <h2 style="color: ${body.status === "ACCEPTED" ? "#16a34a" : "#dc2626"};">Pendaftaran ${statusText}</h2>
               <p>Halo ${existing.fullName},</p>
               <p>Pendaftaran SPMB Anda telah <strong>${statusText}</strong>.</p>
-              ${body.notes ? `<p><strong>Catatan:</strong> ${body.notes}</p>` : ""}
+              ${body.notes ? `<p><strong>Catatan:</strong> ${escapeHtml(String(body.notes))}</p>` : ""}
               <hr style="border: 1px solid #e5e7eb;" />
               <p style="color: #6b7280; font-size: 12px;">
                 Email ini dikirim otomatis dari CMS UPT SPF SD Negeri Unggulan Mongisidi 1

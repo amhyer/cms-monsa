@@ -19,7 +19,6 @@ import {
   History,
   GraduationCap,
   Award,
-  UserCircle2,
 } from "lucide-react";
 import { useAppStore } from "@/store/app";
 import { SectionHeading } from "@/components/shared/section-heading";
@@ -43,18 +42,12 @@ const FACILITIES = [
 function LeaderCard({ t }: { t: TeacherItem }) {
   return (
     <div className="flex flex-col items-center gap-3 rounded-xl border bg-card p-5 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-      {t.photo ? (
-        <img
-          src={t.photo}
-          alt={t.name}
-          loading="lazy"
-          className="size-24 rounded-full border-2 border-gold object-cover"
-        />
-      ) : (
-        <span className="flex size-24 items-center justify-center rounded-full border-2 border-gold bg-muted text-muted-foreground">
-          <UserCircle2 className="size-12" />
-        </span>
-      )}
+      <img
+        src={t.photo ?? ""}
+        alt={t.name}
+        loading="lazy"
+        className="size-24 rounded-full border-2 border-gold object-cover"
+      />
       <div className="flex flex-col gap-1">
         <h4 className="font-sans text-base font-bold leading-tight text-foreground">
           {t.name}

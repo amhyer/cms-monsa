@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   mapGender,
+  pickOrPreserve,
   resolveGrade,
   resolveGtkTarget,
+  resolveParentPhone,
   tahunAjaranFromSemester,
 } from "@/lib/dapodik-sync";
 
@@ -128,5 +130,79 @@ describe("tahunAjaranFromSemester", () => {
     const y = new Date().getFullYear();
     expect(tahunAjaranFromSemester("garbage")).toBe(`${y}/${y + 1}`);
     expect(tahunAjaranFromSemester(undefined)).toBe(`${y}/${y + 1}`);
+  });
+});
+
+describe("resolveParentPhone", () => {
+  it("null bila tidak ada field HP sama sekali", () => {
+    expect(resolveParentPhone({})).toBeNull();
+  });
+
+  it("mengambil hp_ayah bila tersedia", () => {
+    expect(
+      resolveParentPhone({ hp_ayah: "081234567801", hp_ibu: "081234567802" })
+    ).toBe("081234567801");
+  });
+
+  it("prioritas: ayah -> ibu -> wali -> nomor_telepon_seluler -> no_hp", () => {
+    expect(resolveParentPhone({ hp_ibu: "081234567802", no_hp: "081234567803" })).toBe(
+      "081234567802"
+    );
+    expect(resolveParentPhone({ hp_wali: "081234567803", no_hp: "081234567804" })).toBe(
+      "081234567803"
+    );
+    expect(
+      resolveParentPhone({ nomor_telepon_seluler: "085395130906", no_hp: "081234567804" })
+    ).toBe("085395130906");
+    expect(resolveParentPhone({ no_hp: "081234567804" })).toBe("081234567804");
+  });
+
+  it("memakai nomor_telepon_seluler (field asli versi Dapodik sekolah ini)", () => {
+    expect(resolveParentPhone({ nomor_telepon_seluler: "085395130906" })).toBe(
+      "085395130906"
+    );
+    expect(resolveParentPhone({ nomor_telepon_seluler: "0812-3456-7890" })).toBe(
+      "0812-3456-7890"
+    );
+  });
+
+  it("MENGABAIKAN nomor rumah (landline) karena tidak bisa menerima WhatsApp", () => {
+    // Hanya ada telepon rumah -> tidak ada nomor HP -> null.
+    expect(resolveParentPhone({ nomor_telepon_rumah: "04118918116" })).toBeNull();
+    expect(resolveParentPhone({ telp: "0411 891 8116" })).toBeNull();
+  });
+
+  it("skip nilai tak valid dan lanjut ke field berikutnya", () => {
+    expect(
+      resolveParentPhone({ hp_ayah: "-", hp_ibu: "abc", no_hp: "0812-3456-7890" })
+    ).toBe("0812-3456-7890");
+    expect(resolveParentPhone({ hp_ayah: "  " })).toBeNull();
+  });
+
+  it("menerima format 08xx / 62xx dan men-trim spasi", () => {
+    expect(resolveParentPhone({ hp_ibu: "  6281234567890 " })).toBe("6281234567890");
+  });
+
+  it("tolak nomor asing / terlalu pendek (bukan HP Indonesia)", () => {
+    expect(resolveParentPhone({ hp_ayah: "+65 9123 4567" })).toBeNull();
+    expect(resolveParentPhone({ hp_ayah: "12345" })).toBeNull();
+  });
+});
+
+describe("pickOrPreserve", () => {
+  it("pakai nilai Dapodik bila ada", () => {
+    expect(pickOrPreserve("081234567890", "081111111111")).toBe("081234567890");
+    expect(pickOrPreserve("Bapak Andi", null)).toBe("Bapak Andi");
+  });
+
+  it("pertahankan nilai lama bila Dapodik kosong", () => {
+    expect(pickOrPreserve(null, "081111111111")).toBe("081111111111");
+    expect(pickOrPreserve("", "Bapak Budi")).toBe("Bapak Budi");
+    expect(pickOrPreserve("   ", "Bapak Budi")).toBe("Bapak Budi");
+  });
+
+  it("null bila keduanya kosong", () => {
+    expect(pickOrPreserve(null, null)).toBeNull();
+    expect(pickOrPreserve(undefined, undefined)).toBeNull();
   });
 });

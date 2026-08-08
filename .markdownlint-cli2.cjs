@@ -31,6 +31,7 @@ module.exports = {
     "./scripts/markdownlint/balanced-fences.cjs",
   ],
   ignores: [
+    "**/node_modules",
     "node_modules",
     ".git",
     "coverage",

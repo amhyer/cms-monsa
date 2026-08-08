@@ -40,8 +40,6 @@ type FormState = {
   subject: string;
   education: string;
   photo: string;
-  nuptk: string;
-  nip: string;
   isActive: boolean;
 };
 
@@ -51,8 +49,6 @@ const EMPTY: FormState = {
   subject: "",
   education: "",
   photo: "",
-  nuptk: "",
-  nip: "",
   isActive: true,
 };
 
@@ -102,8 +98,6 @@ export function TeachersManager() {
       subject: t.subject ?? "",
       education: t.education ?? "",
       photo: t.photo ?? "",
-      nuptk: t.nuptk ?? "",
-      nip: t.nip ?? "",
       isActive: t.isActive,
     });
     setOpen(true);
@@ -122,8 +116,6 @@ export function TeachersManager() {
         subject: form.subject || null,
         education: form.education || null,
         photo: form.photo || null,
-        nuptk: form.nuptk.trim() || null,
-        nip: form.nip.trim() || null,
         isActive: form.isActive,
       };
       const res = editing
@@ -283,11 +275,6 @@ export function TeachersManager() {
                   </p>
                   <div className="mt-2 flex flex-wrap gap-1.5 text-xs">
                     {t.subject && <Badge variant="outline">{t.subject}</Badge>}
-                    {(t.nuptk || t.nip) && (
-                      <Badge variant="secondary" className="text-[11px]">
-                        {t.nuptk ? `NUPTK ${t.nuptk}` : `NIP ${t.nip}`}
-                      </Badge>
-                    )}
                     {t.isActive ? (
                       <Badge className="bg-emerald-600 text-white">Aktif</Badge>
                     ) : (
@@ -374,29 +361,6 @@ export function TeachersManager() {
                     setForm({ ...form, education: e.target.value })
                   }
                   placeholder="Mis. S.Pd., M.Pd."
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="t-nuptk">NUPTK</Label>
-                <Input
-                  id="t-nuptk"
-                  value={form.nuptk}
-                  onChange={(e) => setForm({ ...form, nuptk: e.target.value })}
-                  placeholder="Nomor Unik Pendidik & Tenaga Kependidikan"
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  Terisi otomatis dari Dapodik; dipakai identifikasi saat sinkron.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="t-nip">NIP</Label>
-                <Input
-                  id="t-nip"
-                  value={form.nip}
-                  onChange={(e) => setForm({ ...form, nip: e.target.value })}
-                  placeholder="Nomor Induk Pegawai (PNS)"
                 />
               </div>
             </div>

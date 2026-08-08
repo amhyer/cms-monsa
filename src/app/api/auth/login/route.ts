@@ -34,8 +34,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Rate limit: reject if this email+ip is currently locked.
-    if (isLocked(normalizedEmail, ip)) {
-      const secs = lockSecondsRemaining(normalizedEmail, ip);
+    if (await isLocked(normalizedEmail, ip)) {
+      const secs = await lockSecondsRemaining(normalizedEmail, ip);
       return NextResponse.json(
         {
           error: `Terlalu banyak percobaan gagal. Coba lagi dalam ${Math.ceil(
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     }
 
     // IP-level rate limit: prevent credential stuffing attacks across multiple accounts
-    if (isIpLocked(ip)) {
+    if (await isIpLocked(ip)) {
       return NextResponse.json(
         {
           error: `Terlalu banyak percobaan dari alamat ini. Coba lagi dalam 15 menit.`,
@@ -58,14 +58,10 @@ export async function POST(req: NextRequest) {
 
     const user = await db.user.findUnique({ where: { email: normalizedEmail } });
     // Support both hashed and (legacy) plaintext stored passwords.
-    const valid = user
-      ? isHashed(user.password)
-        ? verifyPassword(password, user.password)
-        : user.password === password
-      : false;
+    const valid = user ? await verifyPassword(password, user.password) : false;
     // Use constant-time-ish failure regardless of whether user exists.
     if (!user || !valid) {
-      recordFailure(normalizedEmail, ip);
+      await recordFailure(normalizedEmail, ip);
       return NextResponse.json(
         { error: "Email atau password salah." },
         { status: 401 }
@@ -79,7 +75,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Success — clear any prior failure counter.
-    clearFailures(normalizedEmail, ip);
+    await clearFailures(normalizedEmail, ip);
 
     await setSession(user.id, user.role as Role);
 
@@ -104,6 +100,7 @@ export async function POST(req: NextRequest) {
         email: user.email,
         role: user.role,
         isActive: user.isActive,
+        guardianClassId: user.guardianClassId ?? null,
       },
     });
   } catch (e) {

@@ -1,192 +1,153 @@
-/**
- * Simple in-memory rate limiter for login brute-force protection.
- *
- * Tracks failed attempts per email (normalized) + IP. After MAX_FAILURES
- * within the WINDOW, the account is locked for LOCK_DURATION. Successful
- * logins and lock expiry reset the counter.
- *
- * Note: this is an in-process limiter suitable for single-instance deploys.
- * For multi-instance production, back this with Redis or a shared store.
- */
+import { redis } from "./redis";
+import type { Request } from "express";
 
-type AttemptRecord = {
-  failures: number;
-  firstFailureAt: number;
-  lockedUntil: number;
-};
+const WINDOW = 15 * 60 * 1000; // 15 menit
+const MAX_FAILURES = 5;
+const LOCK_DURATION = 15 * 60 * 1000;
+const IP_MAX_ATTEMPTS = 20;
 
-const WINDOW = 15 * 60 * 1000; // 15 minutes rolling window
-const MAX_FAILURES = 5; // lock after 5 failed attempts
-const LOCK_DURATION = 15 * 60 * 1000; // lock for 15 minutes
-const IP_MAX_ATTEMPTS = 20; // max attempts per IP across all accounts
-
-const store = new Map<string, AttemptRecord>();
-const ipStore = new Map<string, AttemptRecord>(); // Per-IP tracking for credential stuffing protection
-
-// Periodically purge expired entries to avoid memory growth.
-const CLEANUP_INTERVAL = 5 * 60 * 1000;
-let lastCleanup = Date.now();
-
-function cleanup() {
-  const now = Date.now();
-  if (now - lastCleanup < CLEANUP_INTERVAL) return;
-  lastCleanup = now;
-  for (const [key, rec] of store) {
-    if (now > rec.lockedUntil && now - rec.firstFailureAt > WINDOW) {
-      store.delete(key);
-    }
-  }
-  for (const [key, rec] of ipStore) {
-    if (now > rec.lockedUntil && now - rec.firstFailureAt > WINDOW) {
-      ipStore.delete(key);
-    }
-  }
-  for (const [key, rec] of formStore) {
-    if (now - rec.windowStart >= FORM_WINDOW) {
-      formStore.delete(key);
-    }
-  }
-}
+// Fallback jika Redis tidak tersedia
+const store = new Map<string, { failures: number; lockedUntil: number }>();
+const ipStore = new Map<string, { failures: number; lockedUntil: number }>();
+const formStore = new Map<string, { count: number; windowStart: number }>();
 
 function key(email: string, ip: string) {
-  return `${email.toLowerCase()}::${ip}`;
+  return `login-limit:${email.toLowerCase()}::${ip}`;
 }
 
-/**
- * Returns the client IP from a Next.js request, best-effort.
- *
- * SECURITY NOTE (H1): X-Forwarded-For can be spoofed by clients when the
- * app is accessed directly (not behind a reverse proxy). For production,
- * ensure the app is behind a trusted proxy (Caddy, nginx, Cloudflare)
- * that strips/overwrites client-supplied X-Forwarded-For headers.
- * X-Real-IP is more reliable when set by the proxy.
- *
- * For multi-instance deployments, this in-memory rate limiter should be
- * replaced with Redis or a shared store (M4).
- */
+function ipKey(ip: string) {
+  return `ip-limit:${ip}`;
+}
+
+function formKey(ip: string) {
+  return `form-limit:${ip}`;
+}
+
 export function getClientIp(req: Request): string {
-  const real = req.headers.get("x-real-ip");
-  if (real) return real; // Prefer X-Real-IP (set by trusted proxy)
-  const xff = req.headers.get("x-forwarded-for");
-  if (xff) {
-    // Take the first IP (closest to client), but note this can be spoofed
-    // if the app is not behind a trusted reverse proxy.
-    return xff.split(",")[0].trim();
-  }
+  const real = req.headers["x-real-ip"] as string;
+  if (real) return real;
+  const xff = req.headers["x-forwarded-for"] as string;
+  if (xff) return xff.split(",")[0].trim();
   return "unknown";
 }
 
-/** Check if a login attempt for this email+ip is currently locked. */
-export function isLocked(email: string, ip: string): boolean {
-  cleanup();
-  const rec = store.get(key(email, ip));
-  if (!rec) return false;
-  return Date.now() < rec.lockedUntil;
+// --- Login Rate Limiter ---
+
+export async function isLocked(email: string, ip: string): Promise<boolean> {
+  if (!redis) {
+    const rec = store.get(key(email, ip));
+    return rec ? Date.now() < rec.lockedUntil : false;
+  }
+  const lockedUntil = await redis.get(key(email, ip) + ":lock");
+  return lockedUntil ? Date.now() < parseInt(lockedUntil, 10) : false;
 }
 
-/** Returns seconds remaining until lock expires (0 if not locked). */
-export function lockSecondsRemaining(email: string, ip: string): number {
-  const rec = store.get(key(email, ip));
-  if (!rec) return 0;
-  const remaining = Math.ceil((rec.lockedUntil - Date.now()) / 1000);
-  return remaining > 0 ? remaining : 0;
+export async function lockSecondsRemaining(email: string, ip: string): Promise<number> {
+    if (!redis) {
+        const rec = store.get(key(email, ip));
+        if (!rec) return 0;
+        const remaining = Math.ceil((rec.lockedUntil - Date.now()) / 1000);
+        return remaining > 0 ? remaining : 0;
+    }
+    const lockedUntil = await redis.get(key(email, ip) + ":lock");
+    if (!lockedUntil) return 0;
+    const remaining = Math.ceil((parseInt(lockedUntil, 10) - Date.now()) / 1000);
+    return remaining > 0 ? remaining : 0;
 }
 
-/** Record a failed login attempt; may trigger a lock. */
-export function recordFailure(email: string, ip: string): void {
-  cleanup();
+
+export async function recordFailure(email: string, ip: string): Promise<void> {
   const k = key(email, ip);
-  const ipKey = `ip:${ip}`;
+  const ik = ipKey(ip);
   const now = Date.now();
 
-  // Track per-IP attempts across all accounts (prevents credential stuffing)
-  const ipRec = ipStore.get(ipKey);
-  if (!ipRec || now - ipRec.firstFailureAt > WINDOW) {
-    ipStore.set(ipKey, { failures: 1, firstFailureAt: now, lockedUntil: 0 });
-  } else {
+  if (!redis) {
+    // Fallback to in-memory
+    const rec = store.get(k) || { failures: 0, lockedUntil: 0 };
+    rec.failures += 1;
+    if (rec.failures >= MAX_FAILURES) {
+      rec.lockedUntil = now + LOCK_DURATION;
+    }
+    store.set(k, rec);
+
+    const ipRec = ipStore.get(ik) || { failures: 0, lockedUntil: 0 };
     ipRec.failures += 1;
     if (ipRec.failures >= IP_MAX_ATTEMPTS) {
       ipRec.lockedUntil = now + LOCK_DURATION;
     }
-  }
-
-  const existing = store.get(k);
-  if (!existing || now - existing.firstFailureAt > WINDOW) {
-    store.set(k, {
-      failures: 1,
-      firstFailureAt: now,
-      lockedUntil: 0,
-    });
+    ipStore.set(ik, ipRec);
     return;
   }
-  existing.failures += 1;
-  if (existing.failures >= MAX_FAILURES) {
-    existing.lockedUntil = now + LOCK_DURATION;
+
+  // Redis implementation
+  const multi = redis.multi();
+  multi.incr(k);
+  multi.incr(ik);
+
+  const [failures, ipFailures] = (await multi.exec()) as [[null, number], [null, number]];
+
+  if (failures[1] === 1) {
+    await redis.expire(k, WINDOW / 1000);
+  }
+  if (ipFailures[1] === 1) {
+    await redis.expire(ik, WINDOW / 1000);
+  }
+
+  if (failures[1] >= MAX_FAILURES) {
+    await redis.set(k + ":lock", now + LOCK_DURATION, "PX", LOCK_DURATION);
+  }
+  if (ipFailures[1] >= IP_MAX_ATTEMPTS) {
+    await redis.set(ik + ":lock", now + LOCK_DURATION, "PX", LOCK_DURATION);
   }
 }
 
-/** Check if an IP is rate-limited across all accounts (credential stuffing protection). */
-export function isIpLocked(ip: string): boolean {
-  const ipRec = ipStore.get(`ip:${ip}`);
-  if (!ipRec) return false;
-  return Date.now() < ipRec.lockedUntil;
-}
-
-/** Clear failures for this email+ip on successful login. */
-export function clearFailures(email: string, ip: string): void {
-  store.delete(key(email, ip));
-}
-
-// ---------- Public form rate limiting (per IP) ----------
-// Protects public submission endpoints (contact, complaint, SPMB enrollment)
-// from spam floods. Unlike the login limiter this is purely IP-based since
-// the forms are open to anyone.
-
-const FORM_WINDOW = 10 * 60 * 1000; // 10 minutes
-const FORM_MAX = 10; // max submissions per window per IP
-
-type IpRecord = {
-  count: number;
-  windowStart: number;
-};
-
-const formStore = new Map<string, IpRecord>();
-
-/**
- * Register one submission from `ip`. Returns true when the IP has exceeded
- * the limit within the window (the request should be rejected).
- */
-export function isFormRateLimited(
-  ip: string,
-  max = FORM_MAX,
-  windowMs = FORM_WINDOW
-): boolean {
-  cleanup();
-  const now = Date.now();
-  const rec = formStore.get(ip);
-  if (!rec || now - rec.windowStart >= windowMs) {
-    formStore.set(ip, { count: 1, windowStart: now });
-    return false;
+export async function isIpLocked(ip: string): Promise<boolean> {
+  if (!redis) {
+    const rec = ipStore.get(ipKey(ip));
+    return rec ? Date.now() < rec.lockedUntil : false;
   }
-  rec.count += 1;
-  return rec.count > max;
+  const lockedUntil = await redis.get(ipKey(ip) + ":lock");
+  return lockedUntil ? Date.now() < parseInt(lockedUntil, 10) : false;
 }
 
-/**
- * Enforce the public-form rate limit for a request.
- * Returns a 429 Response if the IP is over the limit, otherwise null.
- */
-export function rateLimitPublicForm(
-  req: Request,
-  max?: number,
-  windowMs?: number
-): Response | null {
-  const ip = getClientIp(req);
-  if (isFormRateLimited(ip, max, windowMs)) {
-    return Response.json(
-      { error: "Terlalu banyak permintaan. Silakan coba lagi beberapa saat." },
-      { status: 429, headers: { "Retry-After": String(Math.ceil(windowMs ?? FORM_WINDOW) / 1000) } }
-    );
+export async function clearFailures(email: string, ip: string): Promise<void> {
+  if (!redis) {
+    store.delete(key(email, ip));
+    return;
   }
-  return null;
+  await redis.del(key(email, ip));
+}
+
+// --- Public Form Rate Limiter ---
+
+export async function isFormRateLimited(ip: string, max = 10, windowMs = 600000): Promise<boolean> {
+  const k = formKey(ip);
+  if (!redis) {
+    // Fallback to in-memory
+    const now = Date.now();
+    const rec = formStore.get(k);
+    if (!rec || now - rec.windowStart >= windowMs) {
+      formStore.set(k, { count: 1, windowStart: now });
+      return false;
+    }
+    rec.count += 1;
+    return rec.count > max;
+  }
+
+  const count = await redis.incr(k);
+  if (count === 1) {
+    await redis.pexpire(k, windowMs);
+  }
+  return count > max;
+}
+
+export async function rateLimitPublicForm(req: Request, max?: number, windowMs?: number): Promise<Response | null> {
+    const ip = getClientIp(req);
+    if (await isFormRateLimited(ip, max, windowMs)) {
+        return Response.json(
+            { error: "Terlalu banyak permintaan. Silakan coba lagi beberapa saat." },
+            { status: 429, headers: { "Retry-After": String(Math.ceil((windowMs ?? 600000) / 1000)) } }
+        );
+    }
+    return null;
 }

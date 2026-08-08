@@ -333,10 +333,35 @@ async function main() {
     await db.agenda.create({ data: a });
   }
 
-  // ---------- TEACHERS ----------
-  // Guru & staf TIDAK di-seed lagi — datanya berasal dari penarikan Dapodik
-  // (Dashboard → Penarikan Data Dapodik, manual maupun otomatis terjadwal).
-  // Setelah reset DB, jalankan sinkronisasi Dapodik untuk mengisi data guru asli.
+  // ---------- TEACHERS (SD) ----------
+  const teachers = [
+    { name: "Nawawi Hamzah, S.Pd., M.Pd.", position: "Kepala Sekolah", subject: "Kepemimpinan", education: "S2 Manajemen Pendidikan", img: 60 },
+    { name: "Hj. Rosmiati, S.Pd., M.Pd.", position: "Wakil Kepala Sekolah Bidang Kurikulum", subject: "Guru Kelas", education: "S2 Pendidikan Dasar", img: 45 },
+    { name: "Drs. Abdul Rahman", position: "Wakil Kepala Sekolah Bidang Kesiswaan", subject: "PJOK", education: "S1 Pendidikan Olahraga", img: 12 },
+    { name: "Siti Aminah, S.Pd.", position: "Guru Kelas 1A", subject: "Kelas 1A", education: "S1 PGSD", img: 5 },
+    { name: "Andi Mappangara, S.Pd.", position: "Guru Kelas 4B", subject: "Kelas 4B", education: "S1 PGSD", img: 33 },
+    { name: "Maya Sari, S.Pd.", position: "Guru Bahasa Inggris", subject: "Bahasa Inggris", education: "S1 Pendidikan Bahasa Inggris", img: 20 },
+    { name: "Ustadz Ahmad Fauzi, S.Pd.I.", position: "Guru Pendidikan Agama Islam", subject: "Agama Islam", education: "S1 PAI", img: 15 },
+    { name: "Dewi Anggraini, S.Pd.", position: "Guru PJOK", subject: "PJOK", education: "S1 Pendidikan Olahraga", img: 25 },
+    { name: "Rina Marlina, S.Pd.", position: "Guru Seni Budaya & Drumband", subject: "Seni Budaya", education: "S1 Pendidikan Seni", img: 16 },
+    { name: "Muhammad Yusuf, S.Kom.", position: "Guru Informatika", subject: "Informatika", education: "S1 Pendidikan Informatika", img: 8 },
+    { name: "Nurul Hidayah, S.Pd.", position: "Guru Inklusi / Pembina ABK", subject: "Pendidikan Inklusi", education: "S1 Pendidikan Luar Biasa", img: 48 },
+    { name: "Ratna Dewi, S.E.", position: "Bendahara Sekolah", subject: "-", education: "S1 Akuntansi", img: 51 },
+  ];
+  for (let i = 0; i < teachers.length; i++) {
+    const t = teachers[i];
+    await db.teacher.create({
+      data: {
+        name: t.name,
+        position: t.position,
+        subject: t.subject,
+        education: t.education,
+        photo: avatar(t.img),
+        order: i,
+        isActive: true,
+      },
+    });
+  }
 
   // ---------- GALLERY ----------
   const gallery = [
@@ -471,7 +496,7 @@ async function main() {
       action: "UPDATE",
       entity: "Teacher",
       entityId: "-",
-      detail: "Memperbarui data guru (sinkronisasi Dapodik)",
+      detail: "Memperbarui data guru: Siti Aminah, S.Pd.",
       createdAt: new Date(now - 1 * 86400000),
     },
   });

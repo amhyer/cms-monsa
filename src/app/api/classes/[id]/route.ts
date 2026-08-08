@@ -1,13 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/auth";
+import { requireAuth, requireRole, hasRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
+  const auth = await requireAuth();
+  if (!auth.ok) return auth.response;
+
   const { id } = await params;
+  const { user } = auth;
+
+  // --- Authorization Check ---
+  // OPERATOR/SUPER_ADMIN can see any class.
+  // GURU can only see their own homeroom class.
+  const isOperatorOrHigher = hasRole(user, "OPERATOR");
+  const isHomeroomTeacher = user.role === "GURU" && user.guardianClassId === id;
+
+  if (!isOperatorOrHigher && !isHomeroomTeacher) {
+    return NextResponse.json(
+      { error: "Forbidden. Anda tidak memiliki hak akses untuk melihat kelas ini." },
+      { status: 403 }
+    );
+  }
+  // --- End Authorization Check ---
+
   const item = await db.class.findUnique({
     where: { id },
     include: {

@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { UserCircle2 } from "lucide-react";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { PageBanner, SectionShell, CategoryBadge } from "./_shared";
 import { TeacherProfileModal } from "@/components/dashboard/modules/teacher-profile-modal";
@@ -55,12 +56,18 @@ function TeacherCard({
       className="flex flex-col gap-4 rounded-xl border bg-card p-5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-gold hover:shadow-md"
     >
       <div className="flex items-start gap-4">
-        <img
-          src={t.photo ?? ""}
-          alt={t.name}
-          loading="lazy"
-          className="size-16 rounded-full border-2 border-gold object-cover"
-        />
+        {t.photo ? (
+          <img
+            src={t.photo}
+            alt={t.name}
+            loading="lazy"
+            className="size-16 rounded-full border-2 border-gold object-cover"
+          />
+        ) : (
+          <div className="flex size-16 items-center justify-center rounded-full border-2 border-gold bg-muted text-foreground/40">
+            <UserCircle2 className="size-8" />
+          </div>
+        )}
         <div className="flex flex-1 flex-col gap-1">
           <h4 className="font-sans text-base font-bold leading-tight text-foreground">
             {t.name}

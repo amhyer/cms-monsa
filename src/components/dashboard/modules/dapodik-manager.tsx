@@ -71,7 +71,22 @@ type DapodikData = {
     tinggi_badan: string;
     kebutuhan_khusus: string;
   }>;
-  gtk?: Array<{ nama: string; nuptk: string; nip: string; jabatan: string }>;
+  gtk?: Array<{
+    nama: string;
+    nuptk: string;
+    nik: string;
+    nip: string;
+    jenis_kelamin: string;
+    tempat_lahir: string;
+    tanggal_lahir: string;
+    status_kepegawaian_id_str: string;
+    jenis_ptk_id_str: string;
+    agama_id_str: string;
+    jabatan_ptk_id_str: string;
+    pangkat_golongan_terakhir: string;
+    pendidikan_terakhir: string;
+    bidang_studi_terakhir: string;
+  }>;
   rombel?: Array<{ nama: string; tingkat_pendidikan_id_str: string; ptk_id_str: string }>;
 };
 
@@ -515,19 +530,45 @@ export function DapodikManager() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>No</TableHead>
                         <TableHead>Nama</TableHead>
                         <TableHead>NUPTK</TableHead>
+                        <TableHead>JK</TableHead>
+                        <TableHead>Tempat, Tanggal Lahir</TableHead>
                         <TableHead>NIP</TableHead>
-                        <TableHead>Jabatan</TableHead>
+                        <TableHead>Status Kepegawaian</TableHead>
+                        <TableHead>Jenis PTK</TableHead>
+                        <TableHead>Agama</TableHead>
+                        <TableHead>Tugas / Jabatan</TableHead>
+                        <TableHead>Pangkat Golongan</TableHead>
+                        <TableHead>Pendidikan Terakhir</TableHead>
+                        <TableHead>Bidang Studi</TableHead>
+                        <TableHead>NIK</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {data.gtk.map((g, i) => (
                         <TableRow key={i}>
-                          <TableCell className="font-medium">{g.nama}</TableCell>
-                          <TableCell>{g.nuptk}</TableCell>
-                          <TableCell>{g.nip}</TableCell>
-                          <TableCell>{g.jabatan}</TableCell>
+                          <TableCell className="text-muted-foreground">{i + 1}</TableCell>
+                          <TableCell className="font-medium whitespace-nowrap">{g.nama ?? "-"}</TableCell>
+                          <TableCell className="whitespace-nowrap">{g.nuptk ?? "-"}</TableCell>
+                          <TableCell>
+                            <Badge variant={g.jenis_kelamin === "L" ? "default" : "secondary"}>
+                              {g.jenis_kelamin === "L" ? "L" : g.jenis_kelamin === "P" ? "P" : g.jenis_kelamin ?? "-"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {[g.tempat_lahir, g.tanggal_lahir].filter(Boolean).join(", ") || "-"}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">{g.nip ?? "-"}</TableCell>
+                          <TableCell className="whitespace-nowrap">{g.status_kepegawaian_id_str ?? "-"}</TableCell>
+                          <TableCell>{g.jenis_ptk_id_str ?? "-"}</TableCell>
+                          <TableCell>{g.agama_id_str ?? "-"}</TableCell>
+                          <TableCell>{g.jabatan_ptk_id_str ?? "-"}</TableCell>
+                          <TableCell>{g.pangkat_golongan_terakhir ?? "-"}</TableCell>
+                          <TableCell>{g.pendidikan_terakhir ?? "-"}</TableCell>
+                          <TableCell className="max-w-[200px] truncate">{g.bidang_studi_terakhir ?? "-"}</TableCell>
+                          <TableCell className="whitespace-nowrap">{g.nik ?? "-"}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

@@ -86,12 +86,20 @@ model Teacher {
   subject     String?
   education   String?
   photo       String?
+  // Identitas dari Dapodik — dipakai sinkronisasi agar match akurat
+  // (bukan hanya by nama). Dibiarkan tanpa @unique karena data lama bisa
+  // berisi duplikat/kolom kosong; sync memastikan tidak dobel.
+  nip         String?
+  nuptk       String?
   order       Int      @default(0)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   homeroomClasses Class[]
+
+  @@index([nuptk])
+  @@index([nip])
 }
 
 model GalleryItem {
@@ -345,4 +353,24 @@ model Complaint {
 
   @@index([status])
   @@index([createdAt])
+}
+
+model DapodikConfig {
+  id         String    @id
+  npsn       String
+  token      String
+  host       String
+  port       Int
+  protocol   String
+  lastSyncAt DateTime?
+  lastSyncBy String?
+
+  // Sinkronisasi otomatis (jadwal berkala tanpa klik manual).
+  autoSyncEnabled     Boolean   @default(false)
+  autoSyncIntervalHours Int     @default(24)
+  autoSyncLastRunAt   DateTime?
+  autoSyncLastStatus  String? // "OK" | "ERROR"
+  autoSyncLastError   String?
+
+  updatedAt  DateTime  @updatedAt
 }

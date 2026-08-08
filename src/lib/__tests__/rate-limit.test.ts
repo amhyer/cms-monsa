@@ -47,133 +47,133 @@ describe("rate-limit utilities", () => {
   });
 
   describe("recordFailure and isLocked", () => {
-    it("is not locked initially", () => {
+    it("is not locked initially", async () => {
       const testEmail = `test-initial-${Date.now()}@test.com`;
-      expect(isLocked(testEmail, "127.0.0.1")).toBe(false);
+      expect(await isLocked(testEmail, "127.0.0.1")).toBe(false);
     });
 
-    it("is not locked after 4 failures (below threshold)", () => {
+    it("is not locked after 4 failures (below threshold)", async () => {
       const testEmail = `test-4fail-${Date.now()}@test.com`;
       for (let i = 0; i < 4; i++) {
-        recordFailure(testEmail, "127.0.0.2");
+        await recordFailure(testEmail, "127.0.0.2");
       }
-      expect(isLocked(testEmail, "127.0.0.2")).toBe(false);
+      expect(await isLocked(testEmail, "127.0.0.2")).toBe(false);
     });
 
-    it("is locked after 5 failures", () => {
+    it("is locked after 5 failures", async () => {
       const testEmail = `test-5fail-${Date.now()}@test.com`;
       for (let i = 0; i < 5; i++) {
-        recordFailure(testEmail, "127.0.0.3");
+        await recordFailure(testEmail, "127.0.0.3");
       }
-      expect(isLocked(testEmail, "127.0.0.3")).toBe(true);
+      expect(await isLocked(testEmail, "127.0.0.3")).toBe(true);
     });
 
-    it("lock expires after duration", () => {
+    it("lock expires after duration", async () => {
       const testEmail = `test-expire-${Date.now()}@test.com`;
       for (let i = 0; i < 5; i++) {
-        recordFailure(testEmail, "127.0.0.4");
+        await recordFailure(testEmail, "127.0.0.4");
       }
-      expect(isLocked(testEmail, "127.0.0.4")).toBe(true);
+      expect(await isLocked(testEmail, "127.0.0.4")).toBe(true);
       // Note: We can't easily test lock expiry without mocking Date.now
       // This is covered by integration tests
     });
   });
 
   describe("lockSecondsRemaining", () => {
-    it("returns 0 when not locked", () => {
+    it("returns 0 when not locked", async () => {
       const testEmail = `test-nolock-${Date.now()}@test.com`;
-      expect(lockSecondsRemaining(testEmail, "127.0.0.5")).toBe(0);
+      expect(await lockSecondsRemaining(testEmail, "127.0.0.5")).toBe(0);
     });
 
-    it("returns positive seconds when locked", () => {
+    it("returns positive seconds when locked", async () => {
       const testEmail = `test-locked-${Date.now()}@test.com`;
       for (let i = 0; i < 5; i++) {
-        recordFailure(testEmail, "127.0.0.6");
+        await recordFailure(testEmail, "127.0.0.6");
       }
-      const remaining = lockSecondsRemaining(testEmail, "127.0.0.6");
+      const remaining = await lockSecondsRemaining(testEmail, "127.0.0.6");
       expect(remaining).toBeGreaterThan(0);
       expect(remaining).toBeLessThanOrEqual(900); // 15 minutes max
     });
   });
 
   describe("clearFailures", () => {
-    it("clears failures and unlocks account", () => {
+    it("clears failures and unlocks account", async () => {
       const testEmail = `test-clear-${Date.now()}@test.com`;
       for (let i = 0; i < 5; i++) {
-        recordFailure(testEmail, "127.0.0.7");
+        await recordFailure(testEmail, "127.0.0.7");
       }
-      expect(isLocked(testEmail, "127.0.0.7")).toBe(true);
+      expect(await isLocked(testEmail, "127.0.0.7")).toBe(true);
 
-      clearFailures(testEmail, "127.0.0.7");
-      expect(isLocked(testEmail, "127.0.0.7")).toBe(false);
+      await clearFailures(testEmail, "127.0.0.7");
+      expect(await isLocked(testEmail, "127.0.0.7")).toBe(false);
     });
   });
 
   describe("different IPs are tracked separately", () => {
-    it("locking one IP does not affect another", () => {
+    it("locking one IP does not affect another", async () => {
       const testEmail = `test-multiip-${Date.now()}@test.com`;
       for (let i = 0; i < 5; i++) {
-        recordFailure(testEmail, "10.0.0.1");
+        await recordFailure(testEmail, "10.0.0.1");
       }
-      expect(isLocked(testEmail, "10.0.0.1")).toBe(true);
-      expect(isLocked(testEmail, "10.0.0.2")).toBe(false);
+      expect(await isLocked(testEmail, "10.0.0.1")).toBe(true);
+      expect(await isLocked(testEmail, "10.0.0.2")).toBe(false);
     });
   });
 
   describe("different emails are tracked separately", () => {
-    it("locking one email does not affect another", () => {
+    it("locking one email does not affect another", async () => {
       const timestamp = Date.now();
       const email1 = `user1-${timestamp}@test.com`;
       const email2 = `user2-${timestamp}@test.com`;
       for (let i = 0; i < 5; i++) {
-        recordFailure(email1, "127.0.0.8");
+        await recordFailure(email1, "127.0.0.8");
       }
-      expect(isLocked(email1, "127.0.0.8")).toBe(true);
-      expect(isLocked(email2, "127.0.0.8")).toBe(false);
+      expect(await isLocked(email1, "127.0.0.8")).toBe(true);
+      expect(await isLocked(email2, "127.0.0.8")).toBe(false);
     });
   });
 
   describe("isFormRateLimited", () => {
-    it("allows requests below the limit", () => {
+    it("allows requests below the limit", async () => {
       const ip = `form-ok-${Date.now()}`;
       for (let i = 0; i < 9; i++) {
-        expect(isFormRateLimited(ip, 10, 60000)).toBe(false);
+        expect(await isFormRateLimited(ip, 10, 60000)).toBe(false);
       }
     });
 
-    it("rejects the request that exceeds the limit", () => {
+    it("rejects the request that exceeds the limit", async () => {
       const ip = `form-over-${Date.now()}`;
       for (let i = 0; i < 10; i++) {
-        isFormRateLimited(ip, 10, 60000);
+        await isFormRateLimited(ip, 10, 60000);
       }
-      expect(isFormRateLimited(ip, 10, 60000)).toBe(true);
+      expect(await isFormRateLimited(ip, 10, 60000)).toBe(true);
     });
 
-    it("resets after the window elapses", () => {
+    it("resets after the window elapses", async () => {
       const ip = `form-window-${Date.now()}`;
       let now = 1000;
       vi.spyOn(Date, "now").mockImplementation(() => now);
       try {
         for (let i = 0; i < 10; i++) {
-          isFormRateLimited(ip, 10, 60000);
+          await isFormRateLimited(ip, 10, 60000);
         }
-        expect(isFormRateLimited(ip, 10, 60000)).toBe(true);
+        expect(await isFormRateLimited(ip, 10, 60000)).toBe(true);
         now += 60001;
-        expect(isFormRateLimited(ip, 10, 60000)).toBe(false);
+        expect(await isFormRateLimited(ip, 10, 60000)).toBe(false);
       } finally {
         vi.restoreAllMocks();
       }
     });
 
-    it("rateLimitPublicForm returns null under the limit and 429 over it", () => {
+    it("rateLimitPublicForm returns null under the limit and 429 over it", async () => {
       const ip = `form-resp-${Date.now()}`;
       const req = new Request("http://localhost", {
         headers: { "x-forwarded-for": ip },
       });
       for (let i = 0; i < 10; i++) {
-        expect(rateLimitPublicForm(req, 10, 60000)).toBeNull();
+        expect(await rateLimitPublicForm(req, 10, 60000)).toBeNull();
       }
-      const rejected = rateLimitPublicForm(req, 10, 60000);
+      const rejected = await rateLimitPublicForm(req, 10, 60000);
       expect(rejected).not.toBeNull();
       expect(rejected?.status).toBe(429);
     });

@@ -15,6 +15,7 @@ describe("auth utilities", () => {
       role: "SUPER_ADMIN",
       isActive: true,
       guardianClassId: null,
+    guardianStudentId: null,
     };
 
     const operatorUser: SessionUser = {
@@ -24,6 +25,7 @@ describe("auth utilities", () => {
       role: "OPERATOR",
       isActive: true,
       guardianClassId: null,
+    guardianStudentId: null,
     };
 
     const guruUser: SessionUser = {
@@ -33,6 +35,7 @@ describe("auth utilities", () => {
       role: "GURU",
       isActive: true,
       guardianClassId: "c1",
+    guardianStudentId: null,
     };
 
     it("returns false for null user", () => {

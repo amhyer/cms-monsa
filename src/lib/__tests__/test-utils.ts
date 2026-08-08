@@ -188,6 +188,7 @@ export function createMockUser(overrides: Partial<SessionUser> = {}): SessionUse
     role: "SUPER_ADMIN",
     isActive: true,
     guardianClassId: null,
+    guardianStudentId: null,
     ...overrides,
   };
 }

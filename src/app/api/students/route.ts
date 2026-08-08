@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireAuth, requireRole } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
+import {
+  createStudentSchema,
+  validateBody,
+} from "@/lib/validations";
 import { logActivity } from "@/lib/log";
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAuth();
+  const auth = await requireRole("GURU");
   if (!auth.ok) return auth.response;
 
   const { searchParams } = new URL(req.url);
@@ -55,16 +59,13 @@ export async function POST(req: NextRequest) {
   if (!auth.ok) return auth.response;
 
   const body = await req.json();
-  const nis = String(body.nis ?? "").trim();
-  const name = String(body.name ?? "").trim();
-  const classId = String(body.classId ?? "").trim();
+  const validation = validateBody(createStudentSchema, body);
 
-  if (!nis || !name || !classId) {
-    return NextResponse.json(
-      { error: "NIS, nama, dan kelas wajib diisi." },
-      { status: 400 }
-    );
+  if (!validation.ok) {
+    return NextResponse.json({ error: validation.error }, { status: 400 });
   }
+
+  const { nis, name, classId } = validation.data;
 
   const exists = await db.student.findUnique({ where: { nis } });
   if (exists) {
@@ -78,17 +79,10 @@ export async function POST(req: NextRequest) {
 
   const item = await db.student.create({
     data: {
-      nis,
-      nisn: body.nisn || null,
-      name,
-      dateOfBirth: body.dateOfBirth ? new Date(body.dateOfBirth) : null,
-      gender: body.gender || null,
-      address: body.address || null,
-      phone: body.phone || null,
-      email: body.email || null,
-      parentName: body.parentName || null,
-      parentPhone: body.parentPhone || null,
-      classId,
+      ...validation.data,
+      dateOfBirth: validation.data.dateOfBirth
+        ? new Date(validation.data.dateOfBirth)
+        : null,
     },
   });
 

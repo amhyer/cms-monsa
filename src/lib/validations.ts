@@ -89,7 +89,7 @@ export const createTeacherSchema = z.object({
 export const updateTeacherSchema = createTeacherSchema.partial();
 
 // --- Users ---
-export const userRoleEnum = z.enum(["SUPER_ADMIN", "OPERATOR", "GURU"]);
+export const userRoleEnum = z.enum(["SUPER_ADMIN", "OPERATOR", "GURU", "ORANG_TUA"]);
 
 export const createUserSchema = z.object({
   name: z
@@ -107,6 +107,7 @@ export const createUserSchema = z.object({
     .max(100, "Password maksimal 100 karakter."),
   role: userRoleEnum.default("OPERATOR"),
   guardianClassId: z.string().nullable().optional(),
+  guardianStudentId: z.string().nullable().optional(),
 });
 
 export const updateUserSchema = createUserSchema
@@ -305,3 +306,34 @@ export function validateBody<T>(schema: z.ZodSchema<T>, data: unknown) {
   }
   return { ok: true as const, data: result.data };
 }
+
+// --- Students ---
+export const createStudentSchema = z.object({
+  nis: z.string().trim().min(1, "NIS wajib diisi.").max(50, "NIS maksimal 50 karakter."),
+  name: z.string().trim().min(1, "Nama wajib diisi.").max(200, "Nama maksimal 200 karakter."),
+  classId: z.string().min(1, "Kelas wajib diisi."),
+  nisn: z.string().max(20, "NISN maksimal 20 karakter.").optional().nullable(),
+  dateOfBirth: z.string().optional().nullable(),
+  gender: z.enum(["LAKI_LAKI", "PEREMPUAN"]).optional().nullable(),
+  address: z.string().max(500, "Alamat maksimal 500 karakter.").optional().nullable(),
+  phone: z.string().max(20, "Telepon maksimal 20 karakter.").optional().nullable(),
+  email: z.string().email("Format email tidak valid.").max(200).optional().nullable(),
+  parentName: z.string().max(200, "Nama orang tua maksimal 200 karakter.").optional().nullable(),
+  parentPhone: z.string().max(20, "Telepon orang tua maksimal 20 karakter.").optional().nullable(),
+});
+
+export const updateStudentSchema = createStudentSchema.partial();
+
+// --- Payments ---
+export const createPaymentSchema = z.object({
+  studentId: z.string().min(1, "Siswa wajib diisi."),
+  monthPeriod: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Format periode bulan tidak valid (YYYY-MM)."),
+  amount: z.number().int("Nominal harus berupa angka.").positive("Nominal harus positif.").max(1_000_000_000, "Nominal terlalu besar."),
+  paymentDate: z.string().optional(),
+  status: z.enum(["PAID", "UNPAID"]).default("PAID"),
+  note: z.string().max(1000, "Catatan maksimal 1000 karakter.").optional().nullable(),
+});
+
+export const updatePaymentSchema = createPaymentSchema.partial().extend({
+  id: z.string().cuid(),
+});

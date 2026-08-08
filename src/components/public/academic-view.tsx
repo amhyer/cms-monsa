@@ -18,6 +18,7 @@ import {
   CalendarDays,
   Clock,
   MapPin,
+  UserCircle2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -44,12 +45,18 @@ function TeacherCard({ t }: { t: TeacherItem }) {
   return (
     <div className="flex flex-col gap-4 rounded-xl border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
       <div className="flex items-start gap-4">
-        <img
-          src={t.photo ?? ""}
-          alt={t.name}
-          loading="lazy"
-          className="size-16 rounded-full border-2 border-gold object-cover"
-        />
+        {t.photo ? (
+          <img
+            src={t.photo}
+            alt={t.name}
+            loading="lazy"
+            className="size-16 rounded-full border-2 border-gold object-cover"
+          />
+        ) : (
+          <span className="flex size-16 shrink-0 items-center justify-center rounded-full border-2 border-gold bg-muted text-muted-foreground">
+            <UserCircle2 className="size-8" />
+          </span>
+        )}
         <div className="flex flex-1 flex-col gap-1">
           <h4 className="font-sans text-base font-bold leading-tight text-foreground">
             {t.name}

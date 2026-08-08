@@ -213,27 +213,62 @@ export class DapodikClient {
     });
     const url = `${this.baseUrl}/${endpoint}?${query.toString()}`;
 
-    const response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${this.token}`,
-        "Content-Type": "application/json",
-      },
-    });
+    // Server Dapodik lokal sering "belum siap" sesaat (mis. DB loader-nya
+    // baru nyambung setelah error "Tidak terhubung dengan database"). Retry
+    // singkat dengan backoff dipakai supaya tarikan manual/jadwal tidak gagal
+    // hanya karena server sempat menolak. Token salah (401/403) TIDAK di-retry.
+    const MAX_ATTEMPTS = 3;
+    const TIMEOUT_MS = 30_000;
+    let lastError: unknown;
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+        let response: Response;
+        try {
+          response = await fetch(url, {
+            headers: {
+              Authorization: `Bearer ${this.token}`,
+              "Content-Type": "application/json",
+            },
+            signal: controller.signal,
+          });
+        } finally {
+          clearTimeout(timer);
+        }
+
+        if (!response.ok) {
+          // 5xx bisa bersifat sementara — retry; selain itu putus (token dll.)
+          if (response.status < 500 || attempt === MAX_ATTEMPTS) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          lastError = new Error(`HTTP ${response.status}: ${response.statusText}`);
+          await sleep(backoffMs(attempt));
+          continue;
+        }
+
+        const text = await response.text();
+        try {
+          return JSON.parse(text);
+        } catch {
+          // Dapodik biasanya balas halaman HTML "Access denied" kalau token/
+          // npsn salah, atau IP belum di-whitelist — dan halaman "Tidak
+          // terhubung dengan database" saat DB server-nya putus sesaat.
+          const msg = `Respons dari Dapodik bukan JSON valid (kemungkinan token salah, npsn salah, atau IP belum di-whitelist). Cuplikan: ${text.slice(0, 150)}`;
+          if (attempt === MAX_ATTEMPTS) throw new Error(msg);
+          lastError = new Error(msg);
+          await sleep(backoffMs(attempt));
+        }
+      } catch (err) {
+        // AbortError / TypeError (jaringan) — sementara, layak di-retry.
+        lastError = err;
+        if (attempt === MAX_ATTEMPTS) throw err;
+        await sleep(backoffMs(attempt));
+      }
     }
 
-    const text = await response.text();
-    try {
-      return JSON.parse(text);
-    } catch {
-      // Dapodik biasanya balas halaman HTML "Access denied" kalau token/npsn
-      // salah, atau IP belum di-whitelist di sisi Dapodik.
-      throw new Error(
-        `Respons dari Dapodik bukan JSON valid (kemungkinan token salah, npsn salah, atau IP belum di-whitelist). Cuplikan: ${text.slice(0, 150)}`
-      );
-    }
+    throw lastError;
   }
 
   // Untuk endpoint yang hasilnya satu objek (getSekolah)
@@ -297,6 +332,15 @@ function semesterToTahunAjaran(semesterId: string): string | null {
   if (!m) return null;
   const year = parseInt(m[1], 10);
   return m[2] === "2" ? `${year - 1}/${year}` : `${year}/${year + 1}`;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function backoffMs(attempt: number): number {
+  // 400ms lalu 1200ms
+  return attempt === 1 ? 400 : 1200;
 }
 
 function sortedIdsDesc(ids: Set<string>): string[] {

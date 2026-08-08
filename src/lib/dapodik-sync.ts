@@ -22,8 +22,17 @@ type DapodikGTK = {
   nama: string;
   nuptk?: string;
   nip?: string;
-  jabatan_ptk_id_str?: string; // "Kepala Sekolah" | "Guru Kelas" | "Guru Mapel" | "TAS" ...
+  nik?: string;
+  jenis_kelamin?: string;
+  tempat_lahir?: string;
+  tanggal_lahir?: string;
+  agama_id_str?: string;
+  status_kepegawaian_id_str?: string;
   jenis_ptk_id_str?: string;
+  pangkat_golongan_terakhir?: string;
+  pendidikan_terakhir?: string;
+  bidang_studi_terakhir?: string;
+  jabatan_ptk_id_str?: string; // "Kepala Sekolah" | "Guru Kelas" | "Guru Mapel" | "TAS" ...
 };
 
 type DapodikRombel = {
@@ -119,6 +128,7 @@ export async function saveDapodikConfig(data: {
   host: string;
   port: number;
   protocol: string;
+  archiveUnlisted?: boolean;
 }) {
   return db.dapodikConfig.upsert({
     where: { id: "singleton" },
@@ -185,9 +195,19 @@ export async function runSync(
 
   // Existing DB state
   const existingStudents = await db.student.findMany({
-    select: { id: true, nis: true, nisn: true },
+    select: { id: true, nis: true, nisn: true, dapodikId: true },
   });
   const existingByNis = new Map(existingStudents.map((s) => [s.nis, { id: s.id }]));
+  const existingByDapodikId = new Map(
+    existingStudents.filter((s) => s.dapodikId).map((s) => [s.dapodikId!, { id: s.id }])
+  );
+  // Map nis & dapodikId bisa menunjuk ke siswa yang SAMA (nis lama + dapodikId).
+  // Setiap id tetap dihitung sekali lewat allExistingIds.
+  const allExistingIds = new Set(existingStudents.map((s) => s.id));
+
+  // Bila false, siswa/guru yang tidak ada di Dapodik TIDAK dinonaktifkan.
+  const cfg = await db.dapodikConfig.findUnique({ where: { id: "singleton" } });
+  const archiveUnlisted = cfg?.archiveUnlisted !== false;
 
   const existingTeachers = await db.teacher.findMany({
     select: { id: true, nuptk: true, nip: true },
@@ -220,21 +240,28 @@ export async function runSync(
   const gtkCount = { created: 0, updated: 0, archived: 0, errors: 0 };
   const rombelCount = { created: 0, updated: 0, errors: 0 };
 
+  const matchedStudentIds = new Set<string>();
   for (const s of siswaList) {
     if (!s.rombongan_belajar_id || !willExistDapodikIds.has(s.rombongan_belajar_id)) {
       siswaCount.errors++;
       continue;
     }
-    const nis = resolveNis(s);
-    if (existingByNis.has(nis)) {
+    // Prioritas 1: peserta_didik_id (identitas stabil) — mencegah duplikasi
+    // saat NIPD baru diisi/menghilang di Dapodik. Prioritas 2: nis (fallback
+    // untuk siswa lama dari sync sebelum dapodikId disimpan).
+    const existing = s.peserta_didik_id
+      ? existingByDapodikId.get(s.peserta_didik_id)
+      : undefined;
+    const matched = existing ?? existingByNis.get(resolveNis(s));
+    if (matched) {
+      matchedStudentIds.add(matched.id);
       siswaCount.updated++;
     } else {
       siswaCount.created++;
     }
   }
-  const syncedNisSet = new Set(siswaList.map((s) => resolveNis(s)));
-  for (const [nis] of existingByNis) {
-    if (!syncedNisSet.has(nis)) siswaCount.archived++;
+  for (const id of allExistingIds) {
+    if (!matchedStudentIds.has(id)) siswaCount.archived++;
   }
 
   const syncedGtkIds = new Set<string>();
@@ -264,6 +291,11 @@ export async function runSync(
     } else {
       rombelCount.created++;
     }
+  }
+
+  if (!archiveUnlisted) {
+    siswaCount.archived = 0;
+    gtkCount.archived = 0;
   }
 
   const result: SyncResult = {
@@ -336,6 +368,16 @@ export async function runSync(
             position: normalize(g.jabatan_ptk_id_str) || normalize(g.jenis_ptk_id_str) || "Guru",
             nuptk: g.nuptk || null,
             nip: g.nip || null,
+            nik: normalize(g.nik),
+            gender: mapGender(g.jenis_kelamin),
+            tempatLahir: normalize(g.tempat_lahir),
+            tanggalLahir: parseDate(g.tanggal_lahir),
+            agama: normalize(g.agama_id_str),
+            statusKepegawaian: normalize(g.status_kepegawaian_id_str),
+            jenisPtk: normalize(g.jenis_ptk_id_str),
+            pangkatGolongan: normalize(g.pangkat_golongan_terakhir),
+            education: normalize(g.pendidikan_terakhir),
+            bidangStudi: normalize(g.bidang_studi_terakhir),
             archivedAt: null,
           },
         });
@@ -346,13 +388,22 @@ export async function runSync(
             position: normalize(g.jabatan_ptk_id_str) || normalize(g.jenis_ptk_id_str) || "Guru",
             nuptk: g.nuptk || null,
             nip: g.nip || null,
+            nik: normalize(g.nik),
+            gender: mapGender(g.jenis_kelamin),
+            tempatLahir: normalize(g.tempat_lahir),
+            tanggalLahir: parseDate(g.tanggal_lahir),
+            agama: normalize(g.agama_id_str),
+            statusKepegawaian: normalize(g.status_kepegawaian_id_str),
+            jenisPtk: normalize(g.jenis_ptk_id_str),
+            pangkatGolongan: normalize(g.pangkat_golongan_terakhir),
+            bidangStudi: normalize(g.bidang_studi_terakhir),
           },
         });
         syncedGtk.add(created.id);
       }
     }
     for (const id of existingTeacherIds) {
-      if (!syncedGtk.has(id)) {
+      if (!syncedGtk.has(id) && archiveUnlisted) {
         await tx.teacher.update({
           where: { id },
           data: { archivedAt: new Date(), isActive: false },
@@ -360,8 +411,10 @@ export async function runSync(
       }
     }
 
-    // Siswa — classId dari rombongan_belajar_id, bukan nama
-    const syncedNis = new Set<string>();
+    // Siswa — classId dari rombongan_belajar_id, bukan nama.
+    // Matching diprioritaskan via peserta_didik_id (identitas stabil);
+    // nis hanya fallback untuk data lama dari sync sebelum dapodikId disimpan.
+    const syncedStudentIds = new Set<string>();
 
     for (const s of siswaList) {
       if (!s.rombongan_belajar_id) continue;
@@ -370,11 +423,11 @@ export async function runSync(
 
       const nis = resolveNis(s);
       const nisn = normalize(s.nisn);
-      syncedNis.add(nis);
 
       const studentData = {
         nis,
         nisn,
+        dapodikId: s.peserta_didik_id || null,
         name: s.nama,
         dateOfBirth: parseDate(s.tanggal_lahir),
         gender: mapGender(s.jenis_kelamin),
@@ -383,19 +436,25 @@ export async function runSync(
         classId,
       };
 
-      const existing = existingByNis.get(nis);
-      if (existing) {
+      const existing = s.peserta_didik_id
+        ? existingByDapodikId.get(s.peserta_didik_id)
+        : undefined;
+      const matched = existing ?? existingByNis.get(nis);
+      if (matched) {
+        syncedStudentIds.add(matched.id);
         await tx.student.update({
-          where: { id: existing.id },
+          where: { id: matched.id },
           data: { ...studentData, archivedAt: null, isActive: true },
         });
       } else {
-        await tx.student.create({ data: studentData });
+        const created = await tx.student.create({ data: studentData });
+        syncedStudentIds.add(created.id);
       }
     }
 
-    for (const [nis, { id }] of existingByNis) {
-      if (!syncedNis.has(nis)) {
+    for (const [, { id }] of existingByNis) {
+      if (syncedStudentIds.has(id)) continue;
+      if (archiveUnlisted) {
         await tx.student.update({
           where: { id },
           data: { archivedAt: new Date(), isActive: false },

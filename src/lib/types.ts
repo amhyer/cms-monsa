@@ -76,6 +76,8 @@ export type TeacherItem = {
   subject: string | null;
   education: string | null;
   photo: string | null;
+  nuptk: string | null;
+  nip: string | null;
   order: number;
   isActive: boolean;
 };

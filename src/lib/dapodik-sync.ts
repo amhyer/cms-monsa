@@ -22,7 +22,8 @@ type DapodikGTK = {
   nama: string;
   nuptk?: string;
   nip?: string;
-  jabatan?: string;
+  jabatan_ptk_id_str?: string; // "Kepala Sekolah" | "Guru Kelas" | "Guru Mapel" | "TAS" ...
+  jenis_ptk_id_str?: string;
 };
 
 type DapodikRombel = {
@@ -332,7 +333,7 @@ export async function runSync(
           where: { id: existing.id },
           data: {
             name: g.nama,
-            position: g.jabatan || "Guru",
+            position: normalize(g.jabatan_ptk_id_str) || normalize(g.jenis_ptk_id_str) || "Guru",
             nuptk: g.nuptk || null,
             nip: g.nip || null,
             archivedAt: null,
@@ -342,7 +343,7 @@ export async function runSync(
         const created = await tx.teacher.create({
           data: {
             name: g.nama,
-            position: g.jabatan || "Guru",
+            position: normalize(g.jabatan_ptk_id_str) || normalize(g.jenis_ptk_id_str) || "Guru",
             nuptk: g.nuptk || null,
             nip: g.nip || null,
           },

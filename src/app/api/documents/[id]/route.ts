@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/auth";
+import { requireAuth, requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
 
@@ -14,6 +14,11 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   });
   if (!item) {
     return NextResponse.json({ error: "Dokumen tidak ditemukan." }, { status: 404 });
+  }
+  if (!item.isPublic) {
+    // Dokumen non-publik hanya bisa diakses oleh OPERATOR atau lebih tinggi
+    const auth = await requireRole("OPERATOR");
+    if (!auth.ok) return auth.response;
   }
   return NextResponse.json({ ...item, uploadedByName: item.uploadedBy?.name });
 }

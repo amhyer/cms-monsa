@@ -98,6 +98,24 @@ console.log(sekolah.nama);
 
 Jika Web Service Dapodik diakses melalui internet atau jaringan publik, **WAJIB** gunakan HTTPS atau tunnel terenkripsi. Jangan pernah mengirim token autentikasi dan data sensitif (NISN, alamat, nama orang tua) melalui koneksi HTTP tanpa enkripsi.
 
+### Guard protocol di kode (otomatis)
+
+Mulai versi ini, instansiasi klien **otomatis melempar error** jika memakai `protocol: 'http'` saat environment production:
+
+```ts
+// TypeScript — melempar error di production
+const client = new DapodikClient({ ...config, protocol: 'http' });
+// Error: "DapodikClient: Protocol HTTP tidak diizinkan di production..."
+```
+
+```php
+// PHP — melempar Exception di production (APP_ENV=production)
+$client = new DapodikClient($npsn, $token, $host, $port, 'http');
+// → Exception: "DapodikClient: Protocol HTTP tidak diizinkan di production..."
+```
+
+Gunakan HTTPS (default yang disarankan):
+
 ```php
 // PHP — gunakan HTTPS untuk akses remote
 $client = new DapodikClient($npsn, $token, $host, $port, 'https');
@@ -106,6 +124,22 @@ $client = new DapodikClient($npsn, $token, $host, $port, 'https');
 ```typescript
 // TypeScript — gunakan HTTPS untuk akses remote
 const client = new DapodikClient({ ...config, protocol: 'https' });
+```
+
+**Override eksplisit (hanya untuk kasus khusus):** Jika memang sengaja memakai HTTP di production — misalnya Web Service Dapodik hanya diakses dari internal network yang sudah terenkripsi lapisan lain/VPN — set flag override eksplisit. Ini bukan default; harus disengaja.
+
+```ts
+// TypeScript
+const client = new DapodikClient({
+  ...config,
+  protocol: 'http',
+  allowInsecureInProduction: true, // HANYA untuk internal VPN terenkripsi
+});
+```
+
+```php
+// PHP — argumen ke-7 dari konstruktor
+$client = new DapodikClient($npsn, $token, $host, $port, 'http', 30, true);
 ```
 
 ## Lisensi

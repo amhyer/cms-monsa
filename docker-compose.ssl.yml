@@ -1,0 +1,74 @@
+# ============================================
+# CMS MONSA - Docker Compose SSL Override
+# ============================================
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.ssl.yml up -d
+#
+# This adds Caddy as a reverse proxy with automatic SSL/TLS certificates.
+#
+
+services:
+  # ============================================
+  # Caddy Reverse Proxy with SSL
+  # ============================================
+  caddy:
+    image: caddy:2-alpine
+    container_name: cms-monsa-caddy
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      # Site domain for certificate
+      SITE_DOMAIN: ${SITE_DOMAIN:-sdn-mongisidi1.sch.id}
+      
+      # Email for Let's Encrypt notifications
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@sdn-mongisidi1.sch.id}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"  # HTTP/3 (QUIC)
+    volumes:
+      # Caddyfile configuration
+      - ./Caddyfile.docker:/etc/caddy/Caddyfile:ro
+      
+      # Caddy data (certificates, configs)
+      - caddy_data:/data
+      
+      # Caddy config cache
+      - caddy_config:/config
+      
+      # Logs directory
+      - caddy_logs:/var/log/caddy
+    networks:
+      - cms-network
+    healthcheck:
+      test: ["CMD", "caddy", "validate", "--config", "/etc/caddy/Caddyfile"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ============================================
+  # Update app service to not expose ports directly
+  # ============================================
+  app:
+    # Remove port exposure when using Caddy
+    ports: []
+    # Add dependency on Caddy for proper startup order
+    depends_on:
+      db:
+        condition: service_healthy
+      caddy:
+        condition: service_started
+
+# ============================================
+# Volumes
+# ============================================
+volumes:
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local
+  caddy_logs:
+    driver: local

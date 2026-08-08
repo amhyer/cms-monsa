@@ -1,0 +1,100 @@
+# ============================================
+# CMS MONSA - Docker Compose Configuration
+# ============================================
+# Usage:
+#   Production:  docker compose -f docker-compose.yml up -d
+#   With SSL:    docker compose -f docker-compose.yml -f docker-compose.ssl.yml up -d
+#   Development: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#   Logs:        docker compose logs -f
+#   Stop:        docker compose down
+#   Reset:       docker compose down -v (removes database volume)
+
+services:
+  # ============================================
+  # PostgreSQL Database
+  # ============================================
+  db:
+    image: postgres:16-alpine
+    container_name: cms-monsa-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cms_mongisidi
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cms_mongisidi"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - cms-network
+
+  # ============================================
+  # Next.js Application
+  # ============================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cms-monsa-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Database
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD:-postgres}@db:5432/cms_mongisidi?schema=public
+      
+      # Authentication (generate: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+      AUTH_SECRET: ${AUTH_SECRET}
+      
+      # Site Configuration
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://sdn-mongisidi1.sch.id}
+      APP_DEBUG: "false"
+      
+      # CORS (optional, comma-separated origins)
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+      
+      # Email (optional)
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-CMS MONSA <noreply@sdn-mongisidi1.sch.id>}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@sdn-mongisidi1.sch.id}
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    volumes:
+      - uploads_data:/app/public/uploads
+      - sqlite_data:/app/prisma/db
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - cms-network
+
+# ============================================
+# Volumes
+# ============================================
+volumes:
+  postgres_data:
+    driver: local
+  uploads_data:
+    driver: local
+  sqlite_data:
+    driver: local
+
+# ============================================
+# Networks
+# ============================================
+networks:
+  cms-network:
+    driver: bridge

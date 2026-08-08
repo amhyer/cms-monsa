@@ -80,6 +80,10 @@ export function StudentsManager() {
     `${s.name} ${s.nis} ${s.nisn ?? ""} ${s.parentName ?? ""}`.toLowerCase()
   );
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const PAGE_SIZE = 50;
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<StudentItem | null>(null);
@@ -94,20 +98,18 @@ export function StudentsManager() {
   const fetchList = useCallback(async () => {
     setLoading(true);
     try {
-      // Muat SEMUA siswa (API membatasi maks 1000). Sebelumnya limit=200
-      // membuat siswa yang tidak masuk 200 nama pertama tidak pernah tampil
-      // (mis. hasil tarik Dapodik 352+ siswa). Pencarian/filter tetap di sisi
-      // klien atas seluruh data yang dimuat.
-      const res = await fetch("/api/students?limit=1000", { cache: "no-store" });
+      const res = await fetch(`/api/students?page=${page}&limit=${PAGE_SIZE}`, { cache: "no-store" });
       if (!res.ok) throw new Error();
       const data = await res.json();
       setItems(data.items || []);
+      setTotalPages(data.totalPages || 1);
+      setTotal(data.total || 0);
     } catch {
       toast.error("Gagal memuat data siswa.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page]);
 
   const fetchClasses = useCallback(async () => {
     try {
@@ -448,6 +450,32 @@ export function StudentsManager() {
             </div>
           )}
         </>
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            Halaman {page} dari {totalPages} ({total} siswa)
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1 || loading}
+            >
+              Sebelumnya
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages || loading}
+            >
+              Selanjutnya
+            </Button>
+          </div>
+        </div>
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>

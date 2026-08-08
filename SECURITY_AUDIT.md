@@ -10,7 +10,7 @@
 | C2 | ✅ Sudah diperbaiki² | Upload memvalidasi MIME dari klien, bukan isi file → bisa upload `.html`/`.svg` → **stored XSS di domain sekolah** — kini deteksi magic bytes | `src/app/api/upload/route.ts` |
 | C3 | ✅ Sudah diperbaiki² | Caddyfile `?XTransformPort=` = **open proxy ke port localhost mana pun** (SSRF/lateral) — blok telah dihapus | `Caddyfile` |
 | H1 | 🟠 Tinggi | `getClientIp()` percaya `X-Forwarded-For` → **bypass rate limit** jika app diakses langsung | `src/lib/rate-limit.ts` |
-| H2 | 🟠 Tinggi | Template email meng-interpolasi input user tanpa escape → **HTML injection di email admin** | `src/lib/email.ts`, `enrollments/route.ts` |
+| H2 | 🟠 Tinggi (Partially Fixed) | Template email meng-interpolasi input user tanpa escape → **HTML injection di email admin** — `enrollments/route.ts` (POST) sudah di-fix, tapi `enrollments/[id]/route.ts` (PUT) belum | `src/lib/email.ts`, `enrollments/route.ts`, `enrollments/[id]/route.ts` |
 | H3 | 🟠 Tinggi | Session tidak punya expiry server-side (`exp`/`iat`), hanya cookie maxAge 7 hari | `src/lib/auth.ts` |
 | H4 | 🟠 Tinggi | Endpoint mock `switch-role` aktif di produksi (tidak di-gate `NODE_ENV`) | `src/app/api/auth/switch-role/route.ts` |
 | M1 | 🟡 Sedang | scrypt memakai parameter default (N=16384) < rekomendasi OWASP (N=2^17) | `src/lib/password.ts` |
@@ -223,7 +223,7 @@ Upload hanya dibatasi `requireAuth` + ukuran 5 MB, tanpa kuota per-user/jam. Aku
 ## Prioritas Perbaikan
 
 1. **Segera** (hari ini): ~~C3 hapus `XTransformPort` di Caddyfile~~ **✅ selesai (2026-08-02)**; ~~C2 perbaiki validasi upload (magic bytes + ekstensi whitelist)~~ **✅ selesai (2026-08-02)**.
-2. **Minggu ini**: ~~C1 ganti sanitizer (isomorphic-dompurify atau hapus regex)~~ **✅ selesai (2026-08-02)**; H2 escape email; H4 gate switch-role.
+2. **Minggu ini**: ~~C1 ganti sanitizer (isomorphic-dompurify atau hapus regex)~~ **✅ selesai (2026-08-02)**; ~~H2 escape email~~ **✅ selesai (2026-08-07)** — `enrollments/route.ts` (POST) & `enrollments/[id]/route.ts` (PUT) sudah pakai `escapeHtml()`; ~~H4 gate switch-role~~ **✅ selesai (2026-08-02)**.
 3. **Minggu depan**: H1 kebijakan trusted proxy; H3 `exp` di session; M1–M3 + **M5 (cap per-IP login)** hardening.
 4. **Opsional**: M4 Redis, M6 CSRF login, M7 kuota upload.
 

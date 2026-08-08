@@ -1,28 +1,45 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth";
-import { requireCsrf } from "@/lib/csrf";
+import { getDapodikClient } from "@/lib/dapodik-sync";
 import { logActivity } from "@/lib/log";
-import { runSync } from "@/lib/dapodik-sync";
 
-export const dynamic = "force-dynamic";
-
-// Dry-run sinkronisasi: hitung berapa siswa/guru/rombel yang akan dibuat,
-// diperbarui, error, atau dinonaktifkan — TANPA menulis apa pun ke database.
-export async function POST(req: NextRequest) {
-  const csrfError = await requireCsrf(req);
-  if (csrfError) return csrfError;
+// Endpoint sementara untuk intip struktur field mentah dari Dapodik
+// sebelum jalankan sync penuh. Aman dihapus setelah field sudah dikonfirmasi cocok.
+export async function POST() {
   const auth = await requireRole("OPERATOR");
   if (!auth.ok) return auth.response;
 
-  const body = await req.json().catch(() => ({}));
-  const semesterId = body.semesterId ? String(body.semesterId) : undefined;
-
   try {
-    const result = await runSync({ semesterId, dryRun: true });
-    await logActivity(auth.user, "UPDATE", "Dapodik", `Preview sinkronisasi (semester ${semesterId ?? "aktif"})`);
-    return NextResponse.json({ success: true, ...result });
-  } catch (e) {
-    const message = e instanceof Error ? e.message : "Gagal preview sinkronisasi";
-    return NextResponse.json({ success: false, error: message }, { status: 502 });
+    const client = await getDapodikClient();
+
+    // Dapodik lokal sering tidak tahan request paralel ke database-nya —
+    // jadi dipanggil satu per satu (sequential), bukan Promise.all.
+    const sekolah = await client.getSekolah();
+    const siswa = await client.getPesertaDidik();
+    const gtk = await client.getGTK();
+    const rombel = await client.getRombonganBelajar();
+
+    await logActivity(auth.user, "READ", "DapodikClient", "Preview struktur data Dapodik");
+
+    return NextResponse.json({
+      success: true,
+      sekolah,
+      totalSiswa: siswa.length,
+      contohSiswa: siswa[0] ?? null,
+      totalGtk: gtk.length,
+      contohGtk: gtk[0] ?? null,
+      totalRombel: rombel.length,
+      contohRombel: rombel[0] ?? null,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Gagal mengambil data Dapodik";
+    return NextResponse.json({ success: false, message }, { status: 502 });
   }
+}
+
+export async function GET() {
+  return NextResponse.json(
+    { error: "Gunakan POST untuk preview data Dapodik." },
+    { status: 405 }
+  );
 }

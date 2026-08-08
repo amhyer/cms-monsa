@@ -1,0 +1,81 @@
+# ============================================
+# CMS MONSA - Docker Ignore
+# ============================================
+# This file excludes files/directories from the Docker build context
+# to speed up builds and reduce image size.
+
+# Dependencies
+node_modules
+.next
+out
+
+# Build outputs
+*.tsbuildinfo
+
+# Testing
+test-results
+playwright-report
+coverage
+*.test.ts
+*.spec.ts
+
+# Development files
+.env
+.env.local
+.env.development
+.git
+.gitignore
+.gitattributes
+.github
+.zscripts
+.githooks
+.vscode
+.idea
+
+# Documentation
+*.md
+!README.md
+docs
+DEPLOYMENT.md
+REFACTOR_PLAN.md
+REPO_HEALTH_AUDIT.md
+SECURITY_AUDIT.md
+PROGRESS_LOG.md
+TODO.md
+
+# Scripts
+scripts
+.zscripts
+
+# Dapodik client (separate project)
+dapodik-client
+
+# Database files (will be in volumes)
+prisma/db/*.db
+prisma/db/*.db-journal
+
+# Uploads (will be in volumes)
+public/uploads
+
+# Backup files
+backups
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# IDE files
+.vscode
+.idea
+*.code-workspace
+
+# Misc
+postcss.config.mjs
+tailwind.config.ts
+vitest.config.ts
+playwright.config.ts
+eslint.config.mjs
+components.json
+markdownlint-cli2.cjs

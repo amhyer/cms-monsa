@@ -1,0 +1,53 @@
+# ============================================
+# CMS MONSA - Docker Compose Cron Override
+# ============================================
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.cron.yml up -d
+#
+# This adds a cron service that runs backup every day at 02:00
+#
+
+services:
+  # ============================================
+  # Cron Service for Automated Backups
+  # ============================================
+  cron:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cms-monsa-cron
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Database
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD:-postgres}@db:5432/cms_mongisidi?schema=public
+      
+      # Backup settings
+      BACKUP_RETENTION: "14"
+      BACKUP_DIR: /backups
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - backups_data:/backups
+      - uploads_data:/app/public/uploads
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        # Install cron job
+        echo "0 2 * * * /app/scripts/backup-db.sh >> /var/log/backup.log 2>&1" > /etc/crontabs/root
+        
+        # Create log file
+        touch /var/log/backup.log
+        
+        # Start cron daemon in foreground
+        crond -f -l 2
+    networks:
+      - cms-network
+
+# ============================================
+# Volumes
+# ============================================
+volumes:
+  backups_data:
+    driver: local

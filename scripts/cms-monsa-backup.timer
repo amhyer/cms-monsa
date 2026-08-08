@@ -1,0 +1,11 @@
+[Unit]
+Description=CMS MONSA Daily Backup Timer
+Requires=cms-monsa-backup.service
+
+[Timer]
+OnCalendar=*-*-* 02:00:00
+RandomizedDelaySec=900
+Persistent=true
+
+[Install]
+WantedBy=timers.target

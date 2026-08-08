@@ -26,8 +26,6 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
       subject: body.subject ?? existing.subject,
       education: body.education ?? existing.education,
       photo: body.photo ?? existing.photo,
-      nuptk: body.nuptk !== undefined ? String(body.nuptk).trim() || null : existing.nuptk,
-      nip: body.nip !== undefined ? String(body.nip).trim() || null : existing.nip,
       order: Number(body.order ?? existing.order),
       isActive: body.isActive !== undefined ? Boolean(body.isActive) : existing.isActive,
     },

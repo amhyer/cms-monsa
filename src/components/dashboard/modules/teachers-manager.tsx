@@ -172,6 +172,7 @@ export function TeachersManager() {
                 items,
                 [
                   { key: "name", label: "Nama" },
+                  { key: "nuptk", label: "NUPTK" },
                   { key: "position", label: "Jabatan" },
                   { key: "subject", label: "Mata Pelajaran" },
                   { key: "education", label: "Pendidikan" },
@@ -273,6 +274,12 @@ export function TeachersManager() {
                   <p className="line-clamp-1 text-sm text-muted-foreground">
                     {t.position || "—"}
                   </p>
+                  {t.nuptk && (
+                    <p className="mt-0.5 text-xs text-muted-foreground">NUPTK: {t.nuptk}</p>
+                  )}
+                  {String(t.position).toLowerCase().includes("kepala sekolah") && (
+                    <Badge className="mt-1 bg-gold text-gold-foreground">Kepala Sekolah</Badge>
+                  )}
                   <div className="mt-2 flex flex-wrap gap-1.5 text-xs">
                     {t.subject && <Badge variant="outline">{t.subject}</Badge>}
                     {t.isActive ? (

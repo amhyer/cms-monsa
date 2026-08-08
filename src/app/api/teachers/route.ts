@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { requireAuth, requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
-import { createTeacherSchema, validateBody } from "@/lib/validations";
+import { createTeacherSchema, validateBody, teacherProfileData } from "@/lib/validations";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
     const auth = await requireAuth();
     if (!auth.ok) return auth.response;
     const items = await db.teacher.findMany({
+      include: { homeroomClasses: { select: { id: true, name: true } } },
       orderBy: [{ order: "asc" }, { name: "asc" }],
     });
     return NextResponse.json({ items });
@@ -20,6 +21,7 @@ export async function GET(req: NextRequest) {
   // public: only active teachers.
   const items = await db.teacher.findMany({
     where: { isActive: true },
+    include: { homeroomClasses: { select: { id: true, name: true } } },
     orderBy: [{ order: "asc" }, { name: "asc" }],
   });
   return NextResponse.json({ items });
@@ -44,10 +46,10 @@ export async function POST(req: NextRequest) {
       name,
       position: body.position || "",
       subject: subject || null,
-      education: bio || null,
       photo: imageUrl || null,
       order: order ?? count,
       isActive: body.isActive !== false,
+      ...teacherProfileData(body),
     },
   });
   await logActivity(auth.user, "CREATE", "Teacher", `Menambah data guru/staf: ${name}`, item.id);

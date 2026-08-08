@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { PageBanner, SectionShell, CategoryBadge } from "./_shared";
+import { TeacherProfileModal } from "@/components/dashboard/modules/teacher-profile-modal";
 import type { TeacherItem, AgendaItem } from "@/lib/types";
 
 const EKSKUL = [
@@ -40,9 +41,19 @@ const EKSKUL = [
   { icon: Sparkles, name: "Qasidah", desc: "Pembinaan seni religi dan rebana bagi siswa." },
 ];
 
-function TeacherCard({ t }: { t: TeacherItem }) {
+function TeacherCard({
+  t,
+  onOpen,
+}: {
+  t: TeacherItem;
+  onOpen: (t: TeacherItem) => void;
+}) {
   return (
-    <div className="flex flex-col gap-4 rounded-xl border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+    <button
+      type="button"
+      onClick={() => onOpen(t)}
+      className="flex flex-col gap-4 rounded-xl border bg-card p-5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-gold hover:shadow-md"
+    >
       <div className="flex items-start gap-4">
         <img
           src={t.photo ?? ""}
@@ -65,7 +76,10 @@ function TeacherCard({ t }: { t: TeacherItem }) {
           <CategoryBadge category={t.subject} className="bg-primary text-primary-foreground" />
         </div>
       )}
-    </div>
+      <span className="text-[11px] font-medium text-muted-foreground hover:text-gold">
+        Lihat profil lengkap →
+      </span>
+    </button>
   );
 }
 
@@ -73,6 +87,7 @@ export function AcademicView() {
   const [teachers, setTeachers] = useState<TeacherItem[] | null>(null);
   const [agenda, setAgenda] = useState<AgendaItem[]>([]);
   const [query, setQuery] = useState("");
+  const [selectedTeacher, setSelectedTeacher] = useState<TeacherItem | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -186,7 +201,7 @@ export function AcademicView() {
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {filteredTeachers.map((t) => (
-                <TeacherCard key={t.id} t={t} />
+                <TeacherCard key={t.id} t={t} onOpen={setSelectedTeacher} />
               ))}
             </div>
           )}
@@ -314,6 +329,14 @@ export function AcademicView() {
           <Music className="size-7 text-gold" />
         </div>
       </section>
+
+      <TeacherProfileModal
+        teacher={selectedTeacher}
+        open={selectedTeacher !== null}
+        onOpenChange={(v) => {
+          if (!v) setSelectedTeacher(null);
+        }}
+      />
     </>
   );
 }

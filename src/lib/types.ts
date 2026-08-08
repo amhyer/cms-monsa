@@ -78,8 +78,25 @@ export type TeacherItem = {
   photo: string | null;
   nuptk: string | null;
   nip: string | null;
+  nik: string | null;
+  gender: string | null;
+  tempatLahir: string | null;
+  tanggalLahir: string | null;
+  agama: string | null;
+  statusKepegawaian: string | null;
+  jenisPtk: string | null;
+  pangkatGolongan: string | null;
+  bidangStudi: string | null;
+  phone: string | null;
+  email: string | null;
+  motto: string | null;
+  riwayat: string | null;
+  sertifikasi: string | null;
+  prestasi: string | null;
+  badges: string | null;
   order: number;
   isActive: boolean;
+  homeroomClasses?: Array<{ id: string; name: string }>;
 };
 
 export type GalleryItem = {

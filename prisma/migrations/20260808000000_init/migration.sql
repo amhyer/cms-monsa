@@ -287,7 +287,7 @@ CREATE TABLE "DapodikConfig" (
 -- CreateTable
 CREATE TABLE "ActivityLog" (
     "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
+    "userId" TEXT,
     "userName" TEXT NOT NULL,
     "action" TEXT NOT NULL,
     "entity" TEXT NOT NULL,

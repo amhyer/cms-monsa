@@ -46,6 +46,9 @@ export async function POST(req: NextRequest) {
       subject: subject || null,
       education: bio || null,
       photo: imageUrl || null,
+      // Identitas Dapodik — diisi otomatis oleh sync, atau manual oleh operator.
+      nuptk: body.nuptk ? String(body.nuptk).trim() || null : null,
+      nip: body.nip ? String(body.nip).trim() || null : null,
       order: order ?? count,
       isActive: body.isActive !== false,
     },

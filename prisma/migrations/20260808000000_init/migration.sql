@@ -74,6 +74,22 @@ CREATE TABLE "Teacher" (
     "photo" TEXT,
     "nuptk" TEXT,
     "nip" TEXT,
+    "nik" TEXT,
+    "gender" TEXT,
+    "tempatLahir" TEXT,
+    "tanggalLahir" TIMESTAMP(3),
+    "agama" TEXT,
+    "statusKepegawaian" TEXT,
+    "jenisPtk" TEXT,
+    "pangkatGolongan" TEXT,
+    "bidangStudi" TEXT,
+    "phone" TEXT,
+    "email" TEXT,
+    "motto" TEXT,
+    "riwayat" TEXT,
+    "sertifikasi" TEXT,
+    "prestasi" TEXT,
+    "badges" TEXT,
     "order" INTEGER NOT NULL DEFAULT 0,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "archivedAt" TIMESTAMP(3),
@@ -134,6 +150,7 @@ CREATE TABLE "Student" (
     "id" TEXT NOT NULL,
     "nis" TEXT NOT NULL,
     "nisn" TEXT,
+    "dapodikId" TEXT,
     "name" TEXT NOT NULL,
     "dateOfBirth" TIMESTAMP(3),
     "gender" TEXT,
@@ -279,6 +296,7 @@ CREATE TABLE "DapodikConfig" (
     "autoSyncLastError" TEXT,
     "lastSyncAt" TIMESTAMP(3),
     "lastSyncBy" TEXT,
+    "archiveUnlisted" BOOLEAN NOT NULL DEFAULT true,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "DapodikConfig_pkey" PRIMARY KEY ("id")
@@ -361,6 +379,9 @@ CREATE INDEX "Class_dapodikId_idx" ON "Class"("dapodikId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Student_nis_key" ON "Student"("nis");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Student_dapodikId_key" ON "Student"("dapodikId");
 
 -- CreateIndex
 CREATE INDEX "Student_classId_idx" ON "Student"("classId");

@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -111,7 +112,7 @@ const STEPS: { key: "sekolah" | "siswa" | "guru" | "rombel"; label: string }[] =
 ];
 
 export function DapodikManager() {
-  const [config, setConfig] = useState({ npsn: "", token: "", host: "localhost", port: "5774", protocol: "http" });
+  const [config, setConfig] = useState({ npsn: "", token: "", host: "localhost", port: "5774", protocol: "http", archiveUnlisted: true as boolean });
   const [configLoaded, setConfigLoaded] = useState(false);
   const [data, setData] = useState<DapodikData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -140,6 +141,7 @@ export function DapodikManager() {
             host: json.config.host || "localhost",
             port: String(json.config.port || 5774),
             protocol: json.config.protocol || "http",
+            archiveUnlisted: json.config.archiveUnlisted !== false,
           });
           setConnected(true);
         }
@@ -164,6 +166,7 @@ export function DapodikManager() {
           host: config.host,
           port: Number(config.port),
           protocol: config.protocol,
+          archiveUnlisted: config.archiveUnlisted,
         }),
       });
       const json = await res.json();
@@ -379,6 +382,18 @@ export function DapodikManager() {
               <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="dapodik-token">Token</Label>
                 <Input id="dapodik-token" type="password" placeholder="Token autentikasi Dapodik" value={config.token} onChange={(e) => setConfig((p) => ({ ...p, token: e.target.value }))} />
+              </div>
+              <div className="flex items-center justify-between gap-3 rounded-md border p-3 md:col-span-2">
+                <div>
+                  <p className="text-sm font-medium">Jangan nonaktifkan data yang tidak ada di Dapodik</p>
+                  <p className="text-xs text-muted-foreground">
+                    Saat aktif, siswa/guru yang tidak terdaftar di Dapodik dibiarkan aktif (tidak diarsipkan).
+                  </p>
+                </div>
+                <Switch
+                  checked={config.archiveUnlisted}
+                  onCheckedChange={(v) => setConfig((p) => ({ ...p, archiveUnlisted: v }))}
+                />
               </div>
             </div>
             <div className="mt-4 flex items-center gap-2">

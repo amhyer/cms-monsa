@@ -89,6 +89,24 @@ model Teacher {
   photo       String?
   nuptk       String?  // NUPTK dari Dapodik (identifier sync)
   nip         String?  // NIP dari Dapodik
+  // ---- Identitas (diisi otomatis dari sync Dapodik) ----
+  nik               String?
+  gender            String?  // LAKI_LAKI | PEREMPUAN
+  tempatLahir       String?
+  tanggalLahir      DateTime?
+  agama             String?
+  statusKepegawaian String?  // PNS | GTK/PTK | PTT ...
+  jenisPtk          String?  // Guru Kelas | Guru Mapel | Tendik | ...
+  pangkatGolongan   String?
+  bidangStudi       String?  // bidang studi terakhir dari Dapodik
+  // ---- Kontak & personal (dikelola manual via form) ----
+  phone     String?  // HP — manual, tidak ditimpa sync
+  email     String?  // manual, tidak ditimpa sync
+  motto     String?  // kutipan singkat, tampil di profil
+  riwayat   String?  // riwayat / bio singkat
+  sertifikasi String? // sertifikasi / diklat (teks bebas)
+  prestasi  String?  // prestasi / penghargaan (teks bebas)
+  badges    String?  // badge terpisah koma: "Sertifikasi,MRI,Inklusi"
   order       Int      @default(0)
   isActive    Boolean  @default(true)
   archivedAt  DateTime? // null = aktif, DateTime = diarsipkan oleh sync Dapodik
@@ -150,6 +168,7 @@ model Student {
   id          String   @id @default(cuid())
   nis         String   @unique // Nomor Induk Siswa
   nisn        String?  // Nomor Induk Siswa Nasional
+  dapodikId   String?  @unique // peserta_didik_id dari Dapodik (identitas stabil)
   name        String
   dateOfBirth DateTime?
   gender      String?  // LAKI_LAKI | PEREMPUAN
@@ -318,6 +337,9 @@ model DapodikConfig {
   autoSyncLastError      String?
   lastSyncAt  DateTime?
   lastSyncBy  String?  // userId
+  // Bila true (default), siswa/guru yang tidak ada lagi di Dapodik ikut
+  // dinonaktifkan (isActive=false). Bila false, mereka dibiarkan aktif.
+  archiveUnlisted Boolean  @default(true)
   updatedAt   DateTime @updatedAt
 }
 

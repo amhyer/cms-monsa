@@ -98,6 +98,9 @@ bukan prefix — lihat [REFACTOR_PLAN.md](REFACTOR_PLAN.md) bagian #1) dan area
 
 ## Installation
 
+> Panduan lengkap menjalankan project dari nol (instalasi, env, database,
+> dev, deploy, backup, troubleshooting): [docs/RUNNING.md](docs/RUNNING.md).
+
 ```bash
 # Clone repository
 git clone <repository-url>

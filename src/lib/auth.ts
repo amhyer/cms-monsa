@@ -111,6 +111,7 @@ export async function getSession(): Promise<SessionUser | null> {
     role: effectiveRole,
     isActive: user.isActive,
     guardianClassId: user.guardianClassId ?? null,
+    guardianStudentId: user.guardianStudentId ?? null,
   };
 }
 
@@ -171,12 +172,14 @@ export async function requireAuth(): Promise<
 
 /**
  * Role hierarchy: SUPER_ADMIN (3) > OPERATOR (2) > GURU (1).
+ * ORANG_TUA (0) tidak punya akses dashboard — hanya portal orang tua.
  * `requireRole(min)` passes when the user's level is >= the minimum level.
  */
 const ROLE_LEVEL: Record<Role, number> = {
   SUPER_ADMIN: 3,
   OPERATOR: 2,
   GURU: 1,
+  ORANG_TUA: 0,
 };
 
 /** Require a specific minimum role. SUPER_ADMIN can do everything an OPERATOR can. */
@@ -208,4 +211,36 @@ export function hasRole(user: SessionUser | null, min: Role): boolean {
 export function canAccessClass(user: SessionUser, classId: string): boolean {
   if (user.role === "GURU") return user.guardianClassId === classId;
   return true;
+}
+
+/**
+ * Guard untuk Portal Orang Tua (API /api/parent/* dan halaman /portal).
+ * Hanya akun role ORANG_TUA yang tertaut ke siswa (guardianStudentId) yang
+ * lolos. Nilai studentId diambil dari session — tidak pernah dari input user.
+ */
+export async function requireParent(): Promise<
+  { ok: true; user: SessionUser; studentId: string } | { ok: false; response: Response }
+> {
+  const auth = await requireAuth();
+  if (!auth.ok) return auth;
+
+  if (auth.user.role !== "ORANG_TUA" || !auth.user.isActive) {
+    return {
+      ok: false,
+      response: Response.json(
+        { error: "Forbidden. Hanya akun orang tua yang dapat mengakses portal." },
+        { status: 403 }
+      ),
+    };
+  }
+  if (!auth.user.guardianStudentId) {
+    return {
+      ok: false,
+      response: Response.json(
+        { error: "Akun belum ditautkan ke siswa. Hubungi operator sekolah." },
+        { status: 403 }
+      ),
+    };
+  }
+  return { ok: true, user: auth.user, studentId: auth.user.guardianStudentId };
 }

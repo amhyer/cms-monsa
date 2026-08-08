@@ -49,21 +49,21 @@ export type CommitResult = SyncResult & { mode: "commit"; logId: string };
 
 // ---- Helpers ----
 
-function mapGender(jk?: string): string | null {
+export function mapGender(jk?: string): string | null {
   if (!jk) return null;
-  const lower = jk.toLowerCase();
-  if (lower.includes("laki")) return "LAKI_LAKI";
-  if (lower.includes("perempuan")) return "PEREMPUAN";
+  const lower = jk.toLowerCase().trim();
+  if (lower === "l" || lower.includes("laki")) return "LAKI_LAKI";
+  if (lower === "p" || lower.includes("perempuan")) return "PEREMPUAN";
   return null;
 }
 
-function parseDate(dateStr?: string): Date | null {
+export function parseDate(dateStr?: string): Date | null {
   if (!dateStr) return null;
   const d = new Date(dateStr);
   return isNaN(d.getTime()) ? null : d;
 }
 
-function currentAcademicYear(): string {
+export function currentAcademicYear(): string {
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
@@ -73,13 +73,13 @@ function currentAcademicYear(): string {
 // Beberapa nilai dari Dapodik (nisn, nipd) bisa berupa string spasi
 // kosong untuk siswa baru yang belum lengkap datanya. String spasi itu
 // "truthy" di JS, jadi harus dinormalisasi dulu sebelum dipakai.
-function normalize(value?: string | null): string | null {
+export function normalize(value?: string | null): string | null {
   if (!value) return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
 }
 
-function combineParentName(ayah?: string, ibu?: string): string | null {
+export function combineParentName(ayah?: string, ibu?: string): string | null {
   const parts = [ayah, ibu]
     .map((v) => (v ? v.trim() : ""))
     .filter((v) => v.length > 0);
@@ -89,7 +89,7 @@ function combineParentName(ayah?: string, ibu?: string): string | null {
 // nis wajib unik & tidak boleh kosong. Utamakan nipd (NIS lokal); kalau
 // tidak ada, pakai peserta_didik_id (selalu ada & unik dari Dapodik)
 // supaya tidak pernah gagal karena nis null/duplikat.
-function resolveNis(s: DapodikSiswa): string {
+export function resolveNis(s: DapodikSiswa): string {
   return normalize(s.nipd) ?? s.peserta_didik_id;
 }
 

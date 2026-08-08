@@ -1,5 +1,4 @@
 // scripts/migrate-passwords.ts
-import { db } from "../src/lib/db";
 import { hashPassword, isHashed } from "../src/lib/password";
 import { PrismaClient } from "@prisma/client";
 

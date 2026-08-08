@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { setSession } from "@/lib/auth";
 import { logActivity } from "@/lib/log";
-import { verifyPassword, isHashed } from "@/lib/password";
+import { verifyPassword } from "@/lib/password";
 import {
   isLocked,
   isIpLocked,
@@ -87,6 +87,7 @@ export async function POST(req: NextRequest) {
         role: user.role as Role,
         isActive: user.isActive,
         guardianClassId: user.guardianClassId ?? null,
+        guardianStudentId: user.guardianStudentId ?? null,
       },
       "LOGIN",
       "Auth",

@@ -188,12 +188,12 @@ async function tick() {
 
     console.log("[dapodik-auto-sync] mulai menarik data…");
     try {
-      const result = await runSync({
-        byUser: { id: "system", name: "Auto-sync" },
-      });
-      const c = result.counts;
+      const result = await runSync("commit");
+      const c = result.siswa;
+      const g = result.gtk;
+      const r = result.rombel;
       console.log(
-        `[dapodik-auto-sync] selesai — siswa ${c.siswa.update}+${c.siswa.create} (${c.siswa.error} err), guru ${c.gtk.update}+${c.gtk.create} (${c.gtk.error} err), rombel ${c.rombel.update}+${c.rombel.create}`
+        `[dapodik-auto-sync] selesai — siswa ${c.updated}+${c.created} (${c.errors} err), guru ${g.updated}+${g.created} (${g.errors} err), rombel ${r.updated}+${r.created} (${r.errors} err)`
       );
       await db.dapodikConfig.update({
         where: { id: "singleton" },

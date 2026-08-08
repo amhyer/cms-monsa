@@ -3,6 +3,10 @@ import { db } from "@/lib/db";
 import { requireAuth, requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
+import {
+  createPaymentSchema,
+  validateBody,
+} from "@/lib/validations";
 
 const MONTH_REGEX = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -95,34 +99,12 @@ export async function POST(req: NextRequest) {
   if (!auth.ok) return auth.response;
 
   const body = await req.json();
-  const studentId = String(body.studentId ?? "").trim();
-  const monthPeriod = String(body.monthPeriod ?? "").trim();
-  const amount = Number(body.amount);
+  const validation = validateBody(createPaymentSchema, body);
+  if (!validation.ok) {
+    return NextResponse.json({ error: validation.error }, { status: 400 });
+  }
 
-  if (!studentId || !monthPeriod) {
-    return NextResponse.json(
-      { error: "Siswa dan periode bulan wajib diisi." },
-      { status: 400 }
-    );
-  }
-  if (!MONTH_REGEX.test(monthPeriod)) {
-    return NextResponse.json(
-      { error: "Format periode tidak valid (gunakan YYYY-MM)." },
-      { status: 400 }
-    );
-  }
-  if (!Number.isInteger(amount) || amount <= 0) {
-    return NextResponse.json(
-      { error: "Nominal pembayaran harus berupa angka positif." },
-      { status: 400 }
-    );
-  }
-  if (amount > 1_000_000_000) {
-    return NextResponse.json(
-      { error: "Nominal terlalu besar." },
-      { status: 400 }
-    );
-  }
+  const { studentId, monthPeriod, amount, note, status, paymentDate } = validation.data;
 
   const student = await db.student.findUnique({
     where: { id: studentId },
@@ -146,10 +128,10 @@ export async function POST(req: NextRequest) {
     data: {
       studentId,
       amount,
-      paymentDate: body.paymentDate ? new Date(body.paymentDate) : new Date(),
+      paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
       monthPeriod,
-      status: body.status === "UNPAID" ? "UNPAID" : "PAID",
-      note: body.note ? String(body.note).trim() : null,
+      status,
+      note,
       recordedById: auth.user.id,
     },
   });

@@ -1,5 +1,21 @@
 import { redis } from "./redis";
-import type { Request } from "express";
+
+/**
+ * Minimal structural request type — works with Next.js web `Request`
+ * (`headers` is a standard `Headers` instance) and plain test objects.
+ */
+export interface RequestLike {
+  headers: Headers | Record<string, string | string[] | undefined>;
+}
+
+function getHeader(req: RequestLike, name: string): string | undefined {
+  const h = req.headers;
+  if (typeof h.get === "function") {
+    return h.get(name) || undefined;
+  }
+  const v = (h as Record<string, string | string[] | undefined>)[name];
+  return Array.isArray(v) ? v[0] : v;
+}
 
 const WINDOW = 15 * 60 * 1000; // 15 menit
 const MAX_FAILURES = 5;
@@ -23,10 +39,10 @@ function formKey(ip: string) {
   return `form-limit:${ip}`;
 }
 
-export function getClientIp(req: Request): string {
-  const real = req.headers["x-real-ip"] as string;
+export function getClientIp(req: RequestLike): string {
+  const real = getHeader(req, "x-real-ip");
   if (real) return real;
-  const xff = req.headers["x-forwarded-for"] as string;
+  const xff = getHeader(req, "x-forwarded-for");
   if (xff) return xff.split(",")[0].trim();
   return "unknown";
 }
@@ -141,7 +157,7 @@ export async function isFormRateLimited(ip: string, max = 10, windowMs = 600000)
   return count > max;
 }
 
-export async function rateLimitPublicForm(req: Request, max?: number, windowMs?: number): Promise<Response | null> {
+export async function rateLimitPublicForm(req: RequestLike, max?: number, windowMs?: number): Promise<Response | null> {
     const ip = getClientIp(req);
     if (await isFormRateLimited(ip, max, windowMs)) {
         return Response.json(

@@ -32,6 +32,7 @@ export interface PesertaDidik {
   nama_ibu?: string;
   nama_rombel?: string;
   rombongan_belajar_id?: string; // kunci matching ke Class.dapodikId
+  semester_id?: string; // format "YYYYx" mis. 20261 (untuk filter getSemesters)
 }
 
 export interface GTK {
@@ -45,6 +46,7 @@ export interface RombonganBelajar {
   rombongan_belajar_id: string;
   nama: string;
   tingkat_pendidikan_id_str?: string;
+  semester_id?: string; // format "YYYYx" mis. 20261
 }
 
 interface DapodikListResponse<T> {
@@ -84,19 +86,106 @@ export class DapodikClient {
     return this.requestSingle<Sekolah>("getSekolah");
   }
 
-  async getPesertaDidik(): Promise<PesertaDidik[]> {
-    return this.requestAllPages<PesertaDidik>("getPesertaDidik");
+  async getPesertaDidik(semesterId?: string): Promise<PesertaDidik[]> {
+    const extra: Record<string, string> = {};
+    if (semesterId) {
+      extra.semester_id = semesterId;
+      const tahun = semesterToTahunAjaran(semesterId);
+      if (tahun) extra.tahun_ajaran_id = tahun;
+    }
+    return this.requestAllPages<PesertaDidik>("getPesertaDidik", 100, extra);
   }
 
-  async getGTK(): Promise<GTK[]> {
-    return this.requestAllPages<GTK>("getGtk");
+  async getGTK(semesterId?: string): Promise<GTK[]> {
+    const extra: Record<string, string> = {};
+    if (semesterId) {
+      extra.semester_id = semesterId;
+      const tahun = semesterToTahunAjaran(semesterId);
+      if (tahun) extra.tahun_ajaran_id = tahun;
+    }
+    return this.requestAllPages<GTK>("getGtk", 100, extra);
   }
 
-  async getRombonganBelajar(): Promise<RombonganBelajar[]> {
-    return this.requestAllPages<RombonganBelajar>("getRombonganBelajar");
+  async getRombonganBelajar(semesterId?: string): Promise<RombonganBelajar[]> {
+    const extra: Record<string, string> = {};
+    if (semesterId) {
+      extra.semester_id = semesterId;
+      const tahun = semesterToTahunAjaran(semesterId);
+      if (tahun) extra.tahun_ajaran_id = tahun;
+    }
+    return this.requestAllPages<RombonganBelajar>("getRombonganBelajar", 100, extra);
   }
 
-  async getAllData(): Promise<{
+  /**
+   * Kumpulkan semester_id unik dari peserta didik + rombel (terurut menurun).
+   * Tahan-banting: kalau salah satu endpoint gagal, tetap balas data dari
+   * endpoint yang berhasil.
+   */
+  async getSemesters(): Promise<string[]> {
+    const ids = new Set<string>();
+    let primaryFailed = false;
+    try {
+      const pd = await this.getPesertaDidik();
+      for (const p of pd) if (p.semester_id) ids.add(p.semester_id);
+    } catch {
+      primaryFailed = true;
+    }
+    if (primaryFailed && ids.size === 0) {
+      throw new Error("getSemesters: gagal mengambil semester dari peserta didik dan rombel.");
+    }
+    try {
+      const rb = await this.getRombonganBelajar();
+      for (const r of rb) if (r.semester_id) ids.add(r.semester_id);
+    } catch {
+      // rombel gagal — pakai hasil dari peserta didik saja
+    }
+    return sortedIdsDesc(ids);
+  }
+
+  /** Seperti getSemesters, plus jumlah siswa/rombel per semester (untuk badge UI). */
+  async getSemestersWithCounts(): Promise<{
+    semesters: string[];
+    counts: Record<string, { siswa: number; rombel: number }>;
+  }> {
+    const counts: Record<string, { siswa: number; rombel: number }> = {};
+    const touch = (id: string) => {
+      if (!counts[id]) counts[id] = { siswa: 0, rombel: 0 };
+    };
+    let anySource = false;
+
+    try {
+      const pd = await this.getPesertaDidik();
+      for (const p of pd) {
+        if (p.semester_id) {
+          touch(p.semester_id);
+          counts[p.semester_id].siswa++;
+          anySource = true;
+        }
+      }
+    } catch {
+      // tetap lanjut ke rombel
+    }
+
+    try {
+      const rb = await this.getRombonganBelajar();
+      for (const r of rb) {
+        if (r.semester_id) {
+          touch(r.semester_id);
+          counts[r.semester_id].rombel++;
+          anySource = true;
+        }
+      }
+    } catch {
+      // tetap pakai hasil peserta didik (kalau ada)
+    }
+
+    if (!anySource) {
+      throw new Error("Mengambil semester gagal: peserta didik dan rombel tidak merespons.");
+    }
+    return { semesters: sortedIdsDesc(new Set(Object.keys(counts))), counts };
+  }
+
+  async getAllData(semesterId?: string): Promise<{
     sekolah: Sekolah;
     peserta_didik: PesertaDidik[];
     gtk: GTK[];
@@ -106,9 +195,9 @@ export class DapodikClient {
     // ("Tidak terhubung dengan database") kalau menerima beberapa request
     // paralel sekaligus ke database-nya.
     const sekolah = await this.getSekolah();
-    const peserta_didik = await this.getPesertaDidik();
-    const gtk = await this.getGTK();
-    const rombel = await this.getRombonganBelajar();
+    const peserta_didik = await this.getPesertaDidik(semesterId);
+    const gtk = await this.getGTK(semesterId);
+    const rombel = await this.getRombonganBelajar(semesterId);
     return { sekolah, peserta_didik, gtk, rombel };
   }
 
@@ -161,13 +250,18 @@ export class DapodikClient {
   // Dapodik Web Service umumnya membatasi jumlah baris per request lewat
   // parameter start/limit — kita loop sampai halaman terakhir supaya data
   // sekolah dengan siswa/guru banyak tidak terpotong.
-  private async requestAllPages<T>(endpoint: string, pageSize = 100): Promise<T[]> {
+  private async requestAllPages<T>(
+    endpoint: string,
+    pageSize = 100,
+    extraParams: Record<string, string> = {}
+  ): Promise<T[]> {
     const allRows: T[] = [];
     let start = 0;
+    let lastPageKeys: string[] | null = null;
 
-    // eslint-disable-next-line no-constant-condition
+    // Dipagari: berhenti saat halaman kosong/duplikat (lihat bawah).
     while (true) {
-      const json = await this.requestRaw(endpoint, { start, limit: pageSize });
+      const json = await this.requestRaw(endpoint, { start, limit: pageSize, ...extraParams });
 
       if (!json || typeof json !== "object" || !("rows" in (json as Record<string, unknown>))) {
         // Response tanpa wrapper "rows" — anggap ini hasil lengkap, tidak dipaginasi
@@ -176,14 +270,45 @@ export class DapodikClient {
 
       const page = json as DapodikListResponse<T>;
       const rows = Array.isArray(page.rows) ? page.rows : [page.rows];
-      allRows.push(...rows);
 
-      if (rows.length < pageSize) break; // sudah sampai halaman terakhir
+      if (rows.length === 0) break; // sudah sampai halaman terakhir
+
+      // Guard dedupe: kalau Dapodik mengabaikan start/limit (balas halaman yang
+      // sama terus), jangan infinite-loop — berhenti saat halaman identik.
+      const pageKeys = rows.map((r) =>
+        JSON.stringify(r as unknown as Record<string, unknown>)
+      );
+      if (lastPageKeys && sameRows(lastPageKeys, pageKeys)) {
+        break;
+      }
+      lastPageKeys = pageKeys;
+
+      allRows.push(...rows);
       start += pageSize;
     }
 
     return allRows;
   }
+}
+
+// "20261" -> "2026/2027"; "20252" -> "2025/2026"; tak dikenal -> null
+function semesterToTahunAjaran(semesterId: string): string | null {
+  const m = /^(\d{4})([126])$/.exec(semesterId);
+  if (!m) return null;
+  const year = parseInt(m[1], 10);
+  return m[2] === "2" ? `${year - 1}/${year}` : `${year}/${year + 1}`;
+}
+
+function sortedIdsDesc(ids: Set<string>): string[] {
+  return [...ids].sort().reverse();
+}
+
+function sameRows(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
 }
 
 export default DapodikClient;

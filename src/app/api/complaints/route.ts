@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const rateLimited = rateLimitPublicForm(req);
+    const rateLimited = await rateLimitPublicForm(req);
     if (rateLimited) return rateLimited;
 
     const body = await req.json();

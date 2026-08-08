@@ -6,7 +6,7 @@ import { rateLimitPublicForm } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   try {
-    const rateLimited = rateLimitPublicForm(req);
+    const rateLimited = await rateLimitPublicForm(req);
     if (rateLimited) return rateLimited;
 
     const body = await req.json();

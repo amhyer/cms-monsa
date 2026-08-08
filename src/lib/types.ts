@@ -4,6 +4,7 @@ export const ROLES = {
   SUPER_ADMIN: "SUPER_ADMIN",
   OPERATOR: "OPERATOR",
   GURU: "GURU",
+  ORANG_TUA: "ORANG_TUA",
 } as const;
 
 export type Role = (typeof ROLES)[keyof typeof ROLES];
@@ -13,6 +14,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   SUPER_ADMIN: "Super Admin",
   OPERATOR: "Operator",
   GURU: "Guru",
+  ORANG_TUA: "Orang Tua",
 };
 
 export type SessionUser = {
@@ -22,6 +24,7 @@ export type SessionUser = {
   role: Role;
   isActive: boolean;
   guardianClassId: string | null;
+  guardianStudentId: string | null;
 };
 
 export type NewsCategory = "Akademik" | "Kegiatan" | "Prestasi";

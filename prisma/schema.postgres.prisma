@@ -22,8 +22,9 @@ model User {
   name      String
   email     String   @unique
   password  String
-  role      String   @default("OPERATOR") // SUPER_ADMIN | OPERATOR | GURU
+  role      String   @default("OPERATOR") // SUPER_ADMIN | OPERATOR | GURU | ORANG_TUA
   guardianClassId String? // Wali kelas untuk role GURU (hanya boleh absen di kelas ini)
+  guardianStudentId String? // Untuk role ORANG_TUA: siswa yang dipantau (portal orang tua)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -312,6 +313,12 @@ model DapodikConfig {
   host        String   @default("localhost")
   port        Int      @default(5774)
   protocol    String   @default("http") // http | https
+  // Auto-sync berkala (scheduler di src/instrumentation.ts)
+  autoSyncEnabled        Boolean   @default(false)
+  autoSyncIntervalHours  Int      @default(24) // 1-24 jam (lihat scheduler)
+  autoSyncLastRunAt      DateTime?
+  autoSyncLastStatus     String?   // OK | ERROR
+  autoSyncLastError      String?
   lastSyncAt  DateTime?
   lastSyncBy  String?  // userId
   updatedAt   DateTime @updatedAt

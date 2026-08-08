@@ -69,6 +69,18 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Copy Prisma schema + migration files for runtime migrate deploy
+COPY --from=builder /app/prisma ./prisma
+RUN chown -R nextjs:nodejs prisma
+
+# Copy Prisma CLI (version-locked via bun.lock) + package scripts so
+# `migrate deploy` works both at startup and via `docker compose exec`
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
+COPY --from=builder /app/package.json ./package.json
+RUN npm install -g bun@1.2
+
 # Create directories for database and uploads
 RUN mkdir -p prisma/db public/uploads && \
     chown -R nextjs:nodejs prisma/db public/uploads
@@ -85,4 +97,5 @@ ENV HOSTNAME="0.0.0.0"
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
-CMD ["node", "server.js"]
+# Apply pending migrations before starting the app
+CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy --schema prisma/schema.postgres.prisma && node server.js"]

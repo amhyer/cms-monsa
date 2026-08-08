@@ -70,6 +70,30 @@ export const updateGallerySchema = z.object({
 });
 
 // --- Teachers ---
+
+// Field profil opsional (identitas dari Dapodik bisa diedit manual, blok
+// kontak & personal ditulis admin). Semua opsional & boleh null = kosongkan.
+const teacherProfileFields = {
+  position: z.string().trim().max(100, "Jabatan maksimal 100 karakter.").optional(),
+  nik: z.string().trim().max(20, "NIK maksimal 20 karakter.").optional().nullable(),
+  tempatLahir: z.string().trim().max(100, "Tempat lahir maksimal 100 karakter.").optional().nullable(),
+  tanggalLahir: z.string().optional().nullable(), // ISO date; null = hapus
+  gender: z.string().trim().max(20).optional().nullable(), // LAKI_LAKI | PEREMPUAN
+  agama: z.string().trim().max(50, "Agama maksimal 50 karakter.").optional().nullable(),
+  statusKepegawaian: z.string().trim().max(60).optional().nullable(),
+  jenisPtk: z.string().trim().max(100).optional().nullable(),
+  pangkatGolongan: z.string().trim().max(50).optional().nullable(),
+  bidangStudi: z.string().trim().max(100).optional().nullable(),
+  education: z.string().trim().max(200, "Pendidikan maksimal 200 karakter.").optional().nullable(),
+  phone: z.string().trim().max(30, "No. HP maksimal 30 karakter.").optional().nullable(),
+  email: z.union([z.string().email("Format email tidak valid.").trim().max(120), z.literal("")]).optional().nullable(),
+  motto: z.string().trim().max(200, "Motto maksimal 200 karakter.").optional().nullable(),
+  riwayat: z.string().trim().max(2000, "Riwayat maksimal 2.000 karakter.").optional().nullable(),
+  sertifikasi: z.string().trim().max(2000, "Sertifikasi/Diklat maksimal 2.000 karakter.").optional().nullable(),
+  prestasi: z.string().trim().max(2000, "Prestasi maksimal 2.000 karakter.").optional().nullable(),
+  badges: z.string().trim().max(200, "Badge maksimal 200 karakter.").optional().nullable(),
+};
+
 export const createTeacherSchema = z.object({
   name: z
     .string()
@@ -84,9 +108,38 @@ export const createTeacherSchema = z.object({
   bio: z.string().max(2000, "Bio maksimal 2.000 karakter.").optional(),
   imageUrl: z.string().url("URL gambar tidak valid.").optional().nullable(),
   order: z.number().int().min(0).default(0),
+  ...teacherProfileFields,
 });
 
 export const updateTeacherSchema = createTeacherSchema.partial();
+
+// Petakan field profil (boleh undefined/null/string kosong -> null di DB).
+function s(v: unknown): string | null {
+  return typeof v === "string" && v.trim() ? v.trim() : null;
+}
+
+export function teacherProfileData(d: Record<string, unknown>) {
+  const tanggalLahir = d.tanggalLahir;
+  return {
+    nik: s(d.nik),
+    tempatLahir: s(d.tempatLahir),
+    tanggalLahir: tanggalLahir ? new Date(String(tanggalLahir)) : null,
+    gender: s(d.gender),
+    agama: s(d.agama),
+    statusKepegawaian: s(d.statusKepegawaian),
+    jenisPtk: s(d.jenisPtk),
+    pangkatGolongan: s(d.pangkatGolongan),
+    bidangStudi: s(d.bidangStudi),
+    education: s(d.education),
+    phone: s(d.phone),
+    email: s(d.email),
+    motto: s(d.motto),
+    riwayat: s(d.riwayat),
+    sertifikasi: s(d.sertifikasi),
+    prestasi: s(d.prestasi),
+    badges: s(d.badges),
+  };
+}
 
 // --- Users ---
 export const userRoleEnum = z.enum(["SUPER_ADMIN", "OPERATOR", "GURU", "ORANG_TUA"]);

@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
+import { teacherProfileData } from "@/lib/validations";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -22,12 +23,12 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     where: { id },
     data: {
       name: String(body.name ?? existing.name),
-      position: String(body.position ?? existing.position),
-      subject: body.subject ?? existing.subject,
-      education: body.education ?? existing.education,
-      photo: body.photo ?? existing.photo,
+      position: typeof body.position === "string" ? body.position : existing.position,
+      subject: body.subject !== undefined ? body.subject || null : existing.subject,
+      photo: body.photo !== undefined ? body.photo || null : existing.photo,
       order: Number(body.order ?? existing.order),
       isActive: body.isActive !== undefined ? Boolean(body.isActive) : existing.isActive,
+      ...teacherProfileData(body),
     },
   });
   await logActivity(auth.user, "UPDATE", "Teacher", `Memperbarui data guru/staf: ${updated.name}`, id);

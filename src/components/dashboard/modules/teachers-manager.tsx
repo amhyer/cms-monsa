@@ -11,6 +11,7 @@ import {
   UserCircle2,
   Download,
   Search,
+  Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -24,11 +25,20 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ImageUpload } from "@/components/shared/image-upload";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { TeacherProfileModal } from "./teacher-profile-modal";
 import type { TeacherItem } from "@/lib/types";
 import { exportToCsv } from "@/lib/export";
 import { PageLoader, EmptyState } from "../_shared";
@@ -41,6 +51,24 @@ type FormState = {
   education: string;
   photo: string;
   isActive: boolean;
+  nuptk: string;
+  nip: string;
+  nik: string;
+  tempatLahir: string;
+  tanggalLahir: string;
+  gender: string;
+  agama: string;
+  statusKepegawaian: string;
+  jenisPtk: string;
+  pangkatGolongan: string;
+  bidangStudi: string;
+  phone: string;
+  email: string;
+  motto: string;
+  riwayat: string;
+  sertifikasi: string;
+  prestasi: string;
+  badges: string;
 };
 
 const EMPTY: FormState = {
@@ -50,6 +78,24 @@ const EMPTY: FormState = {
   education: "",
   photo: "",
   isActive: true,
+  nuptk: "",
+  nip: "",
+  nik: "",
+  tempatLahir: "",
+  tanggalLahir: "",
+  gender: "",
+  agama: "",
+  statusKepegawaian: "",
+  jenisPtk: "",
+  pangkatGolongan: "",
+  bidangStudi: "",
+  phone: "",
+  email: "",
+  motto: "",
+  riwayat: "",
+  sertifikasi: "",
+  prestasi: "",
+  badges: "",
 };
 
 export function TeachersManager() {
@@ -63,6 +109,7 @@ export function TeachersManager() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<TeacherItem | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY);
+  const [previewTeacher, setPreviewTeacher] = useState<TeacherItem | null>(null);
 
   const fetchList = useCallback(async () => {
     setLoading(true);
@@ -99,6 +146,26 @@ export function TeachersManager() {
       education: t.education ?? "",
       photo: t.photo ?? "",
       isActive: t.isActive,
+      nuptk: t.nuptk ?? "",
+      nip: t.nip ?? "",
+      nik: t.nik ?? "",
+      tempatLahir: t.tempatLahir ?? "",
+      tanggalLahir: t.tanggalLahir
+        ? new Date(t.tanggalLahir).toISOString().slice(0, 10)
+        : "",
+      gender: t.gender ?? "",
+      agama: t.agama ?? "",
+      statusKepegawaian: t.statusKepegawaian ?? "",
+      jenisPtk: t.jenisPtk ?? "",
+      pangkatGolongan: t.pangkatGolongan ?? "",
+      bidangStudi: t.bidangStudi ?? "",
+      phone: t.phone ?? "",
+      email: t.email ?? "",
+      motto: t.motto ?? "",
+      riwayat: t.riwayat ?? "",
+      sertifikasi: t.sertifikasi ?? "",
+      prestasi: t.prestasi ?? "",
+      badges: t.badges ?? "",
     });
     setOpen(true);
   }
@@ -117,6 +184,26 @@ export function TeachersManager() {
         education: form.education || null,
         photo: form.photo || null,
         isActive: form.isActive,
+        nuptk: form.nuptk,
+        nip: form.nip,
+        nik: form.nik,
+        tempatLahir: form.tempatLahir,
+        tanggalLahir: form.tanggalLahir
+          ? new Date(form.tanggalLahir).toISOString()
+          : null,
+        gender: form.gender,
+        agama: form.agama,
+        statusKepegawaian: form.statusKepegawaian,
+        jenisPtk: form.jenisPtk,
+        pangkatGolongan: form.pangkatGolongan,
+        bidangStudi: form.bidangStudi,
+        phone: form.phone,
+        email: form.email,
+        motto: form.motto,
+        riwayat: form.riwayat,
+        sertifikasi: form.sertifikasi,
+        prestasi: form.prestasi,
+        badges: form.badges,
       };
       const res = editing
         ? await fetch(`/api/teachers/${editing.id}`, {
@@ -227,7 +314,12 @@ export function TeachersManager() {
           {filtered.map((t) => (
             <Card key={t.id}>
               <CardContent className="flex items-start gap-3 py-4">
-                <div className="size-14 shrink-0 overflow-hidden rounded-full bg-muted">
+                <button
+                  type="button"
+                  onClick={() => setPreviewTeacher(t)}
+                  aria-label={`Lihat profil ${t.name}`}
+                  className="size-14 shrink-0 cursor-pointer overflow-hidden rounded-full bg-muted transition hover:ring-2 hover:ring-gold"
+                >
                   {t.photo ? (
                     <img
                       src={t.photo}
@@ -239,11 +331,27 @@ export function TeachersManager() {
                       <UserCircle2 className="size-8" />
                     </div>
                   )}
-                </div>
+                </button>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <h3 className="line-clamp-1 font-semibold">{t.name}</h3>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewTeacher(t)}
+                      className="line-clamp-1 cursor-pointer text-left font-semibold transition hover:text-gold"
+                    >
+                      {t.name}
+                    </button>
                     <div className="flex shrink-0 gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-7"
+                        onClick={() => setPreviewTeacher(t)}
+                        aria-label="Lihat profil"
+                        title="Lihat profil"
+                      >
+                        <Eye className="size-3.5" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -305,13 +413,14 @@ export function TeachersManager() {
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editing ? "Edit Data Guru" : "Tambah Data Guru"}
             </DialogTitle>
             <DialogDescription>
               Profil ini akan tampil di halaman publik jika berstatus aktif.
+              Field yang diisi lewat sinkronisasi Dapodik bisa dikoreksi manual.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -379,6 +488,215 @@ export function TeachersManager() {
               />
               <Label htmlFor="t-active">Tampilkan profil (Aktif)</Label>
             </div>
+            <div className="h-px bg-border" />
+            <p className="text-xs font-medium text-muted-foreground">
+              Identitas & Kepegawaian (diisi otomatis dari Dapodik)
+            </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="t-nuptk">NUPTK</Label>
+                <Input
+                  id="t-nuptk"
+                  value={form.nuptk}
+                  onChange={(e) => setForm({ ...form, nuptk: e.target.value })}
+                  placeholder="NUPTK"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="t-nip">NIP</Label>
+                <Input
+                  id="t-nip"
+                  value={form.nip}
+                  onChange={(e) => setForm({ ...form, nip: e.target.value })}
+                  placeholder="NIP"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="t-nik">NIK</Label>
+                <Input
+                  id="t-nik"
+                  value={form.nik}
+                  onChange={(e) => setForm({ ...form, nik: e.target.value })}
+                  placeholder="NIK"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="t-ttl">Tempat Lahir</Label>
+                <Input
+                  id="t-ttl"
+                  value={form.tempatLahir}
+                  onChange={(e) =>
+                    setForm({ ...form, tempatLahir: e.target.value })
+                  }
+                  placeholder="Tempat lahir"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="t-tgl">Tanggal Lahir</Label>
+                <Input
+                  id="t-tgl"
+                  type="date"
+                  value={form.tanggalLahir}
+                  onChange={(e) =>
+                    setForm({ ...form, tanggalLahir: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="t-gender">Jenis Kelamin</Label>
+                <Select
+                  value={form.gender}
+                  onValueChange={(v) =>
+                    setForm({ ...form, gender: v === "none" ? "" : v })
+                  }
+                >
+                  <SelectTrigger id="t-gender">
+                    <SelectValue placeholder="Pilih…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">—</SelectItem>
+                    <SelectItem value="LAKI_LAKI">Laki-laki</SelectItem>
+                    <SelectItem value="PEREMPUAN">Perempuan</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="t-agama">Agama</Label>
+                <Input
+                  id="t-agama"
+                  value={form.agama}
+                  onChange={(e) => setForm({ ...form, agama: e.target.value })}
+                  placeholder="Mis. Islam"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="t-status">Status Kepegawaian</Label>
+                <Input
+                  id="t-status"
+                  value={form.statusKepegawaian}
+                  onChange={(e) =>
+                    setForm({ ...form, statusKepegawaian: e.target.value })
+                  }
+                  placeholder="Mis. GTK/PTK"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="t-jenptk">Jenis PTK</Label>
+                <Input
+                  id="t-jenptk"
+                  value={form.jenisPtk}
+                  onChange={(e) =>
+                    setForm({ ...form, jenisPtk: e.target.value })
+                  }
+                  placeholder="Mis. Guru Kelas"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="t-pangkat">Pangkat / Golongan</Label>
+                <Input
+                  id="t-pangkat"
+                  value={form.pangkatGolongan}
+                  onChange={(e) =>
+                    setForm({ ...form, pangkatGolongan: e.target.value })
+                  }
+                  placeholder="Mis. Pembina, IV/a"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="t-bidang">Bidang Studi</Label>
+                <Input
+                  id="t-bidang"
+                  value={form.bidangStudi}
+                  onChange={(e) =>
+                    setForm({ ...form, bidangStudi: e.target.value })
+                  }
+                  placeholder="Bidang studi"
+                />
+              </div>
+            </div>
+            <div className="h-px bg-border" />
+            <p className="text-xs font-medium text-muted-foreground">
+              Kontak & Personal (diisi manual, tidak ditimpa sinkron)
+            </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="t-phone">No. HP / WhatsApp</Label>
+                <Input
+                  id="t-phone"
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  placeholder="Mis. 0812xxxx"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="t-email">E-Mail</Label>
+                <Input
+                  id="t-email"
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  placeholder="nama@email.com"
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="t-motto">Motto / Kutipan</Label>
+                <Input
+                  id="t-motto"
+                  value={form.motto}
+                  onChange={(e) => setForm({ ...form, motto: e.target.value })}
+                  placeholder="Kutipan singkat yang tampil di profil"
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="t-riwayat">Riwayat Singkat / Bio</Label>
+                <Textarea
+                  id="t-riwayat"
+                  rows={3}
+                  value={form.riwayat}
+                  onChange={(e) =>
+                    setForm({ ...form, riwayat: e.target.value })
+                  }
+                  placeholder="Riwayat pendidikan & pengalaman singkat"
+                />
+              </div>
+              <div className="max-w-2xl space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="t-sertif">Sertifikasi / Diklat</Label>
+                  <Textarea
+                    id="t-sertif"
+                    rows={2}
+                    value={form.sertifikasi}
+                    onChange={(e) =>
+                      setForm({ ...form, sertifikasi: e.target.value })
+                    }
+                    placeholder="Sertifikasi atau pelatihan yang pernah diikuti"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="t-prestasi">Prestasi / Penghargaan</Label>
+                  <Textarea
+                    id="t-prestasi"
+                    rows={2}
+                    value={form.prestasi}
+                    onChange={(e) =>
+                      setForm({ ...form, prestasi: e.target.value })
+                    }
+                    placeholder="Prestasi atau penghargaan yang pernah diraih"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="t-badges">Badge (pisahkan dengan koma)</Label>
+                  <Input
+                    id="t-badges"
+                    value={form.badges}
+                    onChange={(e) =>
+                      setForm({ ...form, badges: e.target.value })
+                    }
+                    placeholder="Mis. Sertifikasi Guru, Pengawas, Pembina Inklusi"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button
@@ -402,6 +720,14 @@ export function TeachersManager() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <TeacherProfileModal
+        teacher={previewTeacher}
+        open={previewTeacher !== null}
+        onOpenChange={(v) => {
+          if (!v) setPreviewTeacher(null);
+        }}
+      />
     </div>
   );
 }

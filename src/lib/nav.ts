@@ -20,6 +20,7 @@ import {
   UserSquare2,
   Wallet,
   BarChart3,
+  Database,
   type LucideIcon,
 } from "lucide-react";
 
@@ -47,6 +48,7 @@ export const DASHBOARD_NAV: NavItem[] = [
   { label: "Agenda Sekolah", path: "/dashboard/agenda", icon: CalendarDays },
   { label: "Galeri Media", path: "/dashboard/gallery", icon: Image },
   { label: "Data Prestasi", path: "/dashboard/achievements", icon: Trophy },
+  { label: "Penarikan Data Dapodik", path: "/dashboard/dapodik", icon: Database },
   { label: "Guru & Staf", path: "/dashboard/teachers", icon: Users },
   { label: "Data Siswa", path: "/dashboard/students", icon: UserSquare2 },
   { label: "Kelas", path: "/dashboard/classes", icon: LayoutGrid },

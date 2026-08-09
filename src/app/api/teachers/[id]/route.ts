@@ -7,6 +7,18 @@ import { teacherProfileData } from "@/lib/validations";
 
 type Ctx = { params: Promise<{ id: string }> };
 
+export async function GET(req: NextRequest, { params }: Ctx) {
+  const { id } = await params;
+  const item = await db.teacher.findUnique({
+    where: { id },
+    include: { homeroomClasses: { select: { id: true, name: true } } },
+  });
+  if (!item || !item.isActive) {
+    return NextResponse.json({ error: "Guru tidak ditemukan." }, { status: 404 });
+  }
+  return NextResponse.json({ item });
+}
+
 export async function PUT(req: NextRequest, { params }: Ctx) {
   const csrfError = await requireCsrf(req);
   if (csrfError) return csrfError;

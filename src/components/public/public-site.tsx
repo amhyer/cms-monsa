@@ -13,13 +13,19 @@ import { NewsDetailView } from "./news-detail-view";
 import { GalleryView } from "./gallery-view";
 import { ContactView } from "./contact-view";
 import { ComplaintView } from "./complaint-view";
+import { TeacherPortfolioView } from "./teacher-portfolio-view";
 
 interface PublicSiteProps {
   initialView?: string;
   initialSlug?: string;
+  initialGuruId?: string;
 }
 
-export function PublicSite({ initialView, initialSlug }: PublicSiteProps) {
+export function PublicSite({
+  initialView,
+  initialSlug,
+  initialGuruId,
+}: PublicSiteProps) {
   const pathname = usePathname();
   const settings = useAppStore((s) => s.settings);
 
@@ -56,6 +62,8 @@ export function PublicSite({ initialView, initialSlug }: PublicSiteProps) {
     }
   } else if (currentView.startsWith("/news/")) {
     view = <NewsDetailView />;
+  } else if (currentView === "teacher" || currentView === "/teacher") {
+    view = <TeacherPortfolioView guruId={initialGuruId} />;
   } else if (currentView === "gallery" || currentView === "/gallery") {
     view = <GalleryView />;
   } else if (currentView === "contact" || currentView === "/contact") {

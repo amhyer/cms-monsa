@@ -418,7 +418,6 @@ export async function runSync(
     const teacherByLowerName = new Map(
       waliTeachers.map((t) => [t.name.trim().toLowerCase(), t])
     );
-    let waliClassCount = 0;
     for (const r of rombelList) {
       const classId = freshClassByDapodikId.get(r.rombongan_belajar_id);
       const waliName = r.ptk_id_str?.trim();
@@ -439,7 +438,6 @@ export async function runSync(
         where: { name: teacher.name, role: "GURU" },
         data: { guardianClassId: classId },
       });
-      waliClassCount++;
     }
 
     // Siswa — classId dari rombongan_belajar_id, bukan nama.

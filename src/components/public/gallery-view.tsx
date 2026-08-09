@@ -160,12 +160,18 @@ export function GalleryView() {
                   className="relative w-full overflow-hidden bg-muted"
                   style={{ aspectRatio: "4/3" }}
                 >
-                  <img
-                    src={g.thumbnail ?? g.url ?? ""}
-                    alt={g.title}
-                    loading="lazy"
-                    className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
+                  {g.thumbnail || g.url ? (
+                    <img
+                      src={g.thumbnail ?? g.url}
+                      alt={g.title}
+                      loading="lazy"
+                      className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="flex size-full items-center justify-center bg-muted text-muted-foreground">
+                      <ImageIcon className="size-10" />
+                    </div>
+                  )}
                   <div className="absolute inset-0 bg-gradient-to-t from-primary/90 via-primary/20 to-transparent opacity-90" />
                   <div className="absolute left-3 top-3 flex items-center gap-2">
                     <span
@@ -226,12 +232,16 @@ export function GalleryView() {
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     allowFullScreen
                   />
-                ) : (
+                ) : activeItem.url || activeItem.thumbnail ? (
                   <img
-                    src={activeItem.url ?? activeItem.thumbnail ?? ""}
+                    src={activeItem.url ?? activeItem.thumbnail}
                     alt={activeItem.title}
                     className="size-full object-contain"
                   />
+                ) : (
+                  <div className="flex size-full items-center justify-center bg-black text-muted-foreground">
+                    <ImageIcon className="size-16" />
+                  </div>
                 )}
 
                 {/* Prev/Next */}

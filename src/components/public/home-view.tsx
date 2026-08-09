@@ -18,6 +18,7 @@ import {
   PencilLine,
   BookOpen,
   ExternalLink,
+  Newspaper,
 } from "lucide-react";
 import { useAppStore } from "@/store/app";
 import { Button } from "@/components/ui/button";
@@ -65,12 +66,18 @@ function HeroCarousel({ items }: { items: NewsItem[] }) {
                 transition={{ duration: 0.6, ease: "easeInOut" }}
                 className="absolute inset-0"
               >
-                <img
-                  src={n.coverImage ?? ""}
-                  alt={n.title}
-                  className="size-full object-cover"
-                  loading={i === 0 ? "eager" : "lazy"}
-                />
+                {n.coverImage ? (
+                  <img
+                    src={n.coverImage}
+                    alt={n.title}
+                    className="size-full object-cover"
+                    loading={i === 0 ? "eager" : "lazy"}
+                  />
+                ) : (
+                  <div className="flex size-full items-center justify-center bg-muted text-muted-foreground">
+                    <Newspaper className="size-16" />
+                  </div>
+                )}
                 <div className="absolute inset-0 bg-gradient-to-r from-primary/95 via-primary/80 to-primary/40" />
               </motion.div>
             ) : null
@@ -153,12 +160,18 @@ function NewsCard({ item }: { item: NewsItem }) {
       className="group flex cursor-pointer flex-col overflow-hidden rounded-xl border bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted">
-        <img
-          src={item.coverImage ?? ""}
-          alt={item.title}
-          loading="lazy"
-          className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
-        />
+        {item.coverImage ? (
+          <img
+            src={item.coverImage}
+            alt={item.title}
+            loading="lazy"
+            className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+        ) : (
+          <div className="flex size-full items-center justify-center bg-muted text-muted-foreground">
+            <Newspaper className="size-10" />
+          </div>
+        )}
         <div className="absolute left-3 top-3">
           <CategoryBadge category={item.category} />
         </div>

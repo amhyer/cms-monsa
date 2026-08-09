@@ -47,6 +47,8 @@ export interface RombonganBelajar {
   nama: string;
   tingkat_pendidikan_id_str?: string;
   semester_id?: string; // format "YYYYx" mis. 20261
+  ptk_id?: string; // wali kelas dari Dapodik
+  ptk_id_str?: string; // nama wali kelas
 }
 
 interface DapodikListResponse<T> {

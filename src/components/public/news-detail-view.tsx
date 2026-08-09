@@ -9,6 +9,7 @@ import {
   User,
   Share2,
   AlertCircle,
+  Newspaper,
 } from "lucide-react";
 import { useAppStore } from "@/store/app";
 import { Button } from "@/components/ui/button";
@@ -267,12 +268,18 @@ export function NewsDetailView({ slug: propSlug }: NewsDetailViewProps = {}) {
                   className="group flex gap-3 rounded-xl border bg-card p-3 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
                 >
                   <div className="relative size-20 shrink-0 overflow-hidden rounded-lg bg-muted">
-                    <img
-                      src={r.coverImage ?? ""}
-                      alt={r.title}
-                      loading="lazy"
-                      className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
+                    {r.coverImage ? (
+                      <img
+                        src={r.coverImage}
+                        alt={r.title}
+                        loading="lazy"
+                        className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="flex size-full items-center justify-center text-muted-foreground">
+                        <Newspaper className="size-8" />
+                      </div>
+                    )}
                   </div>
                   <div className="flex flex-1 flex-col gap-1">
                     <CategoryBadge category={r.category} />

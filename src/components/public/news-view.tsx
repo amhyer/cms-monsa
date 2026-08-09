@@ -191,12 +191,18 @@ export function NewsView() {
                     className="group flex cursor-pointer flex-col overflow-hidden rounded-xl border bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted">
-                      <img
-                        src={n.coverImage ?? ""}
-                        alt={n.title}
-                        loading="lazy"
-                        className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
+                      {n.coverImage ? (
+                        <img
+                          src={n.coverImage}
+                          alt={n.title}
+                          loading="lazy"
+                          className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="flex size-full items-center justify-center text-muted-foreground">
+                          <Newspaper className="size-10" />
+                        </div>
+                      )}
                       <div className="absolute left-3 top-3">
                         <CategoryBadge category={n.category} />
                       </div>

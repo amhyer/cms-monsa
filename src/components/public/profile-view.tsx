@@ -40,14 +40,27 @@ const FACILITIES = [
 ];
 
 function LeaderCard({ t }: { t: TeacherItem }) {
+  const initials = t.name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase();
   return (
     <div className="flex flex-col items-center gap-3 rounded-xl border bg-card p-5 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-      <img
-        src={t.photo ?? ""}
-        alt={t.name}
-        loading="lazy"
-        className="size-24 rounded-full border-2 border-gold object-cover"
-      />
+      {t.photo ? (
+        <img
+          src={t.photo}
+          alt={t.name}
+          loading="lazy"
+          className="size-24 rounded-full border-2 border-gold object-cover"
+        />
+      ) : (
+        <span className="flex size-24 shrink-0 items-center justify-center rounded-full border-2 border-gold bg-primary text-xl font-bold text-primary-foreground">
+          {initials || "G"}
+        </span>
+      )}
       <div className="flex flex-col gap-1">
         <h4 className="font-sans text-base font-bold leading-tight text-foreground">
           {t.name}

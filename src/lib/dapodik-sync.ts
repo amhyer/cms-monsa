@@ -39,6 +39,7 @@ type DapodikRombel = {
   rombongan_belajar_id: string; // disimpan sebagai Class.dapodikId
   nama: string;
   tingkat_pendidikan_id_str?: string;
+  ptk_id_str?: string; // nama wali kelas
 };
 
 type DapodikSekolah = {
@@ -409,6 +410,36 @@ export async function runSync(
           data: { archivedAt: new Date(), isActive: false },
         });
       }
+    }
+
+    // Wali kelas — diambil dari Dapodik (ptk_id_str pada rombel), dipasang ke
+    // Class.homeroomTeacherId dan User.guardianClassId (akun GURU wali kelas).
+    const waliTeachers = await tx.teacher.findMany({ where: { archivedAt: null } });
+    const teacherByLowerName = new Map(
+      waliTeachers.map((t) => [t.name.trim().toLowerCase(), t])
+    );
+    let waliClassCount = 0;
+    for (const r of rombelList) {
+      const classId = freshClassByDapodikId.get(r.rombongan_belajar_id);
+      const waliName = r.ptk_id_str?.trim();
+      if (!classId || !waliName) continue;
+      const teacher = teacherByLowerName.get(waliName.toLowerCase());
+      if (!teacher) continue;
+      const cls = await tx.class.findUnique({
+        where: { id: classId },
+        select: { homeroomTeacherId: true },
+      });
+      if (cls && cls.homeroomTeacherId !== teacher.id) {
+        await tx.class.update({
+          where: { id: classId },
+          data: { homeroomTeacherId: teacher.id },
+        });
+      }
+      await tx.user.updateMany({
+        where: { name: teacher.name, role: "GURU" },
+        data: { guardianClassId: classId },
+      });
+      waliClassCount++;
     }
 
     // Siswa — classId dari rombongan_belajar_id, bukan nama.

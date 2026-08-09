@@ -6,7 +6,8 @@
  */
 
 /**
- * GURU hanya boleh mengakses Ringkasan + Kehadiran (kelas wali-nya).
+* GURU hanya boleh mengakses Ringkasan + Kehadiran (kelas wali-nya)
+ * + Profil Saya (mengelola data pribadi yang tampil di website).
  *
  * `/dashboard` harus exact-match (bukan prefix) — jika prefix-match,
  * `/dashboard/news` dll. ikut lolos (`"/dashboard/news".startsWith("/dashboard/")`
@@ -18,6 +19,7 @@ export function isGuruDeniedPath(pathname: string): boolean {
   return !(
     pathname === "/dashboard" ||
     pathname === "/dashboard/attendance" ||
-    pathname.startsWith("/dashboard/attendance/")
+    pathname.startsWith("/dashboard/attendance/") ||
+    pathname === "/dashboard/profile"
   );
 }

@@ -18,6 +18,7 @@ import {
   ClipboardCheck,
   LayoutGrid,
   UserSquare2,
+  UserCircle2,
   Wallet,
   BarChart3,
   Download,
@@ -43,6 +44,7 @@ export const PUBLIC_NAV: NavItem[] = [
 
 export const DASHBOARD_NAV: NavItem[] = [
   { label: "Ringkasan", path: "/dashboard", icon: LayoutDashboard },
+  { label: "Profil Saya", path: "/dashboard/profile", icon: UserCircle2 },
   { label: "Berita & Artikel", path: "/dashboard/news", icon: Newspaper },
   { label: "Pengumuman", path: "/dashboard/announcements", icon: Megaphone },
   { label: "Agenda Sekolah", path: "/dashboard/agenda", icon: CalendarDays },

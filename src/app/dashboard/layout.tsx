@@ -107,7 +107,10 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
     const items = DASHBOARD_NAV.filter(
       (n) =>
         (!n.adminOnly || isAdmin) &&
-        (!isGuru || n.path === "/dashboard" || n.path === "/dashboard/attendance")
+        (!isGuru ||
+          n.path === "/dashboard" ||
+          n.path === "/dashboard/attendance" ||
+          n.path === "/dashboard/profile")
     );
     const management: NavItem[] = [];
     const admin: NavItem[] = [];
@@ -459,7 +462,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               <AccessDenied
                 description={
                   isGuru
-                    ? "Akun Guru hanya dapat mengakses Ringkasan dan Kehadiran (kelas wali Anda)."
+                    ? "Akun Guru hanya dapat mengakses Ringkasan, Kehadiran (kelas wali Anda), dan Profil Saya."
                     : undefined
                 }
               />

@@ -22,6 +22,8 @@ model User {
   role      String   @default("OPERATOR") // SUPER_ADMIN | OPERATOR | GURU | ORANG_TUA
   guardianClassId String? // Wali kelas untuk role GURU (hanya boleh absen di kelas ini)
   guardianStudentId String? // Untuk role ORANG_TUA: siswa yang dipantau (portal orang tua)
+  teacherId String?  @unique // Tautan ke master guru (profil di website)
+  teacher   Teacher? @relation(fields: [teacherId], references: [id])
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -114,6 +116,7 @@ model Teacher {
   updatedAt   DateTime @updatedAt
 
   homeroomClasses Class[]
+  account        User?
 
   @@index([nuptk])
 }

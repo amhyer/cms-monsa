@@ -20,6 +20,15 @@ describe("isGuruDeniedPath (GURU dashboard guard)", () => {
       expect(isGuruDeniedPath("/dashboard/attendance/report")).toBe(false);
       expect(isGuruDeniedPath("/dashboard/attendance/2026-08-01")).toBe(false);
     });
+
+    it("allows exact /dashboard/profile (Profil Saya)", () => {
+      expect(isGuruDeniedPath("/dashboard/profile")).toBe(false);
+    });
+
+    it("denies /dashboard/profile/... sub-paths (only exact page allowed)", () => {
+      expect(isGuruDeniedPath("/dashboard/profile/edit")).toBe(true);
+      expect(isGuruDeniedPath("/dashboard/profilex")).toBe(true);
+    });
   });
 
   describe("denied paths (returns true — GURU must be blocked)", () => {

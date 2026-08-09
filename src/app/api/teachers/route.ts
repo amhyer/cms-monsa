@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: validation.error }, { status: 400 });
   }
 
-  const { name, subject, bio, imageUrl, order } = validation.data;
+  const { name, subject, imageUrl, order } = validation.data;
   const count = await db.teacher.count();
   const item = await db.teacher.create({
     data: {

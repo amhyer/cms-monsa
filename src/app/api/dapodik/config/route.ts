@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth";
+import { requireCsrf } from "@/lib/csrf";
 import { saveDapodikConfig, getDapodikConfig } from "@/lib/dapodik-sync";
 
 export async function GET() {
-  const auth = await requireRole("SUPER_ADMIN");
+  const auth = await requireRole("OPERATOR");
   if (!auth.ok) return auth.response;
 
   const config = await getDapodikConfig();
@@ -11,7 +12,10 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const auth = await requireRole("SUPER_ADMIN");
+  const csrfError = await requireCsrf(req);
+  if (csrfError) return csrfError;
+
+  const auth = await requireRole("OPERATOR");
   if (!auth.ok) return auth.response;
 
   const body = await req.json().catch(() => ({}));

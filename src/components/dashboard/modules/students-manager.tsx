@@ -83,7 +83,7 @@ export function StudentsManager() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  const PAGE_SIZE = 50;
+  const [pageSize, setPageSize] = useState(10);
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<StudentItem | null>(null);
@@ -98,7 +98,7 @@ export function StudentsManager() {
   const fetchList = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/students?page=${page}&limit=${PAGE_SIZE}`, { cache: "no-store" });
+      const res = await fetch(`/api/students?page=${page}&limit=${pageSize}`, { cache: "no-store" });
       if (!res.ok) throw new Error();
       const data = await res.json();
       setItems(data.items || []);
@@ -109,7 +109,7 @@ export function StudentsManager() {
     } finally {
       setLoading(false);
     }
-  }, [page]);
+  }, [page, pageSize]);
 
   const fetchClasses = useCallback(async () => {
     try {
@@ -452,11 +452,26 @@ export function StudentsManager() {
         </>
       )}
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">
-            Halaman {page} dari {totalPages} ({total} siswa)
-          </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span className="whitespace-nowrap">Tampilkan</span>
+          <select
+            value={pageSize}
+            onChange={(e) => {
+              setPageSize(Number(e.target.value));
+              setPage(1);
+            }}
+            className="h-8 rounded-md border bg-background px-2 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {[10, 20, 50, 100].map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+          <span className="whitespace-nowrap">data • Halaman {page} dari {totalPages} ({total} siswa)</span>
+        </div>
+        {totalPages > 1 && (
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -475,8 +490,8 @@ export function StudentsManager() {
               Selanjutnya
             </Button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">

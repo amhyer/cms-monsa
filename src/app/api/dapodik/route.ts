@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth";
+import { requireCsrf } from "@/lib/csrf";
 import { getDapodikClient } from "@/lib/dapodik-sync";
 import { logActivity } from "@/lib/log";
 
 // Dipanggil dari DapodikManager (fetchData) dengan body { endpoint }.
 // endpoint: "all" (default) | "sekolah" | "peserta_didik" | "gtk" | "rombel"
 export async function POST(req: NextRequest) {
+  const csrfError = await requireCsrf(req);
+  if (csrfError) return csrfError;
+
   const auth = await requireRole("OPERATOR");
   if (!auth.ok) return auth.response;
 

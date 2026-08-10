@@ -67,13 +67,15 @@ const primaryCards = (s: Stats, isGuru: boolean) => [
     label: isGuru ? "Siswa Saya" : "Total Siswa",
     value: s.counts.studentCount,
     icon: GraduationCap,
-    color: "bg-indigo-100 text-indigo-700",
+    color:
+      "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300",
   },
   {
     label: isGuru ? "Kelas Saya" : "Total Kelas",
     value: s.counts.classCount,
     icon: Users,
-    color: "bg-emerald-100 text-emerald-700",
+    color:
+      "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
   },
   {
     label: "Total Berita",
@@ -85,7 +87,8 @@ const primaryCards = (s: Stats, isGuru: boolean) => [
     label: "Total Kunjungan",
     value: s.counts.visits.toLocaleString("id-ID"),
     icon: Eye,
-    color: "bg-amber-100 text-amber-700",
+    color:
+      "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
   },
 ];
 
@@ -183,9 +186,9 @@ export function Overview() {
 
       {/* Attendance & Payment Highlight */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Card className="border-indigo-100 bg-indigo-50/30">
+        <Card className="border-indigo-100 bg-indigo-50/30 dark:border-indigo-500/20 dark:bg-indigo-500/5">
           <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base font-semibold text-indigo-900">
+            <CardTitle className="flex items-center gap-2 text-base font-semibold text-indigo-900 dark:text-indigo-200">
               <ClipboardCheck className="size-4" />
               Kehadiran Hari Ini
             </CardTitle>
@@ -193,11 +196,11 @@ export function Overview() {
           <CardContent>
             {stats.attendance.total === 0 ? (
               <div className="flex flex-col items-center justify-center py-6 text-center">
-                <p className="text-sm text-indigo-600/70">Belum ada absensi hari ini.</p>
+                <p className="text-sm text-indigo-600/70 dark:text-indigo-300/70">Belum ada absensi hari ini.</p>
                 <Button 
                   variant="link" 
                   size="sm" 
-                  className="mt-1 text-indigo-600"
+                  className="mt-1 text-indigo-600 dark:text-indigo-300"
                   onClick={() => router.push("/dashboard/attendance")}
                 >
                   Buka Absensi <ArrowRight className="ml-1 size-3" />
@@ -205,22 +208,22 @@ export function Overview() {
               </div>
             ) : (
               <div className="grid grid-cols-4 gap-2">
-                <div className="flex flex-col items-center gap-1 rounded-lg bg-emerald-100/50 p-2 text-emerald-700">
+                <div className="flex flex-col items-center gap-1 rounded-lg bg-emerald-100/50 p-2 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
                   <CheckCircle2 className="size-4" />
                   <span className="text-lg font-bold">{stats.attendance.hadir}</span>
                   <span className="text-[10px] font-medium uppercase">Hadir</span>
                 </div>
-                <div className="flex flex-col items-center gap-1 rounded-lg bg-amber-100/50 p-2 text-amber-700">
+                <div className="flex flex-col items-center gap-1 rounded-lg bg-amber-100/50 p-2 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
                   <Stethoscope className="size-4" />
                   <span className="text-lg font-bold">{stats.attendance.sakit}</span>
                   <span className="text-[10px] font-medium uppercase">Sakit</span>
                 </div>
-                <div className="flex flex-col items-center gap-1 rounded-lg bg-blue-100/50 p-2 text-blue-700">
+                <div className="flex flex-col items-center gap-1 rounded-lg bg-blue-100/50 p-2 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300">
                   <FileText className="size-4" />
                   <span className="text-lg font-bold">{stats.attendance.izin}</span>
                   <span className="text-[10px] font-medium uppercase">Izin</span>
                 </div>
-                <div className="flex flex-col items-center gap-1 rounded-lg bg-rose-100/50 p-2 text-rose-700">
+                <div className="flex flex-col items-center gap-1 rounded-lg bg-rose-100/50 p-2 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">
                   <UserX className="size-4" />
                   <span className="text-lg font-bold">{stats.attendance.alfa}</span>
                   <span className="text-[10px] font-medium uppercase">Alfa</span>
@@ -231,26 +234,26 @@ export function Overview() {
         </Card>
 
         {!isGuru && stats.payments && (
-          <Card className="border-emerald-100 bg-emerald-50/30">
+          <Card className="border-emerald-100 bg-emerald-50/30 dark:border-emerald-500/20 dark:bg-emerald-500/5">
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-base font-semibold text-emerald-900">
+              <CardTitle className="flex items-center gap-2 text-base font-semibold text-emerald-900 dark:text-emerald-200">
                 <Wallet className="size-4" />
                 Pendapatan Bulan Ini ({stats.payments.monthPeriod})
               </CardTitle>
             </CardHeader>
             <CardContent className="flex items-center justify-between">
               <div>
-                <p className="text-2xl font-bold text-emerald-700">
+                <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
                   {formatCurrency(stats.payments.totalAmount)}
                 </p>
-                <p className="text-xs text-emerald-600/80">
+                <p className="text-xs text-emerald-600/80 dark:text-emerald-300/80">
                   Total iuran terkumpul periode berjalan.
                 </p>
               </div>
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50"
+                className="border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500/30 dark:bg-transparent dark:text-emerald-300 dark:hover:bg-emerald-500/10"
                 onClick={() => router.push("/dashboard/payments")}
               >
                 Detail

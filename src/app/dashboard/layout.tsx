@@ -59,6 +59,7 @@ const ADMIN_PATHS = new Set<string>([
   "/dashboard/users",
   "/dashboard/settings",
   "/dashboard/logs",
+  "/dashboard/org-structure",
 ]);
 
 /** Topbar title from the active App Router pathname (replaces currentTitle). */

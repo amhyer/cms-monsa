@@ -121,6 +121,14 @@ const mockPrisma = {
     upsert: vi.fn(),
     update: vi.fn(),
   },
+  orgStructure: {
+    findUnique: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    count: vi.fn(),
+  },
   $transaction: vi.fn((calls: unknown[]) => Promise.resolve(calls)),
 };
 

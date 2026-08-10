@@ -405,3 +405,17 @@ model Complaint {
   @@index([status])
   @@index([createdAt])
 }
+
+// ---------- ORGANISASI ----------
+model OrgStructure {
+  id        String   @id @default(cuid())
+  name      String
+  position  String   // jabatan dalam struktur organisasi
+  photo     String?
+  order     Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([order])
+}

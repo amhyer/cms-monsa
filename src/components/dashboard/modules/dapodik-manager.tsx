@@ -112,7 +112,7 @@ const STEPS: { key: "sekolah" | "siswa" | "guru" | "rombel"; label: string }[] =
 ];
 
 export function DapodikManager() {
-  const [config, setConfig] = useState({ npsn: "", token: "", host: "localhost", port: "5774", protocol: "http", archiveUnlisted: true as boolean });
+  const [config, setConfig] = useState({ npsn: "", token: "", host: "localhost", port: "5774", protocol: "http", archiveUnlisted: true as boolean, allowInsecureInProduction: false as boolean });
   const [configLoaded, setConfigLoaded] = useState(false);
   const [data, setData] = useState<DapodikData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -142,6 +142,7 @@ export function DapodikManager() {
             port: String(json.config.port || 5774),
             protocol: json.config.protocol || "http",
             archiveUnlisted: json.config.archiveUnlisted !== false,
+            allowInsecureInProduction: json.config.allowInsecureInProduction === true,
           });
           setConnected(true);
         }
@@ -167,6 +168,7 @@ export function DapodikManager() {
           port: Number(config.port),
           protocol: config.protocol,
           archiveUnlisted: config.archiveUnlisted,
+          allowInsecureInProduction: config.allowInsecureInProduction,
         }),
       });
       const json = await res.json();
@@ -393,6 +395,20 @@ export function DapodikManager() {
                 <Switch
                   checked={config.archiveUnlisted}
                   onCheckedChange={(v) => setConfig((p) => ({ ...p, archiveUnlisted: v }))}
+                />
+              </div>
+              <div className="flex items-center justify-between gap-3 rounded-md border p-3 md:col-span-2">
+                <div>
+                  <p className="text-sm font-medium">Izinkan HTTP di production</p>
+                  <p className="text-xs text-muted-foreground">
+                    Aktifkan bila Web Service Dapodik hanya bisa diakses lewat HTTP
+                    (localhost / jaringan lokal / VPN yang sudah aman). Di production,
+                    koneksi HTTP diblokir otomatis kecuali opsi ini dinyalakan.
+                  </p>
+                </div>
+                <Switch
+                  checked={config.allowInsecureInProduction}
+                  onCheckedChange={(v) => setConfig((p) => ({ ...p, allowInsecureInProduction: v }))}
                 />
               </div>
             </div>

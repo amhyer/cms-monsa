@@ -332,6 +332,7 @@ model DapodikConfig {
   host        String   @default("localhost")
   port        Int      @default(5774)
   protocol    String   @default("http") // http | https
+  allowInsecureInProduction Boolean @default(false) // izinkan HTTP di production (jaringan lokal/VPN aman)
   // Auto-sync berkala (scheduler di src/instrumentation.ts)
   autoSyncEnabled        Boolean   @default(false)
   autoSyncIntervalHours  Int      @default(24) // 1-24 jam (lihat scheduler)

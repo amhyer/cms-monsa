@@ -1155,6 +1155,108 @@ Pola perbaikan: permukaan = `bg-sidebar` (selalu navy di kedua mode), aksen =
 
 ---
 
+## 2026-08-10 — FASE 30: Commit 3 Fitur (Dapodik, Students Showcase, Struktur Organisasi) + Spec E2E Org-Structure
+
+### Status: SELESAI
+
+### Latar Belakang
+
+Tiga fitur besar dari sesi pengembangan sebelumnya masih utuh di working tree
+(Dapodik sync, Struktur Organisasi, Students Showcase). Fase ini meng-commit
+ketiganya — masing-masing satu commit terpisah sesuai konvensi repo — dengan
+pemisahan hunk selektif pada file bersama (schema, validations, types) agar
+tidak ada baris fitur lain yang tercampur. Sekaligus menutup bug kritis
+`language-switcher.tsx` (HEAD gagal typecheck) dan menambah spec e2e
+org-structure ke suite.
+
+### Fix Kritis: LanguageSwitcher (`2e980b1`)
+
+Commit `d664914` (FASE 29) memakai `<LanguageSwitcher className=.../>` di
+`site-header.tsx`, tapi perubahan `language-switcher.tsx` (prop `className` +
+tombol icon-only) belum ikut di-commit → repo di HEAD gagal typecheck
+(`TS2322`) → CI `validate` merah di fresh checkout. Diverifikasi dengan swap
+file ke versi HEAD: error terbukti; setelah `2e980b1` commit, HEAD hijau.
+
+### Commit Fitur
+
+| Commit | Fitur | Isi |
+|--------|-------|-----|
+| `85366fb` | **Dapodik** | Toggle "Izinkan HTTP di production" (`allowInsecureInProduction`) + Redis opsional — 15 file, +444/−16 |
+| `ad8a5f6` | **Students Showcase** | Galeri siswa di beranda (API publik + marquee + pencarian) + foto siswa di dashboard — 12 file, +495/−29 |
+| `aea423c` | **Struktur Organisasi** | Halaman publik `/struktur-organisasi` + manager dashboard (CRUD SUPER_ADMIN) + seed 6 jabatan + SEO — 19 file, +866 |
+
+### Detail per Fitur
+
+**Dapodik (`85366fb`):**
+- `api/dapodik/route.ts` + `config/route.ts` terima flag `allowInsecureInProduction`; `dapodik-manager.tsx` toggle UI; `dapodik-sync.ts` meneruskan ke `DapodikClient`
+- Redis opsional: `redis.ts` tak lagi throw di production tanpa `REDIS_URL` (fallback in-memory), service `redis` di `docker-compose.yml`, `REDIS_URL` di `.env.example`
+- Schema: kolom `allowInsecureInProduction` (kedua schema) + migrasi `20260810120000_add_dapodik_allow_insecure/`
+- Test: `api/dapodik.test.ts` (7), `dapodik-config.test.ts` (7); docs: `RUNNING.md`, `DEPLOYMENT.md`, `VERCEL_DEPLOYMENT.md`
+
+**Students Showcase (`ad8a5f6`):**
+- API publik `GET /api/students/showcase` (siswa aktif, proyeksi aman tanpa NIS/kontak) + komponen `students-showcase.tsx` (marquee foto + pencarian nama + filter kelas) di beranda
+- Foto siswa: kolom `photoUrl` (schema + migrasi `20260810130000_add_student_photo_url/`), form & kartu avatar di `students-manager.tsx`, `PUT /api/students/[id]`
+- Validator bersama `imageUrl` (menerima path relatif `/uploads/...`) menggantikan `z.string().url()` di semua skema gambar; fix `ImageUpload` preview basi
+- Test: `api/students-showcase.test.ts` (2)
+
+**Struktur Organisasi (`aea423c`):**
+- API `api/org-structure/` (CRUD, SUPER_ADMIN) + `org-structure-manager.tsx` + halaman publik `/struktur-organisasi` (`struktur-organisasi-view.tsx`)
+- Model `OrgStructure` (schema + migrasi `20260810000000_add_org_structure/`) + seed 6 jabatan di `seed.ts`
+- Nav publik & dashboard, sitemap, SEO (title/desc/canonical/JSON-LD), guard `ADMIN_PATHS`, tipe `OrgStructureItem`, zod `createOrgStructureSchema`, mock `test-utils`
+- Test: `api/org-structure.test.ts` (9)
+
+### Pemisahan Hunk Selektif (file bersama)
+
+Schema, `validations.ts`, dan `types.ts` dipakai 3 fitur sekaligus. Agar tiap
+commit murni satu fitur, hunk di-stage selektif via patch terfilter
+(`git apply --cached` + ekstraksi hunk dengan awk):
+
+- `schema.prisma`/`schema.postgres.prisma`: `allowInsecureInProduction` →
+  commit Dapodik; `photoUrl` → commit Students; model `OrgStructure` → commit Org-Structure
+- `validations.ts`: helper `imageUrl` + penggantiannya + `photoUrl` → Students;
+  `createOrgStructureSchema` → Org-Structure (hunk terakhir dipecah baris-per-baris)
+- `types.ts`: `StudentItem.photoUrl` → Students; `OrgStructureItem` → Org-Structure
+- Migrasi bersama `20260810000000_add_org_structure_student_photo/` (untracked)
+  **dipecah** menjadi `add_org_structure` (tabel) + `add_student_photo_url`
+  (kolom) — mencegah dua migrasi menambah kolom yang sama di Postgres
+- Verifikasi tiap commit: grep token asing di staged diff = 0 baris fitur lain
+
+### Spec E2E Baru (`e2e/org-structure.spec.ts` — belum di-commit)
+
+- Halaman publik: banner + 6 anggota seed (heading `h3`, jabatan `exact`,
+  `img[alt=nama]`)
+- Dashboard admin: navigasi sidebar → `/dashboard/org-structure` + CRUD penuh
+  (tambah → baca → ubah → hapus via ConfirmDialog, kartu hilang di akhir)
+- 3/3 lulus; full suite e2e naik ke **42/42** (dari 39)
+
+### Database Dev
+
+- `db:push` — "already in sync" (kolom/kolom fitur sudah diterapkan)
+- `db:seed` — dilewati (guard: 389 akun); data fitur di-seed manual
+  (6 jabatan org + 24 foto siswa pravatar) agar halaman live terverifikasi
+- Verifikasi live: `/struktur-organisasi` (6 anggota + foto) & Galeri Siswa
+  di beranda (marquee 12 foto + pencarian "ADEENA" + filter kelas) ✅
+
+### Testing
+
+- `tsc --noEmit` — 0 error (HEAD setelah semua commit)
+- ESLint — bersih; markdownlint — 0 issues; `check:schema` — sinkron
+  (diverifikasi juga dari blob HEAD kedua schema)
+- Vitest — **294/294** lulus (29 file) di setiap commit (pre-commit hook)
+- Playwright e2e — **42/42** lulus (12 spec; +3 org-structure)
+- Pre-commit hook (gate penuh) — lulus di semua commit
+
+### Catatan
+
+- Working tree kini **bersih** — semua perubahan ter-commit; sisa untracked
+  hanya `.freebuff/` (workspace agent) & `graphify-out/` (output tooling)
+- Tiga migrasi fitur (`add_dapodik_allow_insecure` → `add_student_photo_url`
+  → `add_org_structure`) valid & berurutan untuk `migrate deploy` Postgres
+- `struktur-organisasi-view.tsx` membawa styling chip navy+emas dari FASE 29
+  (wajar: file baru milik fitur ini)
+
+---
+
 ## 🎉 SEMUA FASE SELESAI
 
 ### Ringkasan Implementasi
@@ -1190,5 +1292,6 @@ Pola perbaikan: permukaan = `bg-sidebar` (selalu navy di kedua mode), aksen =
 | 27 | ✅ | Sinkronisasi Dokumentasi Routing — README + ARCHITECTURE + DEPLOYMENT (App Router murni) |
 | 28 | ✅ | Guard Sinkronisasi Schema Prisma — `check:schema` di gate check + CI (item #8) |
 | 29 | ✅ | Konsistensi tema dark-mode (navy + emas) — footer, band, tile, chip publik + regression e2e (footer, bands, header) + helper bersama + job e2e di CI |
+| 30 | ✅ | Commit 3 fitur (Dapodik, Students Showcase, Struktur Organisasi) — hunk selektif + pemecahan migrasi + fix language-switcher + spec e2e org-structure (suite 42/42) |
 
-**Total: 29 dari 29 fase selesai (100%)**
+**Total: 30 dari 30 fase selesai (100%)**

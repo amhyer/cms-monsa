@@ -1,16 +1,5 @@
-import { test, expect, type Page } from "@playwright/test";
-
-const ADMIN = {
-  email: "admin@mongisidi1.sch.id",
-  password: "admin123",
-};
-
-async function login(page: Page, email: string, password: string) {
-  await page.goto("/login");
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: "Masuk" }).click();
-}
+import { test, expect } from "@playwright/test";
+import { ADMIN, submitLogin } from "./helpers";
 
 test.describe("Login Flow", () => {
   test("should render the login page", async ({ page }) => {
@@ -29,7 +18,7 @@ test.describe("Login Flow", () => {
   });
 
   test("should show error for wrong password", async ({ page }) => {
-    await login(page, ADMIN.email, "salah-password");
+    await submitLogin(page, ADMIN.email, "salah-password");
     // Scope to the alert — the same text also appears in a sonner toast.
     await expect(
       page.getByRole("alert").getByText("Email atau password salah.")
@@ -39,7 +28,7 @@ test.describe("Login Flow", () => {
   });
 
   test("should navigate to dashboard after successful login", async ({ page }) => {
-    await login(page, ADMIN.email, ADMIN.password);
+    await submitLogin(page, ADMIN.email, ADMIN.password);
     await page.waitForURL("**/dashboard");
     await expect(
       page.getByRole("heading", { name: /Selamat datang kembali/ })
@@ -47,7 +36,7 @@ test.describe("Login Flow", () => {
   });
 
   test("should logout successfully", async ({ page }) => {
-    await login(page, ADMIN.email, ADMIN.password);
+    await submitLogin(page, ADMIN.email, ADMIN.password);
     await page.waitForURL("**/dashboard");
 
     // Open the user dropdown and choose Logout.

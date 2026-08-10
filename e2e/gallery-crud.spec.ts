@@ -1,17 +1,5 @@
-import { test, expect, type Page } from "@playwright/test";
-
-const ADMIN = {
-  email: "admin@mongisidi1.sch.id",
-  password: "admin123",
-};
-
-async function login(page: Page) {
-  await page.goto("/login");
-  await page.getByLabel("Email").fill(ADMIN.email);
-  await page.getByLabel("Password").fill(ADMIN.password);
-  await page.getByRole("button", { name: "Masuk" }).click();
-  await page.waitForURL("**/dashboard");
-}
+import { test, expect } from "@playwright/test";
+import { ADMIN, login } from "./helpers";
 
 function uniqueTitle(prefix: string) {
   return `${prefix} ${Date.now()}`;
@@ -19,7 +7,7 @@ function uniqueTitle(prefix: string) {
 
 test.describe("Gallery CRUD", () => {
   test.beforeEach(async ({ page }) => {
-    await login(page);
+    await login(page, ADMIN.email, ADMIN.password);
   });
 
   test("should navigate to gallery management via the sidebar", async ({ page }) => {

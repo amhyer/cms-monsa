@@ -16,12 +16,17 @@ export const GURU = {
   password: "guru123",
 };
 
-/** Login lewat /login lalu tunggu redirect ke /dashboard. */
-export async function login(page: Page, email: string, password: string) {
+/** Isi form /login dan klik Masuk — tanpa menunggu redirect. */
+export async function submitLogin(page: Page, email: string, password: string) {
   await page.goto("/login");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Masuk" }).click();
+}
+
+/** Login lewat /login lalu tunggu redirect ke /dashboard. */
+export async function login(page: Page, email: string, password: string) {
+  await submitLogin(page, email, password);
   await page.waitForURL("**/dashboard");
 }
 

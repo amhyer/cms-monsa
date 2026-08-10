@@ -193,6 +193,7 @@ export type StudentItem = {
   email: string | null;
   parentName: string | null;
   parentPhone: string | null;
+  photoUrl: string | null;
   classId: string;
   className?: string;
   isActive: boolean;

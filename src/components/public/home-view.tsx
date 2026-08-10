@@ -26,6 +26,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { RunningAnnouncements } from "./running-announcements";
 import { CategoryBadge, SectionShell } from "./_shared";
+import { StudentsShowcase } from "./students-showcase";
 import { ErrorState } from "@/components/shared/error-state";
 import { formatDate, truncate } from "@/lib/format";
 import type {
@@ -449,6 +450,9 @@ export function HomeView() {
           />
         </div>
       </SectionShell>
+
+      {/* Galeri Siswa (berputar + pencarian oleh orang tua) */}
+      <StudentsShowcase />
 
       {/* Berita Terbaru */}
       <SectionShell>

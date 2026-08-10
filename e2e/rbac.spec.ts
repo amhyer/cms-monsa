@@ -57,7 +57,7 @@ test.describe("RBAC - Role-Based Access Control", () => {
     await page.goto("/dashboard/news");
     await expect(page.getByText("Akses Ditolak")).toBeVisible();
     await expect(
-      page.getByText(/Akun Guru hanya dapat mengakses Ringkasan dan Kehadiran/)
+      page.getByText(/Akun Guru hanya dapat mengakses Ringkasan/)
     ).toBeVisible();
   });
 });

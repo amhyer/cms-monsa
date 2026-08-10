@@ -1,6 +1,8 @@
 import { test, expect } from "@playwright/test";
 
-test("academic page: directory, kalender, dan modal profil", async ({ page }) => {
+test("academic page: directory, kalender, dan halaman portofolio guru", async ({
+  page,
+}) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => {
@@ -11,7 +13,10 @@ test("academic page: directory, kalender, dan modal profil", async ({ page }) =>
 
   await expect(page.getByText("Direktori Guru & Staf")).toBeVisible();
 
-  const guruCards = page.locator("button.rounded-xl", { hasText: "Lihat profil lengkap" });
+  // Kartu guru sekarang <Link> ke /academic/guru/:id (bukan button modal).
+  const guruCards = page.locator('a[href^="/academic/guru/"]', {
+    hasText: "Lihat profil lengkap",
+  });
   const n = await guruCards.count();
   console.log("KARTU GURU:", n);
   expect(n).toBeGreaterThan(0);
@@ -24,8 +29,12 @@ test("academic page: directory, kalender, dan modal profil", async ({ page }) =>
     page.getByRole("heading", { name: "Agustus 2026" })
   ).toBeVisible();
 
-  // Klik kartu pertama -> modal profil muncul
+  // Klik kartu pertama -> halaman portofolio guru (bukan modal profil).
   await guruCards.first().click();
+  await page.waitForURL("**/academic/guru/**");
+  await expect(
+    page.getByRole("heading", { name: "Profil Guru & Staf" })
+  ).toBeVisible();
   await expect(page.getByText("Data Diri")).toBeVisible();
   await expect(page.getByText("Mengajar")).toBeVisible();
   const nuptkValue = await page
@@ -33,9 +42,8 @@ test("academic page: directory, kalender, dan modal profil", async ({ page }) =>
     .locator("xpath=following-sibling::dd")
     .first()
     .textContent();
-  console.log("NUPTK di modal:", nuptkValue);
+  console.log("NUPTK di portofolio:", nuptkValue);
   expect(nuptkValue).toMatch(/^\d{10,}$/);
-  await page.keyboard.press("Escape");
 
   console.log("JS ERRORS:", errors.length);
   for (const e of errors) console.log(">>>", e.slice(0, 300));

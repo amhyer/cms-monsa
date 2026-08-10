@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { localeNames, type Locale } from "@/i18n/locales";
 
-export function LanguageSwitcher() {
+export function LanguageSwitcher({ className }: { className?: string }) {
   const locale = useLocale();
   const router = useRouter();
 
@@ -28,9 +28,14 @@ export function LanguageSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-2">
-          <Globe className="size-4" />
-          <span className="hidden sm:inline">{localeNames[locale as Locale]}</span>
+        <Button
+          variant="ghost"
+          size="icon"
+          className={className}
+          aria-label={localeNames[locale as Locale]}
+          title={localeNames[locale as Locale]}
+        >
+          <Globe className="size-5" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">

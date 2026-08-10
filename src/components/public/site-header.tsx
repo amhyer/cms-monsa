@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { GraduationCap, Menu, LogIn, PencilLine, ExternalLink } from "lucide-react";
 import { useAppStore } from "@/store/app";
@@ -23,6 +23,15 @@ export function SiteHeader() {
   const router = useRouter();
   const settings = useAppStore((s) => s.settings);
   const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  // Shrink the header (and collapse the NPSN line) once the page is scrolled.
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 10);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const schoolName = settings?.schoolName ?? "SD Negeri Unggulan Mongisidi 1";
   const spmbLink = settings?.spmbLink;
@@ -53,16 +62,31 @@ export function SiteHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/80">
-      <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
-        {/* Brand */}
+    <header
+      className={cn(
+        "sticky top-0 z-40 w-full border-b border-gold/25 bg-sidebar text-sidebar-foreground transition-all duration-300",
+        scrolled ? "shadow-lg" : "shadow-md"
+      )}
+    >
+      <div
+        className={cn(
+          "mx-auto flex w-full max-w-[1440px] items-center justify-between gap-3 px-4 transition-all duration-300 sm:px-6",
+          scrolled ? "h-14" : "h-16"
+        )}
+      >
+        {/* Brand — kiri */}
         <button
           type="button"
           onClick={() => go("/")}
-          className="group flex items-center gap-3 text-left"
+          className="group flex min-w-0 items-center gap-2 text-left"
           aria-label={`${schoolName} — Beranda`}
         >
-          <span className="flex size-10 items-center justify-center overflow-hidden rounded-xl bg-primary text-primary-foreground shadow-sm ring-1 ring-gold/40 transition-transform group-hover:scale-105">
+          <span
+            className={cn(
+              "flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-sidebar-accent text-sidebar-foreground shadow-sm ring-1 ring-gold/40 transition-all group-hover:scale-105 group-hover:ring-gold/80",
+              scrolled ? "size-8" : "size-10"
+            )}
+          >
             {settings?.logo ? (
               <img
                 src={settings.logo}
@@ -73,20 +97,25 @@ export function SiteHeader() {
               <GraduationCap className="size-5 text-gold" />
             )}
           </span>
-          <span className="flex flex-col leading-tight">
-            <span className="text-sm font-bold tracking-tight text-foreground sm:text-base">
+          <span className="flex min-w-0 flex-col leading-tight">
+            <span className="max-w-[40vw] truncate text-sm font-bold tracking-tight text-sidebar-foreground 2xl:text-base">
               {schoolName}
             </span>
-            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground sm:text-xs">
+            <span
+              className={cn(
+                "overflow-hidden text-[10px] font-medium uppercase tracking-wider text-sidebar-foreground/70 transition-all duration-300 sm:text-xs",
+                scrolled ? "max-h-0 opacity-0" : "max-h-6 opacity-100"
+              )}
+            >
               NPSN {npsn || "—"}
             </span>
           </span>
         </button>
 
-        {/* Desktop nav */}
+        {/* Desktop nav — tengah */}
         <nav
           aria-label="Navigasi utama"
-          className="hidden items-center gap-1 lg:flex"
+          className="hidden items-center xl:flex"
         >
           {PUBLIC_NAV.map((item) => {
             const active = isActive(item.path);
@@ -97,17 +126,18 @@ export function SiteHeader() {
                 onClick={() => go(item.path)}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "relative rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  "group relative rounded-md px-2 text-sm font-medium transition-all",
+                  scrolled ? "py-1.5" : "py-2",
                   active
-                    ? "text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "bg-sidebar-accent text-gold"
+                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-gold"
                 )}
               >
                 {item.label}
                 <span
                   className={cn(
-                    "absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-gold transition-opacity",
-                    active ? "opacity-100" : "opacity-0"
+                    "absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-gold transition-opacity",
+                    active ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                   )}
                 />
               </button>
@@ -115,15 +145,15 @@ export function SiteHeader() {
           })}
         </nav>
 
-        {/* Actions */}
-        <div className="flex items-center gap-2">
-          <LanguageSwitcher />
-          <ThemeToggle className="hidden sm:inline-flex" />
+        {/* Actions — kanan */}
+        <div className="flex shrink-0 items-center gap-2">
+          <LanguageSwitcher className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground" />
+          <ThemeToggle className="hidden text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground sm:inline-flex" />
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className="hidden sm:inline-flex"
+            className="hidden text-sidebar-foreground/90 hover:bg-sidebar-accent hover:text-sidebar-foreground sm:inline-flex"
             onClick={() => go("/login")}
           >
             <LogIn className="size-4" />
@@ -137,7 +167,7 @@ export function SiteHeader() {
             title={spmbLink ? `Buka portal SPMB: ${spmbLink}` : "Info SPMB"}
           >
             <PencilLine className="size-4" />
-            SPMB
+            <span className="hidden sm:inline">SPMB</span>
             {spmbLink && <ExternalLink className="size-3 opacity-70" />}
           </Button>
 
@@ -148,7 +178,7 @@ export function SiteHeader() {
                 type="button"
                 variant="outline"
                 size="icon"
-                className="lg:hidden"
+                className="xl:hidden border-sidebar-border bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 hover:text-sidebar-foreground"
                 aria-label="Buka menu navigasi"
               >
                 <Menu className="size-5" />
@@ -157,7 +187,7 @@ export function SiteHeader() {
             <SheetContent side="right" className="w-3/4 sm:max-w-sm">
               <SheetHeader>
                 <SheetTitle className="flex items-center gap-2">
-                  <span className="flex size-9 items-center justify-center overflow-hidden rounded-lg bg-primary text-primary-foreground">
+                  <span className="flex size-9 items-center justify-center overflow-hidden rounded-full bg-primary text-primary-foreground">
                     {settings?.logo ? (
                       <img src={settings.logo} alt="Logo" className="h-full w-full object-cover" />
                     ) : (
@@ -188,14 +218,14 @@ export function SiteHeader() {
                         className={cn(
                           "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                           active
-                            ? "bg-primary/10 text-primary"
+                            ? "bg-gold/15 text-gold-foreground"
                             : "text-foreground hover:bg-muted"
                         )}
                       >
                         <Icon
                           className={cn(
                             "size-4",
-                            active ? "text-gold-foreground" : "text-muted-foreground"
+                            active ? "text-gold" : "text-muted-foreground"
                           )}
                         />
                         {item.label}

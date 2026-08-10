@@ -34,7 +34,7 @@ export function SiteFooter() {
 
   return (
     <footer
-      className="mt-auto w-full bg-primary text-primary-foreground"
+      className="mt-auto w-full border-t border-gold/25 bg-sidebar text-sidebar-foreground"
       aria-label="Footer situs"
     >
       <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 sm:py-16">
@@ -42,7 +42,7 @@ export function SiteFooter() {
           {/* Identity */}
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-3">
-              <span className="flex size-11 items-center justify-center overflow-hidden rounded-xl bg-primary-foreground/10 ring-1 ring-gold/40">
+              <span className="flex size-11 items-center justify-center overflow-hidden rounded-xl bg-sidebar-accent ring-1 ring-gold/40">
                 {settings?.logo ? (
                   <img src={settings.logo} alt="Logo" className="h-full w-full object-cover" />
                 ) : (
@@ -52,13 +52,13 @@ export function SiteFooter() {
               <div className="flex flex-col leading-tight">
                 <span className="text-base font-bold">{schoolName}</span>
                 {settings?.npsn && (
-                  <span className="text-xs text-primary-foreground/70">
+                  <span className="text-xs text-sidebar-foreground/70">
                     NPSN {settings.npsn}
                   </span>
                 )}
               </div>
             </div>
-            <ul className="flex flex-col gap-3 text-sm text-primary-foreground/80">
+            <ul className="flex flex-col gap-3 text-sm text-sidebar-foreground/80">
               <li className="flex items-start gap-2.5">
                 <MapPin className="mt-0.5 size-4 shrink-0 text-gold" />
                 <span>{address}</span>
@@ -90,7 +90,7 @@ export function SiteFooter() {
                   <button
                     type="button"
                     onClick={() => router.push(item.path)}
-                    className="text-left text-primary-foreground/80 transition-colors hover:text-gold"
+                    className="text-left text-sidebar-foreground/80 transition-colors hover:text-gold"
                   >
                     {item.label}
                   </button>
@@ -104,13 +104,13 @@ export function SiteFooter() {
             <h3 className="text-sm font-semibold uppercase tracking-wider text-gold">
               Sosial Media
             </h3>
-            <p className="text-sm text-primary-foreground/80">
+            <p className="text-sm text-sidebar-foreground/80">
               Ikuti kami di media sosial untuk informasi terbaru seputar
               kegiatan dan prestasi sekolah.
             </p>
             <div className="flex flex-wrap gap-2">
               {socials.length === 0 && (
-                <span className="text-sm text-primary-foreground/60">
+                <span className="text-sm text-sidebar-foreground/60">
                   Belum ada tautan sosial media.
                 </span>
               )}
@@ -121,7 +121,7 @@ export function SiteFooter() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={label}
-                  className="flex size-10 items-center justify-center rounded-full bg-primary-foreground/10 text-primary-foreground ring-1 ring-primary-foreground/15 transition-colors hover:bg-gold hover:text-gold-foreground"
+                  className="flex size-10 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-foreground ring-1 ring-sidebar-border transition-colors hover:bg-gold hover:text-gold-foreground"
                 >
                   <Icon className="size-5" />
                 </a>
@@ -130,14 +130,14 @@ export function SiteFooter() {
           </div>
         </div>
 
-        <div className="mt-10 flex flex-col items-center gap-3 border-t border-primary-foreground/15 pt-6 sm:flex-row sm:justify-between">
-          <p className="text-center text-xs text-primary-foreground/70 sm:text-sm">
+        <div className="mt-10 flex flex-col items-center gap-3 border-t border-gold/25 pt-6 sm:flex-row sm:justify-between">
+          <p className="text-center text-xs text-sidebar-foreground/70 sm:text-sm">
             &copy; {year} SD Negeri Unggulan Mongisidi 1. Hak cipta dilindungi.
           </p>
           <button
             type="button"
             onClick={() => router.push("/admin-login")}
-            className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-primary-foreground/50 transition-colors hover:bg-primary-foreground/10 hover:text-gold"
+            className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-sidebar-foreground/50 transition-colors hover:bg-sidebar-accent hover:text-gold"
             title="Portal login khusus Super Admin"
           >
             <ShieldCheck className="size-3.5" />

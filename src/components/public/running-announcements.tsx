@@ -36,7 +36,7 @@ export function RunningAnnouncements() {
 
   return (
     <div
-      className="flex w-full items-center gap-3 bg-primary px-4 py-2 text-primary-foreground sm:px-6"
+      className="flex w-full items-center gap-3 bg-sidebar px-4 py-2 text-sidebar-foreground sm:px-6"
       role="region"
       aria-label="Pengumuman berjalan"
     >
@@ -50,7 +50,7 @@ export function RunningAnnouncements() {
           {track.map((a, idx) => (
             <span
               key={`${a.id}-${idx}`}
-              className="inline-flex items-center gap-2 text-xs text-primary-foreground/90 sm:text-sm"
+              className="inline-flex items-center gap-2 text-xs text-sidebar-foreground/90 sm:text-sm"
             >
               <span className="size-1.5 rounded-full bg-gold" />
               {a.title}

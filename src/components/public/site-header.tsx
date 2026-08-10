@@ -187,7 +187,7 @@ export function SiteHeader() {
             <SheetContent side="right" className="w-3/4 sm:max-w-sm">
               <SheetHeader>
                 <SheetTitle className="flex items-center gap-2">
-                  <span className="flex size-9 items-center justify-center overflow-hidden rounded-full bg-primary text-primary-foreground">
+                  <span className="flex size-9 items-center justify-center overflow-hidden rounded-full bg-sidebar-accent text-sidebar-foreground">
                     {settings?.logo ? (
                       <img src={settings.logo} alt="Logo" className="h-full w-full object-cover" />
                     ) : (

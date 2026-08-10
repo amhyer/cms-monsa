@@ -52,7 +52,7 @@ function HeroCarousel({ items }: { items: NewsItem[] }) {
   return (
     <section
       aria-label="Berita terkini"
-      className="relative w-full overflow-hidden bg-primary"
+      className="relative w-full overflow-hidden bg-sidebar"
     >
       <div className="relative h-[60vh] min-h-[420px] w-full sm:h-[70vh]">
         <AnimatePresence mode="wait">
@@ -78,14 +78,14 @@ function HeroCarousel({ items }: { items: NewsItem[] }) {
                     <Newspaper className="size-16" />
                   </div>
                 )}
-                <div className="absolute inset-0 bg-gradient-to-r from-primary/95 via-primary/80 to-primary/40" />
+                <div className="absolute inset-0 bg-gradient-to-r from-sidebar/95 via-sidebar/80 to-sidebar/40" />
               </motion.div>
             ) : null
           )}
         </AnimatePresence>
 
         <div className="relative z-10 mx-auto flex h-full w-full max-w-7xl items-end px-4 pb-10 sm:px-6 sm:pb-16">
-          <div className="max-w-2xl text-primary-foreground">
+          <div className="max-w-2xl text-sidebar-foreground">
             <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gold">
               <span className="h-px w-6 bg-gold" />
               Berita Terkini
@@ -102,7 +102,7 @@ function HeroCarousel({ items }: { items: NewsItem[] }) {
                 {items[index].title}
               </motion.h2>
             </AnimatePresence>
-            <p className="mt-4 hidden max-w-xl text-sm text-primary-foreground/85 sm:block sm:text-base">
+            <p className="mt-4 hidden max-w-xl text-sm text-sidebar-foreground/85 sm:block sm:text-base">
               {truncate(items[index].excerpt, 160)}
             </p>
             <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -114,7 +114,7 @@ function HeroCarousel({ items }: { items: NewsItem[] }) {
                 Baca Selengkapnya
                 <ArrowRight className="size-4" />
               </Button>
-              <span className="text-xs text-primary-foreground/70">
+              <span className="text-xs text-sidebar-foreground/70">
                 {formatDate(items[index].publishedAt)}
               </span>
             </div>
@@ -132,7 +132,7 @@ function HeroCarousel({ items }: { items: NewsItem[] }) {
               className={
                 i === index
                   ? "size-2.5 rounded-full bg-gold transition-all"
-                  : "size-2.5 rounded-full bg-primary-foreground/40 transition-all hover:bg-primary-foreground/70"
+                  : "size-2.5 rounded-full bg-sidebar-foreground/40 transition-all hover:bg-sidebar-foreground/70"
               }
             />
           ))}
@@ -208,7 +208,7 @@ function StatCard({
 }) {
   return (
     <div className="flex items-center gap-4 rounded-xl border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-      <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground ring-2 ring-gold/40">
+      <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-foreground ring-2 ring-gold/40">
         <Icon className="size-6 text-gold" />
       </span>
       <div className="flex flex-col">
@@ -233,7 +233,7 @@ function AgendaRow({ item }: { item: AgendaItem }) {
 
   return (
     <div className="flex items-start gap-4 rounded-xl border bg-card p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-      <div className="flex size-14 shrink-0 flex-col items-center justify-center rounded-lg bg-primary text-primary-foreground">
+      <div className="flex size-14 shrink-0 flex-col items-center justify-center rounded-lg bg-sidebar text-sidebar-foreground">
         <span className="text-lg font-bold leading-none">{day}</span>
         <span className="text-[10px] uppercase tracking-wide text-gold">
           {month}
@@ -271,7 +271,7 @@ function AchievementCard({ item }: { item: AchievementItem }) {
         <span className="flex size-10 items-center justify-center rounded-full bg-gold/15 text-gold-foreground">
           <Trophy className="size-5 text-gold" />
         </span>
-        <span className="inline-flex items-center rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary-foreground">
+        <span className="inline-flex items-center rounded-full bg-sidebar-accent px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sidebar-foreground">
           {item.level}
         </span>
       </div>
@@ -356,11 +356,11 @@ export function HomeView() {
 
       {/* Hero */}
       {hero === null ? (
-        <div className="h-[60vh] min-h-[420px] w-full bg-primary sm:h-[70vh]" />
+        <div className="h-[60vh] min-h-[420px] w-full bg-sidebar sm:h-[70vh]" />
       ) : hero.length > 0 ? (
         <HeroCarousel items={hero} />
       ) : (
-        <section className="bg-primary py-20 text-center text-primary-foreground">
+        <section className="bg-sidebar py-20 text-center text-sidebar-foreground">
           <p className="text-sm">Selamat datang di SD Negeri Unggulan Mongisidi 1</p>
         </section>
       )}
@@ -580,7 +580,7 @@ export function HomeView() {
       </SectionShell>
 
       {/* CTA SPMB */}
-      <section className="bg-primary text-primary-foreground">
+      <section className="bg-sidebar text-sidebar-foreground">
         <div className="mx-auto flex w-full max-w-7xl flex-col items-start gap-6 px-4 py-12 sm:px-6 sm:py-16 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-col gap-3">
             <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gold">
@@ -590,7 +590,7 @@ export function HomeView() {
             <h2 className="font-sans text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl">
               Sistem Penerimaan Murid Baru (SPMB) 2025/2026 Dibuka!
             </h2>
-            <p className="max-w-2xl text-sm text-primary-foreground/80 sm:text-base">
+            <p className="max-w-2xl text-sm text-sidebar-foreground/80 sm:text-base">
               Bergabunglah bersama kami membangun generasi unggul yang beriman,
               berakhlak mulia, dan berdaya saing global. Pendaftaran dilakukan
               melalui portal SPMB resmi Kota Makassar.

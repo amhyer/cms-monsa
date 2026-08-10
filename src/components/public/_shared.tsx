@@ -62,7 +62,7 @@ export function PageBanner({
   children?: ReactNode;
 }) {
   return (
-    <section className="bg-primary text-primary-foreground">
+    <section className="bg-sidebar text-sidebar-foreground">
       <div className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6 sm:py-20">
         <div className="flex flex-col items-start gap-3">
           {eyebrow && (
@@ -75,7 +75,7 @@ export function PageBanner({
             {title}
           </h1>
           {description && (
-            <p className="max-w-2xl text-sm text-primary-foreground/80 sm:text-base">
+            <p className="max-w-2xl text-sm text-sidebar-foreground/80 sm:text-base">
               {description}
             </p>
           )}

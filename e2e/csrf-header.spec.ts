@@ -1,17 +1,5 @@
-import { test, expect, type Page } from "@playwright/test";
-
-const ADMIN = {
-  email: "admin@mongisidi1.sch.id",
-  password: "admin123",
-};
-
-async function login(page: Page) {
-  await page.goto("/login");
-  await page.getByLabel("Email").fill(ADMIN.email);
-  await page.getByLabel("Password").fill(ADMIN.password);
-  await page.getByRole("button", { name: "Masuk" }).click();
-  await page.waitForURL("**/dashboard");
-}
+import { test, expect } from "@playwright/test";
+import { ADMIN, login } from "./helpers";
 
 // Known-benign dev-mode noise — anything else is treated as a real error.
 const BENIGN_CONSOLE = [
@@ -30,7 +18,7 @@ test.describe("CSRF Header Verification", () => {
       if (msg.type() === "error") consoleErrors.push(msg.text());
     });
 
-    await login(page);
+    await login(page, ADMIN.email, ADMIN.password);
 
     // Read the double-submit cookie value BEFORE saving so we can prove the
     // header the interceptor sent equals the token the server issued.

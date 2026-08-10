@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { ImageUpload } from "@/components/shared/image-upload";
 import type { StudentItem, ClassItem } from "@/lib/types";
 import { exportToCsv } from "@/lib/export";
 import { PageLoader, EmptyState, toDateInputValue, fromDateInputValue } from "../_shared";
@@ -52,6 +53,7 @@ type FormState = {
   email: string;
   parentName: string;
   parentPhone: string;
+  photoUrl: string;
   classId: string;
   isActive: boolean;
 };
@@ -67,6 +69,7 @@ const EMPTY: FormState = {
   email: "",
   parentName: "",
   parentPhone: "",
+  photoUrl: "",
   classId: "",
   isActive: true,
 };
@@ -148,6 +151,7 @@ export function StudentsManager() {
       email: s.email ?? "",
       parentName: s.parentName ?? "",
       parentPhone: s.parentPhone ?? "",
+      photoUrl: s.photoUrl ?? "",
       classId: s.classId,
       isActive: s.isActive,
     });
@@ -172,6 +176,7 @@ export function StudentsManager() {
         email: form.email.trim() || null,
         parentName: form.parentName.trim() || null,
         parentPhone: form.parentPhone.trim() || null,
+        photoUrl: form.photoUrl.trim() || null,
         classId: form.classId,
         isActive: form.isActive,
       };
@@ -390,8 +395,16 @@ export function StudentsManager() {
               {visible.map((s) => (
                 <Card key={s.id}>
                   <CardContent className="flex items-start gap-3 py-4">
-                    <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                      <UserCircle2 className="size-6" />
+                    <div className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-muted-foreground">
+                      {s.photoUrl ? (
+                        <img
+                          src={s.photoUrl}
+                          alt={s.name}
+                          className="size-full object-cover"
+                        />
+                      ) : (
+                        <UserCircle2 className="size-6" />
+                      )}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
@@ -524,13 +537,21 @@ export function StudentsManager() {
                 />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="s-name">Nama Lengkap *</Label>
-              <Input
-                id="s-name"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Nama lengkap siswa"
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
+              <div className="space-y-2">
+                <Label htmlFor="s-name">Nama Lengkap *</Label>
+                <Input
+                  id="s-name"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="Nama lengkap siswa"
+                />
+              </div>
+              <ImageUpload
+                label="Foto"
+                aspect="square"
+                value={form.photoUrl}
+                onChange={(url) => setForm({ ...form, photoUrl: url })}
               />
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

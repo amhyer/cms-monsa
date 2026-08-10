@@ -180,6 +180,7 @@ model Student {
   email       String?
   parentName  String?
   parentPhone String?
+  photoUrl    String?  // foto siswa (tampil di galeri siswa website)
   classId     String
   class       Class    @relation(fields: [classId], references: [id])
   isActive    Boolean  @default(true)

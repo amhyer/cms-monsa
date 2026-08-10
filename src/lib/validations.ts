@@ -1,5 +1,17 @@
 import { z } from "zod";
 
+// --- URL gambar CMS ---
+// /api/upload mengembalikan path relatif ("/uploads/..."), jadi validasi hanya
+// menerima path relatif atau URL absolut http(s). String kosong diizinkan agar
+// form bisa menghapus gambar ("" dipetakan ke null di route).
+export const imageUrl = z
+  .string()
+  .trim()
+  .refine(
+    (v) => v === "" || v.startsWith("/") || /^https?:\/\//i.test(v),
+    "URL gambar tidak valid."
+  );
+
 // --- News ---
 export const newsCategoryEnum = z.enum(["Akademik", "Kegiatan", "Prestasi"]);
 export const newsStatusEnum = z.enum(["DRAFT", "PUBLISHED"]);
@@ -14,7 +26,7 @@ export const createNewsSchema = z.object({
     .string()
     .max(50000, "Konten terlalu panjang (maksimal 50.000 karakter)."),
   excerpt: z.string().max(500, "Excerpt maksimal 500 karakter.").optional(),
-  coverImage: z.string().url("URL gambar tidak valid.").optional().nullable(),
+  coverImage: imageUrl.optional().nullable(),
   category: newsCategoryEnum.default("Kegiatan"),
   status: newsStatusEnum.default("DRAFT"),
 });
@@ -48,8 +60,8 @@ export const createGallerySchema = z.object({
     .string()
     .max(2000, "Deskripsi maksimal 2.000 karakter.")
     .optional(),
-  imageUrl: z.string().url("URL gambar tidak valid.").optional(),
-  url: z.string().url("URL media tidak valid.").optional(),
+  imageUrl: imageUrl.optional(),
+  url: imageUrl.optional(),
   category: z.string().max(100).optional(),
 });
 
@@ -64,8 +76,8 @@ export const updateGallerySchema = z.object({
     .string()
     .max(2000, "Deskripsi maksimal 2.000 karakter.")
     .optional(),
-  imageUrl: z.string().url("URL gambar tidak valid.").optional(),
-  url: z.string().url("URL media tidak valid.").optional(),
+  imageUrl: imageUrl.optional(),
+  url: imageUrl.optional(),
   category: z.string().max(100).optional(),
 });
 
@@ -106,7 +118,7 @@ export const createTeacherSchema = z.object({
     .max(100, "Mata pelajaran maksimal 100 karakter.")
     .optional(),
   bio: z.string().max(2000, "Bio maksimal 2.000 karakter.").optional(),
-  imageUrl: z.string().url("URL gambar tidak valid.").optional().nullable(),
+  imageUrl: imageUrl.optional().nullable(),
   order: z.number().int().min(0).default(0),
   ...teacherProfileFields,
 });
@@ -248,7 +260,7 @@ export const createAchievementSchema = z.object({
     .optional(),
   category: z.string().max(100, "Kategori maksimal 100 karakter.").optional(),
   date: z.string().optional(),
-  imageUrl: z.string().url("URL gambar tidak valid.").optional().nullable(),
+  imageUrl: imageUrl.optional().nullable(),
 });
 
 export const updateAchievementSchema = createAchievementSchema.partial();
@@ -270,12 +282,8 @@ export const updateSiteSettingsSchema = z.object({
     .max(50, "Telepon maksimal 50 karakter.")
     .optional(),
   address: z.string().max(500, "Alamat maksimal 500 karakter.").optional(),
-  logoUrl: z.string().url("URL logo tidak valid.").optional().nullable(),
-  heroImageUrl: z
-    .string()
-    .url("URL gambar hero tidak valid.")
-    .optional()
-    .nullable(),
+  logoUrl: imageUrl.optional().nullable(),
+  heroImageUrl: imageUrl.optional().nullable(),
   footerText: z
     .string()
     .max(1000, "Teks footer maksimal 1.000 karakter.")
@@ -330,9 +338,9 @@ export const createEnrollmentSchema = z.object({
     .max(200, "Asal sekolah maksimal 200 karakter."),
   previousSchoolAddress: z.string().max(500, "Alamat sekolah maksimal 500 karakter.").optional(),
   programChoice: programChoiceEnum,
-  birthCertUrl: z.string().url("URL akta lahir tidak valid.").optional(),
-  diplomaUrl: z.string().url("URL ijazah tidak valid.").optional(),
-  photoUrl: z.string().url("URL foto tidak valid.").optional(),
+  birthCertUrl: imageUrl.optional(),
+  diplomaUrl: imageUrl.optional(),
+  photoUrl: imageUrl.optional(),
 });
 
 // --- Auth ---
@@ -373,6 +381,7 @@ export const createStudentSchema = z.object({
   email: z.string().email("Format email tidak valid.").max(200).optional().nullable(),
   parentName: z.string().max(200, "Nama orang tua maksimal 200 karakter.").optional().nullable(),
   parentPhone: z.string().max(20, "Telepon orang tua maksimal 20 karakter.").optional().nullable(),
+  photoUrl: imageUrl.optional().nullable(),
 });
 
 export const updateStudentSchema = createStudentSchema.partial();

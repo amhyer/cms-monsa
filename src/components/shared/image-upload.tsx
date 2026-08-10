@@ -33,11 +33,17 @@ export function ImageUpload({
   const [localPreview, setLocalPreview] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Sync local preview with value prop — if parent clears value, clear preview too.
+  // Sinkronkan preview lokal dengan nilai dari parent: hapus preview yang basi
+  // bila parent mengubah nilainya (hapus gambar / buka dialog lain). Preview
+  // hasil unggahan (path "/uploads/..." atau URL absolut) dipertahankan sampai
+  // parent memberi nilai berbeda.
   useEffect(() => {
-    if (!value) setLocalPreview(null);
-    else if (value !== localPreview) setLocalPreview(null);
-  }, [value, localPreview]);
+    setLocalPreview((prev) => {
+      if (prev === null) return prev;
+      if (value === null || value === "") return null;
+      return prev === value ? prev : null;
+    });
+  }, [value]);
 
   // Display: local preview takes priority (shows immediately after upload),
   // then the parent value.

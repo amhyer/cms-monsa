@@ -56,6 +56,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   if (body.email !== undefined) data.email = body.email || null;
   if (body.parentName !== undefined) data.parentName = body.parentName || null;
   if (body.parentPhone !== undefined) data.parentPhone = body.parentPhone || null;
+  if (body.photoUrl !== undefined) data.photoUrl = body.photoUrl || null;
   if (body.classId !== undefined) data.classId = String(body.classId).trim();
   if (body.isActive !== undefined) data.isActive = Boolean(body.isActive);
 

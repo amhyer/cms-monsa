@@ -1,32 +1,11 @@
-import { test, expect, type Page } from "@playwright/test";
-
-const ADMIN = {
-  email: "admin@mongisidi1.sch.id",
-  password: "admin123",
-};
-
-const OPERATOR = {
-  email: "operator@mongisidi1.sch.id",
-  password: "operator123",
-};
-
-const GURU = {
-  email: "guru@mongisidi1.sch.id",
-  password: "guru123",
-};
-
-async function login(page: Page, email: string, password: string) {
-  await page.goto("/login");
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: "Masuk" }).click();
-  await page.waitForURL("**/dashboard");
-}
+import { test, expect } from "@playwright/test";
+import { ADMIN, OPERATOR, GURU, login } from "./helpers";
 
 test.describe("RBAC - Role-Based Access Control", () => {
   test("unauthenticated user should be redirected to login", async ({ page }) => {
     await page.goto("/dashboard");
-    await page.waitForURL("**/login");
+    // Redirect membawa query string (?redirect=...), jadi pola harus longgar.
+    await page.waitForURL("**/login**");
     await expect(page.getByLabel("Email")).toBeVisible();
   });
 

@@ -6,16 +6,11 @@ import Redis from "ioredis";
 const redisUrl = process.env.REDIS_URL;
 
 if (!redisUrl) {
-  // Di lingkungan produksi, koneksi Redis wajib ada.
-  if (process.env.NODE_ENV === "production") {
-    throw new Error(
-      "REDIS_URL tidak di-set. Rate limiting terdistribusi tidak akan berfungsi."
-    );
-  }
-  // Di development, berikan peringatan tapi jangan hentikan aplikasi.
-  // Rate limiting akan kembali ke mode in-memory jika Redis tidak ada.
+  // REDIS_URL opsional: tanpa Redis, rate limiter memakai fallback in-memory
+  // (src/lib/rate-limit.ts) — cocok untuk single-instance self-hosted.
+  // Untuk multi-instance/terdistribusi, set REDIS_URL dan jalankan Redis.
   console.warn(
-    "[REDIS] REDIS_URL tidak ditemukan. Rate limiter akan menggunakan fallback in-memory (tidak cocok untuk produksi)."
+    "[REDIS] REDIS_URL tidak ditemukan. Rate limiter akan menggunakan fallback in-memory (tidak cocok untuk multi-instance)."
   );
 }
 

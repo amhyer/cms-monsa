@@ -98,6 +98,8 @@ vercel link
 # Run migrations
 vercel env pull .env.local
 npx prisma migrate deploy --schema prisma/schema.postgres.prisma
+#   ^ also applies prisma/migrations/*_add_dapodik_allow_insecure/
+#     (adds the allowInsecureInProduction column to DapodikConfig)
 
 # Seed database
 npx tsx prisma/seed.ts
@@ -109,6 +111,27 @@ npx tsx prisma/seed.ts
 2. Add your domain (e.g., `sdn-mongisidi1.sch.id`)
 3. Update DNS records as instructed by Vercel
 4. SSL certificate is auto-provisioned
+
+### 3. Dapodik Sync: "Izinkan HTTP di production"
+
+The Dapodik data pull enforces an HTTPS-only guard in production: connections
+to the Dapodik Web Service over `http://` are rejected unless the
+**"Izinkan HTTP di production"** toggle is enabled in the dashboard
+(**Dapodik → Penarikan Data Dapodik → Konfigurasi → Simpan Konfigurasi**).
+
+Notes for Vercel:
+
+- The app runs in the cloud, so it can only reach the school's Dapodik Web
+  Service if that server is publicly reachable. Prefer exposing it over
+  HTTPS (reverse proxy / tunnel, e.g. Caddy or Cloudflare Tunnel) and use an
+  `https://` URL — no toggle needed.
+- Only enable the toggle when Dapodik is reachable over HTTP inside a secure
+  network (VPN / private tunnel). Never enable it for plain public HTTP —
+  tokens and student data would be sent unencrypted.
+
+Migration: the `allowInsecureInProduction` column (table `DapodikConfig`) is
+added by the migrations in **Step 1** above (`prisma migrate deploy`); no extra
+step needed. For a SQLite fallback (local dev), run `bun run db:push`.
 
 ---
 

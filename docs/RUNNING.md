@@ -144,15 +144,30 @@ CMS bisa menarik data guru/staf & siswa langsung dari server Dapodik sekolah:
 3. Isi URL server Dapodik (mis. `http://ip-server:5774`) & kredensial.
 4. Opsi: aktifkan retry/timeout (default aktif), opsi *jangan nonaktifkan
    data yang tidak ada di Dapodik* (disarankan aktif).
-5. Klik **Sinkronkan Sekarang**. Setelah selesai, data guru/staf aktif & siswa terisi.
-6. Kepala Sekolah & jabatan lainnya langsung terbaca dari
+5. Bila Web Service Dapodik diakses lewat HTTP (localhost / jaringan
+   sekolah / VPN) pada *deployment production*, nyalakan toggle
+   **Izinkan HTTP di production** di kartu Konfigurasi. Tanpa ini guard
+   HTTPS-only memblokir semua koneksi HTTP di production. Aktifkan hanya
+   untuk jaringan lokal/VPN yang sudah aman — untuk akses internet
+   publik gunakan HTTPS.
+6. Klik **Sinkronkan Sekarang**. Setelah selesai, data guru/staf aktif & siswa terisi.
+7. Kepala Sekolah & jabatan lainnya langsung terbaca dari
    `jabatan_ptk_id_str` — termasuk pada kartu **Data Guru**.
 
 Detail pemetaan field: [DAPODIK_SYNC_MAPPING.md](../DAPODIK_SYNC_MAPPING.md).
 
 Catatan masalah: bila sinkronisasi gagal padahal server Dapodik online,
-pastikan `bun run db:push` sudah jalan (kolom baru seperti `dapodikId`
-harus ada) dan cek log error di dashboard.
+pastikan migrasi DB sudah jalan — kolom baru seperti `dapodikId` dan
+`allowInsecureInProduction` (tabel `DapodikConfig`) harus ada di database:
+
+- SQLite (development): `bun run db:push`
+- PostgreSQL (produksi): `bun run db:migrate:deploy`
+  (migrasi `prisma/migrations/*_add_dapodik_allow_insecure/` menambahkan
+  kolom `allowInsecureInProduction` dengan default `false`)
+
+Bila migrasi sudah jalan tapi penarikan tetap gagal, cek log error di
+dashboard — umumnya kredensial/token salah, IP belum di-whitelist, atau
+server Dapodik sedang "tidak terhubung dengan database".
 
 ---
 
@@ -241,6 +256,7 @@ Backup PostgreSQL memakai `pg_dump`, sehingga kompatibel antar environment.
 | `prisma generate` error **EPERM** di Windows | `next dev` sedang berjalan dan mengunci engine — stop dev server, generate, lalu jalankan lagi |
 | Port 3000 sudah terpakai | pakai port lain: `bun run dev -- -p 3100` atau ubah di `package.json` |
 | Data Dapodik tidak muncul namanya | pastikan langkah sinkronisasi selesai penuh & `db:push` sudah jalan; cek `logs` dashboard |
+| Penarikan Dapodik error *"HTTP tidak diizinkan di production"* | nyalakan toggle **Izinkan HTTP di production** di menu Dapodik → Konfigurasi (khusus jaringan lokal/VPN aman), simpan, lalu coba lagi |
 | Status server Dapodik "tidak terhubung database" | Itu pesan dari server Dapodik sendiri — pastikan server Dapodik punya DB & trik & kredensial benar |
 | Skema error *undefined* `nik`/`dapodikId` | Client prisma belum di-generate: `bun run db:generate` |
 | Login gagal / versi app lama | `bun run check` lalu ulangi build |

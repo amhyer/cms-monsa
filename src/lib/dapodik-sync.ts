@@ -117,6 +117,10 @@ export async function getDapodikClient(): Promise<DapodikClient> {
     host: config.host,
     port: config.port,
     protocol: config.protocol as "http" | "https",
+    // Dapodik Web Service lokal hampir selalu HTTP; di production flag ini
+    // harus diaktifkan operator lewat UI agar guard HTTPS-only tidak memblokir
+    // koneksi ke server Dapodik di jaringan lokal/VPN yang sudah aman.
+    allowInsecureInProduction: config.allowInsecureInProduction,
   };
   return new DapodikClient(clientConfig);
 }
@@ -130,6 +134,7 @@ export async function saveDapodikConfig(data: {
   port: number;
   protocol: string;
   archiveUnlisted?: boolean;
+  allowInsecureInProduction?: boolean;
 }) {
   return db.dapodikConfig.upsert({
     where: { id: "singleton" },

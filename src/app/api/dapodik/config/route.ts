@@ -19,7 +19,7 @@ export async function POST(req: Request) {
   if (!auth.ok) return auth.response;
 
   const body = await req.json().catch(() => ({}));
-  const { npsn, token, host, port, protocol, archiveUnlisted } = body;
+  const { npsn, token, host, port, protocol, archiveUnlisted, allowInsecureInProduction } = body;
 
   if (!npsn || !token) {
     return NextResponse.json(
@@ -35,6 +35,8 @@ export async function POST(req: Request) {
     port: Number(port || 5774),
     protocol: String(protocol || "http"),
     archiveUnlisted: typeof archiveUnlisted === "boolean" ? archiveUnlisted : true,
+    allowInsecureInProduction:
+      typeof allowInsecureInProduction === "boolean" ? allowInsecureInProduction : false,
   });
 
   return NextResponse.json({ ok: true, message: "Konfigurasi tersimpan." });

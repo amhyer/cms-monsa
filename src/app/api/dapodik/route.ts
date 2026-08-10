@@ -5,7 +5,7 @@ import { getDapodikClient } from "@/lib/dapodik-sync";
 import { logActivity } from "@/lib/log";
 
 // Dipanggil dari DapodikManager (fetchData) dengan body { endpoint }.
-// endpoint: "all" (default) | "sekolah" | "peserta_didik" | "gtk" | "rombel"
+// endpoint: "all" (default) | "sekolah" | "siswa"/"peserta_didik" | "guru"/"gtk" | "rombel"
 export async function POST(req: NextRequest) {
   const csrfError = await requireCsrf(req);
   if (csrfError) return csrfError;
@@ -31,9 +31,11 @@ export async function POST(req: NextRequest) {
       case "sekolah":
         data = { sekolah: await client.getSekolah() };
         break;
+      case "siswa":
       case "peserta_didik":
         data = { peserta_didik: await client.getPesertaDidik() };
         break;
+      case "guru":
       case "gtk":
         data = { gtk: await client.getGTK() };
         break;

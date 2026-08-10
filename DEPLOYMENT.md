@@ -15,6 +15,7 @@ konfigurasinya benar saat deploy.
 | 5 | Backup database | Script: `bun run backup:db` (`scripts/backup-db.ps1` untuk Windows, `scripts/backup-db.sh` untuk Linux). | Pasang cron setiap 02.00 (contoh di bawah). |
 | 6 | CORS `/api/*` | `src/proxy.ts` (`handleApiCors`, matcher `/api/:path*`): origin yang tidak dikenal → 403; allowlist via `ALLOWED_ORIGINS`. | Set `ALLOWED_ORIGINS` hanya jika ada frontend terpisah; default kosong = hanya same-origin. |
 | 7 | Hapus kelas hanya SUPER_ADMIN | Sudah: `DELETE /api/classes/[id]` memakai `requireRole("SUPER_ADMIN")` + proteksi kelas berisi siswa. | Tidak perlu langkah tambahan. |
+| 8 | Dapodik via HTTP di production | Guard HTTPS-only di `DapodikClient` + toggle `allowInsecureInProduction` (kolom baru di tabel `DapodikConfig`). | Setelah deploy: dashboard → **Dapodik → Konfigurasi → nyalakan "Izinkan HTTP di production"** bila Web Service Dapodik hanya diakses lewat HTTP lokal/VPN aman. Detail: bagian "Dapodik di produksi" di bawah. |
 
 ## Langkah deploy (ringkas)
 
@@ -30,6 +31,8 @@ bunx prisma generate
 
 # 3. Migrasi skema ke PostgreSQL
 bun run db:migrate:prod
+#    (migrasi prisma/migrations/*_add_dapodik_allow_insecure/ menambahkan
+#     kolom allowInsecureInProduction di tabel DapodikConfig)
 
 # 4. Seed akun awal (idempotent — hanya dijalankan sekali di DB kosong)
 bun run db:seed
@@ -39,6 +42,33 @@ bun run build
 bun run start      # atau jalankan via pm2/systemd dengan output standalone: .next/standalone
 
 # 6. HTTPS — Caddyfile sudah disediakan; sesuaikan domain.
+```
+
+## Dapodik di produksi: toggle "Izinkan HTTP" & migrasi kolom baru
+
+Fitur penarikan data Dapodik memblokir koneksi HTTP di *production* secara
+otomatis (guard HTTPS-only di `DapodikClient`). Karena Web Service Dapodik
+hampir selalu diakses lewat HTTP (localhost / jaringan sekolah / VPN),
+aktifkan eksplisit setelah deploy bila hanya diakses dari jaringan aman:
+
+1. Login dashboard → **Dapodik** → **Penarikan Data Dapodik** → **Konfigurasi**.
+2. Nyalakan toggle **Izinkan HTTP di production** → **Simpan Konfigurasi**.
+3. Uji **Cek Koneksi**, lalu **Tarik Data** (endpoint siswa / guru / rombel).
+
+> Jangan aktifkan bila Dapodik diakses dari internet publik — wajib HTTPS
+> (mis. lewat reverse proxy Caddy) agar token & data siswa tidak bocor.
+
+Migrasi kolom `allowInsecureInProduction` (tabel `DapodikConfig`):
+
+- PostgreSQL (Docker / standalone): `bun run db:migrate:prod` — migrasi
+  `prisma/migrations/*_add_dapodik_allow_insecure/` ikut diterapkan. Pada
+  jalur Docker, migrasi dijalankan otomatis oleh container sebelum app start.
+- SQLite (fallback dev): `bun run db:push`.
+
+Verifikasi kolom sudah ada di DB (bukan error "kolom tidak ditemukan"):
+
+```sql
+SELECT "allowInsecureInProduction" FROM "DapodikConfig";
 ```
 
 ## Cron backup (contoh, tiap jam 02.00)

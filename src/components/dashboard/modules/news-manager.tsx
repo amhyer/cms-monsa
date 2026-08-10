@@ -689,7 +689,7 @@ export function NewsManager() {
                   variant="outline"
                   className={
                     form.status === "PUBLISHED"
-                      ? "border-emerald-500 text-emerald-700"
+                      ? "border-emerald-500 text-emerald-700 dark:text-emerald-400"
                       : "text-muted-foreground"
                   }
                 >

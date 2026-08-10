@@ -347,7 +347,7 @@ export function ComplaintsManager() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="text-emerald-600 hover:text-emerald-700"
+                                className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
                                 onClick={() => replyWhatsApp(c)}
                               >
                                 <MessageCircle className="size-3.5" /> WhatsApp

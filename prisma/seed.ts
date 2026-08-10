@@ -30,6 +30,8 @@ async function main() {
   await db.announcement.deleteMany();
   await db.agenda.deleteMany();
   await db.teacher.deleteMany();
+  await db.student.deleteMany();
+  await db.class.deleteMany();
   await db.galleryItem.deleteMany();
   await db.achievement.deleteMany();
   await db.orgStructure.deleteMany();
@@ -360,6 +362,50 @@ async function main() {
         photo: avatar(t.img),
         order: i,
         isActive: true,
+      },
+    });
+  }
+
+  // ---------- KELAS & SISWA ----------
+  // Dua rombel kelas 1 — galeri siswa di beranda butuh data agar tampil
+  // (marquee foto + pencarian + filter kelas). Empat siswa diberi foto.
+  const classes = [
+    { name: "Kelas 1.a", grade: "1", stream: "a", academicYear: "2026/2027" },
+    { name: "Kelas 1.b", grade: "1", stream: "b", academicYear: "2026/2027" },
+  ];
+  const classIds: Record<string, string> = {};
+  for (const c of classes) {
+    const created = await db.class.create({
+      data: { ...c, isActive: true },
+    });
+    classIds[c.name] = created.id;
+  }
+  const students = [
+    { name: "Aisyah Putri Ramadhani", nis: "20260001", nisn: "0123456781", gender: "PEREMPUAN", cls: "Kelas 1.a", img: 21 },
+    { name: "Bima Arya Saputra", nis: "20260002", nisn: "0123456782", gender: "LAKI_LAKI", cls: "Kelas 1.a", img: 22 },
+    { name: "Citra Ayu Lestari", nis: "20260003", nisn: "0123456783", gender: "PEREMPUAN", cls: "Kelas 1.a", img: 23 },
+    { name: "Dimas Prasetyo Nugroho", nis: "20260004", nisn: "0123456784", gender: "LAKI_LAKI", cls: "Kelas 1.a", img: 24 },
+    { name: "Eka Nurhaliza", nis: "20260005", nisn: "0123456785", gender: "PEREMPUAN", cls: "Kelas 1.a" },
+    { name: "Farhan Maulana Rizki", nis: "20260006", nisn: "0123456786", gender: "LAKI_LAKI", cls: "Kelas 1.a" },
+    { name: "Gita Maharani", nis: "20260007", nisn: "0123456787", gender: "PEREMPUAN", cls: "Kelas 1.b" },
+    { name: "Hadi Firmansyah", nis: "20260008", nisn: "0123456788", gender: "LAKI_LAKI", cls: "Kelas 1.b" },
+    { name: "Intan Permata Sari", nis: "20260009", nisn: "0123456789", gender: "PEREMPUAN", cls: "Kelas 1.b" },
+    { name: "Joko Susilo", nis: "20260010", nisn: "0123456790", gender: "LAKI_LAKI", cls: "Kelas 1.b" },
+    { name: "Kirana Dewi", nis: "20260011", nisn: "0123456791", gender: "PEREMPUAN", cls: "Kelas 1.b" },
+    { name: "Lutfi Ardiansyah", nis: "20260012", nisn: "0123456792", gender: "LAKI_LAKI", cls: "Kelas 1.b" },
+  ];
+  for (const s of students) {
+    await db.student.create({
+      data: {
+        name: s.name,
+        nis: s.nis,
+        nisn: s.nisn,
+        gender: s.gender,
+        photoUrl: s.img ? avatar(s.img) : null,
+        classId: classIds[s.cls],
+        isActive: true,
+        parentName: `Orang tua ${s.name}`,
+        parentPhone: "081234567890",
       },
     });
   }

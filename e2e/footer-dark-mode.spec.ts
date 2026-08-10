@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { enableDarkMode, goldRef } from "./helpers";
 
 const ADMIN = {
   email: "admin@mongisidi1.sch.id",
@@ -12,30 +13,6 @@ async function login(page: Page) {
   await page.getByRole("button", { name: "Masuk" }).click();
   await page.waitForURL("**/dashboard");
 }
-
-/** Nyalakan dark mode lewat toggle sungguhan, lalu tunggu `.dark` terpasang. */
-async function enableDarkMode(page: Page) {
-  await page.getByRole("button", { name: "Aktifkan mode gelap" }).click();
-  await expect
-    .poll(() =>
-      page.evaluate(() => document.documentElement.classList.contains("dark"))
-    )
-    .toBe(true);
-}
-
-/**
- * Referensi warna emas pada tema berjalan: probe elemen ber-kelas `bg-gold`
- * lalu baca computed backgroundColor (format sama dengan elemen lain).
- */
-const goldRef = (page: Page) =>
-  page.evaluate(() => {
-    const probe = document.createElement("span");
-    probe.className = "bg-gold";
-    document.body.appendChild(probe);
-    const c = getComputedStyle(probe).backgroundColor;
-    probe.remove();
-    return c;
-  });
 
 test.describe("Footer navy + emas — konsisten di dark mode", () => {
   test("footer publik tetap navy (bukan emas) di dark mode", async ({ page }) => {

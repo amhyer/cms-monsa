@@ -14,6 +14,7 @@ import { GalleryView } from "./gallery-view";
 import { ContactView } from "./contact-view";
 import { ComplaintView } from "./complaint-view";
 import { TeacherPortfolioView } from "./teacher-portfolio-view";
+import { StrukturOrganisasiView } from "./struktur-organisasi-view";
 
 interface PublicSiteProps {
   initialView?: string;
@@ -66,6 +67,11 @@ export function PublicSite({
     view = <TeacherPortfolioView guruId={initialGuruId} />;
   } else if (currentView === "gallery" || currentView === "/gallery") {
     view = <GalleryView />;
+  } else if (
+    currentView === "struktur-organisasi" ||
+    currentView === "/struktur-organisasi"
+  ) {
+    view = <StrukturOrganisasiView />;
   } else if (currentView === "contact" || currentView === "/contact") {
     view = <ContactView />;
   } else if (currentView === "complaint" || currentView === "/complaint") {

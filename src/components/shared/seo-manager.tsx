@@ -230,6 +230,29 @@ function getPageSeo(pathname: string, settings: SiteSettingItem | null): SeoConf
     };
   }
 
+  // Struktur Organisasi
+  if (pathname === "/struktur-organisasi") {
+    return {
+      title: `Struktur Organisasi — ${schoolName}`,
+      description: `Susunan organisasi ${schoolName} dalam menjalankan layanan pendidikan.`,
+      canonicalPath: "/struktur-organisasi",
+      ogType: "website",
+      jsonLd: [
+        {
+          id: "ld-breadcrumb",
+          data: {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Beranda", item: SITE_URL },
+              { "@type": "ListItem", position: 2, name: "Struktur Organisasi", item: `${SITE_URL}/struktur-organisasi` },
+            ],
+          },
+        },
+      ],
+    };
+  }
+
   // Contact
   if (pathname === "/contact") {
     return {

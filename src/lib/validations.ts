@@ -386,6 +386,25 @@ export const createStudentSchema = z.object({
 
 export const updateStudentSchema = createStudentSchema.partial();
 
+// --- Org Structure ---
+export const createOrgStructureSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, "Nama wajib diisi.")
+    .max(100, "Nama maksimal 100 karakter."),
+  position: z
+    .string()
+    .trim()
+    .min(1, "Jabatan wajib diisi.")
+    .max(100, "Jabatan maksimal 100 karakter."),
+  photo: imageUrl.optional().nullable(),
+  order: z.number().int().min(0).default(0),
+  isActive: z.boolean().default(true),
+});
+
+export const updateOrgStructureSchema = createOrgStructureSchema.partial();
+
 // --- Payments ---
 export const createPaymentSchema = z.object({
   studentId: z.string().min(1, "Siswa wajib diisi."),

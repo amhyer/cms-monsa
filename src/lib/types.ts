@@ -99,6 +99,17 @@ export type TeacherItem = {
   homeroomClasses?: Array<{ id: string; name: string }>;
 };
 
+export type OrgStructureItem = {
+  id: string;
+  name: string;
+  position: string;
+  photo: string | null;
+  order: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type GalleryItem = {
   id: string;
   title: string;

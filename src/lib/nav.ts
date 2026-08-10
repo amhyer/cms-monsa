@@ -22,6 +22,7 @@ import {
   Wallet,
   BarChart3,
   Download,
+  Network,
   type LucideIcon,
 } from "lucide-react";
 
@@ -35,6 +36,7 @@ export type NavItem = {
 export const PUBLIC_NAV: NavItem[] = [
   { label: "Beranda", path: "/", icon: Home },
   { label: "Profil", path: "/profile", icon: Building2 },
+  { label: "Struktur Organisasi", path: "/struktur-organisasi", icon: Network },
   { label: "Akademik", path: "/academic", icon: GraduationCap },
   { label: "Berita", path: "/news", icon: Newspaper },
   { label: "Galeri", path: "/gallery", icon: Image },
@@ -52,6 +54,7 @@ export const DASHBOARD_NAV: NavItem[] = [
   { label: "Data Prestasi", path: "/dashboard/achievements", icon: Trophy },
   { label: "Guru & Staf", path: "/dashboard/teachers", icon: Users },
   { label: "Data Siswa", path: "/dashboard/students", icon: UserSquare2 },
+  { label: "Struktur Organisasi", path: "/dashboard/org-structure", icon: Network, adminOnly: true },
   { label: "Kelas", path: "/dashboard/classes", icon: LayoutGrid },
   { label: "Kehadiran Siswa", path: "/dashboard/attendance", icon: ClipboardCheck },
   { label: "Pembayaran (SPP)", path: "/dashboard/payments", icon: Wallet },

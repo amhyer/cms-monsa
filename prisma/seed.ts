@@ -32,6 +32,7 @@ async function main() {
   await db.teacher.deleteMany();
   await db.galleryItem.deleteMany();
   await db.achievement.deleteMany();
+  await db.orgStructure.deleteMany();
   await db.user.deleteMany();
   await db.siteSetting.deleteMany();
 
@@ -358,6 +359,27 @@ async function main() {
         education: t.education,
         photo: avatar(t.img),
         order: i,
+        isActive: true,
+      },
+    });
+  }
+
+  // ---------- STRUKTUR ORGANISASI ----------
+  const org = [
+    { name: "Nawawi Hamzah, S.Pd., M.Pd.", position: "Kepala Sekolah", order: 0, img: 1 },
+    { name: "Muhammad Yusuf, S.Pd.", position: "Wakil Kepala Sekolah", order: 1, img: 2 },
+    { name: "Siti Aminah, S.Pd.", position: "Bendahara Sekolah", order: 2, img: 3 },
+    { name: "Andi Mappangara, S.Pd.", position: "Koordinator Kurikulum", order: 3, img: 4 },
+    { name: "Rahmat Hidayat, S.Pd.", position: "Koordinator Kesiswaan", order: 4, img: 5 },
+    { name: "Nurul Aini, S.Pd.", position: "Koordinator Sarana Prasarana", order: 5, img: 6 },
+  ];
+  for (const o of org) {
+    await db.orgStructure.create({
+      data: {
+        name: o.name,
+        position: o.position,
+        photo: avatar(o.img),
+        order: o.order,
         isActive: true,
       },
     });

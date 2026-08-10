@@ -1058,6 +1058,103 @@ ke depan — inti dari aksi "jaga".
 
 ---
 
+## 2026-08-10 — FASE 29: Konsistensi Tema Dark-Mode (navy + emas) + Regression E2E + Helper & CI
+
+### Status: SELESAI
+
+### Latar Belakang
+
+Sesi ini menyelesaikan tiga hal: (1) mengunci tema **navy + emas** di dark
+mode — permukaan lebar (footer, banner, band, marquee, tile) dan chip
+avatar/ikon harus tetap navy, bukan berubah emas; (2) menutup lubang
+regression test e2e — menambah spec baru & memperbaiki spec basi; (3)
+menstandarisasi helper e2e dan menjalankan suite e2e otomatis di CI.
+
+### Akar Masalah Dark-Mode
+
+Tema `.dark` mendefinisikan `--primary: gold` (globals.css). Akibatnya:
+
+- Elemen **kecil** (tombol, badge, state aktif, pagination) yang memakai
+  `bg-primary` jadi aksen emas — terbaca & **disengaja**.
+- Permukaan **lebar** (footer, `PageBanner`, band CTA/kutipan/mini-banner,
+  marquee pengumuman, hero) yang memakai `bg-primary` berubah jadi **pita
+  emas**, dan aksen `text-gold` di dalamnya jadi emas-di-atas-emas (tak
+  terlihat) — **bug**.
+- Chip avatar/ikon bundar (`bg-primary` + `ring-gold`) jadi lingkaran emas
+  besar dengan ring/ikon emas yang hilang — **bug**.
+
+Pola perbaikan: permukaan = `bg-sidebar` (selalu navy di kedua mode), aksen =
+`bg-gold`/`text-gold`; chip avatar/ikon = `bg-sidebar-accent` + `ring-gold`
+(sama dengan chip logo header).
+
+### File yang Diubah (styling dark-mode)
+
+| File | Perubahan |
+|------|-----------|
+| `src/components/public/site-footer.tsx` | Footer publik: `bg-primary` → `bg-sidebar` + border emas `gold/25`, token `primary-foreground/*` → `sidebar-foreground/*` |
+| `src/components/public/_shared.tsx` | `PageBanner` (band hero semua halaman publik) → `bg-sidebar text-sidebar-foreground` |
+| `src/components/public/home-view.tsx` | Hero carousel + gradient + teks + dots indikator → token `sidebar`; band CTA SPMB; hero fallback/empty; tile tanggal agenda; chip statistik; pill level prestasi |
+| `src/components/public/contact-view.tsx` | Section SPMB (8 token `primary-foreground/*` → `sidebar-foreground/*`) + chip ikon sosial/info |
+| `src/components/public/academic-view.tsx` | Mini banner, tile tanggal kalender, avatar guru, chip ekstrakurikuler |
+| `src/components/public/profile-view.tsx` | Band kutipan, avatar kepala sekolah, chip visi/misi/program |
+| `src/components/public/running-announcements.tsx` | Bar pengumuman berjalan (marquee) → `bg-sidebar` |
+| `src/components/public/site-header.tsx` | Chip logo menu mobile → `bg-sidebar-accent` |
+| `src/components/public/public-site.tsx` | Chip logo state loading → `bg-sidebar-accent` |
+| `src/components/public/struktur-organisasi-view.tsx` | Avatar anggota struktur → `bg-sidebar-accent` *(belum di-commit — ikut fitur org-structure)* |
+
+### File E2E (regression & refactor)
+
+| File | Perubahan |
+|------|-----------|
+| `e2e/footer-dark-mode.spec.ts` *(baru)* | Regression: footer publik & dashboard harus navy (≠ emas) di dark mode |
+| `e2e/dark-mode-bands.spec.ts` *(baru)* | Regression: PageBanner di 6 halaman + band home (hero, CTA SPMB, marquee) navy di dark mode |
+| `e2e/header-desktop.spec.ts` *(baru)* | Regression header desktop: nav tengah, item aktif emas, hover, item aktif mengikuti route |
+| `e2e/helpers.ts` *(baru)* | Helper bersama: `ADMIN`/`OPERATOR`/`GURU`, `login`, `submitLogin`, `enableDarkMode`, `goldRef` |
+| `e2e/academic-check.spec.ts` | Perbaiki spec basi: kartu guru kini `Link` ke portofolio `/academic/guru/:id` (bukan modal) |
+| `e2e/rbac.spec.ts` | Perbaiki glob URL redirect (`**/login**` — redirect bawa query string) + teks pesan akses guru |
+| `e2e/agenda-crud, announcements-crud, gallery-crud, news-crud, login.spec, csrf-header.spec.ts` | Refactor: pakai helper login bersama; `submitLogin` untuk flow gagal-login |
+
+### CI
+
+| File | Perubahan |
+|------|-----------|
+| `.github/workflows/ci.yml` | Job `e2e` baru: DB seed segar (`db:push` + `db:seed`), `playwright install --with-deps chromium`, `bun run test:e2e`, upload report saat gagal |
+
+### Testing
+
+- `tsc --noEmit` — 0 error
+- ESLint — bersih
+- Vitest — **294/294** lulus (29 file)
+- Playwright e2e — **39/39** lulus (11 spec; sebelumnya 30 spec dengan 3 gagal basi)
+- Pre-commit hook (gate penuh) — lulus di semua commit
+
+### Commit
+
+| Commit | Isi |
+|--------|-----|
+| `d664914` | Header publik & topbar dashboard navy + emas, mengecil & sembunyikan NPSN saat scroll |
+| `015afc4` | Spec e2e header desktop (2 test) |
+| `266859f` | Konsistensi dark-mode: footer, band, tile, chip → navy + 2 spec regression |
+| `4f7dee1` | Helper e2e `enableDarkMode`/`goldRef` + refactor 2 spec |
+| `1252420` | Helper login part 1 (rbac + csrf-header) |
+| `c186f1a` | Perbaikan spec basi (academic-check, rbac) |
+| `10819f0` | Helper login part 2 (6 spec) — duplikasi habis |
+| `6e532ce` | Job e2e di CI |
+
+### Catatan
+
+- **Temuan kritis review akhir:** `src/components/shared/language-switcher.tsx`
+  (prop `className` + tombol icon-only) **belum di-commit** padahal dipakai
+  `site-header.tsx` (commit `d664914`) — repo di HEAD gagal typecheck
+  (`TS2322`), jadi CI `validate` akan merah. Harus di-commit.
+- Fitur sesi sebelumnya yang masih belum di-commit: **Dapodik sync** (+Redis
+  opsional, `allowInsecureInProduction`), **Struktur Organisasi** (publik +
+  dashboard), **Students Showcase** (galeri siswa + foto) — masing-masing
+  dengan migrasi Prisma & test-nya.
+- `.freebuff/` & `graphify-out/` tidak di-commit (workspace agent / output tooling).
+
+---
+
 ## 🎉 SEMUA FASE SELESAI
 
 ### Ringkasan Implementasi
@@ -1092,5 +1189,6 @@ ke depan — inti dari aksi "jaga".
 | 26 | ✅ | Refactor Routing — App Router murni + fix guard GURU (prefix-match → exact-match) |
 | 27 | ✅ | Sinkronisasi Dokumentasi Routing — README + ARCHITECTURE + DEPLOYMENT (App Router murni) |
 | 28 | ✅ | Guard Sinkronisasi Schema Prisma — `check:schema` di gate check + CI (item #8) |
+| 29 | ✅ | Konsistensi tema dark-mode (navy + emas) — footer, band, tile, chip publik + regression e2e (footer, bands, header) + helper bersama + job e2e di CI |
 
-**Total: 28 dari 28 fase selesai (100%)**
+**Total: 29 dari 29 fase selesai (100%)**

@@ -1,18 +1,5 @@
-import { test, expect, type Page } from "@playwright/test";
-import { enableDarkMode, goldRef } from "./helpers";
-
-const ADMIN = {
-  email: "admin@mongisidi1.sch.id",
-  password: "admin123",
-};
-
-async function login(page: Page) {
-  await page.goto("/login");
-  await page.getByLabel("Email").fill(ADMIN.email);
-  await page.getByLabel("Password").fill(ADMIN.password);
-  await page.getByRole("button", { name: "Masuk" }).click();
-  await page.waitForURL("**/dashboard");
-}
+import { test, expect } from "@playwright/test";
+import { ADMIN, enableDarkMode, goldRef, login } from "./helpers";
 
 test.describe("Footer navy + emas — konsisten di dark mode", () => {
   test("footer publik tetap navy (bukan emas) di dark mode", async ({ page }) => {
@@ -56,7 +43,7 @@ test.describe("Footer navy + emas — konsisten di dark mode", () => {
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await login(page);
+    await login(page, ADMIN.email, ADMIN.password);
 
     const topbar = page.locator("header").first();
     const footer = page.locator("footer").first();

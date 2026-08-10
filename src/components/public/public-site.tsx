@@ -33,7 +33,7 @@ export function PublicSite({
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background text-muted-foreground">
         <div className="flex flex-col items-center gap-4">
-          <span className="flex size-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground ring-2 ring-gold/40">
+          <span className="flex size-14 items-center justify-center rounded-2xl bg-sidebar-accent text-sidebar-foreground ring-2 ring-gold/40">
             <GraduationCap className="size-7 text-gold" />
           </span>
           <div className="mx-auto size-9 animate-spin rounded-full border-2 border-primary border-t-transparent" />

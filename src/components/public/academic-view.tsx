@@ -60,7 +60,7 @@ function TeacherAvatar({ t }: { t: TeacherItem }) {
     );
   }
   return (
-    <span className="flex size-16 shrink-0 items-center justify-center rounded-full border-2 border-gold bg-primary text-sm font-bold text-primary-foreground">
+    <span className="flex size-16 shrink-0 items-center justify-center rounded-full border-2 border-gold bg-sidebar-accent text-sm font-bold text-sidebar-foreground">
       {initials || "G"}
     </span>
   );
@@ -246,7 +246,7 @@ export function AcademicView() {
                         key={a.id}
                         className="flex items-start gap-4 rounded-xl border bg-card p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
                       >
-                        <div className="flex size-14 shrink-0 flex-col items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                        <div className="flex size-14 shrink-0 flex-col items-center justify-center rounded-lg bg-sidebar text-sidebar-foreground">
                           <span className="text-lg font-bold leading-none">
                             {isNaN(d.getTime()) ? "-" : d.getDate()}
                           </span>
@@ -309,7 +309,7 @@ export function AcademicView() {
                 key={e.name}
                 className="flex items-start gap-4 rounded-xl border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
               >
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground ring-2 ring-gold/30">
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-sidebar-accent text-sidebar-foreground ring-2 ring-gold/30">
                   <Icon className="size-5 text-gold" />
                 </span>
                 <div className="flex flex-col gap-1">
@@ -325,7 +325,7 @@ export function AcademicView() {
       </SectionShell>
 
       {/* Mini banner */}
-      <section className="bg-primary text-primary-foreground">
+      <section className="bg-sidebar text-sidebar-foreground">
         <div className="mx-auto flex w-full max-w-7xl flex-col items-start gap-3 px-4 py-10 sm:px-6 sm:py-14 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
             <CalendarDays className="size-8 text-gold" />
@@ -333,7 +333,7 @@ export function AcademicView() {
               <h3 className="font-sans text-lg font-bold sm:text-xl">
                 Kalender Akademik 2025/2026
               </h3>
-              <p className="text-sm text-primary-foreground/80">
+              <p className="text-sm text-sidebar-foreground/80">
                 Jadwal lengkap dapat diunduh pada halaman pengumuman.
               </p>
             </div>

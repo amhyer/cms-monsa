@@ -57,7 +57,7 @@ function LeaderCard({ t }: { t: TeacherItem }) {
           className="size-24 rounded-full border-2 border-gold object-cover"
         />
       ) : (
-        <span className="flex size-24 shrink-0 items-center justify-center rounded-full border-2 border-gold bg-primary text-xl font-bold text-primary-foreground">
+        <span className="flex size-24 shrink-0 items-center justify-center rounded-full border-2 border-gold bg-sidebar-accent text-xl font-bold text-sidebar-foreground">
           {initials || "G"}
         </span>
       )}
@@ -142,7 +142,7 @@ export function ProfileView() {
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
           <div className="flex flex-col gap-4 rounded-xl border-2 border-gold bg-card p-6 shadow-sm sm:p-8">
             <div className="flex items-center gap-3">
-              <span className="flex size-11 items-center justify-center rounded-full bg-primary text-primary-foreground">
+              <span className="flex size-11 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-foreground">
                 <Eye className="size-5 text-gold" />
               </span>
               <h3 className="font-sans text-xl font-bold text-foreground">
@@ -155,7 +155,7 @@ export function ProfileView() {
           </div>
           <div className="flex flex-col gap-4 rounded-xl border bg-card p-6 shadow-sm sm:p-8">
             <div className="flex items-center gap-3">
-              <span className="flex size-11 items-center justify-center rounded-full bg-primary text-primary-foreground">
+              <span className="flex size-11 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-foreground">
                 <Target className="size-5 text-gold" />
               </span>
               <h3 className="font-sans text-xl font-bold text-foreground">
@@ -227,7 +227,7 @@ export function ProfileView() {
                 key={f.label}
                 className="group flex flex-col items-center gap-3 rounded-xl border bg-card p-5 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
               >
-                <span className="flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground ring-2 ring-gold/40 transition-transform group-hover:scale-105">
+                <span className="flex size-14 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-foreground ring-2 ring-gold/40 transition-transform group-hover:scale-105">
                   <Icon className="size-7 text-gold" />
                 </span>
                 <span className="text-sm font-semibold text-foreground">
@@ -240,7 +240,7 @@ export function ProfileView() {
       </SectionShell>
 
       {/* Quote band */}
-      <section className="bg-primary text-primary-foreground">
+      <section className="bg-sidebar text-sidebar-foreground">
         <div className="mx-auto flex w-full max-w-7xl flex-col items-center gap-4 px-4 py-14 text-center sm:px-6 sm:py-20">
           <Quote className="size-10 text-gold" />
           <p className="max-w-3xl font-sans text-xl font-medium leading-relaxed sm:text-2xl md:text-3xl">

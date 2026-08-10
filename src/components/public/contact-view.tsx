@@ -265,7 +265,7 @@ export function ContactView() {
                         target="_blank"
                         rel="noopener noreferrer"
                         aria-label={label}
-                        className="flex size-10 items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors hover:bg-gold hover:text-gold-foreground"
+                        className="flex size-10 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-foreground transition-colors hover:bg-gold hover:text-gold-foreground"
                       >
                         <Icon className="size-5" />
                       </a>
@@ -296,7 +296,7 @@ export function ContactView() {
       {/* SPMB section */}
       <section
         id="spmb"
-        className="scroll-mt-20 bg-primary text-primary-foreground"
+        className="scroll-mt-20 bg-sidebar text-sidebar-foreground"
       >
         <div className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6 sm:py-20">
           <div className="grid grid-cols-1 gap-10 lg:grid-cols-3">
@@ -308,7 +308,7 @@ export function ContactView() {
               <h2 className="mt-3 font-sans text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl">
                 Info SPMB 2025/2026
               </h2>
-              <p className="mt-4 text-sm leading-relaxed text-primary-foreground/80 sm:text-base">
+              <p className="mt-4 text-sm leading-relaxed text-sidebar-foreground/80 sm:text-base">
                 {settings?.spmbInfo}
               </p>
               <div className="mt-6 flex flex-col gap-3">
@@ -324,12 +324,12 @@ export function ContactView() {
                     <ExternalLink className="size-3.5 opacity-80" />
                   </a>
                 ) : (
-                  <span className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary-foreground/10 px-6 text-sm font-medium text-primary-foreground/60">
+                  <span className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-sidebar-foreground/10 px-6 text-sm font-medium text-sidebar-foreground/60">
                     <Globe className="size-4" />
                     Link SPMB belum diatur
                   </span>
                 )}
-                <p className="text-xs text-primary-foreground/70">
+                <p className="text-xs text-sidebar-foreground/70">
                   *Pendaftaran dilakukan melalui portal SPMB resmi Kota Makassar
                   yang diseragamkan untuk seluruh sekolah.
                 </p>
@@ -346,10 +346,10 @@ export function ContactView() {
                   return (
                     <div
                       key={p.name}
-                      className="flex flex-col gap-3 rounded-xl border border-primary-foreground/15 bg-primary-foreground/5 p-5 backdrop-blur transition-colors hover:bg-primary-foreground/10"
+                      className="flex flex-col gap-3 rounded-xl border border-sidebar-foreground/15 bg-sidebar-foreground/5 p-5 backdrop-blur transition-colors hover:bg-sidebar-foreground/10"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="flex size-11 items-center justify-center rounded-lg bg-primary-foreground/10 text-gold ring-1 ring-gold/40">
+                        <span className="flex size-11 items-center justify-center rounded-lg bg-sidebar-foreground/10 text-gold ring-1 ring-gold/40">
                           <Icon className="size-5 text-gold" />
                         </span>
                         <span className="rounded-full bg-gold px-3 py-1 text-xs font-bold text-gold-foreground">
@@ -359,7 +359,7 @@ export function ContactView() {
                       <h4 className="font-sans text-base font-bold">
                         {p.name}
                       </h4>
-                      <p className="text-xs leading-relaxed text-primary-foreground/75">
+                      <p className="text-xs leading-relaxed text-sidebar-foreground/75">
                         {p.desc}
                       </p>
                     </div>
@@ -369,9 +369,9 @@ export function ContactView() {
             </div>
           </div>
 
-          <div className="mt-10 flex flex-col items-center gap-3 border-t border-primary-foreground/15 pt-8 text-center">
+          <div className="mt-10 flex flex-col items-center gap-3 border-t border-sidebar-foreground/15 pt-8 text-center">
             <ArrowRight className="size-6 text-gold" />
-            <p className="text-sm text-primary-foreground/80">
+            <p className="text-sm text-sidebar-foreground/80">
               Butuh bantuan? Hubungi kami melalui formulir di atas.
             </p>
           </div>
@@ -422,7 +422,7 @@ function InfoRow({
 }) {
   return (
     <li className="flex items-start gap-3">
-      <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+      <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-accent text-sidebar-foreground">
         <Icon className="size-4 text-gold" />
       </span>
       <div className="flex flex-col gap-0.5">

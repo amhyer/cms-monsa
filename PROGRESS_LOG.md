@@ -1184,6 +1184,9 @@ file ke versi HEAD: error terbukti; setelah `2e980b1` commit, HEAD hijau.
 | `85366fb` | **Dapodik** | Toggle "Izinkan HTTP di production" (`allowInsecureInProduction`) + Redis opsional — 15 file, +444/−16 |
 | `ad8a5f6` | **Students Showcase** | Galeri siswa di beranda (API publik + marquee + pencarian) + foto siswa di dashboard — 12 file, +495/−29 |
 | `aea423c` | **Struktur Organisasi** | Halaman publik `/struktur-organisasi` + manager dashboard (CRUD SUPER_ADMIN) + seed 6 jabatan + SEO — 19 file, +866 |
+| `ebc1d23` | **Spec e2e org-structure** | Halaman publik (6 anggota seed) + dashboard admin CRUD — 3 test |
+| `e2fabb4` | **Seed kelas & siswa** | 2 rombel Kelas 1 (2026/2027) + 12 siswa, 4 berfoto — galeri terisi di fresh install |
+| `2d653fc` | **Spec e2e galeri siswa** | Marquee foto, pencarian nama, filter kelas (selector dinamis) — 3 test |
 
 ### Detail per Fitur
 
@@ -1221,13 +1224,25 @@ commit murni satu fitur, hunk di-stage selektif via patch terfilter
   (kolom) — mencegah dua migrasi menambah kolom yang sama di Postgres
 - Verifikasi tiap commit: grep token asing di staged diff = 0 baris fitur lain
 
-### Spec E2E Baru (`e2e/org-structure.spec.ts` — belum di-commit)
+### Spec E2E Baru (semua sudah di-commit)
 
+**`e2e/org-structure.spec.ts`** (`ebc1d23`):
 - Halaman publik: banner + 6 anggota seed (heading `h3`, jabatan `exact`,
   `img[alt=nama]`)
 - Dashboard admin: navigasi sidebar → `/dashboard/org-structure` + CRUD penuh
   (tambah → baca → ubah → hapus via ConfirmDialog, kartu hilang di akhir)
-- 3/3 lulus; full suite e2e naik ke **42/42** (dari 39)
+
+**`e2e/students-showcase.spec.ts`** (`2d653fc`):
+- Marquee foto: section Galeri Siswa + `img[src^=http]` + teks "Menampilkan"
+- Pencarian nama: ambil `alt` siswa berfoto pertama, cari kata pertamanya,
+  assert nama lengkap di grid hasil
+- Filter kelas: baca kelas dari kartu marquee, pilih opsi filter, assert hasil
+- Selector **dinamis** dari marquee → deterministik di dev & CI
+
+Catatan: agar CI deterministik, seed perlu data — sebelumnya seed **tidak
+membuat kelas/siswa sama sekali**. `e2fabb4` menambah 2 rombel + 12 siswa
+(4 berfoto pravatar); smoke-test di temp DB segar: `classes: 2 | students:
+12 | with photo: 4` ✓.
 
 ### Database Dev
 
@@ -1243,7 +1258,9 @@ commit murni satu fitur, hunk di-stage selektif via patch terfilter
 - ESLint — bersih; markdownlint — 0 issues; `check:schema` — sinkron
   (diverifikasi juga dari blob HEAD kedua schema)
 - Vitest — **294/294** lulus (29 file) di setiap commit (pre-commit hook)
-- Playwright e2e — **42/42** lulus (12 spec; +3 org-structure)
+- Playwright e2e — **45/45** lulus (14 spec; +3 org-structure, +3 galeri siswa)
+- Konfirmasi akhir: `bun run test` 294/294 + `bun run test:e2e` 45/45
+  setelah commit galeri siswa (working tree bersih)
 - Pre-commit hook (gate penuh) — lulus di semua commit
 
 ### Catatan
@@ -1254,6 +1271,13 @@ commit murni satu fitur, hunk di-stage selektif via patch terfilter
   → `add_org_structure`) valid & berurutan untuk `migrate deploy` Postgres
 - `struktur-organisasi-view.tsx` membawa styling chip navy+emas dari FASE 29
   (wajar: file baru milik fitur ini)
+- **Audit dark-mode dashboard** (tanpa perubahan kode): pemakaian `bg-primary`
+  bersih — topbar `bg-sidebar` navy di kedua mode, tombol aksi emas disengaja,
+  6 `bg-primary` lain = state/badge aksen kecil. Temuan terpisah: **37 warna
+  hardcoded terang** (lingkaran ikon statistik `bg-indigo-100/emerald-100/…`
+  di `overview.tsx`, chip status attendance/complaints) tetap terang di dark
+  mode — inkonsistensi visual (teks tetap terbaca), rekomendasi konversi ke
+  token + `dark:` variant (belum dikerjakan)
 
 ---
 

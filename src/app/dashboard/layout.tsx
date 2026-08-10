@@ -297,13 +297,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-muted/30">
       {/* Topbar */}
-      <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background px-4 sm:px-6 print:hidden">
+      <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-gold/25 bg-sidebar px-4 text-sidebar-foreground shadow-md sm:px-6 print:hidden">
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
-              className="lg:hidden"
+              className="lg:hidden text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
               aria-label="Buka menu"
             >
               <Menu className="size-5" />
@@ -333,10 +333,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         </Sheet>
 
         <div className="flex flex-col">
-          <h1 className="text-base font-semibold leading-tight sm:text-lg">
+          <h1 className="text-base font-semibold leading-tight text-sidebar-foreground sm:text-lg">
             {currentTitle(pathname)}
           </h1>
-          <p className="hidden text-xs text-muted-foreground sm:block">
+          <p className="hidden text-xs text-sidebar-foreground/70 sm:block">
             Panel Manajemen Konten Sekolah
           </p>
         </div>
@@ -346,12 +346,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             variant="outline"
             size="sm"
             onClick={() => search.setOpen(true)}
-            className="hidden md:inline-flex"
+            className="hidden border-sidebar-border bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 hover:text-sidebar-foreground md:inline-flex"
             aria-label="Cari menu (Ctrl+K)"
           >
             <Search className="size-4" />
             <span className="hidden lg:inline">Cari…</span>
-            <kbd className="ml-1 hidden rounded border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground lg:inline">
+            <kbd className="ml-1 hidden rounded border border-sidebar-border bg-white/10 px-1.5 py-0.5 text-[10px] font-medium text-sidebar-foreground/70 lg:inline">
               Ctrl K
             </kbd>
           </Button>
@@ -361,13 +361,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 ? "bg-gold text-gold-foreground"
                 : isGuru
                   ? "bg-violet-600 text-white"
-                  : "bg-primary text-primary-foreground"
+                  : "border-sidebar-border bg-sidebar-accent text-sidebar-foreground"
             }
           >
             Login sebagai: {isAdmin ? "Admin" : isGuru ? "Guru" : "Operator"}
           </Badge>
 
-          <ThemeToggle className="hidden sm:inline-flex" />
+          <ThemeToggle className="hidden text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground sm:inline-flex" />
 
           {!isGuru && !IS_PROD && (
             <Tooltip>
@@ -376,7 +376,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   variant="outline"
                   size="sm"
                   onClick={handleSwitchRole}
-                  className="hidden md:inline-flex"
+                  className="hidden border-sidebar-border bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 hover:text-sidebar-foreground md:inline-flex"
                 >
                   <Repeat className="size-4" />
                   <span className="hidden lg:inline">Switch Role (Mock)</span>
@@ -391,7 +391,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 variant="ghost"
                 size="sm"
                 onClick={() => router.push("/")}
-                className="hidden sm:inline-flex"
+                className="hidden text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground sm:inline-flex"
               >
                 <ExternalLink className="size-4" /> Lihat Situs
               </Button>
@@ -401,7 +401,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Menu pengguna">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Menu pengguna"
+                className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
+              >
                 <UserCircle2 className="size-5" />
               </Button>
             </DropdownMenuTrigger>
@@ -475,7 +480,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
-      <footer className="mt-auto border-t bg-background px-4 py-3 text-center text-xs text-muted-foreground sm:px-6 print:hidden">
+      <footer className="mt-auto border-t border-gold/25 bg-sidebar px-4 py-3 text-center text-xs text-sidebar-foreground/70 sm:px-6 print:hidden">
         © {new Date().getFullYear()}{" "}
         {settings?.schoolName ?? "SD Negeri Unggulan Mongisidi 1"} — CMS v1.0
       </footer>

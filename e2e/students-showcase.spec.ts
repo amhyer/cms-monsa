@@ -49,6 +49,39 @@ test.describe("Galeri Siswa — beranda", () => {
     await expect(section.getByText(fullName!, { exact: true })).toBeVisible();
   });
 
+  test("klik Jeda menghentikan animasi marquee dan aria-pressed berubah", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const section = gallery(page);
+    await expect(section).toContainText("Menampilkan");
+
+    const pauseBtn = section.getByRole("button", { name: "Jeda animasi" });
+    await expect(pauseBtn).toBeVisible();
+
+    // Track marquee siswa (satu-satunya .animate-marquee di dalam section).
+    const track = section.locator(".animate-marquee");
+    const playState = () =>
+      track.evaluate((el) => getComputedStyle(el).animationPlayState);
+
+    // Baseline: animasi berjalan.
+    await expect.poll(playState).toBe("running");
+
+    // Klik Jeda → animasi berhenti & state toggle (aria-pressed, label).
+    await pauseBtn.click();
+    await expect.poll(playState).toBe("paused");
+    await expect(
+      section.getByRole("button", { name: "Putar animasi", pressed: true })
+    ).toBeVisible();
+
+    // Klik Putar → animasi jalan lagi & state kembali.
+    await section.getByRole("button", { name: "Putar animasi" }).click();
+    await expect.poll(playState).toBe("running");
+    await expect(
+      section.getByRole("button", { name: "Jeda animasi", pressed: false })
+    ).toBeVisible();
+  });
+
   test("filter kelas menampilkan siswa kelas terpilih", async ({ page }) => {
     await page.goto("/");
     const section = gallery(page);

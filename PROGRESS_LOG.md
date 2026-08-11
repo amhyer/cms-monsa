@@ -1281,6 +1281,86 @@ membuat kelas/siswa sama sekali**. `e2fabb4` menambah 2 rombel + 12 siswa
 
 ---
 
+## 2026-08-11 — FASE 31: Ganti SPP dengan Transparansi Anggaran (ARKAS / Dana BOS) + QA Batch
+
+### Latar belakang
+
+Permintaan sekolah: **hapus SPP** (sekolah negeri tidak memungut SPP) dan
+**ganti dengan halaman publikasi ARKAS / belanja Dana BOS** yang bisa dilihat
+semua orang — komitmen keterbukaan penggunaan dana. Sekaligus membereskan
+sisa QA yang tertunda dari fase sebelumnya (flake timeout whatsapp, spec e2e
+baru, a11y marquee).
+
+### Hapus fitur Pembayaran (SPP)
+
+- Menu & halaman `/dashboard/payments` + `payments-manager.tsx` (631 baris)
+- API `/api/payments/*` (CRUD, report, send-whatsapp) + 2 file unit test
+- Model `Payment` di kedua schema + **migrasi `drop_payment`** (dev DB:
+  tabel di-drop, 389 baris data terhapus sesuai niat)
+- Agregasi payments di `/api/stats`, kartu "Pendapatan Bulan Ini" di overview,
+  tab "Rekap Pembayaran" di laporan, template WhatsApp
+  `sppReminderMessage` & `paymentConfirmationMessage`
+
+### Fitur baru — Transparansi Anggaran (publik)
+
+- **Halaman publik `/transparansi`** (nav "Transparansi"): tabel belanja BOS
+  (sumber dana, kategori, uraian, triwulan, nominal), kartu total & ringkasan
+  per sumber dana, filter tahun, catatan sumber ARKAS; sitemap + SEO JSON-LD
+- **Manager `/dashboard/transparansi`** (SUPER_ADMIN): CRUD lengkap (tahun,
+  sumber BOS Reguler/Kinerja/DAK/Lainnya, kategori, uraian, nominal, triwulan)
+  + filter tahun + total real-time
+- **API `/api/bos-expenditures` (+[id])**: GET publik (transparansi memang
+  untuk semua), POST/PUT/DELETE SUPER_ADMIN ber-CSRF + log aktivitas
+- Model `BosExpenditure` (migrasi `add_bos_expenditure`) + seed 8 item belanja
+  realistis (Rp83 juta) + unit test API (9 test)
+- README: tabel route & halaman publik di-update
+
+### QA batch (menuntaskan sisa sesi sebelumnya)
+
+- **Stabilisasi flake whatsapp.test.ts**: `timeoutMs` injectable + manual
+  AbortController dengan `clearTimeout` (timer selalu dibersihkan), test
+  timeout deterministik baru, timeout ketat 5s per-describe — ikut ter-commit
+  di `fcd1963` (hunk di file yang sama)
+- **Fix a11y** (`3b46c68`): tombol Ganti/Hapus gambar visible saat keyboard
+  focus (`focus-visible:opacity-100`), `aria-label` input URL, salinan kedua
+  marquee dibungkus `aria-hidden` (display:contents) di galeri siswa &
+  pengumuman berjalan — screen reader tidak lagi membaca duplikat
+- **Tombol pause/play marquee** (WCAG 2.2.2): galeri siswa (`c3fcaa6`) &
+  pengumuman berjalan (turn ini) — inline `animationPlayState` (mengalahkan
+  shorthand `.animate-marquee`), `aria-pressed`, `motion-reduce:hidden`
+- **Audit kontras WCAG live** (script sementara, dihapus): 14/14 PASS di light
+  & dark — termasuk teks emas di kartu gelap (11.2:1) & kelas siswa 10px
+  muted (5.8/7.2:1); auto-scan aria-label/alt bersih di 5 halaman
+- **Spec e2e baru**: `dashboard-dark-mode.spec.ts` (`b9afd61`),
+  `transparansi.spec.ts` (publik + navigasi + CRUD, turn ini)
+
+### Testing
+
+- Vitest **278/278** (FASE 30: 294 → hapus 26 test SPP → +9 test BOS)
+- E2E: suite penuh hijau (47 passed + flaky csrf yang lulus di retry);
+  spec transparansi 3/3
+- Gate penuh tiap commit: tsc 0 error, eslint bersih, markdownlint 0 issues,
+  check:schema sinkron, vitest hijau
+
+### Commit (main)
+
+| Commit | Isi |
+|---|---|
+| `fcd1963` | feat(transparansi)!: ganti SPP dengan publikasi ARKAS / belanja Dana BOS (34 file, +1114/−1904) + stabilisasi timeout whatsapp |
+| `c3fcaa6` | feat(a11y): tombol pause/play marquee galeri siswa + regression e2e |
+| `b9afd61` | test(e2e): spec dark-mode dashboard — stat cards translucent & topbar navy |
+
+### Catatan
+
+- Dua migrasi Postgres valid & berurutan untuk `migrate deploy`: `drop_payment`
+  → `add_bos_expenditure`
+- `dashboard-search` memakai `DASHBOARD_NAV` dinamis → transparansi otomatis
+  masuk, payments otomatis hilang; `isGuruDeniedPath` generik →
+  `/dashboard/transparansi` otomatis tertutup untuk GURU
+- Dev DB: `db push --accept-data-loss` (drop Payment) + 8 item BOS di-seed
+
+---
+
 ## 🎉 SEMUA FASE SELESAI
 
 ### Ringkasan Implementasi
@@ -1317,5 +1397,6 @@ membuat kelas/siswa sama sekali**. `e2fabb4` menambah 2 rombel + 12 siswa
 | 28 | ✅ | Guard Sinkronisasi Schema Prisma — `check:schema` di gate check + CI (item #8) |
 | 29 | ✅ | Konsistensi tema dark-mode (navy + emas) — footer, band, tile, chip publik + regression e2e (footer, bands, header) + helper bersama + job e2e di CI |
 | 30 | ✅ | Commit 3 fitur (Dapodik, Students Showcase, Struktur Organisasi) — hunk selektif + pemecahan migrasi + fix language-switcher + spec e2e org-structure (suite 42/42) |
+| 31 | ✅ | Ganti SPP dengan Transparansi Anggaran (ARKAS / Dana BOS) — hapus payments (menu, API, model, template WA), fitur publik + dashboard, migrasi drop/add, seed, sitemap/SEO, README + QA batch (flake whatsapp, a11y marquee & focus, spec e2e baru) |
 
-**Total: 30 dari 30 fase selesai (100%)**
+**Total: 31 dari 31 fase selesai (100%)**

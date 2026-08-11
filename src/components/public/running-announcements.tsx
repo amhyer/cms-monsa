@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Megaphone } from "lucide-react";
+import { Megaphone, Pause, Play } from "lucide-react";
 import type { AnnouncementItem } from "@/lib/types";
 
 export function RunningAnnouncements() {
   const [items, setItems] = useState<AnnouncementItem[]>([]);
   const [loading, setLoading] = useState(true);
+  // Pause marquee (WCAG 2.2.2 — konten bergerak otomatis perlu kontrol jeda).
+  const [paused, setPaused] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -43,7 +45,11 @@ export function RunningAnnouncements() {
         <span className="sm:hidden">INFO:</span>
       </span>
       <div className="relative flex-1 overflow-hidden">
-        <div className="flex w-max animate-marquee gap-10 whitespace-nowrap">
+        <div
+          className="flex w-max animate-marquee gap-10 whitespace-nowrap"
+          // Inline style mengalahkan shorthand `animation:` dari .animate-marquee.
+          style={paused ? { animationPlayState: "paused" } : undefined}
+        >
           {items.map((a, idx) => (
             <span
               key={`${a.id}-${idx}`}
@@ -67,6 +73,20 @@ export function RunningAnnouncements() {
           </div>
         </div>
       </div>
+      <button
+        type="button"
+        onClick={() => setPaused((p) => !p)}
+        aria-pressed={paused}
+        aria-label={paused ? "Putar pengumuman" : "Jeda pengumuman"}
+        // Sembunyikan saat prefers-reduced-motion — animasi sudah mati.
+        className="flex shrink-0 items-center justify-center rounded-md p-1.5 text-sidebar-foreground/80 transition hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:hidden"
+      >
+        {paused ? (
+          <Play className="size-3.5" />
+        ) : (
+          <Pause className="size-3.5" />
+        )}
+      </button>
     </div>
   );
 }

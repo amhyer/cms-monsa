@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Search, Users, Camera, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Search,
+  Users,
+  Camera,
+  ChevronLeft,
+  ChevronRight,
+  Pause,
+  Play,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -80,6 +88,8 @@ export function StudentsShowcase() {
 
   const [q, setQ] = useState("");
   const [classId, setClassId] = useState("");
+  // Pause marquee (WCAG 2.2.2 — konten bergerak otomatis perlu kontrol jeda).
+  const [paused, setPaused] = useState(false);
   const [results, setResults] = useState<ShowcaseItem[] | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -299,7 +309,12 @@ export function StudentsShowcase() {
       ) : (
         /* ---------- Mode default: marquee berputar ---------- */
         <div className="mt-10 w-full overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_10%,black_90%,transparent)]">
-          <div className="flex w-max animate-marquee items-start gap-5 pb-1">
+          <div
+            className="flex w-max animate-marquee items-start gap-5 pb-1"
+            // Inline style: mengalahkan shorthand `animation:` dari
+            // .animate-marquee (urutan CSS tak bisa dijamin untuk kelas).
+            style={paused ? { animationPlayState: "paused" } : undefined}
+          >
             {strip.map((s, i) => (
               <StudentCard key={`${s.id}-${i}`} s={s} compact />
             ))}
@@ -311,11 +326,32 @@ export function StudentsShowcase() {
               ))}
             </div>
           </div>
-          <p className="mt-6 text-center text-xs text-muted-foreground">
-            {strip.length > 0
-              ? `Menampilkan ${strip.length} siswa terbaru — gunakan pencarian di atas untuk melihat siswa lain.`
-              : "Galeri foto siswa akan segera dilengkapi."}
-          </p>
+          <div className="mt-6 flex flex-col items-center justify-center gap-2 sm:flex-row sm:gap-4">
+            {strip.length > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setPaused((p) => !p)}
+                aria-pressed={paused}
+                aria-label={paused ? "Putar animasi" : "Jeda animasi"}
+                // Sembunyikan saat prefers-reduced-motion — animasi sudah mati.
+                className="motion-reduce:hidden"
+              >
+                {paused ? (
+                  <Play className="size-3.5" />
+                ) : (
+                  <Pause className="size-3.5" />
+                )}
+                {paused ? "Putar" : "Jeda"}
+              </Button>
+            )}
+            <p className="text-center text-xs text-muted-foreground">
+              {strip.length > 0
+                ? `Menampilkan ${strip.length} siswa terbaru — gunakan pencarian di atas untuk melihat siswa lain.`
+                : "Galeri foto siswa akan segera dilengkapi."}
+            </p>
+          </div>
         </div>
       )}
     </SectionShell>

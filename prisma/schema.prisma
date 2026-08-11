@@ -36,7 +36,7 @@ model User {
   uploadedDocuments Document[]
   reviewedEnrollments Enrollment[]
   attendanceRecords Attendance[]
-  paymentRecords    Payment[]
+  bosExpenditures   BosExpenditure[]
 }
 
 // ---------- CONTENT ----------
@@ -190,7 +190,6 @@ model Student {
   updatedAt   DateTime @updatedAt
 
   attendances Attendance[]
-  payments    Payment[]
 
   @@index([classId])
   @@index([nis])
@@ -214,25 +213,6 @@ model Attendance {
 
   @@unique([studentId, date])
   @@index([classId, date])
-}
-
-// ---------- KEUANGAN / SPP ----------
-model Payment {
-  id           String   @id @default(cuid())
-  studentId    String
-  student      Student  @relation(fields: [studentId], references: [id])
-  amount       Int      // dalam Rupiah
-  paymentDate  DateTime @default(now())
-  monthPeriod  String   // e.g., "2026-07" (periode yang dibayar)
-  status       String   @default("PAID") // PAID | UNPAID
-  note         String?
-  recordedById String?
-  recordedBy   User?    @relation(fields: [recordedById], references: [id])
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  @@index([studentId, monthPeriod])
-  @@index([monthPeriod])
 }
 
 // ---------- DOCUMENT MANAGEMENT ----------
@@ -415,4 +395,23 @@ model OrgStructure {
   updatedAt DateTime @updatedAt
 
   @@index([order])
+}
+
+// ---------- TRANSPARANSI ANGGARAN (ARKAS / DANA BOS) ----------
+model BosExpenditure {
+  id           String   @id @default(cuid())
+  year         Int      // tahun anggaran, mis. 2026
+  source       String   // sumber dana: BOS Reguler | BOS Kinerja | DAK | Lainnya
+  category     String   // kategori belanja ARKAS, mis. Honorarium, Pembelajaran
+  item         String   // uraian kegiatan/belanja
+  amount       Int      // nominal dalam Rupiah
+  quarter      Int?     // triwulan 1-4 (opsional)
+  note         String?
+  recordedById String?
+  recordedBy   User?    @relation(fields: [recordedById], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([year])
+  @@index([source])
 }

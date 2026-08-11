@@ -17,7 +17,6 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 import { GET as GET_ATTENDANCE_REPORT } from "@/app/api/attendances/report/route";
-import { GET as GET_PAYMENT_REPORT } from "@/app/api/payments/report/route";
 
 describe("/api/attendances/report", () => {
   beforeEach(() => {
@@ -95,53 +94,5 @@ describe("/api/attendances/report", () => {
     });
     expect(data.items[1].counts).toEqual({ HADIR: 0, SAKIT: 0, IZIN: 1, ALFA: 0 });
     expect(data.items[1].rate).toBe(0);
-  });
-});
-
-describe("/api/payments/report", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockCookies.store = {};
-  });
-
-  it("requires OPERATOR role (GURU denied)", async () => {
-    mockRequireRole.mockResolvedValue({
-      ok: false,
-      response: new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 }),
-    });
-    const req = createMockRequest("http://localhost/api/payments/report?year=2026");
-    const res = await GET_PAYMENT_REPORT(asNextRequest(req));
-    expect(res.status).toBe(403);
-  });
-
-  it("rejects invalid year format", async () => {
-    mockRequireRole.mockResolvedValue({ ok: true, user: createMockUser() });
-    const req = createMockRequest("http://localhost/api/payments/report?year=26");
-    const res = await GET_PAYMENT_REPORT(asNextRequest(req));
-    expect(res.status).toBe(400);
-  });
-
-  it("groups payments by month and builds summary", async () => {
-    mockRequireRole.mockResolvedValue({ ok: true, user: createMockUser() });
-    mockPrisma.payment.findMany.mockResolvedValue([
-      { id: "p1", amount: 50000, monthPeriod: "2026-01", studentId: "s1" },
-      { id: "p2", amount: 50000, monthPeriod: "2026-01", studentId: "s2" },
-      { id: "p3", amount: 75000, monthPeriod: "2026-07", studentId: "s1" },
-    ]);
-
-    const req = createMockRequest("http://localhost/api/payments/report?year=2026");
-    const res = await GET_PAYMENT_REPORT(asNextRequest(req));
-    const data = await res.json();
-
-    expect(res.status).toBe(200);
-    expect(data.months).toHaveLength(12);
-    expect(data.months[0]).toMatchObject({ month: 1, paidCount: 2, totalAmount: 100000 });
-    expect(data.months[6]).toMatchObject({ month: 7, paidCount: 1, totalAmount: 75000 });
-    expect(data.months[2]).toMatchObject({ month: 3, paidCount: 0, totalAmount: 0 });
-    expect(data.summary).toEqual({
-      totalPaid: 3,
-      totalAmount: 175000,
-      distinctStudents: 2,
-    });
   });
 });

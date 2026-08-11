@@ -405,16 +405,29 @@ export const createOrgStructureSchema = z.object({
 
 export const updateOrgStructureSchema = createOrgStructureSchema.partial();
 
-// --- Payments ---
-export const createPaymentSchema = z.object({
-  studentId: z.string().min(1, "Siswa wajib diisi."),
-  monthPeriod: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Format periode bulan tidak valid (YYYY-MM)."),
-  amount: z.number().int("Nominal harus berupa angka.").positive("Nominal harus positif.").max(1_000_000_000, "Nominal terlalu besar."),
-  paymentDate: z.string().optional(),
-  status: z.enum(["PAID", "UNPAID"]).default("PAID"),
-  note: z.string().max(1000, "Catatan maksimal 1000 karakter.").optional().nullable(),
+// --- Transparansi Anggaran (ARKAS / Dana BOS) ---
+export const createBosExpenditureSchema = z.object({
+  year: z
+    .number()
+    .int("Tahun harus berupa angka bulat.")
+    .min(2000, "Tahun minimal 2000.")
+    .max(2100, "Tahun maksimal 2100."),
+  source: z.string().min(1, "Sumber dana wajib diisi."),
+  category: z.string().min(1, "Kategori belanja wajib diisi."),
+  item: z.string().min(1, "Uraian belanja wajib diisi."),
+  amount: z
+    .number()
+    .int("Nominal harus berupa angka bulat.")
+    .positive("Nominal harus positif.")
+    .max(1_000_000_000_000, "Nominal terlalu besar."),
+  quarter: z
+    .number()
+    .int()
+    .min(1)
+    .max(4)
+    .optional()
+    .nullable(),
+  note: z.string().max(2000, "Catatan maksimal 2000 karakter.").optional().nullable(),
 });
 
-export const updatePaymentSchema = createPaymentSchema.partial().extend({
-  id: z.string().cuid(),
-});
+export const updateBosExpenditureSchema = createBosExpenditureSchema.partial();

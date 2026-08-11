@@ -19,7 +19,6 @@ import {
   CalendarDays,
   GraduationCap,
   ClipboardCheck,
-  Wallet,
   CheckCircle2,
   Stethoscope,
   UserX,
@@ -29,7 +28,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageLoader, actionBadgeClass, actionLabel } from "../_shared";
-import { relativeTime, formatCurrency } from "@/lib/format";
+import { relativeTime } from "@/lib/format";
 import type { ActivityLogItem, ContactMessageItem } from "@/lib/types";
 
 type Stats = {
@@ -54,10 +53,6 @@ type Stats = {
     alfa: number;
     total: number;
   };
-  payments?: {
-    monthPeriod: string;
-    totalAmount: number;
-  } | null;
   recentLogs: ActivityLogItem[];
   recentMessages: ContactMessageItem[];
 };
@@ -184,7 +179,7 @@ export function Overview() {
         })}
       </div>
 
-      {/* Attendance & Payment Highlight */}
+      {/* Attendance Highlight */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card className="border-indigo-100 bg-indigo-50/30 dark:border-indigo-500/20 dark:bg-indigo-500/5">
           <CardHeader className="pb-2">
@@ -233,34 +228,6 @@ export function Overview() {
           </CardContent>
         </Card>
 
-        {!isGuru && stats.payments && (
-          <Card className="border-emerald-100 bg-emerald-50/30 dark:border-emerald-500/20 dark:bg-emerald-500/5">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-base font-semibold text-emerald-900 dark:text-emerald-200">
-                <Wallet className="size-4" />
-                Pendapatan Bulan Ini ({stats.payments.monthPeriod})
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex items-center justify-between">
-              <div>
-                <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
-                  {formatCurrency(stats.payments.totalAmount)}
-                </p>
-                <p className="text-xs text-emerald-600/80 dark:text-emerald-300/80">
-                  Total iuran terkumpul periode berjalan.
-                </p>
-              </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500/30 dark:bg-transparent dark:text-emerald-300 dark:hover:bg-emerald-500/10"
-                onClick={() => router.push("/dashboard/payments")}
-              >
-                Detail
-              </Button>
-            </CardContent>
-          </Card>
-        )}
       </div>
 
       {/* Secondary stat pills */}

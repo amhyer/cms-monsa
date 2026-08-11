@@ -43,19 +43,35 @@ export interface SendWhatsAppResult {
   id?: string;
 }
 
+export interface SendWhatsAppOptions {
+  /**
+   * Batas waktu tunggu respons Fonnte (ms). Default: 20 detik.
+   * Dipakai juga oleh test untuk menghindari timer panjang yang nyata.
+   */
+  timeoutMs?: number;
+}
+
 /**
  * Kirim satu pesan WA ke satu nomor (format internasional).
  * Mengembalikan true jika Fonnte menerima pengiriman.
+ *
+ * Timeout memakai AbortController manual + clearTimeout (bukan
+ * `AbortSignal.timeout`) supaya timer SELALU dibersihkan setelah fetch
+ * selesai — tidak ada timer 20s yang tertinggal di worker test.
  */
 export async function sendWhatsApp(
   phone: string,
-  message: string
+  message: string,
+  opts: SendWhatsAppOptions = {}
 ): Promise<SendWhatsAppResult> {
   const token = fonnteToken();
   if (!token) {
     console.warn("[whatsapp] FONNTE_TOKEN belum di-set — pengiriman dilewati.");
     return { ok: false, message: "FONNTE_TOKEN belum dikonfigurasi." };
   }
+  const timeoutMs = opts.timeoutMs ?? 20_000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const body = new URLSearchParams();
     body.append("target", phone);
@@ -68,7 +84,7 @@ export async function sendWhatsApp(
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: body.toString(),
-      signal: AbortSignal.timeout(20_000),
+      signal: controller.signal,
     });
     const data = (await res.json().catch(() => ({}))) as {
       status?: boolean;
@@ -84,8 +100,17 @@ export async function sendWhatsApp(
     console.log(`[whatsapp] Terkirim ke ${phone}: ${message.slice(0, 60)}…`);
     return { ok: true, detail: data.detail, id: data.id };
   } catch (e) {
+    if (controller.signal.aborted) {
+      console.error(`[whatsapp] Timeout setelah ${timeoutMs} ms ke`, phone);
+      return {
+        ok: false,
+        message: `Timeout: Fonnte tidak merespons dalam ${timeoutMs} ms.`,
+      };
+    }
     console.error("[whatsapp] Error:", e);
     return { ok: false, message: e instanceof Error ? e.message : "Network error." };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -99,7 +124,11 @@ export async function sendWhatsApp(
 export async function sendBulkWhatsApp(
   phones: string[],
   message: string | ((phone: string) => string),
-  opts: { delayMs?: number; onProgress?: (sent: number, total: number) => void } = {}
+  opts: {
+    delayMs?: number;
+    timeoutMs?: number;
+    onProgress?: (sent: number, total: number) => void;
+  } = {}
 ): Promise<{ sent: number; failed: number; skipped: number; errors: string[] }> {
   const delayMs = opts.delayMs ?? 1500;
   const errors: string[] = [];
@@ -111,7 +140,7 @@ export async function sendBulkWhatsApp(
     opts.onProgress?.(sent, phones.length);
     const body =
       typeof message === "function" ? message(phone) : message;
-    const result = await sendWhatsApp(phone, body);
+    const result = await sendWhatsApp(phone, body, { timeoutMs: opts.timeoutMs });
     if (result.ok) {
       sent++;
     } else {
@@ -162,28 +191,6 @@ export function monthLabel(period: string): string {
 }
 
 /**
- * Template pesan pengingat tagihan SPP untuk orang tua.
- * Mendukung 1 siswa atau beberapa siswa (jika satu nomor dipakai 2+ anak).
- */
-export function sppReminderMessage(opts: {
-  schoolName: string;
-  monthPeriod: string;
-  studentNames: string[];
-}): string {
-  const period = monthLabel(opts.monthPeriod);
-  const names = opts.studentNames.join(", ");
-  return [
-    "Kepada Bapak/Ibu Orang Tua/Wali Siswa,",
-    "",
-    `Pembayaran SPP periode *${period}* untuk ${names} belum tercatat di sekolah.`,
-    "",
-    "Mohon segera melakukan pembayaran. Terima kasih atas perhatiannya.",
-    "",
-    `— ${opts.schoolName}`,
-  ].join("\n");
-}
-
-/**
  * Template pesan WhatsApp saat akun Portal Orang Tua dibuat untuk orang tua
  * (dikirim otomatis oleh operator melalui dashboard). Menyertakan kredensial
  * login (email + password) sesuai keputusan sekolah.
@@ -211,39 +218,6 @@ export function parentAccountCreatedMessage(opts: {
     `Masuk di: ${opts.portalUrl}`,
     "",
     "Silakan segera login dan ubah password untuk keamanan akun Anda.",
-    "",
-    `— ${opts.schoolName}`,
-  ].join("\n");
-}
-
-/**
- * Template konfirmasi pembayaran SPP untuk orang tua — dikirim otomatis
- * setiap operator mencatat pembayaran berstatus PAID.
- */
-export function paymentConfirmationMessage(opts: {
-  schoolName: string;
-  parentName?: string | null;
-  studentName: string;
-  amount: number;
-  monthPeriod: string;
-  note?: string | null;
-}): string {
-  const greeting = opts.parentName
-    ? `Kepada Bapak/Ibu ${opts.parentName},`
-    : "Kepada Bapak/Ibu Orang Tua/Wali Siswa,";
-  const period = monthLabel(opts.monthPeriod);
-  const rupiah = `Rp${opts.amount.toLocaleString("id-ID")}`;
-  return [
-    greeting,
-    "",
-    "Pembayaran SPP anak Anda telah kami terima. ✅",
-    "",
-    `Siswa: *${opts.studentName}*`,
-    `Periode: *${period}*`,
-    `Nominal: *${rupiah}*`,
-    ...(opts.note ? [`Catatan: ${opts.note}`] : []),
-    "",
-    "Terima kasih atas pembayarannya.",
     "",
     `— ${opts.schoolName}`,
   ].join("\n");

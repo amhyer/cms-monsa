@@ -15,6 +15,7 @@ import { ContactView } from "./contact-view";
 import { ComplaintView } from "./complaint-view";
 import { TeacherPortfolioView } from "./teacher-portfolio-view";
 import { StrukturOrganisasiView } from "./struktur-organisasi-view";
+import { TransparansiView } from "./transparansi-view";
 
 interface PublicSiteProps {
   initialView?: string;
@@ -72,6 +73,8 @@ export function PublicSite({
     currentView === "/struktur-organisasi"
   ) {
     view = <StrukturOrganisasiView />;
+  } else if (currentView === "transparansi" || currentView === "/transparansi") {
+    view = <TransparansiView />;
   } else if (currentView === "contact" || currentView === "/contact") {
     view = <ContactView />;
   } else if (currentView === "complaint" || currentView === "/complaint") {

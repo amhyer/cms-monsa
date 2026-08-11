@@ -40,6 +40,7 @@ export const PUBLIC_NAV: NavItem[] = [
   { label: "Akademik", path: "/academic", icon: GraduationCap },
   { label: "Berita", path: "/news", icon: Newspaper },
   { label: "Galeri", path: "/gallery", icon: Image },
+  { label: "Transparansi", path: "/transparansi", icon: Wallet },
   { label: "Pengaduan", path: "/complaint", icon: ShieldAlert },
   { label: "Kontak", path: "/contact", icon: Phone },
 ];
@@ -55,9 +56,9 @@ export const DASHBOARD_NAV: NavItem[] = [
   { label: "Guru & Staf", path: "/dashboard/teachers", icon: Users },
   { label: "Data Siswa", path: "/dashboard/students", icon: UserSquare2 },
   { label: "Struktur Organisasi", path: "/dashboard/org-structure", icon: Network, adminOnly: true },
+  { label: "Transparansi Anggaran", path: "/dashboard/transparansi", icon: Wallet, adminOnly: true },
   { label: "Kelas", path: "/dashboard/classes", icon: LayoutGrid },
   { label: "Kehadiran Siswa", path: "/dashboard/attendance", icon: ClipboardCheck },
-  { label: "Pembayaran (SPP)", path: "/dashboard/payments", icon: Wallet },
   { label: "Laporan", path: "/dashboard/reports", icon: BarChart3 },
   { label: "Penarikan Dapodik", path: "/dashboard/dapodik", icon: Download },
   { label: "Pengaduan", path: "/dashboard/complaints", icon: ShieldAlert },

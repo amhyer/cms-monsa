@@ -58,6 +58,7 @@ bisa di-index, di-deep-link, dan didukung penuh oleh back/forward browser.
 - `/academic` — Akademik
 - `/news` dan `/news/:slug` — Berita & artikel
 - `/gallery` — Galeri
+- `/transparansi` — Transparansi Anggaran (ARKAS / Dana BOS)
 - `/complaint` — Form pengaduan
 - `/contact` — Kontak
 - `/login` / `/admin-login` — Autentikasi
@@ -76,7 +77,7 @@ bisa di-index, di-deep-link, dan didukung penuh oleh back/forward browser.
 | `/dashboard/students` | Data Siswa | Super Admin / Operator |
 | `/dashboard/classes` | Kelas | Super Admin / Operator |
 | `/dashboard/attendance` | Kehadiran Siswa | Semua role (GURU hanya kelas wali) |
-| `/dashboard/payments` | Pembayaran (SPP) | Super Admin / Operator |
+| `/dashboard/transparansi` | Transparansi Anggaran (ARKAS / Dana BOS) | **Super Admin only** |
 | `/dashboard/reports` | Laporan | Super Admin / Operator |
 | `/dashboard/complaints` | Pengaduan | Super Admin / Operator |
 | `/dashboard/messages` | Pesan Masuk | Super Admin / Operator |

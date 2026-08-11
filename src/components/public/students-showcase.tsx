@@ -300,9 +300,16 @@ export function StudentsShowcase() {
         /* ---------- Mode default: marquee berputar ---------- */
         <div className="mt-10 w-full overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_10%,black_90%,transparent)]">
           <div className="flex w-max animate-marquee items-start gap-5 pb-1">
-            {[...strip, ...strip].map((s, i) => (
+            {strip.map((s, i) => (
               <StudentCard key={`${s.id}-${i}`} s={s} compact />
             ))}
+            {/* Salinan kedua hanya untuk loop animasi yang mulus —
+                disembunyikan dari screen reader (display:contents menjaga layout). */}
+            <div aria-hidden className="contents">
+              {strip.map((s, i) => (
+                <StudentCard key={`${s.id}-dup-${i}`} s={s} compact />
+              ))}
+            </div>
           </div>
           <p className="mt-6 text-center text-xs text-muted-foreground">
             {strip.length > 0

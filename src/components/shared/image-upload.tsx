@@ -93,6 +93,7 @@ export function ImageUpload({
       {showUrl ? (
         <Input
           placeholder="https://..."
+          aria-label="URL gambar"
           value={value ?? ""}
           onChange={(e) => onChange(e.target.value)}
         />
@@ -119,7 +120,7 @@ export function ImageUpload({
                   setLocalPreview(null);
                   onChange("");
                 }}
-                className="absolute right-2 top-2 rounded-full bg-black/60 p-1 text-white opacity-0 transition group-hover:opacity-100"
+                className="absolute right-2 top-2 rounded-full bg-black/60 p-1 text-white opacity-0 transition group-hover:opacity-100 focus-visible:opacity-100"
                 aria-label="Hapus gambar"
               >
                 <X className="size-4" />
@@ -145,7 +146,7 @@ export function ImageUpload({
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
-              className="absolute bottom-2 left-2 rounded-md bg-black/60 px-2 py-1 text-xs text-white opacity-0 transition group-hover:opacity-100"
+              className="absolute bottom-2 left-2 rounded-md bg-black/60 px-2 py-1 text-xs text-white opacity-0 transition group-hover:opacity-100 focus-visible:opacity-100"
             >
               Ganti
             </button>

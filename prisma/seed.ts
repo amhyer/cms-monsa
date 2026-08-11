@@ -35,6 +35,7 @@ async function main() {
   await db.galleryItem.deleteMany();
   await db.achievement.deleteMany();
   await db.orgStructure.deleteMany();
+  await db.bosExpenditure.deleteMany();
   await db.user.deleteMany();
   await db.siteSetting.deleteMany();
 
@@ -427,6 +428,31 @@ async function main() {
         photo: avatar(o.img),
         order: o.order,
         isActive: true,
+      },
+    });
+  }
+
+  // ---------- TRANSPARANSI ANGGARAN (ARKAS / DANA BOS) ----------
+  const bos = [
+    { year: 2026, source: "BOS Reguler", category: "Honorarium", item: "Honorarium guru tidak tetap", amount: 24000000, quarter: 1 },
+    { year: 2026, source: "BOS Reguler", category: "Pembelajaran", item: "Pembelian buku & alat peraga", amount: 15000000, quarter: 2 },
+    { year: 2026, source: "BOS Reguler", category: "Pembelajaran", item: "Kegiatan lomba & ekstrakurikuler", amount: 8000000, quarter: 3 },
+    { year: 2026, source: "BOS Reguler", category: "Sarana Prasarana", item: "Perbaikan ringan sarana & prasarana", amount: 12000000, quarter: 4 },
+    { year: 2026, source: "BOS Reguler", category: "Operasional", item: "Langganan daya & jasa (listrik, air, internet)", amount: 9000000, quarter: null },
+    { year: 2026, source: "BOS Reguler", category: "Operasional", item: "ATK & bahan habis pakai", amount: 6000000, quarter: null },
+    { year: 2026, source: "BOS Kinerja", category: "Pengembangan", item: "Peningkatan kompetensi guru (pelatihan)", amount: 5000000, quarter: null },
+    { year: 2026, source: "BOS Kinerja", category: "Pengembangan", item: "Program literasi & perpustakaan", amount: 3500000, quarter: null },
+  ];
+  for (const b of bos) {
+    await db.bosExpenditure.create({
+      data: {
+        year: b.year,
+        source: b.source,
+        category: b.category,
+        item: b.item,
+        amount: b.amount,
+        quarter: b.quarter,
+        note: null,
       },
     });
   }

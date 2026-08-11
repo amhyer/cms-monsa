@@ -110,6 +110,19 @@ export type OrgStructureItem = {
   updatedAt: string;
 };
 
+export type BosExpenditureItem = {
+  id: string;
+  year: number;
+  source: string;
+  category: string;
+  item: string;
+  amount: number;
+  quarter: number | null;
+  note: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type GalleryItem = {
   id: string;
   title: string;
@@ -237,15 +250,3 @@ export type AttendanceRow = {
   note: string | null;
 };
 
-export type PaymentItem = {
-  id: string;
-  amount: number;
-  paymentDate: string;
-  monthPeriod: string;
-  status: string;
-  note: string | null;
-  studentId: string;
-  studentNis: string;
-  studentName: string;
-  studentClassId: string;
-};

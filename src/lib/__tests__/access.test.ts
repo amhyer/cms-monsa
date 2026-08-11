@@ -46,7 +46,6 @@ describe("isGuruDeniedPath (GURU dashboard guard)", () => {
         "/dashboard/teachers",
         "/dashboard/students",
         "/dashboard/classes",
-        "/dashboard/payments",
         "/dashboard/reports",
         "/dashboard/complaints",
         "/dashboard/messages",

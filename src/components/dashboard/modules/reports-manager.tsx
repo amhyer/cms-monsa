@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Printer, FileBarChart, Wallet, CalendarDays } from "lucide-react";
+import { Printer, FileBarChart, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,6 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { useAppStore } from "@/store/app";
 import type { ClassItem } from "@/lib/types";
-import { formatCurrency } from "@/lib/format";
 import { PageLoader, EmptyState } from "../_shared";
 
 type AttendanceReportRow = {
@@ -37,17 +36,6 @@ type AttendanceReportRow = {
   counts: { HADIR: number; SAKIT: number; IZIN: number; ALFA: number };
   total: number;
   rate: number | null;
-};
-
-type PaymentReport = {
-  year: string;
-  months: {
-    month: number;
-    label: string;
-    paidCount: number;
-    totalAmount: number;
-  }[];
-  summary: { totalPaid: number; totalAmount: number; distinctStudents: number };
 };
 
 function currentMonthInput(): string {
@@ -67,10 +55,6 @@ export function ReportsManager() {
   const [attRows, setAttRows] = useState<AttendanceReportRow[]>([]);
   const [attMeta, setAttMeta] = useState<{ className: string; totalDays: number } | null>(null);
   const [attLoading, setAttLoading] = useState(false);
-
-  const [payYear, setPayYear] = useState(String(new Date().getFullYear()));
-  const [payReport, setPayReport] = useState<PaymentReport | null>(null);
-  const [payLoading, setPayLoading] = useState(false);
 
   const fetchClasses = useCallback(async () => {
     try {
@@ -107,21 +91,6 @@ export function ReportsManager() {
     }
   }, [attClassId, attMonth]);
 
-  const fetchPaymentReport = useCallback(async () => {
-    setPayLoading(true);
-    try {
-      const res = await fetch(`/api/payments/report?year=${payYear}`, { cache: "no-store" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Gagal memuat laporan");
-      setPayReport(data);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal memuat laporan pembayaran.");
-      setPayReport(null);
-    } finally {
-      setPayLoading(false);
-    }
-  }, [payYear]);
-
   useEffect(() => {
     fetchClasses();
   }, [fetchClasses]);
@@ -130,17 +99,13 @@ export function ReportsManager() {
     fetchAttendanceReport();
   }, [fetchAttendanceReport]);
 
-  useEffect(() => {
-    fetchPaymentReport();
-  }, [fetchPaymentReport]);
-
   return (
     <div className="space-y-4 print:p-0">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold tracking-tight">Laporan</h2>
           <p className="text-sm text-muted-foreground">
-            Rekap absensi bulanan dan pembayaran SPP tahunan, siap cetak.
+            Rekap absensi bulanan, siap cetak.
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => window.print()}>
@@ -152,9 +117,6 @@ export function ReportsManager() {
         <TabsList>
           <TabsTrigger value="attendance">
             <CalendarDays className="size-4" /> Rekap Absensi
-          </TabsTrigger>
-          <TabsTrigger value="payment">
-            <Wallet className="size-4" /> Rekap Pembayaran
           </TabsTrigger>
         </TabsList>
 
@@ -256,87 +218,6 @@ export function ReportsManager() {
           )}
         </TabsContent>
 
-        <TabsContent value="payment" className="space-y-4">
-          <Card className="print:hidden">
-            <CardContent className="flex flex-wrap items-end gap-3 py-4">
-              <div className="space-y-2">
-                <Label>Tahun</Label>
-                <Input
-                  type="number"
-                  min={2000}
-                  max={2100}
-                  value={payYear}
-                  onChange={(e) => setPayYear(e.target.value)}
-                  className="w-32"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {payLoading ? (
-            <PageLoader label="Menghitung rekap…" />
-          ) : payReport ? (
-            <>
-              <div className="grid grid-cols-3 gap-4 print:hidden">
-                <Card>
-                  <CardContent className="py-4">
-                    <p className="text-xs text-muted-foreground">Total Pembayaran</p>
-                    <p className="mt-1 text-2xl font-bold">{payReport.summary.totalPaid}</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="py-4">
-                    <p className="text-xs text-muted-foreground">Nominal Terkumpul</p>
-                    <p className="mt-1 text-2xl font-bold">
-                      {formatCurrency(payReport.summary.totalAmount)}
-                    </p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="py-4">
-                    <p className="text-xs text-muted-foreground">Siswa Membayar</p>
-                    <p className="mt-1 text-2xl font-bold">
-                      {payReport.summary.distinctStudents}
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <Card>
-                <CardContent className="overflow-x-auto p-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-10">No</TableHead>
-                        <TableHead>Bulan</TableHead>
-                        <TableHead className="text-center">Jumlah Bayar</TableHead>
-                        <TableHead className="text-right">Nominal</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {payReport.months.map((m, idx) => (
-                        <TableRow key={m.month}>
-                          <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
-                          <TableCell className="font-medium">{m.label}</TableCell>
-                          <TableCell className="text-center">{m.paidCount}</TableCell>
-                          <TableCell className="text-right">
-                            {formatCurrency(m.totalAmount)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            </>
-          ) : (
-            <EmptyState
-              icon={Wallet}
-              title="Belum ada data pembayaran"
-              description="Catat pembayaran di menu Pembayaran (SPP), lalu lihat rekapitulasinya di sini."
-            />
-          )}
-        </TabsContent>
       </Tabs>
     </div>
   );

@@ -107,15 +107,6 @@ const mockPrisma = {
     upsert: vi.fn(),
     groupBy: vi.fn(),
   },
-  payment: {
-    findUnique: vi.fn(),
-    findFirst: vi.fn(),
-    findMany: vi.fn(),
-    create: vi.fn(),
-    update: vi.fn(),
-    delete: vi.fn(),
-    count: vi.fn(),
-  },
   siteSetting: {
     findUnique: vi.fn(),
     upsert: vi.fn(),
@@ -128,6 +119,13 @@ const mockPrisma = {
     update: vi.fn(),
     delete: vi.fn(),
     count: vi.fn(),
+  },
+  bosExpenditure: {
+    findUnique: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
   },
   $transaction: vi.fn((calls: unknown[]) => Promise.resolve(calls)),
 };

@@ -85,20 +85,6 @@ export async function GET() {
     total: attendanceToday.reduce((acc, curr) => acc + curr._count, 0),
   };
 
-  // Payment summary (current month) - Only for non-Guru
-  let payments: { monthPeriod: string; totalAmount: number } | null = null;
-  if (!isGuru) {
-    const monthPeriod = today.toISOString().slice(0, 7); // YYYY-MM
-    const paidAmount = await db.payment.aggregate({
-      where: { monthPeriod },
-      _sum: { amount: true },
-    });
-    payments = {
-      monthPeriod,
-      totalAmount: paidAmount._sum.amount ?? 0,
-    };
-  }
-
   // crude "visits" mock — derive a pseudo number
   const visits = 18420 + Math.floor((Date.now() / 86400000) % 500);
 
@@ -118,7 +104,6 @@ export async function GET() {
       visits,
     },
     attendance,
-    payments,
     recentLogs,
     recentMessages,
   });

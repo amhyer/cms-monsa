@@ -253,6 +253,29 @@ function getPageSeo(pathname: string, settings: SiteSettingItem | null): SeoConf
     };
   }
 
+  // Transparansi Anggaran
+  if (pathname === "/transparansi") {
+    return {
+      title: `Transparansi Anggaran (ARKAS / Dana BOS) — ${schoolName}`,
+      description: `Publikasi belanja dana Bantuan Operasional Sekolah (BOS) dan ARKAS ${schoolName} — keterbukaan dan akuntabilitas penggunaan dana.`,
+      canonicalPath: "/transparansi",
+      ogType: "website",
+      jsonLd: [
+        {
+          id: "ld-breadcrumb",
+          data: {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Beranda", item: SITE_URL },
+              { "@type": "ListItem", position: 2, name: "Transparansi Anggaran", item: `${SITE_URL}/transparansi` },
+            ],
+          },
+        },
+      ],
+    };
+  }
+
   // Contact
   if (pathname === "/contact") {
     return {

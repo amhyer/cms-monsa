@@ -2,9 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   normalizePhone,
   announcementMessage,
-  sppReminderMessage,
   parentAccountCreatedMessage,
-  paymentConfirmationMessage,
   notifyParentWhatsApp,
   monthLabel,
   sendWhatsApp,
@@ -49,29 +47,6 @@ describe("monthLabel", () => {
   });
 });
 
-describe("sppReminderMessage", () => {
-  it("menyertakan periode, nama siswa, dan penutup sekolah", () => {
-    const msg = sppReminderMessage({
-      schoolName: "SDN Mongisidi 1",
-      monthPeriod: "2026-07",
-      studentNames: ["A. UNAYSAH BANI AHMAD"],
-    });
-    expect(msg).toContain("Kepada Bapak/Ibu Orang Tua/Wali Siswa");
-    expect(msg).toContain("Juli 2026");
-    expect(msg).toContain("A. UNAYSAH BANI AHMAD");
-    expect(msg).toContain("belum tercatat di sekolah");
-    expect(msg).toContain("SDN Mongisidi 1");
-  });
-
-  it("menggabungkan nama jika satu nomor dipakai 2+ anak", () => {
-    const msg = sppReminderMessage({
-      schoolName: "SDN",
-      monthPeriod: "2026-08",
-      studentNames: ["Ani", "Budi"],
-    });
-    expect(msg).toContain("Ani, Budi");
-  });
-});
 
 describe("announcementMessage", () => {
   it("menyertakan sapaan, judul, isi, dan penutup sekolah", () => {
@@ -137,38 +112,14 @@ describe("parentAccountCreatedMessage", () => {
   });
 });
 
-describe("paymentConfirmationMessage", () => {
-  it("menyertakan siswa, periode, nominal Rupiah, dan penutup sekolah", () => {
-    const msg = paymentConfirmationMessage({
-      schoolName: "SDN Mongisidi 1",
-      parentName: "Ibu Siti",
-      studentName: "A. UNAYSAH BANI AHMAD",
-      amount: 50000,
-      monthPeriod: "2026-07",
-      note: "Tunai",
-    });
-    expect(msg).toContain("Kepada Bapak/Ibu Ibu Siti");
-    expect(msg).toContain("A. UNAYSAH BANI AHMAD");
-    expect(msg).toContain("Juli 2026");
-    expect(msg).toContain("Rp50.000");
-    expect(msg).toContain("Tunai");
-    expect(msg).toContain("SDN Mongisidi 1");
-  });
 
-  it("menyertakan nominal besar dengan pemisah ribuan", () => {
-    const msg = paymentConfirmationMessage({
-      schoolName: "SDN",
-      studentName: "Budi",
-      amount: 1500000,
-      monthPeriod: "2026-08",
-    });
-    expect(msg).toContain("Rp1.500.000");
-    expect(msg).toContain("Agustus 2026");
-  });
-});
-
-describe("sendWhatsApp (Fonnte API)", () => {
+// Timeout pendek per-describe: semua test di sini mock fetch (instan), jadi
+// kalau ada yang menggantung (mis. mock hilang & fetch nyata ke api.fonnte.com)
+// harus gagal cepat dalam 5s — bukan menggantung 30s dan bikin suite flake.
+describe("sendWhatsApp (Fonnte API)", { timeout: 5_000 }, () => {
   const originalEnv = process.env.FONNTE_TOKEN;
+  // timeoutMs kecil — jangan pernah membuat timer nyata yang panjang di worker.
+  const FAST = { timeoutMs: 1_000 };
 
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn());
@@ -195,7 +146,7 @@ describe("sendWhatsApp (Fonnte API)", () => {
       json: async () => ({ status: true, id: "wa-1", detail: "sent" }),
     });
 
-    const res = await sendWhatsApp("6281234567890", "halo orang tua");
+    const res = await sendWhatsApp("6281234567890", "halo orang tua", FAST);
 
     expect(res.ok).toBe(true);
     expect(res.id).toBe("wa-1");
@@ -217,7 +168,7 @@ describe("sendWhatsApp (Fonnte API)", () => {
       json: async () => ({ status: false, detail: "number not on whatsapp" }),
     });
 
-    const res = await sendWhatsApp("6281234567890", "halo");
+    const res = await sendWhatsApp("6281234567890", "halo", FAST);
     expect(res.ok).toBe(false);
     expect(res.message).toContain("number not on whatsapp");
   });
@@ -228,13 +179,36 @@ describe("sendWhatsApp (Fonnte API)", () => {
       new Error("ECONNREFUSED")
     );
 
-    const res = await sendWhatsApp("6281234567890", "halo");
+    const res = await sendWhatsApp("6281234567890", "halo", FAST);
     expect(res.ok).toBe(false);
     expect(res.message).toContain("ECONNREFUSED");
+    // Bukti mock dipakai (bukan fetch nyata ke Fonnte) — mencegah test
+    // diam-diam menyentuh jaringan saat mock hilang.
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("gagal dengan pesan timeout bila Fonnte tidak merespons", async () => {
+    process.env.FONNTE_TOKEN = "test-token";
+    // fetch tidak pernah resolve — hanya bereaksi saat signal di-abort.
+    (fetch as ReturnType<typeof vi.fn>).mockImplementation(
+      (_url: string, init: { signal?: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          init.signal?.addEventListener("abort", () =>
+            reject(new DOMException("Aborted", "AbortError"))
+          );
+        })
+    );
+
+    const res = await sendWhatsApp("6281234567890", "halo", {
+      timeoutMs: 50,
+    });
+
+    expect(res.ok).toBe(false);
+    expect(res.message).toContain("Timeout");
   });
 });
 
-describe("notifyParentWhatsApp", () => {
+describe("notifyParentWhatsApp", { timeout: 5_000 }, () => {
   const originalEnv = process.env.FONNTE_TOKEN;
 
   beforeEach(() => {
@@ -292,7 +266,7 @@ describe("notifyParentWhatsApp", () => {
   });
 });
 
-describe("sendBulkWhatsApp", () => {
+describe("sendBulkWhatsApp", { timeout: 5_000 }, () => {
   const originalEnv = process.env.FONNTE_TOKEN;
 
   beforeEach(() => {
@@ -317,7 +291,7 @@ describe("sendBulkWhatsApp", () => {
     const res = await sendBulkWhatsApp(
       ["6281234567891", "6281234567892"],
       (phone) => `Halo ${phone}`,
-      { delayMs: 0 }
+      { delayMs: 0, timeoutMs: 1_000 }
     );
     expect(res.sent).toBe(2);
     const calls = (fetch as ReturnType<typeof vi.fn>).mock.calls;
@@ -326,7 +300,10 @@ describe("sendBulkWhatsApp", () => {
   });
 
   it("memakai pesan yang sama bila message berupa string", async () => {
-    await sendBulkWhatsApp(["6281234567891"], "Sama semua", { delayMs: 0 });
+    await sendBulkWhatsApp(["6281234567891"], "Sama semua", {
+      delayMs: 0,
+      timeoutMs: 1_000,
+    });
     const calls = (fetch as ReturnType<typeof vi.fn>).mock.calls;
     expect(String(calls[0][1].body)).toContain("Sama+semua");
   });

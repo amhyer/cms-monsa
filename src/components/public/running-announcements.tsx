@@ -31,9 +31,6 @@ export function RunningAnnouncements() {
 
   if (loading || items.length === 0) return null;
 
-  // Build the marquee track (duplicate twice for seamless loop)
-  const track = [...items, ...items];
-
   return (
     <div
       className="flex w-full items-center gap-3 bg-sidebar px-4 py-2 text-sidebar-foreground sm:px-6"
@@ -47,7 +44,7 @@ export function RunningAnnouncements() {
       </span>
       <div className="relative flex-1 overflow-hidden">
         <div className="flex w-max animate-marquee gap-10 whitespace-nowrap">
-          {track.map((a, idx) => (
+          {items.map((a, idx) => (
             <span
               key={`${a.id}-${idx}`}
               className="inline-flex items-center gap-2 text-xs text-sidebar-foreground/90 sm:text-sm"
@@ -56,6 +53,18 @@ export function RunningAnnouncements() {
               {a.title}
             </span>
           ))}
+          {/* Salinan kedua hanya untuk loop animasi — disembunyikan dari screen reader. */}
+          <div aria-hidden className="contents">
+            {items.map((a, idx) => (
+              <span
+                key={`${a.id}-dup-${idx}`}
+                className="inline-flex items-center gap-2 text-xs text-sidebar-foreground/90 sm:text-sm"
+              >
+                <span className="size-1.5 rounded-full bg-gold" />
+                {a.title}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
     </div>

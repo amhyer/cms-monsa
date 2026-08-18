@@ -154,7 +154,7 @@ export function teacherProfileData(d: Record<string, unknown>) {
 }
 
 // --- Users ---
-export const userRoleEnum = z.enum(["SUPER_ADMIN", "OPERATOR", "GURU", "ORANG_TUA"]);
+export const userRoleEnum = z.enum(["SUPER_ADMIN", "OPERATOR", "GURU", "ORANG_TUA", "SISWA"]);
 
 export const createUserSchema = z.object({
   name: z
@@ -173,6 +173,7 @@ export const createUserSchema = z.object({
   role: userRoleEnum.default("OPERATOR"),
   guardianClassId: z.string().nullable().optional(),
   guardianStudentId: z.string().nullable().optional(),
+  studentId: z.string().nullable().optional(),
 });
 
 export const updateUserSchema = createUserSchema
@@ -399,6 +400,13 @@ export const createOrgStructureSchema = z.object({
     .min(1, "Jabatan wajib diisi.")
     .max(100, "Jabatan maksimal 100 karakter."),
   photo: imageUrl.optional().nullable(),
+  // Identifier Dapodik (opsional, untuk pengecekan silang)
+  nuptk: z.string().trim().max(20, "NUPTK maksimal 20 karakter.").optional().nullable(),
+  nip: z.string().trim().max(20, "NIP maksimal 20 karakter.").optional().nullable(),
+  // Profil publik (tampil di modal detail halaman Struktur Organisasi)
+  bio: z.string().trim().max(500, "Profil singkat maksimal 500 karakter.").optional().nullable(),
+  contact: z.string().trim().max(100, "Kontak maksimal 100 karakter.").optional().nullable(),
+  nik: z.string().trim().max(20, "NIK maksimal 20 karakter.").optional().nullable(),
   order: z.number().int().min(0).default(0),
   isActive: z.boolean().default(true),
 });
@@ -431,3 +439,22 @@ export const createBosExpenditureSchema = z.object({
 });
 
 export const updateBosExpenditureSchema = createBosExpenditureSchema.partial();
+
+// Dokumen transparansi (output ARKAS / bukti belanja BOS dalam PDF)
+export const createBosDocumentSchema = z.object({
+  year: z
+    .number()
+    .int("Tahun harus berupa angka bulat.")
+    .min(2000, "Tahun minimal 2000.")
+    .max(2100, "Tahun maksimal 2100."),
+  title: z
+    .string()
+    .trim()
+    .min(1, "Judul dokumen wajib diisi.")
+    .max(200, "Judul maksimal 200 karakter."),
+  description: z
+    .string()
+    .max(2000, "Deskripsi maksimal 2000 karakter.")
+    .optional()
+    .nullable(),
+});

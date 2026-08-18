@@ -1,0 +1,157 @@
+#!/usr/bin/env bash
+# ============================================================
+# Pre-push hook — sanity check cepat SEBELUM push.
+#
+# Default: gate RINGAN (`--quick`): guard repository + lint seluruh
+# repo, TANPA typecheck/vitest (bagian lambat) — pre-commit sudah
+# menjalankan gate penuh. Detail mode --quick: .githooks/run-checks.sh.
+#
+# Toggle lewat env PUSH_GATE (per push) atau git config pre-push.gate
+# (per-clone, PERSISTEN — set sekali, berlaku untuk semua push berikutnya):
+#   PUSH_GATE=full / git config pre-push.gate full
+#                                → gate PENUH: seluruh `bun run check`
+#                                (typecheck + lint + lint:md + check:schema
+#                                + vitest) di tiap push branch.
+#   PUSH_GATE=staged / git config pre-push.gate staged
+#                                → lint HANYA file yang disentuh commit yang
+#                                di-push (diff remote..local, filter JS/TS) —
+#                                guard tetap jalan; scope lebih sempit dari
+#                                --quick. Branch baru: semua file di branch
+#                                (diff vs empty tree).
+#   Precedence: env PUSH_GATE menang atas git config; keduanya kosong →
+#   default --quick. Env dipakai untuk override satu kali, git config untuk
+#   default persisten per clone (mis. strict repos: full, dev: staged).
+#
+# Output machine-readable (untuk CI / bot / tooling):
+#   PUSH_JSON=1 git push  → stdout membawa SATU baris JSON (payload gate
+#                                run-checks.sh `--json` diteruskan apa adanya,
+#                                termasuk exit code 0/1/2). Detail manusia
+#                                dipindah ke stderr. Bekerja dengan mode
+#                                PUSH_GATE apa pun. Push tag-only → baris
+#                                {"tool":"pre-push","mode":"skip-tag","ok":true}.
+#
+# Hanya dijalankan untuk push BRANCH (refs/heads/*); push tag dilewati.
+#
+# Lewati sementara (tidak disarankan):
+#   git push --no-verify
+# ============================================================
+set -euo pipefail
+
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+cd "$ROOT_DIR"
+
+# PUSH_JSON=1 → stdout HANYA satu baris JSON (stdout bersih untuk mesin);
+# semua info manusia dialihkan ke stderr.
+JSON=0
+if [[ "${PUSH_JSON:-}" == "1" ]]; then
+  JSON=1
+fi
+
+# Cetak ke stdout (default) atau stderr (mode JSON) agar stdout tetap bersih.
+say() {
+  if [[ "$JSON" -eq 1 ]]; then
+    echo "$*" >&2
+  else
+    echo "$*"
+  fi
+}
+
+# GATE_ARGS: precedence PUSH_GATE env (per push) > git config
+# pre-push.gate (per-clone, persistent — set sekali:
+#   git config pre-push.gate full|staged
+# ) > default --quick. Nilai tak dikenal dari env → fallback senyap --quick
+# (seperti sebelumnya); dari config → peringatan (typo config tidak
+# ketahuan). GATE_SOURCE mencatat asal mode untuk pesan yang transparan.
+GATE_ARGS="--quick"
+GATE_SOURCE="default --quick"
+GATE_VALUE="${PUSH_GATE:-}"
+GATE_FROM="env"
+if [[ -z "$GATE_VALUE" ]]; then
+  GATE_VALUE="$(git config --get pre-push.gate 2>/dev/null || true)"
+  GATE_FROM="config"
+fi
+if [[ "$GATE_VALUE" == "full" ]]; then
+  GATE_ARGS=""
+  GATE_SOURCE="$GATE_FROM=full"
+elif [[ "$GATE_VALUE" == "staged" ]]; then
+  GATE_ARGS="--staged-push"
+  GATE_SOURCE="$GATE_FROM=staged"
+elif [[ -n "$GATE_VALUE" ]]; then
+  # Nilai tak dikenal: env → fallback senyap; config → peringatan agar typo
+  # yang tersimpan permanen tidak lolos diam-diam.
+  if [[ "$GATE_FROM" == "config" ]]; then
+    say "⚠️  [pre-push] pre-push.gate='$GATE_VALUE' tak dikenal — fallback --quick."
+  fi
+fi
+
+# Pre-push menerima satu baris per ref yang di-push:
+#   <local ref> <local sha> <remote ref> <remote sha>
+# Jalankan gate bila ada minimal satu ref branch; tag dilewati. Pasangan
+# sha (local remote) disimpan untuk diff scope push.
+PUSH_SHA_PAIRS=()
+run_for_branch=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$remote_ref" in
+    refs/tags/*) continue ;;
+  esac
+  run_for_branch=1
+  PUSH_SHA_PAIRS+=("$local_sha $remote_sha")
+done < /dev/stdin
+
+if [[ "$run_for_branch" -eq 0 ]]; then
+  say "ℹ️  [pre-push] Hanya push tag — sanity check dilewati."
+  if [[ "$JSON" -eq 1 ]]; then
+    # stdout tetap SATU baris JSON agar konsumen mesin selalu dapat jawaban.
+    echo '{"tool":"pre-push","mode":"skip-tag","ok":true}'
+  fi
+  exit 0
+fi
+
+# Mode --staged-push: kumpulkan file yang disentuh commit yang di-push
+# (dedupe + filter JS/TS) lalu kirim ke run-checks.sh lewat HOOKS_PUSH_FILES.
+if [[ "$GATE_ARGS" == "--staged-push" ]]; then
+  EMPTY_TREE="4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+  RAW_FILES=""
+  for pair in "${PUSH_SHA_PAIRS[@]}"; do
+    local_sha="${pair%% *}"
+    remote_sha="${pair##* }"
+    if [[ "$remote_sha" =~ ^0+$ ]]; then
+      base="$EMPTY_TREE" # branch baru — semua file di branch.
+    else
+      base="$remote_sha"
+    fi
+    RAW_FILES+="$(git diff --name-only --diff-filter=ACM "$base..$local_sha" 2>/dev/null || true)\\n"
+  done
+  HOOKS_PUSH_FILES="$(printf '%b' "$RAW_FILES" |
+    sed '/^[[:space:]]*$/d' | sort -u |
+    grep -E '\.(ts|tsx|js|jsx|mjs|cjs)$' || true)"
+  # Non-JS/TS pada commit yang di-push (transparansi scope, parity dengan
+  # --staged) — dikirim ke run-checks.sh agar dicetak abu-abu, tidak di-lint.
+  HOOKS_PUSH_NON_JS="$(printf '%b' "$RAW_FILES" |
+    sed '/^[[:space:]]*$/d' | sort -u |
+    grep -vE '\.(ts|tsx|js|jsx|mjs|cjs)$' || true)"
+  # Total scope push (SEBELUM filter JS/TS) — dikirim ke run-checks.sh agar
+  # payload --json (PUSH_JSON=1) bisa melaporkan jumlah file yang disentuh
+  # commit yang di-push, bukan hanya yang di-lint.
+  HOOKS_PUSH_SCOPE_TOTAL="$(printf '%b' "$RAW_FILES" |
+    sed '/^[[:space:]]*$/d' | sort -u | wc -l | tr -d ' ')"
+  export HOOKS_PUSH_FILES HOOKS_PUSH_NON_JS HOOKS_PUSH_SCOPE_TOTAL
+  FILE_COUNT="$(printf '%s\n' "$HOOKS_PUSH_FILES" | sed '/^[[:space:]]*$/d' | wc -l | tr -d ' ')"
+  say "🔍 [pre-push] Lint ${FILE_COUNT} file JS/TS dari ${HOOKS_PUSH_SCOPE_TOTAL} file yang disentuh commit yang di-push ($GATE_SOURCE)..."
+fi
+
+if [[ -n "$GATE_ARGS" && "$GATE_ARGS" != "--staged-push" ]]; then
+  say "🔍 [pre-push] Sanity check cepat ($GATE_SOURCE) sebelum push..."
+elif [[ -z "$GATE_ARGS" ]]; then
+  say "🔍 [pre-push] Gate PENUH ($GATE_SOURCE) sebelum push..."
+fi
+# GATE_ARGS hanya berisi "" / "--quick" / "--staged-push" (tanpa spasi).
+# Mode JSON: stdout = SATU baris JSON dari run-checks.sh (exit code 0/1/2
+# diteruskan apa adanya); detail manusia dari gate ikut ke stderr.
+if [[ "$JSON" -eq 1 ]]; then
+  bash "$ROOT_DIR/.githooks/run-checks.sh" $GATE_ARGS --json
+else
+  bash "$ROOT_DIR/.githooks/run-checks.sh" $GATE_ARGS
+fi
+
+say "✅ [pre-push] Gate lulus — push diizinkan."

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Plus,
   Pencil,
@@ -12,6 +13,7 @@ import {
   Download,
   Upload,
   Search,
+  UserPlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -37,10 +39,10 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { ImageUpload } from "@/components/shared/image-upload";
+import { CopyableId } from "@/components/shared/copyable-id";
 import type { StudentItem, ClassItem } from "@/lib/types";
 import { exportToCsv } from "@/lib/export";
-import { PageLoader, EmptyState, toDateInputValue, fromDateInputValue } from "../_shared";
-import { useSearch } from "../use-search";
+import { PageLoader, EmptyState, toDateInputValue, fromDateInputValue, usePersistedPageSize } from "../_shared";
 
 type FormState = {
   nis: string;
@@ -75,18 +77,18 @@ const EMPTY: FormState = {
 };
 
 export function StudentsManager() {
+  const router = useRouter();
   const [items, setItems] = useState<StudentItem[]>([]);
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [classFilter, setClassFilter] = useState<string>("all");
-  const { search, setSearch, filtered } = useSearch(items, (s) =>
-    `${s.name} ${s.nis} ${s.nisn ?? ""} ${s.parentName ?? ""}`.toLowerCase()
-  );
+  const [search, setSearch] = useState("");
+  const [debounced, setDebounced] = useState("");
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = usePersistedPageSize("students", 10, [10, 20, 50, 100]);
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<StudentItem | null>(null);
@@ -98,10 +100,23 @@ export function StudentsManager() {
   >([]);
   const [importBusy, setImportBusy] = useState(false);
 
+  // debounce pencarian server-side (sama seperti users-manager): pencarian &
+  // filter kelas dikirim ke API, bukan difilter di sisi klien atas halaman aktif.
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(search), 350);
+    return () => clearTimeout(t);
+  }, [search]);
+
   const fetchList = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/students?page=${page}&limit=${pageSize}`, { cache: "no-store" });
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(pageSize),
+      });
+      if (classFilter !== "all") params.set("classId", classFilter);
+      if (debounced.trim()) params.set("search", debounced.trim());
+      const res = await fetch(`/api/students?${params}`, { cache: "no-store" });
       if (!res.ok) throw new Error();
       const data = await res.json();
       setItems(data.items || []);
@@ -112,7 +127,17 @@ export function StudentsManager() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize]);
+  }, [page, pageSize, classFilter, debounced]);
+
+  // Kembali ke halaman 1 saat pencarian/filter/ukuran halaman berubah.
+  useEffect(() => {
+    setPage(1);
+  }, [debounced, classFilter, pageSize]);
+
+  // Jaga agar page tidak melewati totalPages (mis. setelah menghapus baris).
+  useEffect(() => {
+    setPage((p) => Math.min(p, totalPages));
+  }, [totalPages]);
 
   const fetchClasses = useCallback(async () => {
     try {
@@ -129,8 +154,6 @@ export function StudentsManager() {
     fetchList();
     fetchClasses();
   }, [fetchList, fetchClasses]);
-
-  const visible = classFilter === "all" ? filtered : filtered.filter((s) => s.classId === classFilter);
 
   function openCreate() {
     setEditing(null);
@@ -310,10 +333,24 @@ export function StudentsManager() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
+            onClick={async () => {
+              // Ekspor SELURUH data (bukan hanya halaman aktif) — ambil daftar
+              // penuh sekali lagi dengan limit besar.
+              let all = items;
+              try {
+                const res = await fetch("/api/students?limit=1000", {
+                  cache: "no-store",
+                });
+                if (res.ok) {
+                  const data = await res.json();
+                  if (Array.isArray(data.items)) all = data.items;
+                }
+              } catch {
+                // fallback ke halaman aktif bila fetch penuh gagal
+              }
               exportToCsv(
                 `data-siswa-${new Date().toISOString().slice(0, 10)}`,
-                items,
+                all,
                 [
                   { key: "nis", label: "NIS" },
                   { key: "nisn", label: "NISN" },
@@ -327,7 +364,7 @@ export function StudentsManager() {
               );
               toast.success("Data siswa diekspor ke CSV.");
             }}
-            disabled={items.length === 0}
+            disabled={total === 0}
           >
             <Download className="size-4" /> Export CSV
           </Button>
@@ -349,7 +386,7 @@ export function StudentsManager() {
 
       {loading ? (
         <PageLoader />
-      ) : items.length === 0 ? (
+      ) : total === 0 && !debounced.trim() && classFilter === "all" ? (
         <EmptyState
           icon={Users}
           title="Belum ada data siswa"
@@ -381,10 +418,10 @@ export function StudentsManager() {
               </SelectContent>
             </Select>
             <span className="ml-auto text-xs text-muted-foreground">
-              {visible.length} dari {items.length} siswa
+              {items.length} dari {total} siswa
             </span>
           </div>
-          {visible.length === 0 ? (
+          {items.length === 0 ? (
             <EmptyState
               icon={Search}
               title="Tidak ditemukan"
@@ -392,7 +429,7 @@ export function StudentsManager() {
             />
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {visible.map((s) => (
+              {items.map((s) => (
                 <Card key={s.id}>
                   <CardContent className="flex items-start gap-3 py-4">
                     <div className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-muted-foreground">
@@ -437,10 +474,10 @@ export function StudentsManager() {
                           />
                         </div>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        NIS {s.nis}
-                        {s.nisn ? ` • NISN ${s.nisn}` : ""}
-                      </p>
+                      <div className="mt-0.5 space-y-0.5 text-xs text-muted-foreground">
+                        <CopyableId label="NIS" value={s.nis} />
+                        {s.nisn && <CopyableId label="NISN" value={s.nisn} />}
+                      </div>
                       <div className="mt-2 flex flex-wrap gap-1.5 text-xs">
                         <Badge variant="outline">{classNameOf(s.classId)}</Badge>
                         {s.gender && <Badge variant="outline">{s.gender === "LAKI_LAKI" ? "Laki-laki" : s.gender === "PEREMPUAN" ? "Perempuan" : s.gender}</Badge>}
@@ -456,6 +493,24 @@ export function StudentsManager() {
                           {s.parentPhone ? ` • ${s.parentPhone}` : ""}
                         </p>
                       )}
+                      <div className="mt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 gap-1 text-xs"
+                          onClick={() =>
+                            router.push(
+                              `/dashboard/users?createSiswa=${encodeURIComponent(
+                                s.id
+                              )}&studentName=${encodeURIComponent(s.name)}`
+                            )
+                          }
+                          aria-label={`Buat akun SISWA untuk ${s.name}`}
+                        >
+                          <UserPlus className="size-3.5" />
+                          Buat akun SISWA
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

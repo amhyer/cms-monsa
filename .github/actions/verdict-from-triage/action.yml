@@ -1,0 +1,103 @@
+# Baca payload triage (triage-verdict.json) dan render blok verdict markdown —
+# SATU implementasi yang dipakai KEDUA step komentar:
+#   1. .github/actions/comment-e2e-failure (komentar kegagalan e2e dev/prod)
+#   2. .github/workflows/triage.yml (komentar triage post-hoc)
+# Sebelumnya logika ini diduplikasi di kedua github-script; sekarang verdict
+# dirender di sini dan dikonsumsi via output verdict_block / payload_json.
+#
+# Pemakaian:
+#   steps:
+#     - id: verdict
+#       uses: ./.github/actions/verdict-from-triage
+#       # verdict_file: "triage-verdict.json" (default) — path payload opsional
+#   ...lalu pakai ${{ steps.verdict.outputs.verdict_block }} (markdown) atau
+#   ${{ steps.verdict.outputs.payload_json }} (payload mentah untuk field
+#   tambahan seperti summary).
+name: Verdict block from triage payload
+description: >-
+  Read the triage JSON payload and render the verdict markdown block
+  (verdict + reason + findings per category + warm-up warning) plus the raw
+  payload as outputs — shared by the e2e failure comment and the post-hoc
+  triage comment.
+
+inputs:
+  verdict_file:
+    description: "Path to the triage JSON payload (default: triage-verdict.json)."
+    required: false
+    default: triage-verdict.json
+
+outputs:
+  verdict_block:
+    description: >-
+      Rendered verdict markdown. Empty when the file is missing or the
+      payload is unreadable (consumers skip the block).
+  payload_json:
+    description: >-
+      Raw payload as a JSON string, for consumers needing extra fields
+      (e.g. summary). Empty when unreadable.
+  has_verdict:
+    description: "\"true\" when the file was read and parsed, else \"false\"."
+
+runs:
+  using: composite
+  steps:
+    - name: Render verdict block
+      id: render
+      uses: actions/github-script@v7
+      env:
+        VERDICT_FILE: ${{ inputs.verdict_file }}
+      with:
+        script: |
+          const fs = require("fs");
+          const file = process.env.VERDICT_FILE || "triage-verdict.json";
+          let verdictBlock = "";
+          let payloadJson = "";
+          let ok = false;
+          try {
+            const raw = fs.readFileSync(file, "utf8");
+            const v = JSON.parse(raw);
+            payloadJson = raw;
+            ok = true;
+            // Render persis seperti komentar kegagalan e2e: verdict + reason
+            // (teks aksi dari payload — satu sumber kebenaran dengan baris
+            // VERDICT di konsol wrapper) + temuan per kategori (dipotong 5,
+            // "+N lainnya") + warning warm-up.
+            const c = v.counts ?? {};
+            const esc = (t) => String(t).replace(/`/g, "\\`");
+            // Kategori warmup-failed TIDAK memuat counts (biasanya 0 — masalahnya
+            // di ukuran/kesehatan section wrapper, bukan counts request) — counts
+            // hanya dirender untuk kategori berbasis counts.
+            const countsPart =
+              v.verdict === "warmup-failed"
+                ? ""
+                : ` (stall ${c.stalls} · dns ${c.dns} · timeout ${c.timeouts} · error ${c.errors})`;
+            const lines = [
+              `- 🔎 **Triage**: ${v.verdict}${countsPart}${v.reason ? ` — ${esc(v.reason)}` : ""}`,
+            ];
+            // Warm-up warning DI SURFACE — letakkan tepat setelah baris
+            // verdict (bukan sub-bullet di akhir) agar warm-up yang mungkin
+            // gagal diam-diam langsung terlihat; label tebal + esc. Bila
+            // verdict sudah warmup-failed, alasan (payload.reason) memuat teks
+            // yang sama — baris terpisah di-skip agar tidak dobel.
+            if (v.wrapperWarning && v.verdict !== "warmup-failed") {
+              lines.push(`  - **⚠️ Warm-up warning:** ${esc(v.wrapperWarning)}`);
+            }
+            const fmt = (f, tag) =>
+              `  - ${tag} \`${esc(f.source)}\`${f.line ? " L" + f.line : ""}: ${esc(String(f.text).slice(0, 140))}`;
+            for (const [key, tag] of [
+              ["stalls", "stall"],
+              ["dns", "dns"],
+              ["timeouts", "timeout"],
+              ["errors", "error"],
+            ]) {
+              const arr = v[key] ?? [];
+              for (const f of arr.slice(0, 5)) lines.push(fmt(f, tag));
+              if (arr.length > 5) lines.push(`  - … +${arr.length - 5} ${tag} lainnya (lihat artifact 📜)`);
+            }
+            verdictBlock = lines.join("\n");
+          } catch {
+            // file tidak ada / payload rusak — output kosong, pemakai lewati.
+          }
+          core.setOutput("verdict_block", verdictBlock);
+          core.setOutput("payload_json", payloadJson);
+          core.setOutput("has_verdict", ok ? "true" : "false");

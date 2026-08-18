@@ -1,4 +1,6 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./mutation-log";
+
+// warmup: /api/students/showcase
 
 // Regression untuk Galeri Siswa di beranda (fitur Students Showcase):
 // marquee foto, pencarian nama, dan filter kelas.
@@ -79,6 +81,35 @@ test.describe("Galeri Siswa — beranda", () => {
     await expect.poll(playState).toBe("running");
     await expect(
       section.getByRole("button", { name: "Jeda animasi", pressed: false })
+    ).toBeVisible();
+  });
+
+  test("kartu siswa menampilkan NIS/NISN yang bisa disalin (dari seed)", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const section = gallery(page);
+
+    // Cari siswa seed yang punya foto (Aisyah — nis 20260001).
+    await section
+      .getByRole("searchbox", { name: "Cari nama siswa" })
+      .fill("Aisyah");
+
+    // Kartu hasil: nama + tombol salin NIS/NISN dari seed.
+    await expect(
+      section.getByText("Aisyah Putri Ramadhani", { exact: true })
+    ).toBeVisible();
+    await expect(
+      section.getByRole("button", { name: "Salin NIS: 20260001" })
+    ).toBeVisible();
+    await expect(
+      section.getByRole("button", { name: "Salin NISN: 0123456781" })
+    ).toBeVisible();
+
+    // Marquee (kartu ringkas) juga memuat NIS/NISN.
+    await section.getByRole("searchbox", { name: "Cari nama siswa" }).fill("");
+    await expect(
+      section.getByRole("button", { name: "Salin NIS: 20260001" }).first()
     ).toBeVisible();
   });
 

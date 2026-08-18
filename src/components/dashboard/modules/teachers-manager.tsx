@@ -38,11 +38,11 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ImageUpload } from "@/components/shared/image-upload";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { CopyableId } from "@/components/shared/copyable-id";
 import { TeacherProfileModal } from "./teacher-profile-modal";
 import type { TeacherItem } from "@/lib/types";
 import { exportToCsv } from "@/lib/export";
-import { PageLoader, EmptyState } from "../_shared";
-import { useSearch } from "../use-search";
+import { PageLoader, EmptyState, Pagination, usePersistedPageSize } from "../_shared";
 
 type FormState = {
   name: string;
@@ -101,9 +101,12 @@ const EMPTY: FormState = {
 export function TeachersManager() {
   const [items, setItems] = useState<TeacherItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const { search, setSearch, filtered } = useSearch(items, (t) =>
-    `${t.name} ${t.position} ${t.subject ?? ""}`.toLowerCase()
-  );
+  const [search, setSearch] = useState("");
+  const [debounced, setDebounced] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = usePersistedPageSize("teachers", 10, [10, 25, 50]);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [saving, setSaving] = useState(false);
 
   const [open, setOpen] = useState(false);
@@ -111,25 +114,50 @@ export function TeachersManager() {
   const [form, setForm] = useState<FormState>(EMPTY);
   const [previewTeacher, setPreviewTeacher] = useState<TeacherItem | null>(null);
 
+  // debounce pencarian server-side (sama seperti users-manager): fetch hanya
+  // setelah pengguna berhenti mengetik 350ms.
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(search), 350);
+    return () => clearTimeout(t);
+  }, [search]);
+
   const fetchList = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/teachers?scope=admin", {
+      const params = new URLSearchParams({
+        scope: "admin",
+        page: String(page),
+        limit: String(pageSize),
+      });
+      if (debounced.trim()) params.set("q", debounced.trim());
+      const res = await fetch(`/api/teachers?${params}`, {
         cache: "no-store",
       });
       if (!res.ok) throw new Error();
       const data = await res.json();
       setItems(data.items || []);
+      setTotal(data.total ?? 0);
+      setTotalPages(data.totalPages ?? 1);
     } catch {
       toast.error("Gagal memuat data guru.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, pageSize, debounced]);
 
   useEffect(() => {
     fetchList();
   }, [fetchList]);
+
+  // Kembali ke halaman 1 saat pencarian/ukuran halaman berubah.
+  useEffect(() => {
+    setPage(1);
+  }, [debounced, pageSize]);
+
+  // Jaga agar page tidak melewati totalPages (mis. setelah menghapus baris).
+  useEffect(() => {
+    setPage((p) => Math.min(p, totalPages));
+  }, [totalPages]);
 
   function openCreate() {
     setEditing(null);
@@ -253,13 +281,29 @@ export function TeachersManager() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
+            onClick={async () => {
+              // Ekspor SELURUH data (bukan hanya halaman aktif) — ambil daftar
+              // penuh sekali lagi dengan limit besar.
+              let all = items;
+              try {
+                const res = await fetch("/api/teachers?scope=admin&limit=500", {
+                  cache: "no-store",
+                });
+                if (res.ok) {
+                  const data = await res.json();
+                  if (Array.isArray(data.items)) all = data.items;
+                }
+              } catch {
+                // fallback ke halaman aktif bila fetch penuh gagal
+              }
               exportToCsv(
                 `data-guru-staf-${new Date().toISOString().slice(0, 10)}`,
-                items,
+                all,
                 [
                   { key: "name", label: "Nama" },
                   { key: "nuptk", label: "NUPTK" },
+                  { key: "nip", label: "NIP" },
+                  { key: "nik", label: "NIK" },
                   { key: "position", label: "Jabatan" },
                   { key: "subject", label: "Mata Pelajaran" },
                   { key: "education", label: "Pendidikan" },
@@ -268,7 +312,7 @@ export function TeachersManager() {
               );
               toast.success("Data guru diekspor ke CSV.");
             }}
-            disabled={items.length === 0}
+            disabled={total === 0}
           >
             <Download className="size-4" /> Export CSV
           </Button>
@@ -300,10 +344,10 @@ export function TeachersManager() {
               className="max-w-xs"
             />
             <span className="ml-auto text-xs text-muted-foreground">
-              {filtered.length} dari {items.length} data
+              {items.length} dari {total} data
             </span>
           </div>
-          {filtered.length === 0 ? (
+          {items.length === 0 ? (
             <EmptyState
               icon={Search}
               title="Tidak ditemukan"
@@ -311,7 +355,7 @@ export function TeachersManager() {
             />
           ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((t) => (
+          {items.map((t) => (
             <Card key={t.id}>
               <CardContent className="flex items-start gap-3 py-4">
                 <button
@@ -382,8 +426,12 @@ export function TeachersManager() {
                   <p className="line-clamp-1 text-sm text-muted-foreground">
                     {t.position || "—"}
                   </p>
-                  {t.nuptk && (
-                    <p className="mt-0.5 text-xs text-muted-foreground">NUPTK: {t.nuptk}</p>
+                  {(t.nuptk || t.nip || t.nik) && (
+                    <div className="mt-0.5 space-y-0.5 text-xs text-muted-foreground">
+                      {t.nuptk && <CopyableId label="NUPTK" value={t.nuptk} />}
+                      {t.nip && <CopyableId label="NIP" value={t.nip} />}
+                      {t.nik && <CopyableId label="NIK" value={t.nik} />}
+                    </div>
                   )}
                   {String(t.position).toLowerCase().includes("kepala sekolah") && (
                     <Badge className="mt-1 bg-gold text-gold-foreground">Kepala Sekolah</Badge>
@@ -409,6 +457,17 @@ export function TeachersManager() {
           ))}
         </div>
           )}
+
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPage={setPage}
+            pageSize={pageSize}
+            onPageSizeChange={(s) => {
+              setPageSize(s);
+              setPage(1);
+            }}
+          />
         </>
       )}
 

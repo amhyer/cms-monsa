@@ -1,6 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   Plus,
   Pencil,
@@ -21,20 +26,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,10 +44,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { CopyableId } from "@/components/shared/copyable-id";
+import { StudentTypeahead } from "../student-typeahead";
 import {
   ACHIEVEMENT_LEVELS,
   ACHIEVEMENT_CATEGORIES,
 } from "@/lib/nav";
+import {
+  applyScopeFilter,
+  computeScopeCounts,
+  scopeCounter,
+} from "@/lib/scope-filter";
 import { formatDate } from "@/lib/format";
 import { exportToCsv } from "@/lib/export";
 import type { AchievementItem } from "@/lib/types";
@@ -60,6 +69,7 @@ import { useSearch } from "../use-search";
 type FormState = {
   title: string;
   studentName: string;
+  studentId: string;
   level: string;
   category: string;
   date: string;
@@ -69,6 +79,7 @@ type FormState = {
 const EMPTY: FormState = {
   title: "",
   studentName: "",
+  studentId: "",
   level: "Kabupaten",
   category: "Akademik",
   date: "",
@@ -87,11 +98,25 @@ function levelBadgeClass(level: string): string {
 
 export function AchievementsManager() {
   const [items, setItems] = useState<AchievementItem[]>([]);
+  const [students, setStudents] = useState<
+    { id: string; name: string; className: string; nis: string }[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const { search, setSearch, filtered } = useSearch(items, (a) =>
     `${a.title} ${a.studentName ?? ""} ${a.level} ${a.category}`.toLowerCase()
   );
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [saving, setSaving] = useState(false);
+
+  const counts = useMemo(
+    () => computeScopeCounts(items, "category", ACHIEVEMENT_CATEGORIES),
+    [items]
+  );
+
+  const scoped = useMemo(
+    () => applyScopeFilter(filtered, "category", categoryFilter),
+    [filtered, categoryFilter]
+  );
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<AchievementItem | null>(null);
@@ -100,7 +125,9 @@ export function AchievementsManager() {
   const fetchList = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/achievements", { cache: "no-store" });
+      // scope=admin → API mengembalikan NIS/NISN siswa tertaut (identitas
+      // hanya untuk dashboard; GET publik men-strip-nya).
+      const res = await fetch("/api/achievements?scope=admin", { cache: "no-store" });
       if (!res.ok) throw new Error();
       const data = await res.json();
       setItems(data.items || []);
@@ -111,9 +138,57 @@ export function AchievementsManager() {
     }
   }, []);
 
+  const fetchStudents = useCallback(async () => {
+    try {
+      const res = await fetch("/api/students?limit=1000", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      setStudents(
+        (data.items || []).map(
+          (s: { id: string; name: string; className?: string; nis: string }) => ({
+            id: s.id,
+            name: s.name,
+            className: s.className || "—",
+            nis: s.nis,
+          })
+        )
+      );
+    } catch {
+      // non-critical
+    }
+  }, []);
+
   useEffect(() => {
     fetchList();
   }, [fetchList]);
+
+  useEffect(() => {
+    if (open && students.length === 0) fetchStudents();
+  }, [open, students.length, fetchStudents]);
+
+  // --- Pemilih siswa (typeahead) — input primer form. Komponen bersama
+  // StudentTypeahead (perilaku identik dengan Manajemen Akun). ---
+  const [studentQuery, setStudentQuery] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setStudentQuery(editing?.studentName ?? "");
+    }
+  }, [open, editing]);
+
+  function handleStudentQueryChange(v: string) {
+    setStudentQuery(v);
+    // Mengetik manual memutus tautan siswa — hanya pemilihan dari daftar
+    // (typeahead) yang mengisi studentId, agar NIS/NISN di kartu akurat.
+    setForm((f) =>
+      f.studentName === v ? f : { ...f, studentName: v, studentId: "" }
+    );
+  }
+
+  function handlePickStudent(s: { id: string; name: string }) {
+    setForm((f) => ({ ...f, studentId: s.id, studentName: s.name }));
+    setStudentQuery(s.name);
+  }
 
   function openCreate() {
     setEditing(null);
@@ -126,6 +201,7 @@ export function AchievementsManager() {
     setForm({
       title: a.title,
       studentName: a.studentName ?? "",
+      studentId: a.studentId ?? "",
       level: a.level,
       category: a.category,
       date: toDateInputValue(a.date),
@@ -144,6 +220,7 @@ export function AchievementsManager() {
       const body = {
         title: form.title.trim(),
         studentName: form.studentName || null,
+        studentId: form.studentId || null,
         level: form.level,
         category: form.category,
         date: fromDateInputValue(form.date) || new Date().toISOString(),
@@ -226,114 +303,124 @@ export function AchievementsManager() {
         </div>
       </div>
 
-      <Card>
-        <CardContent>
-          {loading ? (
-            <PageLoader />
-          ) : items.length === 0 ? (
+      {loading ? (
+        <PageLoader />
+      ) : items.length === 0 ? (
+        <EmptyState
+          icon={Trophy}
+          title="Belum ada prestasi"
+          description="Tambahkan prestasi siswa pertama Anda."
+        />
+      ) : (
+        <>
+          <Tabs
+            value={categoryFilter}
+            onValueChange={(v) => setCategoryFilter(v)}
+          >
+            <TabsList className="flex-wrap h-auto mb-4">
+              <TabsTrigger value="all">
+                Semua ({counts.all})
+              </TabsTrigger>
+              {ACHIEVEMENT_CATEGORIES.map((c) => (
+                <TabsTrigger key={c} value={c}>
+                  {c} ({counts[c]})
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+          <div className="mb-4 flex items-center gap-2">
+            <Search className="size-4 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Cari prestasi atau siswa…"
+              className="max-w-xs"
+            />
+            <span className="ml-auto text-xs text-muted-foreground">
+              {scopeCounter(
+                counts,
+                categoryFilter,
+                scoped,
+                "prestasi",
+                search.trim() !== ""
+              )}
+            </span>
+          </div>
+          {scoped.length === 0 ? (
             <EmptyState
-              icon={Trophy}
-              title="Belum ada prestasi"
-              description="Tambahkan prestasi siswa pertama Anda."
+              icon={Search}
+              title="Tidak ditemukan"
+              description="Tidak ada data yang cocok dengan pencarian Anda."
             />
           ) : (
-            <>
-              <div className="mb-4 flex items-center gap-2">
-                <Search className="size-4 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Cari prestasi atau siswa…"
-                  className="max-w-xs"
-                />
-                <span className="ml-auto text-xs text-muted-foreground">
-                  {filtered.length} dari {items.length} prestasi
-                </span>
-              </div>
-              {filtered.length === 0 ? (
-                <EmptyState
-                  icon={Search}
-                  title="Tidak ditemukan"
-                  description="Tidak ada data yang cocok dengan pencarian Anda."
-                />
-              ) : (
-            <div className="rounded-md border">
-              <div className="table-scroll">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="min-w-[220px]">Judul</TableHead>
-                    <TableHead>Siswa</TableHead>
-                    <TableHead>Jenjang</TableHead>
-                    <TableHead>Kategori</TableHead>
-                    <TableHead>Tanggal</TableHead>
-                    <TableHead className="text-right">Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map((a) => (
-                    <TableRow key={a.id}>
-                      <TableCell className="max-w-[260px]">
-                        <p className="line-clamp-1 font-medium">{a.title}</p>
-                        {a.description && (
-                          <p className="line-clamp-1 text-xs text-muted-foreground">
-                            {a.description}
-                          </p>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {a.studentName || "—"}
-                      </TableCell>
-                      <TableCell>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {scoped.map((a) => (
+                <Card key={a.id}>
+                  <CardContent className="flex items-start justify-between gap-3 py-4">
+                    <div className="min-w-0 flex-1">
+                      <p className="line-clamp-1 font-medium">{a.title}</p>
+                      <div className="mt-1 flex flex-wrap gap-1.5">
                         <Badge className={levelBadgeClass(a.level)}>
                           {a.level}
                         </Badge>
-                      </TableCell>
-                      <TableCell>
                         <Badge variant="outline">{a.category}</Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {formatDate(a.date)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
+                      </div>
+                      <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
+                        {a.studentName && (
+                          <p className="truncate">Siswa: {a.studentName}</p>
+                        )}
+                        {(a.studentNis || a.studentNisn) && (
+                          <div className="space-y-0.5 pt-1">
+                            {a.studentNis && (
+                              <CopyableId label="NIS" value={a.studentNis} />
+                            )}
+                            {a.studentNisn && (
+                              <CopyableId label="NISN" value={a.studentNisn} />
+                            )}
+                          </div>
+                        )}
+                        <p className="truncate">Tanggal: {formatDate(a.date)}</p>
+                      </div>
+                      {a.description && (
+                        <p className="mt-1 line-clamp-1 text-[11px] text-muted-foreground">
+                          {a.description}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 flex-col gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-7"
+                        onClick={() => openEdit(a)}
+                        aria-label="Edit prestasi"
+                      >
+                        <Pencil className="size-3.5" />
+                      </Button>
+                      <ConfirmDialog
+                        trigger={
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => openEdit(a)}
-                            aria-label="Edit prestasi"
+                            className="size-7 text-destructive hover:text-destructive"
+                            aria-label="Hapus prestasi"
                           >
-                            <Pencil className="size-4" />
+                            <Trash2 className="size-3.5" />
                           </Button>
-                          <ConfirmDialog
-                            trigger={
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-destructive hover:text-destructive"
-                                aria-label="Hapus prestasi"
-                              >
-                                <Trash2 className="size-4" />
-                              </Button>
-                            }
-                            title="Hapus Prestasi"
-                            description={`Hapus "${a.title}"?`}
-                            confirmText="Hapus"
-                            onConfirm={() => handleDelete(a)}
-                          />
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-                </Table>
-              </div>
+                        }
+                        title="Hapus Prestasi"
+                        description={`Hapus "${a.title}"?`}
+                        confirmText="Hapus"
+                        onConfirm={() => handleDelete(a)}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-              )}
-            </>
           )}
-        </CardContent>
-      </Card>
+        </>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
@@ -346,6 +433,28 @@ export function AchievementsManager() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Input primer: pemilih siswa dengan pencarian/typeahead. */}
+            <div className="space-y-2">
+              <Label htmlFor="ac-student">Siswa / Tim</Label>
+              <StudentTypeahead
+                id="ac-student"
+                students={students}
+                query={studentQuery}
+                onQueryChange={handleStudentQueryChange}
+                onPick={handlePickStudent}
+                placeholder="Ketik nama siswa / NIS, atau nama tim…"
+              />
+              {form.studentId ? (
+                <p className="text-xs font-medium text-emerald-600">
+                  ✓ Tertaut ke siswa — NIS/NISN akan tampil di kartu
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Pilih siswa dari daftar untuk menampilkan NIS/NISN di kartu;
+                  ketik bebas untuk prestasi tim.
+                </p>
+              )}
+            </div>
             <div className="space-y-2">
               <Label htmlFor="ac-title">Judul Prestasi</Label>
               <Input
@@ -357,17 +466,6 @@ export function AchievementsManager() {
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="ac-student">Nama Siswa</Label>
-                <Input
-                  id="ac-student"
-                  value={form.studentName}
-                  onChange={(e) =>
-                    setForm({ ...form, studentName: e.target.value })
-                  }
-                  placeholder="Nama peserta"
-                />
-              </div>
-              <div className="space-y-2">
                 <Label htmlFor="ac-date">Tanggal</Label>
                 <Input
                   id="ac-date"
@@ -376,8 +474,6 @@ export function AchievementsManager() {
                   onChange={(e) => setForm({ ...form, date: e.target.value })}
                 />
               </div>
-            </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Jenjang</Label>
                 <Select
@@ -396,24 +492,24 @@ export function AchievementsManager() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label>Kategori</Label>
-                <Select
-                  value={form.category}
-                  onValueChange={(v) => setForm({ ...form, category: v })}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ACHIEVEMENT_CATEGORIES.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Kategori</Label>
+              <Select
+                value={form.category}
+                onValueChange={(v) => setForm({ ...form, category: v })}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ACHIEVEMENT_CATEGORIES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="ac-desc">Deskripsi</Label>

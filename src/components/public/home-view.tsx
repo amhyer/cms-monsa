@@ -24,6 +24,7 @@ import { useAppStore } from "@/store/app";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SectionHeading } from "@/components/shared/section-heading";
+import { CopyableId } from "@/components/shared/copyable-id";
 import { RunningAnnouncements } from "./running-announcements";
 import { CategoryBadge, SectionShell } from "./_shared";
 import { StudentsShowcase } from "./students-showcase";
@@ -282,6 +283,14 @@ function AchievementCard({ item }: { item: AchievementItem }) {
       <p className="text-sm text-muted-foreground">
         {item.studentName ?? "Tim Sekolah"}
       </p>
+      {/* Identitas siswa tertaut (NIS/NISN) — sama seperti kartu dashboard,
+          bisa disalin sekali klik untuk pengecekan silang Dapodik. */}
+      {(item.studentNis || item.studentNisn) && (
+        <div className="space-y-0.5 pt-1">
+          {item.studentNis && <CopyableId label="NIS" value={item.studentNis} />}
+          {item.studentNisn && <CopyableId label="NISN" value={item.studentNisn} />}
+        </div>
+      )}
       <div className="mt-auto flex items-center justify-between text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1">
           <Award className="size-3.5" /> {item.category}

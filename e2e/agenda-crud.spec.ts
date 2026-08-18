@@ -1,5 +1,7 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./mutation-log";
 import { ADMIN, login } from "./helpers";
+
+// warmup: /api/agenda /api/auth/login
 
 function uniqueTitle(prefix: string) {
   return `${prefix} ${Date.now()}`;

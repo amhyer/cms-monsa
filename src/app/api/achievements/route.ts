@@ -10,14 +10,22 @@ export async function GET(req: NextRequest) {
   const page = Math.max(1, Number(searchParams.get("page") || "1"));
   const limit = Math.min(50, Math.max(1, Number(searchParams.get("limit") || "20")));
 
-  const [total, items] = await Promise.all([
+  const [total, rows] = await Promise.all([
     db.achievement.count(),
     db.achievement.findMany({
       orderBy: { date: "desc" },
       skip: (page - 1) * limit,
       take: limit,
+      include: { student: { select: { nis: true, nisn: true } } },
     }),
   ]);
+  // NIS/NISN siswa tertaut ikut publik — ditampilkan di kartu prestasi
+  // (halaman publik maupun dashboard) untuk pengecekan silang Dapodik.
+  const items = rows.map(({ student, ...rest }) => ({
+    ...rest,
+    studentNis: student?.nis ?? null,
+    studentNisn: student?.nisn ?? null,
+  }));
   return NextResponse.json({
     items,
     total,
@@ -38,11 +46,20 @@ export async function POST(req: NextRequest) {
   if (!title) {
     return NextResponse.json({ error: "Judul prestasi wajib diisi." }, { status: 400 });
   }
+  let studentId: string | null = null;
+  if (body.studentId) {
+    const student = await db.student.findUnique({ where: { id: String(body.studentId) } });
+    if (!student) {
+      return NextResponse.json({ error: "Siswa tidak ditemukan." }, { status: 400 });
+    }
+    studentId = student.id;
+  }
   const item = await db.achievement.create({
     data: {
       title,
       description: body.description || null,
       studentName: body.studentName || null,
+      studentId,
       level: String(body.level || "Kabupaten"),
       category: String(body.category || "Akademik"),
       date: body.date ? parseDateInput(String(body.date)) : new Date(),

@@ -12,11 +12,79 @@ import { createBosExpenditureSchema, validateBody } from "@/lib/validations";
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const year = searchParams.get("year");
-  const items = await db.bosExpenditure.findMany({
-    where: year ? { year: Number(year) } : undefined,
-    orderBy: [{ year: "desc" }, { source: "asc" }, { createdAt: "asc" }],
+  const page = Math.max(1, Number(searchParams.get("page") || "1"));
+  const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit") || "20")));
+  const where = year ? { year: Number(year) } : {};
+
+  const [total, items, yearGroupRows, agg, bySourceRows, docYearRows] =
+    await Promise.all([
+      db.bosExpenditure.count({ where }),
+      db.bosExpenditure.findMany({
+        where,
+        orderBy: [{ year: "desc" }, { source: "asc" }, { createdAt: "asc" }],
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      // Statistik per tahun SELALU lengkap (tidak terpotong pagination, dan
+      // tidak ikut filter tahun) — dipakai dropdown admin agar admin melihat
+      // jumlah & nominal tiap tahun sebelum memilih. `years` (number[])
+      // diturunkan dari union di bawah (belanja + dokumen) — bukan hanya
+      // belanja — agar tahun yang cuma punya dokumen tetap muncul.
+      db.bosExpenditure.groupBy({
+        by: ["year"],
+        _count: { _all: true },
+        _sum: { amount: true },
+      }),
+      // Ringkasan dihitung server-side agar akurat walau tabel di-paginate.
+      db.bosExpenditure.aggregate({ where, _sum: { amount: true } }),
+      db.bosExpenditure.groupBy({
+        by: ["source"],
+        where,
+        _sum: { amount: true },
+      }),
+      // Jumlah dokumen PDF (output ARKAS / bukti belanja) per tahun — dipakai
+      // chip dropdown agar admin melihat berapa dokumen tiap tahun, bukan
+      // hanya nominal belanjanya.
+      db.bosDocument.groupBy({
+        by: ["year"],
+        _count: { _all: true },
+      }),
+    ]);
+
+  const bySource = bySourceRows
+    .map((r) => ({ source: r.source, total: r._sum.amount ?? 0 }))
+    .sort((a, b) => b.total - a.total);
+
+  // Union tahun belanja + dokumen, diurutkan menurun; tahun yang cuma punya
+  // dokumen tetap masuk dengan count belanja 0 (dan sebaliknya).
+  const docCounts = new Map(docYearRows.map((r) => [r.year, r._count._all]));
+  const yearSet = new Set<number>([
+    ...yearGroupRows.map((r) => r.year),
+    ...docYearRows.map((r) => r.year),
+  ]);
+  const yearStats = Array.from(yearSet)
+    .sort((a, b) => b - a)
+    .map((year) => {
+      const exp = yearGroupRows.find((r) => r.year === year);
+      return {
+        year,
+        count: exp?._count._all ?? 0,
+        docs: docCounts.get(year) ?? 0,
+        amount: exp?._sum.amount ?? 0,
+      };
+    });
+
+  return NextResponse.json({
+    items,
+    total,
+    page,
+    limit,
+    totalPages: Math.max(1, Math.ceil(total / limit)),
+    years: yearStats.map((s) => s.year),
+    yearStats,
+    totalAmount: agg._sum.amount ?? 0,
+    bySource,
   });
-  return NextResponse.json({ items });
 }
 
 export async function POST(req: NextRequest) {

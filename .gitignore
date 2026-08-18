@@ -3,6 +3,8 @@ node_modules
 
 # next.js
 /.next/
+# distDir server dev paralel (NEXT_DIST_DIR, mis. .next-preview)
+/.next-*/
 /out/
 
 # production
@@ -33,6 +35,10 @@ next-env.d.ts
 *.log
 dev.log
 server.log
+# salinan log server e2e (E2E_SERVER_LOG) — stdout + stderr
+server-e2e.log*
+# riwayat statistik per run e2e (non-2xx trend, scripts/check-non2xx.ts)
+e2e-stats.jsonl
 
 # skills, examples, upload (not part of the app)
 /skills/
@@ -46,6 +52,14 @@ server.log
 /prisma/db/
 *.db
 *.db-journal
+# SQLite mode WAL: -wal/-shm tumbuh terus saat koneksi terbuka (high-churn,
+# watcher-visible) — *.db-journal saja tidak menutupi keduanya.
+*.db-wal
+*.db-shm
+
+# database backups (dump SQLite pra-migrasi, mis. backups/custom.db.*) —
+# binary & besar, bukan source
+/backups/
 
 # test coverage output
 /coverage/
@@ -69,10 +83,23 @@ server.log
 .env*
 !.env.example
 
+# tool state: output analisis dependensi (graphify) — regenerable, bukan source
+/graphify-out/
+
 # misc local files
 local-*
 .claude
 .z-ai-config
 test
 prompt
+# artefak audit satu kali (seed avatar) — bukan bagian dari app & jangan di-serve
+/public/avatar-audit.html
 .zscripts/dev.pid
+.zscripts/dev.port
+.zscripts/dev.log
+
+# Freebuff desktop app state (run doc, preview logs, aplikasi SQLite desktop-v2.db*) —
+# Turbopack menghormati .gitignore untuk file-watching; root-anchor ini mengeluarkan
+# .freebuff/ dari scan watcher sehingga DB terkunci & log yang terus bertambah tidak
+# lagi memicu rescan yang mengkorupsi kompilasi CSS (lihat .freebuff/run.md "Gotcha").
+/.freebuff/

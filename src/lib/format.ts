@@ -17,6 +17,32 @@ export function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
+/**
+ * Compact Rupiah amount for tight spaces like chips, e.g. 24000000 → "Rp 24 jt".
+ * Uses the "compact" notation (id-ID: "rb" / "jt" / "M").
+ */
+export function formatCompactCurrency(amount: number): string {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(amount);
+}
+
+/** Format a byte count, e.g. 1536000 → "1,5 MB". */
+export function formatBytes(bytes: number): string {
+  if (!bytes || bytes <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB"];
+  const i = Math.min(
+    Math.floor(Math.log(bytes) / Math.log(1024)),
+    units.length - 1
+  );
+  const value = bytes / 1024 ** i;
+  const rounded = value >= 10 || i === 0 ? Math.round(value) : value.toFixed(1);
+  return `${rounded} ${units[i]}`;
+}
+
 export function formatDate(
   date: string | Date | null,
   opts: Intl.DateTimeFormatOptions = {

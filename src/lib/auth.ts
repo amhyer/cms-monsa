@@ -180,6 +180,7 @@ const ROLE_LEVEL: Record<Role, number> = {
   OPERATOR: 2,
   GURU: 1,
   ORANG_TUA: 0,
+  SISWA: 0,
 };
 
 /** Require a specific minimum role. SUPER_ADMIN can do everything an OPERATOR can. */

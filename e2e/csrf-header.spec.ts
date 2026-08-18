@@ -1,5 +1,7 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./mutation-log";
 import { ADMIN, login } from "./helpers";
+
+// warmup: /api/news /api/csrf-token /api/auth/login
 
 // Known-benign dev-mode noise — anything else is treated as a real error.
 const BENIGN_CONSOLE = [
@@ -117,6 +119,13 @@ test.describe("CSRF Header Verification", () => {
     await confirmDialog
       .getByRole("button", { name: "Hapus", exact: true })
       .click();
+    // Toast baru muncul SETELAH respons DELETE diterima. Di dev server yang
+    // dingin, hit pertama ke route handler bisa nge-stall >5s saat Turbopack
+    // mengompilasi modulnya (contoh nyata: DELETE /api/news/[id] pertama 5.3s,
+    // lalu 108ms setelah ter-compile) — toast muncul setelah timeout asersi
+    // default 5s habis → flaky. playwright.config.ts menaikkan timeout asersi
+    // global ke 15s (expect: { timeout: 15_000 }); jangan turunkan, dan jangan
+    // menimpa per-asersi dengan timeout pendek di spec ini.
     await expect(page.getByText("Berita dihapus.")).toBeVisible();
     await expect(
       page.getByRole("cell", { name: title, exact: true })

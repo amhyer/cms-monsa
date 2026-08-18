@@ -1,5 +1,7 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./mutation-log";
 import { ADMIN, enableDarkMode, goldRef, login } from "./helpers";
+
+// warmup: /api/stats /api/auth/login
 
 /** Probe computed backgroundColor dari satu kelas Tailwind (tanpa dark:). */
 async function probeBg(page: import("@playwright/test").Page, className: string) {

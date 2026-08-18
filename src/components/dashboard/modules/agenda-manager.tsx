@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Plus,
   Pencil,
@@ -19,6 +19,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -42,6 +47,11 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { AGENDA_CATEGORIES } from "@/lib/nav";
+import {
+  applyScopeFilter,
+  computeScopeCounts,
+  scopeCounter,
+} from "@/lib/scope-filter";
 import { formatDate } from "@/lib/format";
 import type { AgendaItem } from "@/lib/types";
 import { PageLoader, EmptyState, toDateInputValue, fromDateInputValue } from "../_shared";
@@ -71,7 +81,18 @@ export function AgendaManager() {
   const { search, setSearch, filtered } = useSearch(items, (a) =>
     `${a.title} ${a.location ?? ""} ${a.category}`.toLowerCase()
   );
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [saving, setSaving] = useState(false);
+
+  const counts = useMemo(
+    () => computeScopeCounts(items, "category", AGENDA_CATEGORIES),
+    [items]
+  );
+
+  const scoped = useMemo(
+    () => applyScopeFilter(filtered, "category", categoryFilter),
+    [filtered, categoryFilter]
+  );
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<AgendaItem | null>(null);
@@ -197,6 +218,21 @@ export function AgendaManager() {
             />
           ) : (
             <>
+              <Tabs
+                value={categoryFilter}
+                onValueChange={(v) => setCategoryFilter(v)}
+              >
+                <TabsList className="flex-wrap h-auto mb-4">
+                  <TabsTrigger value="all">
+                    Semua ({counts.all})
+                  </TabsTrigger>
+                  {AGENDA_CATEGORIES.map((c) => (
+                    <TabsTrigger key={c} value={c}>
+                      {c} ({counts[c]})
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </Tabs>
               <div className="mb-4 flex items-center gap-2">
                 <Search className="size-4 text-muted-foreground" />
                 <Input
@@ -206,10 +242,16 @@ export function AgendaManager() {
                   className="max-w-xs"
                 />
                 <span className="ml-auto text-xs text-muted-foreground">
-                  {filtered.length} dari {items.length} agenda
+                  {scopeCounter(
+                    counts,
+                    categoryFilter,
+                    scoped,
+                    "agenda",
+                    search.trim() !== ""
+                  )}
                 </span>
               </div>
-              {filtered.length === 0 ? (
+              {scoped.length === 0 ? (
                 <EmptyState
                   icon={Search}
                   title="Tidak ditemukan"
@@ -230,7 +272,7 @@ export function AgendaManager() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map((a) => (
+                  {scoped.map((a) => (
                     <TableRow key={a.id}>
                       <TableCell className="whitespace-nowrap font-medium">
                         {formatDate(a.date)}

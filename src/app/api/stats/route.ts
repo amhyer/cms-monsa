@@ -24,6 +24,7 @@ export async function GET() {
     classCount,
     recentLogs,
     recentMessages,
+    roleRows,
   ] = await Promise.all([
     db.news.count(),
     db.news.count({ where: { status: "PUBLISHED" } }),
@@ -57,7 +58,21 @@ export async function GET() {
       ...(isGuru ? { where: { userId: user.id } } : {}),
     }),
     db.contactMessage.findMany({ orderBy: { createdAt: "desc" }, take: 5 }),
+    // Ringkasan per role akun — bentuknya SAMA dengan counts di GET
+    // /api/users (Semua / Admin & Operator / Guru / Orang Tua / Siswa) agar
+    // badge sidebar & ringkasan dashboard konsisten dengan tab users page.
+    db.user.findMany({ select: { role: true } }),
   ]);
+
+  const userRoleCounts = {
+    all: roleRows.length,
+    STAFF: roleRows.filter(
+      (u) => u.role === "SUPER_ADMIN" || u.role === "OPERATOR"
+    ).length,
+    GURU: roleRows.filter((u) => u.role === "GURU").length,
+    ORANG_TUA: roleRows.filter((u) => u.role === "ORANG_TUA").length,
+    SISWA: roleRows.filter((u) => u.role === "SISWA").length,
+  };
 
   // Today's attendance summary
   const today = new Date();
@@ -102,6 +117,7 @@ export async function GET() {
       studentCount,
       classCount,
       visits,
+      userRoleCounts,
     },
     attendance,
     recentLogs,

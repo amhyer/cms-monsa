@@ -45,6 +45,13 @@ type Stats = {
     studentCount: number;
     classCount: number;
     visits: number;
+    userRoleCounts: {
+      all: number;
+      STAFF: number;
+      GURU: number;
+      ORANG_TUA: number;
+      SISWA: number;
+    };
   };
   attendance: {
     hadir: number;
@@ -91,6 +98,7 @@ export function Overview() {
   const router = useRouter();
   const user = useAppStore((s) => s.user);
   const isGuru = user?.role === "GURU";
+  const isAdmin = user?.role === "SUPER_ADMIN";
 
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -137,8 +145,17 @@ export function Overview() {
     { label: "Galeri Media", value: stats.counts.galleryCount, icon: ImageIcon },
     { label: "Pesan Baru", value: stats.counts.unreadMessages, icon: Mail },
     { label: "Guru & Staf", value: stats.counts.teacherCount, icon: Users, hide: isGuru },
-    { label: "User Admin", value: stats.counts.userCount, icon: UserCircle2, hide: isGuru },
   ].filter((s) => !s.hide);
+
+  // Peran akun — sama dengan tab users page (Semua / Admin & Operator / Guru /
+  // Orang Tua / Siswa) agar ringkasan konsisten dengan Manajemen Akun.
+  const rolePills = [
+    { label: "Admin & Operator", value: stats.counts.userRoleCounts.STAFF, icon: UserCircle2 },
+    { label: "Akun Guru", value: stats.counts.userRoleCounts.GURU, icon: GraduationCap },
+    { label: "Akun Orang Tua", value: stats.counts.userRoleCounts.ORANG_TUA, icon: Users },
+    { label: "Akun Siswa", value: stats.counts.userRoleCounts.SISWA, icon: GraduationCap },
+    { label: "Total Akun", value: stats.counts.userRoleCounts.all, icon: UserCircle2 },
+  ];
 
   return (
     <div className="space-y-6">
@@ -247,6 +264,30 @@ export function Overview() {
           );
         })}
       </div>
+
+      {/* Peran akun — konsisten dengan tab Manajemen Akun (khusus admin) */}
+      {isAdmin && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {rolePills.map((r) => {
+            const Icon = r.icon;
+            return (
+              <Card
+                key={r.label}
+                className="cursor-pointer py-3 transition hover:border-gold/50 hover:shadow-sm"
+                onClick={() => router.push("/dashboard/users")}
+              >
+                <CardContent className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Icon className="size-3.5" />
+                    <span className="truncate">{r.label}</span>
+                  </div>
+                  <span className="text-lg font-bold">{r.value}</span>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
       {/* Quick actions */}
       <Card>

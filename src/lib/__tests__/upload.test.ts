@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   detectImageType,
+  detectPdf,
   IMAGE_TYPE_EXT,
   IMAGE_TYPE_MIME,
   ALLOWED_IMAGE_TYPES,
@@ -66,6 +67,45 @@ describe("detectImageType", () => {
 
   it("rejects plain text with an .html-like body", () => {
     expect(detectImageType(ascii("<script>alert(1)</script>"))).toBeNull();
+  });
+});
+
+describe("detectPdf", () => {
+  it("detects a standard PDF by the %PDF- header", () => {
+    const pdf = ascii("%PDF-1.7\n%\xe2\xe3\xcf\xd3\n1 0 obj\n<<>>\nendobj\n%%EOF");
+    expect(detectPdf(pdf)).toBe(true);
+  });
+
+  it("detects a PDF whose header is preceded by junk bytes", () => {
+    const buf = bytes(0x00, 0x00, 0x00);
+    const pdf = ascii("%PDF-1.4");
+    const full = new Uint8Array(buf.length + pdf.length);
+    full.set(buf, 0);
+    full.set(pdf, buf.length);
+    expect(detectPdf(full)).toBe(true);
+  });
+
+  it("rejects HTML content disguised as a PDF", () => {
+    const html = ascii("<!DOCTYPE html><html><script>alert(1)</script></html>");
+    expect(detectPdf(html)).toBe(false);
+  });
+
+  it("rejects image bytes", () => {
+    const png = bytes(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00);
+    expect(detectPdf(png)).toBe(false);
+  });
+
+  it("rejects empty buffer", () => {
+    expect(detectPdf(new Uint8Array(0))).toBe(false);
+  });
+
+  it("rejects a header longer than the 1024-byte scan window", () => {
+    const junk = new Uint8Array(2048).fill(0x00);
+    const pdf = ascii("%PDF-1.6");
+    const full = new Uint8Array(junk.length + pdf.length);
+    full.set(junk, 0);
+    full.set(pdf, junk.length);
+    expect(detectPdf(full)).toBe(false);
   });
 });
 

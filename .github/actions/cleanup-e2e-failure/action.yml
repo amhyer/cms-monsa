@@ -1,0 +1,95 @@
+# Hapus artefak kegagalan e2e yang sudah basi saat PR AKHIRNYA HIJAU — pasangan
+# dari .github/actions/comment-e2e-failure (yang menulis komentar sticky +
+# label e2e-failed saat gagal). Dipanggil dengan `if: success()` di akhir job
+# e2e: komentar sticky ber-marker milik workflow INI dihapus (termasuk
+# duplikat historis), dan label dilepas HANYA bila komentar kegagalan workflow
+# SIBLING juga sudah tidak ada — jadi PR yang setengah merah (satu workflow
+# masih gagal) tidak kehilangan labelnya.
+#
+# Pemakaian (langsung setelah step e2e, akhir job):
+#   steps:
+#     - name: Clean up failure comment on pass
+#       if: success() && github.event_name == 'pull_request'
+#       uses: ./.github/actions/cleanup-e2e-failure
+#       with:
+#         marker: "<!-- e2e-failure-summary -->"
+#         sibling_marker: "<!-- e2e-failure-summary-prod -->"
+#         label: "e2e-failed"
+name: Clean up stale E2E failure comment on green PR
+description: >-
+  Delete the workflow's own sticky failure comment (and historical
+  duplicates) when the PR passes, and remove the e2e-failed label only when
+  the sibling workflow's failure comment is also gone.
+
+inputs:
+  marker:
+    description: Marker of THIS workflow's failure comment (e.g. "<!-- e2e-failure-summary -->").
+    required: true
+  sibling_marker:
+    description: Marker of the SIBLING workflow's failure comment (empty -> treat as absent).
+    required: false
+    default: ""
+  label:
+    description: >-
+      Repo label to remove once no failure comments remain (e.g.
+      "e2e-failed"). Empty -> no label removal.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Clean up failure comment and label
+      uses: actions/github-script@v7
+      env:
+        MARKER: ${{ inputs.marker }}
+        SIBLING_MARKER: ${{ inputs.sibling_marker }}
+        LABEL: ${{ inputs.label }}
+      with:
+        script: |
+          const pr = context.payload.pull_request.number;
+          const marker = process.env.MARKER;
+          // Hanya komentar milik workflow INI yang dihapus — komentar sibling
+          // dibiarkan (workflow itu mungkin masih gagal; PR yang hijau
+          // sebagian tidak boleh membersihkan komentar workflow lain).
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: pr,
+            per_page: 100,
+          });
+          const stale = comments.filter((c) => c.body && c.body.includes(marker));
+          for (const c of stale) {
+            await github.rest.issues.deleteComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: c.id,
+            });
+          }
+          console.log(`Dihapus ${stale.length} komentar sticky (marker ${marker}) dari PR #${pr}.`);
+          // Label dilepas HANYA bila tidak ada komentar kegagalan sama sekali
+          // (milik sendiri sudah dihapus di atas, sibling dicek di sini).
+          // PR setengah merah -> label dipertahankan karena workflow lain
+          // masih melaporkan kegagalan.
+          const label = process.env.LABEL;
+          if (label) {
+            const siblingMarker = process.env.SIBLING_MARKER;
+            const siblingStillFailed =
+              siblingMarker && comments.some((c) => c.body && c.body.includes(siblingMarker));
+            if (siblingStillFailed) {
+              console.log(`Label "${label}" dipertahankan — komentar ${siblingMarker} masih ada (sibling gagal).`);
+            } else {
+              try {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr,
+                  name: label,
+                });
+                console.log(`Label "${label}" dilepas dari PR #${pr}.`);
+              } catch (e) {
+                // 404 = label belum ada (mis. belum pernah dipasang) — bukan error.
+                console.log(`::notice::Label "${label}" tidak bisa dilepas (sudah tidak ada?): ${String(e)}`);
+              }
+            }
+          }

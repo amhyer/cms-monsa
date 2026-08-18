@@ -21,7 +21,8 @@ vi.mock("@/lib/whatsapp", async (importOriginal) => {
   };
 });
 
-import { POST } from "@/app/api/users/route";
+import { GET, POST } from "@/app/api/users/route";
+import { PUT } from "@/app/api/users/[id]/route";
 
 function createdUser(overrides: Record<string, unknown> = {}) {
   return {
@@ -34,6 +35,263 @@ function createdUser(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
+
+function fullUserRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "u-1",
+    name: "Admin Sekolah",
+    email: "admin@x.sch.id",
+    role: "SUPER_ADMIN",
+    isActive: true,
+    guardianClassId: null,
+    guardianStudentId: null,
+    studentId: null,
+    ...overrides,
+  };
+}
+
+function userRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "u-1",
+    name: "Admin Sekolah",
+    email: "admin@x.sch.id",
+    role: "SUPER_ADMIN",
+    isActive: true,
+    guardianClassId: null,
+    guardianStudentId: null,
+    studentId: null,
+    guardianClass: null,
+    guardianStudent: null,
+    student: null,
+    createdAt: new Date("2026-01-01"),
+    ...overrides,
+  };
+}
+
+describe("GET /api/users", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockCookies.store = {};
+  });
+
+  it("mengembalikan daftar ter-paginasi + counts per peran", async () => {
+    mockRequireRole.mockResolvedValue({ ok: true, user: createMockUser() });
+    mockPrisma.user.count.mockResolvedValue(7);
+    mockPrisma.user.findMany
+      .mockResolvedValueOnce([userRow()])
+      .mockResolvedValueOnce([
+        { role: "SUPER_ADMIN" },
+        { role: "OPERATOR" },
+        { role: "OPERATOR" },
+        { role: "GURU" },
+        { role: "GURU" },
+        { role: "ORANG_TUA" },
+        { role: "SISWA" },
+      ]);
+
+    const req = createMockRequest("http://localhost/api/users?page=1&limit=10");
+    const res = await GET(asNextRequest(req));
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.items).toHaveLength(1);
+    expect(data.total).toBe(7);
+    expect(data.page).toBe(1);
+    expect(data.limit).toBe(10);
+    expect(data.totalPages).toBe(1);
+    expect(data.counts).toEqual({
+      all: 7,
+      STAFF: 3,
+      GURU: 2,
+      ORANG_TUA: 1,
+      SISWA: 1,
+    });
+    // findMany dipanggil dua kali: daftar (skip/take) lalu ringkasan peran.
+    expect(mockPrisma.user.findMany).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ skip: 0, take: 10 })
+    );
+    expect(mockPrisma.user.findMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ select: { role: true } })
+    );
+  });
+
+  it("menghitung totalPages dari total & limit", async () => {
+    mockRequireRole.mockResolvedValue({ ok: true, user: createMockUser() });
+    mockPrisma.user.count.mockResolvedValue(23);
+    mockPrisma.user.findMany.mockResolvedValue([]);
+
+    const req = createMockRequest("http://localhost/api/users?page=3&limit=10");
+    const res = await GET(asNextRequest(req));
+    const data = await res.json();
+
+    expect(data.page).toBe(3);
+    expect(data.totalPages).toBe(3);
+    expect(mockPrisma.user.findMany).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ skip: 20, take: 10 })
+    );
+  });
+
+  it("meneruskan filter peran STAFF sebagai in [SUPER_ADMIN, OPERATOR]", async () => {
+    mockRequireRole.mockResolvedValue({ ok: true, user: createMockUser() });
+    mockPrisma.user.count.mockResolvedValue(3);
+    mockPrisma.user.findMany.mockResolvedValue([]);
+
+    const req = createMockRequest("http://localhost/api/users?role=STAFF");
+    await GET(asNextRequest(req));
+
+    expect(mockPrisma.user.count).toHaveBeenCalledWith({
+      where: { role: { in: ["SUPER_ADMIN", "OPERATOR"] } },
+    });
+  });
+
+  it("meneruskan filter peran GURU secara eksak", async () => {
+    mockRequireRole.mockResolvedValue({ ok: true, user: createMockUser() });
+    mockPrisma.user.count.mockResolvedValue(2);
+    mockPrisma.user.findMany.mockResolvedValue([]);
+
+    const req = createMockRequest("http://localhost/api/users?role=GURU");
+    await GET(asNextRequest(req));
+
+    expect(mockPrisma.user.count).toHaveBeenCalledWith({
+      where: { role: "GURU" },
+    });
+  });
+
+  it("pencarian q mencakup nama, email, dan nama siswa tertaut", async () => {
+    mockRequireRole.mockResolvedValue({ ok: true, user: createMockUser() });
+    mockPrisma.user.count.mockResolvedValue(1);
+    mockPrisma.user.findMany.mockResolvedValue([]);
+
+    const req = createMockRequest(
+      "http://localhost/api/users?q=Aisyah%20Putri"
+    );
+    await GET(asNextRequest(req));
+
+    expect(mockPrisma.user.count).toHaveBeenCalledWith({
+      where: {
+        OR: [
+          { name: { contains: "Aisyah Putri" } },
+          { email: { contains: "Aisyah Putri" } },
+          { guardianStudent: { name: { contains: "Aisyah Putri" } } },
+          { student: { name: { contains: "Aisyah Putri" } } },
+        ],
+      },
+    });
+  });
+
+  it("menolak tanpa role SUPER_ADMIN", async () => {
+    mockRequireRole.mockResolvedValue({
+      ok: false,
+      response: new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 }),
+    });
+
+    const req = createMockRequest("http://localhost/api/users");
+    const res = await GET(asNextRequest(req));
+    expect(res.status).toBe(403);
+    expect(mockPrisma.user.findMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("PUT /api/users/[id] — adaptasi tautan saat role diganti", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockCookies.store = {};
+  });
+
+  it("ORANG_TUA → SISWA: set studentId, bersihkan guardianStudentId & guardianClassId", async () => {
+    const user = createMockUser();
+    mockRequireRole.mockResolvedValue({ ok: true, user });
+    mockPrisma.user.findUnique.mockResolvedValue(
+      fullUserRow({ id: "u-ortu", role: "ORANG_TUA", guardianStudentId: "s1" })
+    );
+    mockPrisma.student.findUnique.mockResolvedValue({ id: "s2", name: "Bima" });
+    mockPrisma.user.findFirst.mockResolvedValue(null); // siswa s2 belum punya akun
+    mockPrisma.user.update.mockResolvedValue(fullUserRow({ id: "u-ortu", role: "SISWA" }));
+
+    const req = createMockRequest("http://localhost/api/users/u-ortu", {
+      method: "PUT",
+      body: { role: "SISWA", studentId: "s2" },
+    });
+    const res = await PUT(asNextRequest(req), {
+      params: Promise.resolve({ id: "u-ortu" }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(mockPrisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          role: "SISWA",
+          studentId: "s2",
+          guardianStudentId: null,
+        }),
+      })
+    );
+  });
+
+  it("SISWA → GURU: set guardianClassId, bersihkan studentId & guardianStudentId", async () => {
+    const user = createMockUser();
+    mockRequireRole.mockResolvedValue({ ok: true, user });
+    mockPrisma.user.findUnique.mockResolvedValue(
+      fullUserRow({ id: "u-siswa", role: "SISWA", studentId: "s1" })
+    );
+    mockPrisma.user.update.mockResolvedValue(fullUserRow({ id: "u-siswa", role: "GURU" }));
+
+    const req = createMockRequest("http://localhost/api/users/u-siswa", {
+      method: "PUT",
+      body: { role: "GURU", guardianClassId: "c1" },
+    });
+    const res = await PUT(asNextRequest(req), {
+      params: Promise.resolve({ id: "u-siswa" }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(mockPrisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          role: "GURU",
+          guardianClassId: "c1",
+          studentId: null,
+          guardianStudentId: null,
+        }),
+      })
+    );
+  });
+
+  it("GURU → ORANG_TUA: set guardianStudentId, bersihkan studentId & guardianClassId walau body tidak menyertakannya", async () => {
+    const user = createMockUser();
+    mockRequireRole.mockResolvedValue({ ok: true, user });
+    mockPrisma.user.findUnique.mockResolvedValue(
+      fullUserRow({ id: "u-guru", role: "GURU", guardianClassId: "c1" })
+    );
+    mockPrisma.student.findUnique.mockResolvedValue({ id: "s1", name: "Aisyah" });
+    mockPrisma.user.update.mockResolvedValue(fullUserRow({ id: "u-guru", role: "ORANG_TUA" }));
+
+    const req = createMockRequest("http://localhost/api/users/u-guru", {
+      method: "PUT",
+      body: { role: "ORANG_TUA", guardianStudentId: "s1" },
+    });
+    const res = await PUT(asNextRequest(req), {
+      params: Promise.resolve({ id: "u-guru" }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(mockPrisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          role: "ORANG_TUA",
+          guardianStudentId: "s1",
+          studentId: null,
+          // Form hanya mengirim guardianClassId untuk GURU — saat pindah ke
+          // ORANG_TUA, guardianClassId lama WAJIB dibersihkan (fix staleness).
+          guardianClassId: null,
+        }),
+      })
+    );
+  });
+});
 
 describe("POST /api/users", () => {
   beforeEach(() => {
@@ -179,5 +437,78 @@ describe("POST /api/users", () => {
     expect(res.status).toBe(400);
     expect(mockPrisma.user.create).not.toHaveBeenCalled();
     expect(mockNotifyParentWhatsApp).not.toHaveBeenCalled();
+  });
+
+  it("membuat akun SISWA yang tertaut ke siswa", async () => {
+    mockRequireRole.mockResolvedValue({ ok: true, user: createMockUser() });
+    mockPrisma.user.findUnique.mockResolvedValue(null); // email belum terdaftar
+    mockPrisma.student.findUnique.mockResolvedValue({ id: "s2", name: "Bima" });
+    mockPrisma.user.findFirst.mockResolvedValue(null); // siswa belum punya akun
+    mockPrisma.user.create.mockResolvedValue(
+      createdUser({ id: "u-siswa", role: "SISWA" })
+    );
+
+    const req = createMockRequest("http://localhost:3000/api/users", {
+      method: "POST",
+      body: {
+        name: "Bima Arya Saputra",
+        email: "bima.siswa@example.com",
+        password: "rahasia123",
+        role: "SISWA",
+        studentId: "s2",
+      },
+    });
+    const res = await POST(asNextRequest(req));
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.id).toBe("u-siswa");
+    expect(mockPrisma.user.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ role: "SISWA", studentId: "s2" }),
+      })
+    );
+    expect(mockNotifyParentWhatsApp).not.toHaveBeenCalled();
+  });
+
+  it("menolak akun SISWA tanpa studentId", async () => {
+    mockRequireRole.mockResolvedValue({ ok: true, user: createMockUser() });
+    mockPrisma.user.findUnique.mockResolvedValue(null);
+
+    const req = createMockRequest("http://localhost:3000/api/users", {
+      method: "POST",
+      body: {
+        name: "Siswa Tanpa Tautan",
+        email: "siswa@example.com",
+        password: "rahasia123",
+        role: "SISWA",
+      },
+    });
+    const res = await POST(asNextRequest(req));
+
+    expect(res.status).toBe(400);
+    expect(mockPrisma.user.create).not.toHaveBeenCalled();
+  });
+
+  it("menolak akun SISWA bila siswa sudah punya akun", async () => {
+    mockRequireRole.mockResolvedValue({ ok: true, user: createMockUser() });
+    mockPrisma.user.findUnique.mockResolvedValue(null);
+    mockPrisma.student.findUnique.mockResolvedValue({ id: "s2", name: "Bima" });
+    mockPrisma.user.findFirst.mockResolvedValue({ id: "u-lama" }); // sudah ada akun
+
+    const req = createMockRequest("http://localhost:3000/api/users", {
+      method: "POST",
+      body: {
+        name: "Bima Arya Saputra",
+        email: "bima.dua@example.com",
+        password: "rahasia123",
+        role: "SISWA",
+        studentId: "s2",
+      },
+    });
+    const res = await POST(asNextRequest(req));
+
+    expect(res.status).toBe(409);
+    expect(mockPrisma.user.create).not.toHaveBeenCalled();
   });
 });

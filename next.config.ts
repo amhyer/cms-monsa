@@ -59,8 +59,21 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // distDir dapat diganti lewat env (mis. preview paralel di port lain tanpa
+  // bentrok dengan dev server utama yang memegang lock .next). Default .next.
+  distDir: process.env.NEXT_DIST_DIR ?? ".next",
   poweredByHeader: false,
   reactStrictMode: true,
+  experimental: {
+    // Proxy (Next 16) meng-clone & mem-buffer request body; default 10MB
+    // memotong FormData sebelum route handler menerimanya → upload besar gagal
+    // 500 ("Failed to parse body as FormData") alih-alih pesan batas ukuran.
+    // Batas bisnis upload PDF adalah 15MB (MAX_SIZE di
+    // src/app/api/bos-documents/route.ts), jadi buffer proxy harus LEBIH besar
+    // dari itu agar file >15MB tiba utuh dan route menolaknya dengan 400
+    // "Ukuran file maksimal 15 MB." — bukan 500 karena body terpotong.
+    proxyClientMaxBodySize: "25mb",
+  },
   async headers() {
     return [
       {

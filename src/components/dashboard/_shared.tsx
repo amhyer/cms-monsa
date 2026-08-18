@@ -1,6 +1,15 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
 import { Loader2, Inbox } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 /** Tailwind class for an activity-log action badge. */
@@ -75,6 +84,126 @@ export function EmptyState({
           {description}
         </p>
       )}
+    </div>
+  );
+}
+
+/**
+ * Ukuran halaman per modul yang bertahan di localStorage lintas sesi
+ * (kunci `monsa:pageSize:<key>`). Aman SSR: nilai tersimpan dibaca setelah
+ * mount, jadi render server selalu memakai default (tanpa mismatch hidrasi).
+ * `validSizes` (opsional) membatasi nilai yang diterima dari penyimpanan agar
+ * tidak pernah menghasilkan ukuran di luar pilihan yang tersedia.
+ */
+export function usePersistedPageSize(
+  key: string,
+  defaultValue: number,
+  validSizes?: number[]
+): [number, (size: number) => void] {
+  const storageKey = `monsa:pageSize:${key}`;
+  const [pageSize, setPageSizeState] = useState<number>(defaultValue);
+
+  // Baca nilai tersimpan setelah mount (SSR-safe). Bila tidak valid / tidak
+  // tersedia, biarkan default.
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(storageKey);
+      if (raw) {
+        const n = Number(raw);
+        if (Number.isInteger(n) && n > 0 && (!validSizes || validSizes.includes(n))) {
+          setPageSizeState(n);
+        }
+      }
+    } catch {
+      // localStorage tidak tersedia (mode privat) — pakai default.
+    }
+    // validSizes statis per pemanggil; join dipakai agar deps stabil.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storageKey, validSizes?.join(",")]);
+
+  const setPageSize = useCallback(
+    (size: number) => {
+      setPageSizeState(size);
+      try {
+        window.localStorage.setItem(storageKey, String(size));
+      } catch {
+        // abaikan — nilai hanya berlaku sesi ini.
+      }
+    },
+    [storageKey]
+  );
+
+  return [pageSize, setPageSize];
+}
+
+/**
+ * Kontrol pagination sederhana: "Halaman X dari Y" + tombol Sebelumnya/Berikutnya.
+ * Otomatis null (tidak dirender) saat hanya ada satu halaman.
+ *
+ * Pemilih ukuran halaman (opsional, hanya dirender bila onPageSizeChange
+ * diberikan) — dipakai tabel yang ingin memberi admin kendali 10/25/50.
+ */
+export function Pagination({
+  page,
+  totalPages,
+  onPage,
+  pageSize,
+  pageSizes = [10, 25, 50],
+  onPageSizeChange,
+}: {
+  page: number;
+  totalPages: number;
+  onPage: (p: number) => void;
+  pageSize?: number;
+  pageSizes?: number[];
+  onPageSizeChange?: (size: number) => void;
+}) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 pt-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <p className="text-xs text-muted-foreground">
+          Halaman {page} dari {totalPages}
+        </p>
+        {onPageSizeChange && (
+          <Select
+            value={String(pageSize ?? pageSizes[0])}
+            onValueChange={(v) => onPageSizeChange(Number(v))}
+          >
+            <SelectTrigger
+              className="h-8 w-24 text-xs"
+              aria-label="Baris per halaman"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {pageSizes.map((s) => (
+                <SelectItem key={s} value={String(s)}>
+                  {s} / hal.
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+      <div className="flex items-center gap-1">
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={page <= 1}
+          onClick={() => onPage(page - 1)}
+        >
+          Sebelumnya
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={page >= totalPages}
+          onClick={() => onPage(page + 1)}
+        >
+          Berikutnya
+        </Button>
+      </div>
     </div>
   );
 }

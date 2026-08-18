@@ -80,8 +80,10 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   // GURU hanya melihat Ringkasan + Kehadiran (kelas wali-nya).
   const isGuru = user?.role === "GURU";
 
-  // Unread message count badge for "Pesan Masuk" nav item.
+  // Unread message count badge for "Pesan Masuk" nav item + total akun untuk
+  // badge "Manajemen Operator" (konsisten dengan tab users page).
   const [unread, setUnread] = useState(0);
+  const [accountTotal, setAccountTotal] = useState<number | null>(null);
   useEffect(() => {
     let active = true;
     async function load() {
@@ -89,8 +91,13 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
         const res = await fetch("/api/stats", { cache: "no-store" });
         if (!res.ok) return;
         const data = await res.json();
-        if (active && typeof data?.counts?.unreadMessages === "number") {
+        if (!active) return;
+        if (typeof data?.counts?.unreadMessages === "number") {
           setUnread(data.counts.unreadMessages);
+        }
+        const rc = data?.counts?.userRoleCounts;
+        if (rc && typeof rc.all === "number") {
+          setAccountTotal(rc.all);
         }
       } catch {
         // ignore — badge is non-critical
@@ -134,6 +141,10 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
       pathname === n.path || (n.path !== "/dashboard" && pathname.startsWith(n.path));
     const Icon = n.icon;
     const showBadge = n.path === "/dashboard/messages" && unread > 0;
+    // Badge total akun pada item "Manajemen Operator" — nilainya sama dengan
+    // jumlah di tab "Semua" halaman users (dari userRoleCounts /api/stats).
+    const showAccountBadge =
+      n.path === "/dashboard/users" && accountTotal !== null;
     return (
       <button
         key={n.path}
@@ -161,6 +172,14 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
             className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-gold px-1.5 text-[11px] font-bold text-gold-foreground"
           >
             {unread > 99 ? "99+" : unread}
+          </span>
+        )}
+        {showAccountBadge && (
+          <span
+            aria-label={`${accountTotal} akun`}
+            className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-sidebar-accent px-1.5 text-[11px] font-bold text-sidebar-accent-foreground"
+          >
+            {accountTotal! > 99 ? "99+" : accountTotal}
           </span>
         )}
       </button>

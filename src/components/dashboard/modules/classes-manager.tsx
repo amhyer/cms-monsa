@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Plus,
   Pencil,
@@ -34,8 +34,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useAppStore } from "@/store/app";
+import {
+  applyScopeFilter,
+  computeScopeCounts,
+  scopeCounter,
+} from "@/lib/scope-filter";
 import type { ClassItem, TeacherItem } from "@/lib/types";
 import { exportToCsv } from "@/lib/export";
 import { PageLoader, EmptyState } from "../_shared";
@@ -71,7 +81,18 @@ export function ClassesManager() {
   const { search, setSearch, filtered } = useSearch(items, (c) =>
     `${c.name} ${c.grade} ${c.academicYear} ${c.homeroomTeacherName ?? ""}`.toLowerCase()
   );
+  const [gradeFilter, setGradeFilter] = useState("all");
   const [saving, setSaving] = useState(false);
+
+  const counts = useMemo(
+    () => computeScopeCounts(items, "grade", GRADES),
+    [items]
+  );
+
+  const scoped = useMemo(
+    () => applyScopeFilter(filtered, "grade", gradeFilter),
+    [filtered, gradeFilter]
+  );
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ClassItem | null>(null);
@@ -93,7 +114,11 @@ export function ClassesManager() {
 
   const fetchTeachers = useCallback(async () => {
     try {
-      const res = await fetch("/api/teachers?scope=admin", { cache: "no-store" });
+      // limit=500: dropdown wali kelas butuh SELURUH guru, bukan halaman 1
+      // (GET admin kini mendukung pagination server-side).
+      const res = await fetch("/api/teachers?scope=admin&limit=500", {
+        cache: "no-store",
+      });
       if (!res.ok) return;
       const data = await res.json();
       setTeachers(data.items || []);
@@ -236,6 +261,21 @@ export function ClassesManager() {
         />
       ) : (
         <>
+          <Tabs
+            value={gradeFilter}
+            onValueChange={(v) => setGradeFilter(v)}
+          >
+            <TabsList className="flex-wrap h-auto mb-4">
+              <TabsTrigger value="all">
+                Semua ({counts.all})
+              </TabsTrigger>
+              {GRADES.map((g) => (
+                <TabsTrigger key={g} value={g}>
+                  Kelas {g} ({counts[g]})
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
           <div className="flex items-center gap-2">
             <Search className="size-4 text-muted-foreground" />
             <Input
@@ -245,10 +285,16 @@ export function ClassesManager() {
               className="max-w-xs"
             />
             <span className="ml-auto text-xs text-muted-foreground">
-              {filtered.length} dari {items.length} kelas
+              {scopeCounter(
+                counts,
+                gradeFilter,
+                scoped,
+                "kelas",
+                search.trim() !== ""
+              )}
             </span>
           </div>
-          {filtered.length === 0 ? (
+          {scoped.length === 0 ? (
             <EmptyState
               icon={Search}
               title="Tidak ditemukan"
@@ -256,7 +302,7 @@ export function ClassesManager() {
             />
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {filtered.map((c) => (
+              {scoped.map((c) => (
                 <Card key={c.id}>
                   <CardContent className="py-4">
                     <div className="flex items-start justify-between gap-2">

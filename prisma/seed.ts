@@ -36,6 +36,7 @@ async function main() {
   await db.achievement.deleteMany();
   await db.orgStructure.deleteMany();
   await db.bosExpenditure.deleteMany();
+  await db.bosDocument.deleteMany();
   await db.user.deleteMany();
   await db.siteSetting.deleteMany();
 
@@ -339,18 +340,18 @@ async function main() {
 
   // ---------- TEACHERS (SD) ----------
   const teachers = [
-    { name: "Nawawi Hamzah, S.Pd., M.Pd.", position: "Kepala Sekolah", subject: "Kepemimpinan", education: "S2 Manajemen Pendidikan", img: 60 },
-    { name: "Hj. Rosmiati, S.Pd., M.Pd.", position: "Wakil Kepala Sekolah Bidang Kurikulum", subject: "Guru Kelas", education: "S2 Pendidikan Dasar", img: 45 },
-    { name: "Drs. Abdul Rahman", position: "Wakil Kepala Sekolah Bidang Kesiswaan", subject: "PJOK", education: "S1 Pendidikan Olahraga", img: 12 },
-    { name: "Siti Aminah, S.Pd.", position: "Guru Kelas 1A", subject: "Kelas 1A", education: "S1 PGSD", img: 5 },
-    { name: "Andi Mappangara, S.Pd.", position: "Guru Kelas 4B", subject: "Kelas 4B", education: "S1 PGSD", img: 33 },
-    { name: "Maya Sari, S.Pd.", position: "Guru Bahasa Inggris", subject: "Bahasa Inggris", education: "S1 Pendidikan Bahasa Inggris", img: 20 },
-    { name: "Ustadz Ahmad Fauzi, S.Pd.I.", position: "Guru Pendidikan Agama Islam", subject: "Agama Islam", education: "S1 PAI", img: 15 },
-    { name: "Dewi Anggraini, S.Pd.", position: "Guru PJOK", subject: "PJOK", education: "S1 Pendidikan Olahraga", img: 25 },
-    { name: "Rina Marlina, S.Pd.", position: "Guru Seni Budaya & Drumband", subject: "Seni Budaya", education: "S1 Pendidikan Seni", img: 16 },
-    { name: "Muhammad Yusuf, S.Kom.", position: "Guru Informatika", subject: "Informatika", education: "S1 Pendidikan Informatika", img: 8 },
-    { name: "Nurul Hidayah, S.Pd.", position: "Guru Inklusi / Pembina ABK", subject: "Pendidikan Inklusi", education: "S1 Pendidikan Luar Biasa", img: 48 },
-    { name: "Ratna Dewi, S.E.", position: "Bendahara Sekolah", subject: "-", education: "S1 Akuntansi", img: 51 },
+    { name: "Nawawi Hamzah, S.Pd., M.Pd.", position: "Kepala Sekolah", subject: "Kepemimpinan", education: "S2 Manajemen Pendidikan", img: 60, nuptk: "1998765432100001", nip: "198007152008011001", nik: "7371011507800001", riwayat: "Memimpin SDN Unggulan Mongisidi 1 dengan fokus pada mutu pembelajaran, penguatan karakter siswa, dan tata kelola sekolah yang transparan.", email: "kepala.sekolah@mongisidi1.sch.id", phone: "081341112233" },
+    { name: "Hj. Rosmiati, S.Pd., M.Pd.", position: "Wakil Kepala Sekolah Bidang Kurikulum", subject: "Guru Kelas", education: "S2 Pendidikan Dasar", img: 45, nuptk: "1998765432100002", nip: "197302102005012002", nik: "7371011002730002", riwayat: "Mengawal implementasi kurikulum dan program pembelajaran di seluruh jenjang.", email: "rosmiati@mongisidi1.sch.id", phone: "081342223344" },
+    { name: "Drs. Abdul Rahman", position: "Wakil Kepala Sekolah Bidang Kesiswaan", subject: "PJOK", education: "S1 Pendidikan Olahraga", img: 12, nuptk: "1998765432100003", nip: "196808201994121003", nik: "7371012008680003", riwayat: "Membina kedisiplinan, kegiatan ekstrakurikuler, dan kesejahteraan siswa.", email: "abdul.rahman@mongisidi1.sch.id", phone: "081343334455" },
+    { name: "Siti Aminah, S.Pd.", position: "Guru Kelas 1A", subject: "Kelas 1A", education: "S1 PGSD", img: 2, nuptk: "1998765432100004", nip: "198512102011012004", nik: "7371011012850004", riwayat: "Guru kelas 1A yang fokus pada literasi dan numerasi dasar siswa.", email: "siti.aminah@mongisidi1.sch.id", phone: "081344445566" },
+    { name: "Andi Mappangara, S.Pd.", position: "Guru Kelas 4B", subject: "Kelas 4B", education: "S1 PGSD", img: 33, nuptk: "1998765432100005", nip: "197905182006041005", nik: "7371011805790005", riwayat: "Guru kelas 4B — membimbing siswa melalui pembelajaran yang aktif dan menyenangkan.", email: "andi.mappangara@mongisidi1.sch.id", phone: "081345556677" },
+    { name: "Maya Sari, S.Pd.", position: "Guru Bahasa Inggris", subject: "Bahasa Inggris", education: "S1 Pendidikan Bahasa Inggris", img: 20, nuptk: "1998765432100006", nip: "198802252015022006", nik: "7371012502880006", riwayat: "Guru Bahasa Inggris dengan pendekatan komunikatif dan permainan bahasa.", email: "maya.sari@mongisidi1.sch.id", phone: "081346667788" },
+    { name: "Ustadz Ahmad Fauzi, S.Pd.I.", position: "Guru Pendidikan Agama Islam", subject: "Agama Islam", education: "S1 PAI", img: 15, nuptk: "1998765432100007", nip: "198307122010011007", nik: "7371011207830007", riwayat: "Guru Pendidikan Agama Islam — membina keimanan dan akhlak siswa.", email: "ahmad.fauzi@mongisidi1.sch.id", phone: "081347778899" },
+    { name: "Dewi Anggraini, S.Pd.", position: "Guru PJOK", subject: "PJOK", education: "S1 Pendidikan Olahraga", img: 25, nuptk: "1998765432100008", nip: "199003152019032008", nik: "7371011503900008", riwayat: "Guru PJOK — mengembangkan kebugaran jasmani dan jiwa sportivitas siswa.", email: "dewi.anggraini@mongisidi1.sch.id", phone: "081348889900" },
+    { name: "Rina Marlina, S.Pd.", position: "Guru Seni Budaya & Drumband", subject: "Seni Budaya", education: "S1 Pendidikan Seni", img: 16, nuptk: "1998765432100009", nip: "198911042019042009", nik: "7371010411890009", riwayat: "Guru Seni Budaya sekaligus pembina Drumband Monsa Jaya.", email: "rina.marlina@mongisidi1.sch.id", phone: "081349990011" },
+    { name: "Muhammad Yusuf, S.Kom.", position: "Guru Informatika", subject: "Informatika", education: "S1 Pendidikan Informatika", img: 8, nuptk: "1998765432100010", nip: "199208212020121010", nik: "7371012108920010", riwayat: "Guru Informatika — mengenalkan literasi digital dan dasar robotika sejak dini.", email: "yusuf.informatika@mongisidi1.sch.id", phone: "081350001122" },
+    { name: "Nurul Hidayah, S.Pd.", position: "Guru Inklusi / Pembina ABK", subject: "Pendidikan Inklusi", education: "S1 Pendidikan Luar Biasa", img: 48, nuptk: "1998765432100011", nip: "199402072020122011", nik: "7371010702940011", riwayat: "Guru Pendidikan Inklusi / Pembina ABK — mendampingi siswa berkebutuhan khusus.", email: "nurul.hidayah@mongisidi1.sch.id", phone: "081351112233" },
+    { name: "Ratna Dewi, S.E.", position: "Bendahara Sekolah", subject: "-", education: "S1 Akuntansi", img: 51, nuptk: "1998765432100012", nip: "199110052020122012", nik: "7371010510910012", riwayat: "Bendahara sekolah — menata keuangan dan dana BOS secara tertib dan akuntabel.", email: "ratna.dewi@mongisidi1.sch.id", phone: "081352223344" },
   ];
   for (let i = 0; i < teachers.length; i++) {
     const t = teachers[i];
@@ -360,6 +361,12 @@ async function main() {
         position: t.position,
         subject: t.subject,
         education: t.education,
+        nuptk: t.nuptk,
+        nip: t.nip,
+        nik: t.nik,
+        riwayat: t.riwayat ?? null,
+        email: t.email ?? null,
+        phone: t.phone ?? null,
         photo: avatar(t.img),
         order: i,
         isActive: true,
@@ -395,8 +402,9 @@ async function main() {
     { name: "Kirana Dewi", nis: "20260011", nisn: "0123456791", gender: "PEREMPUAN", cls: "Kelas 1.b" },
     { name: "Lutfi Ardiansyah", nis: "20260012", nisn: "0123456792", gender: "LAKI_LAKI", cls: "Kelas 1.b" },
   ];
+  const studentIds: Record<string, string> = {};
   for (const s of students) {
-    await db.student.create({
+    const created = await db.student.create({
       data: {
         name: s.name,
         nis: s.nis,
@@ -409,16 +417,39 @@ async function main() {
         parentPhone: "081234567890",
       },
     });
+    studentIds[s.nis] = created.id;
   }
+
+  // ---------- AKUN PORTAL ORANG TUA & SISWA (contoh) ----------
+  await db.user.create({
+    data: {
+      name: "Orang tua Aisyah Putri Ramadhani",
+      email: "ortu.aisyah@mongisidi1.sch.id",
+      password: hashPassword("ortu123"),
+      role: "ORANG_TUA",
+      isActive: true,
+      guardianStudentId: studentIds["20260001"] ?? null,
+    },
+  });
+  await db.user.create({
+    data: {
+      name: "Bima Arya Saputra",
+      email: "bima.siswa@mongisidi1.sch.id",
+      password: hashPassword("siswa123"),
+      role: "SISWA",
+      isActive: true,
+      studentId: studentIds["20260002"] ?? null,
+    },
+  });
 
   // ---------- STRUKTUR ORGANISASI ----------
   const org = [
-    { name: "Nawawi Hamzah, S.Pd., M.Pd.", position: "Kepala Sekolah", order: 0, img: 1 },
-    { name: "Muhammad Yusuf, S.Pd.", position: "Wakil Kepala Sekolah", order: 1, img: 2 },
-    { name: "Siti Aminah, S.Pd.", position: "Bendahara Sekolah", order: 2, img: 3 },
-    { name: "Andi Mappangara, S.Pd.", position: "Koordinator Kurikulum", order: 3, img: 4 },
-    { name: "Rahmat Hidayat, S.Pd.", position: "Koordinator Kesiswaan", order: 4, img: 5 },
-    { name: "Nurul Aini, S.Pd.", position: "Koordinator Sarana Prasarana", order: 5, img: 6 },
+    { name: "Nawawi Hamzah, S.Pd., M.Pd.", position: "Kepala Sekolah", order: 0, img: 1, nuptk: "1345752663130001", nip: "196806121994031002", nik: "7371011206680001", bio: "Memimpin SDN Unggulan Mongisidi 1 sejak 2019, berfokus pada peningkatan mutu pembelajaran dan penguatan karakter siswa.", contact: "kepala.sekolah@mongisidi1.sch.id" },
+    { name: "Muhammad Yusuf, S.Pd.", position: "Wakil Kepala Sekolah", order: 1, img: 8, nuptk: "2359761664130002", nip: "197503102005011003", nik: "7371011003750002", bio: "Mendampingi kepala sekolah dalam pengelolaan administrasi, kurikulum, dan pembinaan tenaga pendidik.", contact: "wakasek@mongisidi1.sch.id" },
+    { name: "Siti Aminah, S.Pd.", position: "Bendahara Sekolah", order: 2, img: 2, nuptk: "6349763666130003", nip: "198009052006042004", nik: "7371010509800003", bio: "Mengelola keuangan sekolah secara transparan, termasuk penatausahaan dana BOS dan laporan anggaran.", contact: "bendahara@mongisidi1.sch.id" },
+    { name: "Andi Mappangara, S.Pd.", position: "Koordinator Kurikulum", order: 3, img: 33, nuptk: "9351765667130004", nip: null, nik: "7371011205780004", bio: "Menyusun dan mengawal implementasi kurikulum serta program pembelajaran di semua jenjang kelas.", contact: "kurikulum@mongisidi1.sch.id" },
+    { name: "Rahmat Hidayat, S.Pd.", position: "Koordinator Kesiswaan", order: 4, img: 5, nuptk: "4351766668130005", nip: null, nik: "7371012301800005", bio: "Membina kedisiplinan, kegiatan ekstrakurikuler, dan kesejahteraan siswa.", contact: "kesiswaan@mongisidi1.sch.id" },
+    { name: "Nurul Aini, S.Pd.", position: "Koordinator Sarana Prasarana", order: 5, img: 6, nuptk: "2356773669130006", nip: null, nik: "7371010601840006", bio: "Menjaga ketersediaan dan perawatan sarana prasarana sekolah agar menunjang kegiatan belajar mengajar.", contact: "sarana@mongisidi1.sch.id" },
   ];
   for (const o of org) {
     await db.orgStructure.create({
@@ -426,6 +457,11 @@ async function main() {
         name: o.name,
         position: o.position,
         photo: avatar(o.img),
+        nuptk: o.nuptk,
+        nip: o.nip,
+        nik: o.nik,
+        bio: o.bio,
+        contact: o.contact,
         order: o.order,
         isActive: true,
       },
@@ -433,6 +469,10 @@ async function main() {
   }
 
   // ---------- TRANSPARANSI ANGGARAN (ARKAS / DANA BOS) ----------
+  // Dua tahun anggaran sengaja di-seed (2026 + 2025) agar dropdown tahun
+  // menunjukkan chip ringkasan per tahun yang BERBEDA (total 2026 = Rp 82,5
+  // jt dari 8 item; 2025 = Rp 12 jt dari 2 item). Jumlah item dijaga agar
+  // total keseluruhan ≤ 10 sehingga baseline test pagination tetap 1 halaman.
   const bos = [
     { year: 2026, source: "BOS Reguler", category: "Honorarium", item: "Honorarium guru tidak tetap", amount: 24000000, quarter: 1 },
     { year: 2026, source: "BOS Reguler", category: "Pembelajaran", item: "Pembelian buku & alat peraga", amount: 15000000, quarter: 2 },
@@ -442,6 +482,8 @@ async function main() {
     { year: 2026, source: "BOS Reguler", category: "Operasional", item: "ATK & bahan habis pakai", amount: 6000000, quarter: null },
     { year: 2026, source: "BOS Kinerja", category: "Pengembangan", item: "Peningkatan kompetensi guru (pelatihan)", amount: 5000000, quarter: null },
     { year: 2026, source: "BOS Kinerja", category: "Pengembangan", item: "Program literasi & perpustakaan", amount: 3500000, quarter: null },
+    { year: 2025, source: "BOS Reguler", category: "Operasional", item: "ATK & perlengkapan kantor (2025)", amount: 7000000, quarter: 1 },
+    { year: 2025, source: "BOS Reguler", category: "Sarana Prasarana", item: "Pemeliharaan gedung & fasilitas (2025)", amount: 5000000, quarter: 2 },
   ];
   for (const b of bos) {
     await db.bosExpenditure.create({
@@ -506,13 +548,15 @@ async function main() {
   });
 
   // ---------- ACHIEVEMENTS ----------
+  // Prestasi perorangan ditautkan ke siswa nyata (menampilkan NIS/NISN di kartu),
+  // prestasi tim tetap tanpa tautan siswa.
   const ach = [
     { title: "Juara 1 Lomba Cerdas Cermat Tingkat Kota", studentName: "Tim LCC SDN Mongisidi 1", level: "Kabupaten", category: "Akademik", date: new Date(now - 9 * 86400000) },
     { title: "Juara Umum Festival Drumband Pelajar", studentName: "Tim Drumband Monsa Jaya", level: "Kabupaten", category: "Non-Akademik", date: new Date(now - 28 * 86400000) },
-    { title: "Juara 2 Olimpiade Matematika SD Tingkat Provinsi", studentName: "Fathur Rahman (kelas 6)", level: "Provinsi", category: "Akademik", date: new Date(now - 45 * 86400000) },
-    { title: "Juara 1 Lomba Mewarnai Tingkat Kota", studentName: "Khadijah Aulia (kelas 3)", level: "Kabupaten", category: "Non-Akademik", date: new Date(now - 60 * 86400000) },
-    { title: "Juara 1 Tahfidz Juz 30 Tingkat Kota", studentName: "Ahmad Zaki (kelas 5)", level: "Kabupaten", category: "Non-Akademik", date: new Date(now - 90 * 86400000) },
-    { title: "Juara 3 Pidato Bahasa Inggris Tingkat Provinsi", studentName: "Sarah Wijaya (kelas 6)", level: "Provinsi", category: "Non-Akademik", date: new Date(now - 120 * 86400000) },
+    { title: "Juara 2 Olimpiade Matematika SD Tingkat Provinsi", studentName: "Bima Arya Saputra", studentId: studentIds["20260002"] ?? null, level: "Provinsi", category: "Akademik", date: new Date(now - 45 * 86400000) },
+    { title: "Juara 1 Lomba Mewarnai Tingkat Kota", studentName: "Citra Ayu Lestari", studentId: studentIds["20260003"] ?? null, level: "Kabupaten", category: "Non-Akademik", date: new Date(now - 60 * 86400000) },
+    { title: "Juara 1 Tahfidz Juz 30 Tingkat Kota", studentName: "Hadi Firmansyah", studentId: studentIds["20260008"] ?? null, level: "Kabupaten", category: "Non-Akademik", date: new Date(now - 90 * 86400000) },
+    { title: "Juara 3 Pidato Bahasa Inggris Tingkat Provinsi", studentName: "Gita Maharani", studentId: studentIds["20260007"] ?? null, level: "Provinsi", category: "Non-Akademik", date: new Date(now - 120 * 86400000) },
   ];
   for (const a of ach) {
     await db.achievement.create({
@@ -520,6 +564,7 @@ async function main() {
         title: a.title,
         description: `Prestasi diraih oleh ${a.studentName}.`,
         studentName: a.studentName,
+        studentId: a.studentId,
         level: a.level,
         category: a.category,
         date: a.date,

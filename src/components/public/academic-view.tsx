@@ -18,9 +18,21 @@ import {
   CalendarDays,
   Clock,
   MapPin,
+  Mail,
+  Phone,
+  UserCircle2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import Link from "next/link";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { PageBanner, SectionShell, CategoryBadge } from "./_shared";
@@ -66,11 +78,19 @@ function TeacherAvatar({ t }: { t: TeacherItem }) {
   );
 }
 
-function TeacherCard({ t }: { t: TeacherItem }) {
+function TeacherCard({
+  t,
+  onOpen,
+}: {
+  t: TeacherItem;
+  onOpen: (t: TeacherItem) => void;
+}) {
   return (
-    <Link
-      href={`/academic/guru/${t.id}`}
-      className="flex flex-col gap-4 rounded-xl border bg-card p-5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-gold hover:shadow-md"
+    <button
+      type="button"
+      onClick={() => onOpen(t)}
+      aria-label={`Lihat profil ${t.name}`}
+      className="flex w-full flex-col gap-4 rounded-xl border bg-card p-5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-gold hover:shadow-md"
     >
       <div className="flex items-start gap-4">
         <TeacherAvatar t={t} />
@@ -89,10 +109,10 @@ function TeacherCard({ t }: { t: TeacherItem }) {
           <CategoryBadge category={t.subject} className="bg-primary text-primary-foreground" />
         </div>
       )}
-      <span className="text-[11px] font-medium text-muted-foreground hover:text-gold">
-        Lihat profil lengkap →
+      <span className="text-[11px] font-medium text-muted-foreground">
+        Lihat profil & kontak
       </span>
-    </Link>
+    </button>
   );
 }
 
@@ -100,6 +120,8 @@ export function AcademicView() {
   const [teachers, setTeachers] = useState<TeacherItem[] | null>(null);
   const [agenda, setAgenda] = useState<AgendaItem[]>([]);
   const [query, setQuery] = useState("");
+  // Guru yang sedang dibuka di modal detail (bio/kontak — tanpa NUPTK/NIP/NIK).
+  const [selected, setSelected] = useState<TeacherItem | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -213,7 +235,7 @@ export function AcademicView() {
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {filteredTeachers.map((t) => (
-                <TeacherCard key={t.id} t={t} />
+                <TeacherCard key={t.id} t={t} onOpen={setSelected} />
               ))}
             </div>
           )}
@@ -341,6 +363,94 @@ export function AcademicView() {
           <Music className="size-7 text-gold" />
         </div>
       </section>
+
+      {/* Modal detail profil guru — bio/kontak, TANPA NUPTK/NIP/NIK (kunci
+          identitas sudah di-strip oleh GET publik /api/teachers). */}
+      <Dialog
+        open={selected !== null}
+        onOpenChange={(o) => !o && setSelected(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{selected?.name}</DialogTitle>
+            <DialogDescription>{selected?.position}</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
+            {selected?.photo ? (
+              <img
+                src={selected.photo}
+                alt={selected.name}
+                className="size-28 shrink-0 rounded-full border object-cover"
+              />
+            ) : (
+              <span className="flex size-28 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-foreground ring-2 ring-gold/40">
+                <UserCircle2 className="size-14 text-gold" />
+              </span>
+            )}
+            <div className="min-w-0 flex-1 space-y-3">
+              {selected?.subject && selected.subject !== "-" && (
+                <div>
+                  <CategoryBadge
+                    category={selected.subject}
+                    className="bg-primary text-primary-foreground"
+                  />
+                </div>
+              )}
+              {selected?.riwayat && (
+                <p className="whitespace-pre-line text-sm leading-relaxed text-foreground">
+                  {selected.riwayat}
+                </p>
+              )}
+              {(selected?.email || selected?.phone) && (
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  {selected.email && (
+                    <p className="flex items-center gap-2">
+                      <Mail className="size-4 text-gold" />
+                      <a
+                        href={`mailto:${selected.email}`}
+                        className="underline-offset-4 hover:underline"
+                      >
+                        {selected.email}
+                      </a>
+                    </p>
+                  )}
+                  {selected.phone && (
+                    <p className="flex items-center gap-2">
+                      <Phone className="size-4 text-gold" />
+                      <a
+                        href={`tel:${selected.phone}`}
+                        className="underline-offset-4 hover:underline"
+                      >
+                        {selected.phone}
+                      </a>
+                    </p>
+                  )}
+                </div>
+              )}
+              {!selected?.riwayat && !selected?.email && !selected?.phone && (
+                <p className="text-sm text-muted-foreground">
+                  Profil singkat guru belum tersedia.
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="flex-wrap">
+            {selected && (
+              <Button variant="ghost" asChild>
+                <Link
+                  href={`/academic/guru/${selected.id}`}
+                  onClick={() => setSelected(null)}
+                >
+                  Lihat profil lengkap
+                </Link>
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setSelected(null)}>
+              Tutup
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

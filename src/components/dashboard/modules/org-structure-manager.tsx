@@ -8,7 +8,7 @@ import {
   Loader2,
   Save,
   Network,
-  GripVertical,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -22,17 +22,24 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { ImageUpload } from "@/components/shared/image-upload";
+import { CopyableId } from "@/components/shared/copyable-id";
 import type { OrgStructureItem } from "@/lib/types";
-import { PageLoader, EmptyState } from "../_shared";
+import { PageLoader, EmptyState, Pagination, usePersistedPageSize } from "../_shared";
 
 type FormState = {
   name: string;
   position: string;
   photo: string | null;
+  nuptk: string;
+  nip: string;
+  nik: string;
+  bio: string;
+  contact: string;
   order: number;
   isActive: boolean;
 };
@@ -41,6 +48,11 @@ const EMPTY: FormState = {
   name: "",
   position: "",
   photo: null,
+  nuptk: "",
+  nip: "",
+  nik: "",
+  bio: "",
+  contact: "",
   order: 0,
   isActive: true,
 };
@@ -48,35 +60,65 @@ const EMPTY: FormState = {
 export function OrgStructureManager() {
   const [items, setItems] = useState<OrgStructureItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [debounced, setDebounced] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = usePersistedPageSize("org-structure", 10, [10, 25, 50]);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [saving, setSaving] = useState(false);
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<OrgStructureItem | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY);
 
+  // debounce pencarian server-side (sama seperti users-manager).
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(search), 350);
+    return () => clearTimeout(t);
+  }, [search]);
+
   const fetchList = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/org-structure?scope=admin", {
+      const params = new URLSearchParams({
+        scope: "admin",
+        page: String(page),
+        limit: String(pageSize),
+      });
+      if (debounced.trim()) params.set("q", debounced.trim());
+      const res = await fetch(`/api/org-structure?${params}`, {
         cache: "no-store",
       });
       if (!res.ok) throw new Error();
       const data = await res.json();
       setItems(data.items || []);
+      setTotal(data.total ?? 0);
+      setTotalPages(data.totalPages ?? 1);
     } catch {
       toast.error("Gagal memuat struktur organisasi.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, pageSize, debounced]);
 
   useEffect(() => {
     fetchList();
   }, [fetchList]);
 
+  // Kembali ke halaman 1 saat pencarian/ukuran halaman berubah.
+  useEffect(() => {
+    setPage(1);
+  }, [debounced, pageSize]);
+
+  // Jaga agar page tidak melewati totalPages (mis. setelah menghapus baris).
+  useEffect(() => {
+    setPage((p) => Math.min(p, totalPages));
+  }, [totalPages]);
+
   function openCreate() {
     setEditing(null);
-    setForm({ ...EMPTY, order: items.length });
+    setForm({ ...EMPTY, order: total });
     setOpen(true);
   }
 
@@ -86,6 +128,11 @@ export function OrgStructureManager() {
       name: item.name,
       position: item.position,
       photo: item.photo,
+      nuptk: item.nuptk ?? "",
+      nip: item.nip ?? "",
+      nik: item.nik ?? "",
+      bio: item.bio ?? "",
+      contact: item.contact ?? "",
       order: item.order,
       isActive: item.isActive,
     });
@@ -107,6 +154,11 @@ export function OrgStructureManager() {
         name: form.name.trim(),
         position: form.position.trim(),
         photo: form.photo || null,
+        nuptk: form.nuptk.trim() || null,
+        nip: form.nip.trim() || null,
+        nik: form.nik.trim() || null,
+        bio: form.bio.trim() || null,
+        contact: form.contact.trim() || null,
         order: form.order,
         isActive: form.isActive,
       };
@@ -164,13 +216,33 @@ export function OrgStructureManager() {
         </Button>
       </div>
 
-      {items.length === 0 ? (
+      {total === 0 ? (
         <EmptyState
           title="Belum ada struktur organisasi"
           description="Tambahkan susunan organisasi (mis. Kepala Sekolah, Wakasek, Guru) agar tampil di website."
           icon={Network}
         />
       ) : (
+        <>
+          <div className="mb-4 flex items-center gap-2">
+            <Search className="size-4 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Cari nama atau jabatan…"
+              className="max-w-xs"
+            />
+            <span className="ml-auto text-xs text-muted-foreground">
+              {items.length} dari {total} anggota
+            </span>
+          </div>
+          {items.length === 0 ? (
+            <EmptyState
+              icon={Search}
+              title="Tidak ditemukan"
+              description="Tidak ada anggota yang cocok dengan pencarian Anda."
+            />
+          ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((item) => (
             <div
@@ -189,17 +261,27 @@ export function OrgStructureManager() {
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <GripVertical className="size-3.5 shrink-0 text-muted-foreground" />
-                  <Badge variant="outline">{item.order}</Badge>
-                  {!item.isActive && (
+                <p className="truncate font-medium">{item.name}</p>
+                <div className="mt-0.5 space-y-0.5 text-xs text-muted-foreground">
+                  <p className="truncate">Jabatan: {item.position}</p>
+                  <p className="truncate font-mono">Urutan: {item.order}</p>
+                  {(item.nuptk || item.nip || item.nik) && (
+                    <div className="space-y-0.5 pt-1">
+                      {item.nuptk && (
+                        <CopyableId label="NUPTK" value={item.nuptk} />
+                      )}
+                      {item.nip && <CopyableId label="NIP" value={item.nip} />}
+                      {item.nik && <CopyableId label="NIK" value={item.nik} />}
+                    </div>
+                  )}
+                </div>
+                <div className="mt-2">
+                  {item.isActive ? (
+                    <Badge className="bg-emerald-600 text-white">Aktif</Badge>
+                  ) : (
                     <Badge variant="secondary">Tidak tampil</Badge>
                   )}
                 </div>
-                <p className="mt-1 truncate font-medium">{item.name}</p>
-                <p className="truncate text-sm text-muted-foreground">
-                  {item.position}
-                </p>
               </div>
               <div className="flex shrink-0 items-center gap-1">
                 <Button
@@ -230,6 +312,18 @@ export function OrgStructureManager() {
             </div>
           ))}
         </div>
+          )}
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPage={setPage}
+            pageSize={pageSize}
+            onPageSizeChange={(s) => {
+              setPageSize(s);
+              setPage(1);
+            }}
+          />
+        </>
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -263,6 +357,58 @@ export function OrgStructureManager() {
                       setForm({ ...form, position: e.target.value })
                     }
                     placeholder="Mis. Kepala Sekolah / Wakil Kepala Sekolah"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="o-nuptk">NUPTK</Label>
+                  <Input
+                    id="o-nuptk"
+                    value={form.nuptk}
+                    onChange={(e) =>
+                      setForm({ ...form, nuptk: e.target.value })
+                    }
+                    placeholder="16 digit (opsional)"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="o-nip">NIP</Label>
+                  <Input
+                    id="o-nip"
+                    value={form.nip}
+                    onChange={(e) => setForm({ ...form, nip: e.target.value })}
+                    placeholder="Nomor Induk Pegawai (opsional)"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="o-nik">NIK</Label>
+                  <Input
+                    id="o-nik"
+                    value={form.nik}
+                    onChange={(e) => setForm({ ...form, nik: e.target.value })}
+                    placeholder="16 digit (opsional)"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="o-bio">Profil Singkat (Bio)</Label>
+                  <Textarea
+                    id="o-bio"
+                    rows={3}
+                    value={form.bio}
+                    onChange={(e) =>
+                      setForm({ ...form, bio: e.target.value })
+                    }
+                    placeholder="Tampil di modal detail halaman publik (opsional)"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="o-contact">Kontak</Label>
+                  <Input
+                    id="o-contact"
+                    value={form.contact}
+                    onChange={(e) =>
+                      setForm({ ...form, contact: e.target.value })
+                    }
+                    placeholder="HP / email (opsional)"
                   />
                 </div>
                 <div className="space-y-2">

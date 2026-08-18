@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
       { name: { contains: search } },
       { nis: { contains: search } },
       { nisn: { contains: search } },
+      { parentName: { contains: search } },
     ];
   }
 

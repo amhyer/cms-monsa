@@ -7,9 +7,30 @@ import {
   readingTime,
   truncate,
   parseDateInput,
+  formatCurrency,
+  formatCompactCurrency,
 } from "@/lib/format";
 
 describe("format utilities", () => {
+  describe("formatCurrency / formatCompactCurrency", () => {
+    // id-ID Intl menyisipkan non-breaking space (U+00A0) setelah "Rp".
+    const NBSP = "\u00A0";
+
+    it("formats full rupiah with thousand separators", () => {
+      expect(formatCurrency(50000)).toBe(`Rp${NBSP}50.000`);
+      expect(formatCurrency(24000000)).toBe(`Rp${NBSP}24.000.000`);
+    });
+
+    it("compact formatter uses id-ID compact notation", () => {
+      expect(formatCompactCurrency(24000000)).toBe(`Rp${NBSP}24${NBSP}jt`);
+      expect(formatCompactCurrency(120000000)).toBe(`Rp${NBSP}120${NBSP}jt`);
+    });
+
+    it("compact formatter handles zero", () => {
+      expect(formatCompactCurrency(0)).toBe(`Rp${NBSP}0`);
+    });
+  });
+
   describe("slugify", () => {
     it("converts text to lowercase slug", () => {
       expect(slugify("Hello World")).toBe("hello-world");

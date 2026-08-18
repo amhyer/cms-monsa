@@ -358,6 +358,23 @@ Contoh menjalankan suite terhadap server di port lain:
 E2E_PORT=3200 E2E_SERVER_CMD="bunx next dev -p 3200" bun run test:e2e
 ```
 
+**DB e2e terpisah (disarankan agar suite tidak mengotori DB dev):**
+`DATABASE_URL` harus **path absolut** — Prisma meresolve path relatif
+terhadap direktori schema, jadi `file:./prisma/e2e-gate.db` membuat file di
+`prisma/prisma/e2e-gate.db` (bukan `prisma/e2e-gate.db`) dan DB lama di sana
+tidak pernah di-wipe → seed terlewati padahal seharusnya kosong:
+
+```bash
+# reseed DB e2e (path absolut — ganti dengan path worktree Anda)
+rm -f <worktree>/prisma/e2e-gate.db*
+DATABASE_URL="file:<worktree>/prisma/e2e-gate.db" bunx prisma db push
+DATABASE_URL="file:<worktree>/prisma/e2e-gate.db" bun run db:seed
+
+# jalankan suite dengan DB e2e
+E2E_PORT=3200 E2E_SERVER_CMD="bunx next dev -p 3200" \
+  DATABASE_URL="file:<worktree>/prisma/e2e-gate.db" bun run test:e2e
+```
+
 ### Server target (urutan prioritas)
 
 1. **`E2E_BASE_URL`** — override eksplisit, menang selalu.

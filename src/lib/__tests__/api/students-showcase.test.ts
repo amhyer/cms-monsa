@@ -8,12 +8,13 @@ describe("GET /api/students/showcase (public)", () => {
     vi.clearAllMocks();
   });
 
-  it("returns safe projection without auth", async () => {
+  it("returns public projection with NIS/NISN for cross-checking, without auth", async () => {
     const row = {
       id: "s1",
       name: "Ani",
       photoUrl: "https://example.com/ani.jpg",
       nis: "12345",
+      nisn: "0123456789",
       class: { name: "1A" },
     };
     mockPrisma.student.count.mockResolvedValue(1);
@@ -30,9 +31,13 @@ describe("GET /api/students/showcase (public)", () => {
       name: "Ani",
       photoUrl: "https://example.com/ani.jpg",
       className: "1A",
+      nis: "12345",
+      nisn: "0123456789",
     });
-    // NIS/NISN tidak boleh bocor ke publik.
-    expect(data.items[0].nis).toBeUndefined();
+    // NIS/NISN publik untuk pengecekan silang orang tua (paritas kartu
+    // prestasi publik) — tapi kontak/data orang tua tetap tidak diekspos.
+    expect(data.items[0].nis).toBe("12345");
+    expect(data.items[0].nisn).toBe("0123456789");
   });
 
   it("filters by classId and search query", async () => {

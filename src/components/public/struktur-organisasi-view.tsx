@@ -1,8 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Network, UserCircle2 } from "lucide-react";
+import { Mail, Network, Phone, UserCircle2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { PageBanner, SectionShell } from "./_shared";
 import { ErrorState } from "@/components/shared/error-state";
 import type { OrgStructureItem } from "@/lib/types";
@@ -10,6 +18,8 @@ import type { OrgStructureItem } from "@/lib/types";
 export function StrukturOrganisasiView() {
   const [items, setItems] = useState<OrgStructureItem[] | null>(null);
   const [error, setError] = useState(false);
+  // Anggota yang sedang dibuka di modal detail (bio/kontak — tanpa NUPTK/NIP/NIK).
+  const [selected, setSelected] = useState<OrgStructureItem | null>(null);
 
   const load = () => {
     let cancelled = false;
@@ -80,7 +90,17 @@ export function StrukturOrganisasiView() {
             {items.map((m) => (
               <div
                 key={m.id}
-                className="flex items-center gap-4 rounded-xl border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+                role="button"
+                tabIndex={0}
+                aria-label={`Lihat profil ${m.name}`}
+                onClick={() => setSelected(m)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setSelected(m);
+                  }
+                }}
+                className="flex cursor-pointer items-center gap-4 rounded-xl border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
               >
                 {m.photo ? (
                   <img
@@ -101,12 +121,78 @@ export function StrukturOrganisasiView() {
                   <p className="truncate text-sm font-medium text-primary">
                     {m.position}
                   </p>
+                  {(m.bio || m.contact) && (
+                    <p className="mt-1 truncate text-xs text-muted-foreground">
+                      Lihat profil & kontak
+                    </p>
+                  )}
                 </div>
               </div>
             ))}
           </div>
         )}
       </SectionShell>
+
+      {/* Modal detail profil anggota — hanya bio/kontak, TANPA NUPTK/NIP/NIK
+          (kunci identitas sudah di-strip oleh GET publik /api/org-structure). */}
+      <Dialog open={selected !== null} onOpenChange={(o) => !o && setSelected(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{selected?.name}</DialogTitle>
+            <DialogDescription>{selected?.position}</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
+            {selected?.photo ? (
+              <img
+                src={selected.photo}
+                alt={selected.name}
+                className="size-28 shrink-0 rounded-full border object-cover"
+              />
+            ) : (
+              <span className="flex size-28 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-foreground ring-2 ring-gold/40">
+                <UserCircle2 className="size-14 text-gold" />
+              </span>
+            )}
+            <div className="min-w-0 flex-1 space-y-3">
+              {selected?.bio && (
+                <p className="whitespace-pre-line text-sm leading-relaxed text-foreground">
+                  {selected.bio}
+                </p>
+              )}
+              {selected?.contact && (
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  {selected.contact.includes("@") ? (
+                    <p className="flex items-center gap-2">
+                      <Mail className="size-4 text-gold" />
+                      <a
+                        href={`mailto:${selected.contact}`}
+                        className="underline-offset-4 hover:underline"
+                      >
+                        {selected.contact}
+                      </a>
+                    </p>
+                  ) : (
+                    <p className="flex items-center gap-2">
+                      <Phone className="size-4 text-gold" />
+                      {selected.contact}
+                    </p>
+                  )}
+                </div>
+              )}
+              {!selected?.bio && !selected?.contact && (
+                <p className="text-sm text-muted-foreground">
+                  Profil singkat anggota belum tersedia.
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => setSelected(null)}>
+              Tutup
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

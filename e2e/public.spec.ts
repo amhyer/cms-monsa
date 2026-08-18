@@ -1,5 +1,6 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./mutation-log";
 
+// warmup: /api/news /api/announcements /api/gallery /api/agenda
 test.describe("Public Site", () => {
   test("should load the home page with navigation", async ({ page }) => {
     await page.goto("/");

@@ -19,16 +19,19 @@ model User {
   name      String
   email     String   @unique
   password  String
-  role      String   @default("OPERATOR") // SUPER_ADMIN | OPERATOR | GURU | ORANG_TUA
+  role      String   @default("OPERATOR") // SUPER_ADMIN | OPERATOR | GURU | ORANG_TUA | SISWA
   guardianClassId String? // Wali kelas untuk role GURU (hanya boleh absen di kelas ini)
   guardianStudentId String? // Untuk role ORANG_TUA: siswa yang dipantau (portal orang tua)
   teacherId String?  @unique // Tautan ke master guru (profil di website)
   teacher   Teacher? @relation(fields: [teacherId], references: [id])
+  studentId String?  @unique // Untuk role SISWA: akun portal siswa
+  student   Student? @relation("StudentAccount", fields: [studentId], references: [id])
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   guardianClass     Class?            @relation(fields: [guardianClassId], references: [id])
+  guardianStudent   Student?          @relation("GuardianStudent", fields: [guardianStudentId], references: [id])
   news              News[]
   activityLogs      ActivityLog[]
   contactMessages   ContactMessage[]
@@ -37,6 +40,7 @@ model User {
   reviewedEnrollments Enrollment[]
   attendanceRecords Attendance[]
   bosExpenditures   BosExpenditure[]
+  bosDocuments      BosDocument[]
 }
 
 // ---------- CONTENT ----------
@@ -138,11 +142,15 @@ model Achievement {
   title       String
   description String?
   studentName String?
+  studentId   String?  // tautan ke master siswa (opsional; prestasi tim boleh tanpa siswa)
+  student     Student? @relation(fields: [studentId], references: [id])
   level       String   @default("Kabupaten") // Sekolah | Kecamatan | Kabupaten | Provinsi | Nasional | Internasional
   category    String   @default("Akademik") // Akademik | Non-Akademik
   date        DateTime @default(now())
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([studentId])
 }
 
 // ---------- STUDENT & CLASS MANAGEMENT ----------
@@ -190,6 +198,9 @@ model Student {
   updatedAt   DateTime @updatedAt
 
   attendances Attendance[]
+  guardianUsers User[] @relation("GuardianStudent") // akun User (role ORANG_TUA) yang memantau siswa ini
+  account      User?   @relation("StudentAccount")   // akun portal siswa (role SISWA)
+  achievements Achievement[]
 
   @@index([classId])
   @@index([nis])
@@ -389,6 +400,11 @@ model OrgStructure {
   name      String
   position  String   // jabatan dalam struktur organisasi
   photo     String?
+  nuptk     String?  // NUPTK dari Dapodik (identifier sync)
+  nip       String?  // NIP dari Dapodik
+  nik       String?  // NIK dari Dapodik
+  bio       String?  // profil singkat — tampil di modal detail publik
+  contact   String?  // kontak (HP/email) — tampil di modal detail publik
   order     Int      @default(0)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -414,4 +430,21 @@ model BosExpenditure {
 
   @@index([year])
   @@index([source])
+}
+
+// Dokumen pendukung transparansi — output ARKAS / bukti belanja BOS dalam PDF
+model BosDocument {
+  id           String   @id @default(cuid())
+  year         Int      // tahun anggaran, mis. 2026
+  title        String   // judul dokumen, mis. "Output ARKAS 2026"
+  description  String?
+  fileUrl      String   // path relatif /uploads/... (file PDF di public/uploads)
+  fileName     String   // nama file asli (untuk tampilan)
+  fileSize     Int      // ukuran file dalam byte
+  uploadedById String?
+  uploadedBy   User?    @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([year])
 }

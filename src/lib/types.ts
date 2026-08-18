@@ -5,6 +5,7 @@ export const ROLES = {
   OPERATOR: "OPERATOR",
   GURU: "GURU",
   ORANG_TUA: "ORANG_TUA",
+  SISWA: "SISWA",
 } as const;
 
 export type Role = (typeof ROLES)[keyof typeof ROLES];
@@ -15,6 +16,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   OPERATOR: "Operator",
   GURU: "Guru",
   ORANG_TUA: "Orang Tua",
+  SISWA: "Siswa",
 };
 
 export type SessionUser = {
@@ -104,6 +106,11 @@ export type OrgStructureItem = {
   name: string;
   position: string;
   photo: string | null;
+  nuptk: string | null;
+  nip: string | null;
+  nik: string | null;
+  bio: string | null;
+  contact: string | null;
   order: number;
   isActive: boolean;
   createdAt: string;
@@ -119,6 +126,19 @@ export type BosExpenditureItem = {
   amount: number;
   quarter: number | null;
   note: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type BosDocumentItem = {
+  id: string;
+  year: number;
+  title: string;
+  description: string | null;
+  fileUrl: string;
+  fileName: string;
+  fileSize: number;
+  uploadedByName?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -139,6 +159,9 @@ export type AchievementItem = {
   title: string;
   description: string | null;
   studentName: string | null;
+  studentId: string | null;
+  studentNis: string | null;
+  studentNisn: string | null;
   level: string;
   category: string;
   date: string;
@@ -151,6 +174,12 @@ export type UserItem = {
   role: string;
   guardianClassId: string | null;
   guardianClassName?: string;
+  guardianStudentId?: string | null;
+  guardianStudentName?: string | null;
+  guardianStudentClassName?: string | null;
+  studentId?: string | null;
+  studentName?: string | null;
+  studentClassName?: string | null;
   isActive: boolean;
   createdAt: string;
 };

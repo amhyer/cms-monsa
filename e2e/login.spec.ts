@@ -1,5 +1,7 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./mutation-log";
 import { ADMIN, submitLogin } from "./helpers";
+
+// warmup: POST /api/auth/login POST /api/auth/logout
 
 test.describe("Login Flow", () => {
   test("should render the login page", async ({ page }) => {

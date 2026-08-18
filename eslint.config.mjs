@@ -37,6 +37,7 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
   ignores: [
     "node_modules/**",
     ".next/**",
+    ".next-*/**", // distDir server dev paralel (NEXT_DIST_DIR) — build output
     "out/**",
     "build/**",
     "coverage/**",

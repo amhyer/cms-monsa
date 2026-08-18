@@ -101,8 +101,13 @@ function SelectLabel({
 function SelectItem({
   className,
   children,
+  meta,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Item>) {
+}: React.ComponentProps<typeof SelectPrimitive.Item> & {
+  /** Konten tambahan (mis. chip ringkasan) yang tampil di item dropdown
+   *  tapi TIDAK di trigger tertutup — di luar SelectPrimitive.ItemText. */
+  meta?: React.ReactNode
+}) {
   return (
     <SelectPrimitive.Item
       data-slot="select-item"
@@ -118,6 +123,9 @@ function SelectItem({
         </SelectPrimitive.ItemIndicator>
       </span>
       <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+      {meta ? (
+        <span className="ml-auto flex items-center whitespace-nowrap">{meta}</span>
+      ) : null}
     </SelectPrimitive.Item>
   )
 }

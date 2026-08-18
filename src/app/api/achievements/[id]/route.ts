@@ -19,12 +19,24 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     return NextResponse.json({ error: "Prestasi tidak ditemukan." }, { status: 404 });
   }
   const body = await req.json();
+  let studentId = existing.studentId;
+  if (body.studentId !== undefined) {
+    studentId = body.studentId || null;
+    if (studentId) {
+      const student = await db.student.findUnique({ where: { id: studentId } });
+      if (!student) {
+        return NextResponse.json({ error: "Siswa tidak ditemukan." }, { status: 400 });
+      }
+      studentId = student.id;
+    }
+  }
   const updated = await db.achievement.update({
     where: { id },
     data: {
       title: String(body.title ?? existing.title),
       description: body.description ?? existing.description,
       studentName: body.studentName ?? existing.studentName,
+      studentId,
       level: String(body.level ?? existing.level),
       category: String(body.category ?? existing.category),
       date: body.date ? parseDateInput(String(body.date)) : existing.date,

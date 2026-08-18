@@ -59,7 +59,7 @@ import { NEWS_CATEGORIES } from "@/lib/nav";
 import { formatDate } from "@/lib/format";
 import { sanitizeHtml } from "@/lib/sanitize";
 import type { NewsItem } from "@/lib/types";
-import { PageLoader, EmptyState } from "../_shared";
+import { PageLoader, EmptyState, Pagination, usePersistedPageSize } from "../_shared";
 
 /* ------------------------------------------------------------------ */
 /* Simple rich text editor (contentEditable + execCommand)            */
@@ -240,6 +240,7 @@ export function NewsManager() {
   const [loading, setLoading] = useState(true);
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = usePersistedPageSize("news", 10, [10, 20, 24]);
   const [status, setStatus] = useState<string>("");
   const [category, setCategory] = useState<string>("");
   const [search, setSearch] = useState("");
@@ -265,7 +266,7 @@ export function NewsManager() {
       const qs = new URLSearchParams({
         scope: "admin",
         page: String(page),
-        limit: "10",
+        limit: String(pageSize),
       });
       if (status) qs.set("status", status);
       if (category) qs.set("category", category);
@@ -282,11 +283,16 @@ export function NewsManager() {
     } finally {
       setLoading(false);
     }
-  }, [page, status, category, debounced]);
+  }, [page, pageSize, status, category, debounced]);
 
   useEffect(() => {
     fetchList();
   }, [fetchList]);
+
+  // Ganti ukuran halaman → kembali ke halaman 1.
+  useEffect(() => {
+    setPage(1);
+  }, [pageSize]);
 
   function openCreate() {
     setEditing(null);
@@ -612,29 +618,14 @@ export function NewsManager() {
           )}
 
           {!loading && items.length > 0 && (
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">
-                Halaman {page} dari {totalPages}
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                >
-                  Sebelumnya
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Berikutnya
-                </Button>
-              </div>
-            </div>
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              onPage={setPage}
+              pageSize={pageSize}
+              pageSizes={[10, 20, 24]}
+              onPageSizeChange={setPageSize}
+            />
           )}
         </CardContent>
       </Card>

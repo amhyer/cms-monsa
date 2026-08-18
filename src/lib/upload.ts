@@ -92,3 +92,26 @@ export function detectImageType(buffer: Buffer | Uint8Array): ImageType | null {
 
   return null;
 }
+
+/**
+ * Detect a PDF from its magic bytes. PDF files carry the 5-byte header
+ * "%PDF-" (0x25 0x50 0x44 0x46 0x2D). The header normally sits at offset 0,
+ * but a handful of exporters prepend junk bytes, so scan the first 1024 bytes.
+ * Used by the document upload endpoint — the server must never trust
+ * `file.type` or the file name extension (both attacker-controlled).
+ */
+export function detectPdf(buffer: Buffer | Uint8Array): boolean {
+  const max = Math.min(buffer.length, 1024);
+  for (let i = 0; i <= max - 5; i++) {
+    if (
+      buffer[i] === 0x25 &&
+      buffer[i + 1] === 0x50 &&
+      buffer[i + 2] === 0x44 &&
+      buffer[i + 3] === 0x46 &&
+      buffer[i + 4] === 0x2d
+    ) {
+      return true;
+    }
+  }
+  return false;
+}

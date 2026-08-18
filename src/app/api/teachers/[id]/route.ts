@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
+import { omitFields } from "@/lib/utils";
+import { PUBLIC_TEACHER_OMIT } from "@/lib/public-scope";
 import { teacherProfileData } from "@/lib/validations";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -16,7 +18,8 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   if (!item || !item.isActive) {
     return NextResponse.json({ error: "Guru tidak ditemukan." }, { status: 404 });
   }
-  return NextResponse.json({ item });
+  // Publik: identitas (NUPTK/NIP/NIK) tidak pernah keluar dari scope admin.
+  return NextResponse.json({ item: omitFields(item, PUBLIC_TEACHER_OMIT) });
 }
 
 export async function PUT(req: NextRequest, { params }: Ctx) {

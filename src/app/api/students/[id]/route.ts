@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireAuth, requireRole } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
 
 type Ctx = { params: Promise<{ id: string }> };
 
+// Data siswa lengkap (NIS, NISN, alamat, kontak orang tua) hanya untuk GURU
+// ke atas — konsisten dengan GET /api/students (daftar) yang sudah `requireRole("GURU")`.
+// SISWA/ORANG_TUA (level 0) memakai portal yang di-scope sendiri, bukan endpoint ini.
 export async function GET(_req: NextRequest, { params }: Ctx) {
-  const auth = await requireAuth();
+  const auth = await requireRole("GURU");
   if (!auth.ok) return auth.response;
 
   const { id } = await params;

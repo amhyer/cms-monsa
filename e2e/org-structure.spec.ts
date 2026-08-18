@@ -1,5 +1,7 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./mutation-log";
 import { ADMIN, login } from "./helpers";
+
+// warmup: /api/org-structure /api/auth/login
 
 function uniqueName(prefix: string) {
   return `${prefix} ${Date.now()}`;
@@ -29,6 +31,43 @@ test.describe("Struktur Organisasi — halaman publik", () => {
       await expect(page.getByText(a.position, { exact: true })).toBeVisible();
       await expect(page.locator(`img[alt="${a.name}"]`)).toBeVisible();
     }
+  });
+
+  test("klik kartu membuka modal profil (bio/kontak, tanpa NUPTK/NIP/NIK)", async ({
+    page,
+  }) => {
+    await page.goto("/struktur-organisasi");
+
+    // Buka modal Kepala Sekolah (bio + kontak email dari seed).
+    const kartu = page.getByRole("button", {
+      name: "Lihat profil Nawawi Hamzah, S.Pd., M.Pd.",
+    });
+    await expect(kartu).toBeVisible();
+    await kartu.click();
+
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    await expect(
+      dialog.getByRole("heading", { name: "Nawawi Hamzah, S.Pd., M.Pd." })
+    ).toBeVisible();
+    await expect(dialog.getByText("Kepala Sekolah", { exact: true })).toBeVisible();
+    // Bio dari seed.
+    await expect(
+      dialog.getByText(/Memimpin SDN Unggulan Mongisidi 1 sejak 2019/)
+    ).toBeVisible();
+    // Kontak email → tautan mailto.
+    const contact = dialog.getByRole("link", {
+      name: "kepala.sekolah@mongisidi1.sch.id",
+    });
+    await expect(contact).toBeVisible();
+    await expect(contact).toHaveAttribute("href", "mailto:kepala.sekolah@mongisidi1.sch.id");
+
+    // Identitas (NUPTK/NIP/NIK) tidak boleh muncul di modal publik.
+    await expect(dialog.getByText(/NUPTK|NIP|NIK/, { exact: false })).toHaveCount(0);
+
+    // Tutup lewat tombol.
+    await dialog.getByRole("button", { name: "Tutup" }).click();
+    await expect(dialog).not.toBeVisible();
   });
 });
 
@@ -110,5 +149,53 @@ test.describe("Struktur Organisasi — dashboard admin (CRUD)", () => {
     await expect(
       page.locator("div.bg-card").filter({ hasText: edited })
     ).toHaveCount(0);
+  });
+
+  test("kartu anggota seed menampilkan NUPTK, NIP, dan NIK yang bisa disalin", async ({
+    page,
+  }) => {
+    await page.getByRole("button", { name: "Struktur Organisasi" }).click();
+    await expect(
+      page.getByRole("heading", {
+        name: "Struktur Organisasi Sekolah",
+        level: 2,
+      })
+    ).toBeVisible();
+
+    // Identitas dari seed (prisma/seed.ts — blok STRUKTUR ORGANISASI).
+    // Kepala Sekolah membawa NUPTK + NIP + NIK lengkap.
+    const card = page
+      .locator("div.bg-card")
+      .filter({ hasText: "Nawawi Hamzah, S.Pd., M.Pd." });
+    await expect(card).toBeVisible();
+    await expect(card.getByText("NUPTK: 1345752663130001")).toBeVisible();
+    await expect(card.getByText("NIP: 196806121994031002")).toBeVisible();
+    await expect(card.getByText("NIK: 7371011206680001")).toBeVisible();
+    // Identitas bisa disalin sekali klik (komponen CopyableId).
+    await expect(
+      card.getByRole("button", { name: "Salin NUPTK: 1345752663130001" })
+    ).toBeVisible();
+    await expect(
+      card.getByRole("button", { name: "Salin NIP: 196806121994031002" })
+    ).toBeVisible();
+    await expect(
+      card.getByRole("button", { name: "Salin NIK: 7371011206680001" })
+    ).toBeVisible();
+
+    // Anggota tanpa NIP di seed (nip: null) tetap menampilkan NUPTK + NIK.
+    const kartuAndi = page
+      .locator("div.bg-card")
+      .filter({ hasText: "Andi Mappangara, S.Pd." });
+    await expect(kartuAndi.getByText("NUPTK: 9351765667130004")).toBeVisible();
+    await expect(kartuAndi.getByText("NIK: 7371011205780004")).toBeVisible();
+    await expect(kartuAndi.getByText(/^NIP: /)).toHaveCount(0);
+
+    // Semua anggota seed membawa NUPTK → tepat 6 baris NUPTK di daftar.
+    const nuptkLines = await page
+      .locator("main")
+      .getByText(/^NUPTK: /)
+      .count();
+    console.log("NUPTK LINES:", nuptkLines);
+    expect(nuptkLines).toBe(6);
   });
 });

@@ -1,0 +1,67 @@
+# Setup repository standar untuk job CI: checkout + Node + Bun + install
+# dependensi. Satu tempat untuk konfigurasi toolchain — jangan ulangi
+# empat langkah ini di setiap job (validate, hooks-gate, e2e, …).
+#
+# Versi toolchain bisa di-override per job lewat input node-version /
+# bun-version; default = versi yang berlaku di seluruh repo saat ini
+# (Node 22, Bun 1.2.x) — konsumen yang tidak menyebutkan input otomatis
+# memakai default, jadi perilaku semua job TIDAK berubah.
+#
+# Dipakai dari workflow:
+#   steps:
+#     - name: Setup repo
+#       uses: ./.github/actions/setup-repo
+#       with:
+#         node-version: "22"   # opsional (default "22")
+#         bun-version: "1.2.x" # opsional (default "1.2.x")
+name: Setup repository (checkout + Node + Bun + install)
+description: >-
+  Checkout the repository, set up Node.js and Bun, and install
+  dependencies with `bun install --frozen-lockfile`. Versions are
+  configurable via node-version / bun-version inputs (defaults: Node 22,
+  Bun 1.2.x).
+
+inputs:
+  node-version:
+    description: Node.js version to install (setup-node input).
+    required: false
+    default: "22"
+  bun-version:
+    description: Bun version to install (oven-sh/setup-bun input, e.g. 1.2.x).
+    required: false
+    default: "1.2.x"
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: ${{ inputs.bun-version }}
+
+    # Cache global install cache bun (~/.bun/install/cache) — tarball yang
+    # sudah diunduh dipakai ulang oleh `bun install` lintas job (validate,
+    # hooks-gate, e2e, …), jadi install di setiap job jauh lebih cepat.
+    # setup-bun TIDAK menyediakan input cache dependensi (hanya no-cache
+    # untuk eksekutabel), jadi pakai actions/cache eksplisit dengan key
+    # berdasarkan bun.lock. Caching node_modules sengaja TIDAK dilakukan —
+    # rekomendasi resmi bun: cukup cache install cache-nya.
+    - name: Cache bun install cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.bun/install/cache
+        key: bun-cache-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+        restore-keys: |
+          bun-cache-${{ runner.os }}-
+
+    - name: Install dependencies
+      shell: bash
+      run: bun install --frozen-lockfile

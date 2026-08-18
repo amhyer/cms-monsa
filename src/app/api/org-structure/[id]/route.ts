@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
+import { omitFields } from "@/lib/utils";
+import { PUBLIC_ORG_STRUCTURE_OMIT } from "@/lib/public-scope";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -12,7 +14,8 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   if (!item || !item.isActive) {
     return NextResponse.json({ error: "Struktur organisasi tidak ditemukan." }, { status: 404 });
   }
-  return NextResponse.json({ item });
+  // Publik: identitas (NUPTK/NIP/NIK) tidak pernah keluar dari scope admin.
+  return NextResponse.json({ item: omitFields(item, PUBLIC_ORG_STRUCTURE_OMIT) });
 }
 
 export async function PUT(req: NextRequest, { params }: Ctx) {
@@ -33,6 +36,11 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
       name: String(body.name ?? existing.name),
       position: typeof body.position === "string" ? body.position : existing.position,
       photo: body.photo !== undefined ? body.photo || null : existing.photo,
+      nuptk: body.nuptk !== undefined ? body.nuptk || null : existing.nuptk,
+      nip: body.nip !== undefined ? body.nip || null : existing.nip,
+      nik: body.nik !== undefined ? body.nik || null : existing.nik,
+      bio: body.bio !== undefined ? body.bio || null : existing.bio,
+      contact: body.contact !== undefined ? body.contact || null : existing.contact,
       order: Number(body.order ?? existing.order),
       isActive: body.isActive !== undefined ? Boolean(body.isActive) : existing.isActive,
     },

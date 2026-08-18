@@ -1,0 +1,124 @@
+# ============================================================
+# Reusable workflow: gate pre-commit (hooks:check)
+#
+# SUMBER TUNGGAL dari job "Pre-commit gate (hooks:check)". Dipanggil oleh
+# ci.yml (satu-satunya pemanggil — lihat playwright.yml untuk alasan
+# single-caller) lewat:
+#
+#   jobs:
+#     hooks-gate:
+#       uses: ./.github/workflows/hooks-gate.yml
+#
+# Trigger:
+#   - workflow_call: dipanggil ci.yml pada pull_request + push main — satu
+#     gate per PR/push (dua pemanggil akan menggandakan checkout + install
+#     + gate tanpa menambah cakupan, karena ci.yml & playwright.yml jalan di
+#     event yang sama).
+#   - workflow_dispatch: jalankan gate manual dari Actions sidebar (mis.
+#     sebelum merge tanpa PR) — pengganti cakupan gate yang dulu ada di
+#     playwright.yml.
+#
+# Input gate_mode (paritas toggle lokal PUSH_GATE):
+#   - full  (default) — gate PENUH, identik dengan `git commit` lokal dan
+#     `PUSH_GATE=full git push` (guard + bun run check).
+#   - quick — guard + lint seluruh repo saja (paritas `hooks:check
+#     -- --quick` / pre-push default), tanpa typecheck/vitest/schema-sync.
+#   workflow_call (ci.yml) memakai default full; workflow_dispatch bisa
+#   memilih lewat dropdown di Actions sidebar.
+#
+# Isi: bun run hooks:check → .githooks/run-checks.sh (guard repo + warm-up
+# non-blocking + bun run check: typecheck · lint · markdownlint ·
+# schema-sync · vitest) — EXACT sama dengan developer lokal (pre-commit),
+# jadi tidak ada drift antara pengalaman developer dan CI sebelum merge.
+# Guard 1 & 2 memeriksa index git — di CI tidak ada staging, jadi guard
+# lewat; warm-up dilewati (--if-up, tanpa server).
+#
+# Catatan konsolidasi: job lama di tiap workflow memakai nama file DB yang
+# beda (hooks.db vs hooks-prod.db) — murni kosmetik, karena tiap job jalan
+# di runner terpisah yang fresh (file tidak pernah bertabrakan). Disatukan
+# ke satu nilai di sini.
+# ============================================================
+name: Pre-commit gate (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      gate_mode:
+        description: >-
+          Tingkat gate (paritas PUSH_GATE lokal): full | quick. Default full.
+        type: string
+        required: false
+        default: full
+  workflow_dispatch:
+    inputs:
+      gate_mode:
+        description: >-
+          Tingkat gate (paritas PUSH_GATE lokal): full | quick. Default full.
+        type: choice
+        options:
+          - full
+          - quick
+        default: full
+
+permissions:
+  contents: read
+
+jobs:
+  hooks-gate:
+    name: Pre-commit gate (hooks:check)
+    runs-on: ubuntu-latest
+    env:
+      # Tingkat gate — paritas PUSH_GATE lokal. workflow_call dari ci.yml
+      # tidak mengoper input → default "full".
+      GATE_MODE: ${{ inputs.gate_mode || 'full' }}
+      # PrismaClient membaca DATABASE_URL saat konstruksi (sitemap.ts
+      # di-prerender saat build). Test unit memakai mock penuh, jadi DB
+      # dummy cukup — tidak ada koneksi nyata yang dibutuhkan.
+      DATABASE_URL: "file:./hooks.db"
+      # Bukan secret asli — cukup untuk build & test (sama seperti job lain).
+      AUTH_SECRET: "ci-insecure-build-secret"
+      NEXT_PUBLIC_SITE_URL: "https://sdn-mongisidi1.sch.id"
+    steps:
+      - name: Setup repo (checkout + Node + Bun + install)
+        uses: ./.github/actions/setup-repo
+
+      # Jalankan gate yang sama dengan `git commit` lokal. Gagal → PR diblokir
+      # sebelum merge, persis seperti commit developer yang melanggar guard.
+      # Output JSON (satu baris ke stdout) ditangkap lalu dirender ke step
+      # summary via Node (tersedia lewat setup-repo; konsisten dengan step
+      # komentar e2e yang juga inline-Node). Detail manusia di stderr tetap
+      # tampil di log step. Summary ditulis DARI JSON — jadi tetap tertulis
+      # walau gate GAGAL (step summary tampil juga untuk step merah). Exit
+      # code asli dipertahankan di akhir agar status step tetap benar.
+      - name: Run pre-commit gate (hooks:check)
+        run: |
+          if [[ "$GATE_MODE" == "quick" ]]; then
+            bun run hooks:check -- --quick --json > hooks-check.json || GATE_EXIT=$?
+          else
+            bun run hooks:check -- --json > hooks-check.json || GATE_EXIT=$?
+          fi
+          GATE_EXIT=${GATE_EXIT:-0}
+          node <<'NODE' >> "$GITHUB_STEP_SUMMARY"
+          const fs = require("fs");
+          const j = JSON.parse(fs.readFileSync("hooks-check.json", "utf8"));
+          const out = [];
+          out.push(j.ok
+            ? "## ✅ Pre-commit gate (hooks:check) lulus"
+            : "## ❌ Pre-commit gate (hooks:check) gagal");
+          out.push("");
+          out.push(`- **Mode**: \`${j.mode}\` · **gate**: \`${process.env.GATE_MODE || "full"}\` · **ok**: \`${j.ok}\` · **blocked**: \`${j.blocked}\``);
+          if (j.guardViolations && j.guardViolations.length) {
+            out.push(`- **Guard violations** (${j.guardViolations.length}):`);
+            for (const v of j.guardViolations) out.push(`  - \`${v}\``);
+          } else {
+            out.push("- **Guard violations**: 0");
+          }
+          if (j.mode === "full") {
+            out.push(`- **Check (typecheck · lint · markdownlint · schema-sync · vitest)**: \`${j.check.ok}\``);
+          } else {
+            out.push(`- **Lint**: \`${j.lint.ok}\` — ${j.lint.count} file`);
+          }
+          if (j.error) out.push(`- **Error**: ${j.error}`);
+          process.stdout.write(out.join("\n") + "\n");
+          NODE
+          exit "$GATE_EXIT"

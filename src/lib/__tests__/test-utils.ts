@@ -6,6 +6,7 @@ import type { SessionUser } from "@/lib/types";
 const mockPrisma = {
   user: {
     findUnique: vi.fn(),
+    findFirst: vi.fn(),
     findMany: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
@@ -126,6 +127,18 @@ const mockPrisma = {
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
+    count: vi.fn(),
+    aggregate: vi.fn(),
+    groupBy: vi.fn(),
+  },
+  bosDocument: {
+    findUnique: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    count: vi.fn(),
+    groupBy: vi.fn().mockResolvedValue([]),
   },
   $transaction: vi.fn((calls: unknown[]) => Promise.resolve(calls)),
 };

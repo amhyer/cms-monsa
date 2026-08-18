@@ -1,5 +1,35 @@
 # Progress Log CMS MONSA
 
+> Log perkembangan proyek (kronologis). Untuk dokumentasi developer aktif —
+> termasuk **gate validasi & pre-commit hook** (`hooks:check`, guard repo,
+> `--staged`/`--quick`, `--no-verify`) dan **E2E troubleshooting** (warm-up,
+> `--if-up`, artifact log, `triage:e2e`) — baca [README.md](README.md);
+> panduan menjalankan project dari nol (instalasi, env, database, dev,
+> deploy, backup) ada di [docs/RUNNING.md](docs/RUNNING.md). Ringkasan
+> konsolidasi gate + E2E untuk kontributor:
+> [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Indeks Dokumen Referensi
+
+| Dokumen | Isi / Kapan dibaca |
+|---------|--------------------|
+| [README.md](README.md) | Dokumentasi kanonik: fitur, routing, gate (Pre-commit Hook), E2E troubleshooting, deploy ringkas — mulai di sini. |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Konsolidasi gate validasi + alur E2E untuk kontributor (alur PR). |
+| [docs/RUNNING.md](docs/RUNNING.md) | Panduan menjalankan project dari nol: instalasi, env, database, dev, deploy, backup, troubleshooting umum & E2E. |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Arsitektur internal: struktur direktori, alur data, modul. |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Deploy produksi (standalone, Docker Compose, PostgreSQL). |
+| [DEPLOYMENT_SSL.md](DEPLOYMENT_SSL.md) | SSL/TLS + reverse proxy Caddy + troubleshooting SSL. |
+| [VERCEL_DEPLOYMENT.md](VERCEL_DEPLOYMENT.md) | Deploy ke Vercel. |
+| [DAPODIK_SYNC_MAPPING.md](DAPODIK_SYNC_MAPPING.md) | Pemetaan field sinkronisasi Dapodik. |
+| [scripts/BACKUP.md](scripts/BACKUP.md) | Backup & restore database (rotasi 14 hari). |
+| [dapodik-client/README.md](dapodik-client/README.md) | Klien Web Service Dapodik (PHP/TS) — sub-paket terpisah. |
+| [SECURITY_AUDIT.md](SECURITY_AUDIT.md) | Audit keamanan & rekomendasi (referensi). |
+| [SECURITY_AUDIT_FIX_PLAN.md](SECURITY_AUDIT_FIX_PLAN.md) | Rencana perbaikan hasil audit keamanan. |
+| [REFACTOR_PLAN.md](REFACTOR_PLAN.md) | Rencana refactor (referensi historis). |
+| [REPO_HEALTH_AUDIT.md](REPO_HEALTH_AUDIT.md) | Audit kesehatan repository. |
+| [TODO.md](TODO.md) | Daftar pekerjaan mendatang / backlog. |
+| *Dokumen ini* | Kronologis perubahan proyek — log perkembangan. |
+
 ## 2026-07-30 — FASE 1: Tests (Vitest + Playwright)
 
 ### Status: SELESAI
@@ -1399,4 +1429,104 @@ baru, a11y marquee).
 | 30 | ✅ | Commit 3 fitur (Dapodik, Students Showcase, Struktur Organisasi) — hunk selektif + pemecahan migrasi + fix language-switcher + spec e2e org-structure (suite 42/42) |
 | 31 | ✅ | Ganti SPP dengan Transparansi Anggaran (ARKAS / Dana BOS) — hapus payments (menu, API, model, template WA), fitur publik + dashboard, migrasi drop/add, seed, sitemap/SEO, README + QA batch (flake whatsapp, a11y marquee & focus, spec e2e baru) |
 
-**Total: 31 dari 31 fase selesai (100%)**
+## 2026-08-12 — FASE 32: QA Triage Automation & E2E Diagnostics
+
+### Status: SELESAI
+
+### Hasil
+
+#### Auto-triage wrapper (`scripts/run-e2e.ts`)
+- Wrapper otomatis menjalankan `triage:e2e -- --json` saat suite gagal — payload JSON diparse, baris `VERDICT: <severity> (… counts …)` dicetak sekali di konsol + log wrapper + artifact merged.
+- `VERDICT` diparsing dari payload JSON (`verdict`, `counts`, `dns`, `stalls`, `timeouts`, `errors`), bukan regex pada output manusia.
+- **TriageOutcome** (`{ report, payloadJson }`) mengembalikan laporan manusia (untuk blok teks step summary) + payload JSON mentah (untuk konsumen bot/CI).
+- Startup-failure path (`server tidak pernah up`) mendapat perlakuan verdict yang sama dengan suite-failure.
+
+#### Step summary — JSON payload block
+- `appendTriageJsonToStepSummary()` menulis payload JSON triage ke `### 🔎 Triage payload (JSON — untuk bot/CI)` dalam fenced `json` block di `$GITHUB_STEP_SUMMARY`.
+- Order di summary: `## ⚠️ E2E failed` → `### stderr` → `### 🔎 Triage kegagalan (otomatis)` (laporan manusia) → `### 🔎 Triage payload (JSON — untuk bot/CI)`.
+
+#### CI — Flag cold-compile cache-flake
+- Step `Flag cold-compile cache-flake` di ci.yml & playwright.yml: bila `verdict === 'cold-compile'` → `::error::` + `exit 42` — rerun karena cache dingin terlihat terpisah dari kegagalan nyata.
+- Verdict lain (network/assertion/clean) → step lulus (exit 0), job sudah merah dari step e2e itu sendiri.
+- Tidak ada file → fallback `Verdict: n/a` (tidak crash).
+
+#### PR comment — verdict block (bukan pointer)
+- `triage-verdict.json` diparse untuk membangun `verdictBlock` berisi:
+  - Baris `🔎 **Triage**: <verdict> (<counts>)`
+  - Bullets per kategori (stall/dns/timeout/error, dipotong 5 per kategori + `… +N lainnya`)
+  - `⚠️ <wrapperWarning>` bila ada
+- `esc()` menangani backtick dalam finding text.
+- Komentar sticky (di-update di tempat, duplikat historis dibersihkan).
+
+#### Post-hoc triage (`triage.yml`)
+- Workflow `E2E Triage (post-hoc)` — `workflow_dispatch` untuk menganalisa run lama via artifact download (dalam masa retention 30 hari).
+- Input: `run_id` + `artifact_name` (default `server-log`).
+
+#### Gate documentation consolidation
+- **CONTRIBUTING.md** (baru) — konsolidasi gate validasi (hooks:check, modes, --json, PUSH_GATE, PUSH_JSON) + alur E2E (wrapper flow, warm-up pragma, --if-up, triage, CI failure flow) untuk kontributor.
+- **README.md** — expanded E2E Troubleshooting (CI failure flow: artifacts, step summary, PR comment, flag cache-flake); env knobs table; triage manual section; `triage:e2e -- --json` consumption example.
+- **docs/RUNNING.md** — §12 E2E Troubleshooting (mirror dari README dengan repo-root link adaptations); §8 reverse "Baca juga" ke README Pre-commit Hook.
+- **PROGRESS_LOG.md** — Indeks Dokumen Referensi (15 dokumen) di top; CONTRIBUTING.md cross-link di header blockquote.
+
+### File yang Diubah/Dibuat (QA triage & docs)
+| File | Tipe | Deskripsi |
+|------|------|-----------|
+| `scripts/run-e2e.ts` | Modif | Auto-triage `--json`, `VERDICT:` line, `TriageOutcome`, `appendTriageJsonToStepSummary`, startup-fail path |
+| `scripts/triage-e2e.ts` | Modif | Wrapper warning threshold (section size + status shortfall) |
+| `.github/workflows/ci.yml` | Modif | Flag cold-compile step, verdict block di PR comment |
+| `.github/workflows/playwright.yml` | Baru | Cermin e2e prod (flag cold-compile, verdict block) |
+| `.github/workflows/hooks-gate.yml` | Baru | Reusable workflow gate (single-caller dari ci.yml) |
+| `.github/workflows/triage.yml` | Baru | Post-hoc triage workflow_dispatch |
+| `CONTRIBUTING.md` | Baru | Konsolidasi gate + E2E untuk kontributor |
+| `docs/RUNNING.md` | Modif | §12 E2E Troubleshooting + §8 Baca juga + §3c push gate docs |
+| `README.md` | Modif | E2E troubleshooting (CI flow, env knobs, JSON schema, triage, flake flag, consumption example) |
+| `PROGRESS_LOG.md` | Modif | Docs index table + cross-links |
+
+### Hasil Verifikasi
+- `bun run hooks:check -- --json` → gate penuh: **28 files, 287 tests passed** — JSON record valid.
+- Auto-triage startup-failure: `ECONNREFUSED` injected → verdict `network` parsed dari payload JSON, baris `VERDICT: network (0 stall · 1 dns · 0 timeout · 0 error)` di console + merged artifact.
+- `Flag cold-compile`: 3 kasus uji (cold-compile → exit 42 + `::error::`, network → exit 0, missing file → exit 0).
+- PR comment rendering: 3 skenario terverifikasi via mock harness (cold-compile findings + wrapper warning, backtick in text, missing JSON).
+- E2E suite (58 tests) berjalan via detached wrapper: warm-up 93 rute → playwright test → artifact `server-e2e.log` — workflow sesuai dokumentasi.
+- `bun run lint:md` — 0 issues in 19 files (CUSTOM001 relative links + CUSTOM002 balanced fences).
+
+## 2026-08-17 — FASE 33: Konsolidasi Typeahead Siswa + Quick Action Buat Akun SISWA + Full-Suite Green
+
+### Status: SELESAI
+
+### Hasil
+
+#### Konsolidasi typeahead bersama (`StudentTypeahead`)
+- **`src/components/dashboard/student-typeahead.tsx`** — komponen typeahead siswa yang DIPAKAI BERSAMA oleh form Data Prestasi (Tambah/Edit Prestasi) dan Manajemen Akun (pemilih siswa SISWA/ORANG_TUA): ketik nama/kelas/NIS → filter (maks 8 hasil), pilih via klik atau keyboard (ArrowUp/Down + Enter, Escape tutup), `aria-selected` pada opsi yang di-highlight, mengetik manual memutus tautan.
+- **`achievements-manager.tsx`** & **`users-manager.tsx`** — keduanya memakai komponen yang sama (query/onQueryChange/onPick dikontrol parent), perilaku identik di kedua tempat.
+
+#### E2E keyboard navigation (kedua form, jalur picking yang sama)
+- **`e2e/achievements-manager.spec.ts`** — test `keyboard: ArrowDown + Enter memilih siswa yang di-highlight (aria-selected)` (form Data Prestasi).
+- **`e2e/users-manager.spec.ts`** — test `Tambah Akun — keyboard: ArrowDown + Enter memilih siswa yang di-highlight (typeahead bersama)` (form Manajemen Akun).
+- Keduanya meng-assert kontrak yang sama: fill `"a"` (query multi-hasil, urut name asc → Aisyah index 0, Bima index 1) → Aisyah `aria-selected=true` → `ArrowDown` → Bima `true`/Aisyah `false` (highlight benar-benar pindah) → `Enter` → input bernilai `Bima Arya Saputra` (yang di-highlight, bukan yang pertama).
+
+#### Quick action "Buat akun SISWA" (kartu Data Siswa)
+- **`students-manager.tsx`** — setiap kartu siswa punya tombol `Buat akun SISWA` (UserPlus, `aria-label="Buat akun SISWA untuk <nama>"`) yang navigasi ke `/dashboard/users?createSiswa=<id>&studentName=<nama>`.
+- **`src/app/dashboard/users/page.tsx`** — membaca search param (`createSiswa`/`studentName`) dan meneruskan sebagai `initialCreateSiswa` ke UsersManager (Next 16 searchParams Promise).
+- **`users-manager.tsx`** — dialog **Tambah Akun auto-open** (sekali via `useRef`): role Siswa, nama terisi, siswa ter-link via typeahead bersama; fallback resolusi nama dari daftar siswa bila URL hanya membawa id.
+- **`e2e/students-manager.spec.ts`** — test permanen: klik quick action → dialog terbuka otomatis (role Siswa + nama + typeahead ter-link) → simpan → verifikasi API (role SISWA + studentId) → cleanup via CSRF DELETE.
+
+### File yang Diubah/Dibuat
+| File | Tipe | Deskripsi |
+|------|------|-----------|
+| `src/components/dashboard/student-typeahead.tsx` | Modif | Komponen bersama (sudah ada, jadi acuan konsolidasi) |
+| `src/components/dashboard/modules/achievements-manager.tsx` | Modif | Memakai StudentTypeahead bersama |
+| `src/components/dashboard/modules/users-manager.tsx` | Modif | Memakai StudentTypeahead bersama + auto-open initialCreateSiswa |
+| `src/components/dashboard/modules/students-manager.tsx` | Modif | Quick action "Buat akun SISWA" di kartu siswa |
+| `src/app/dashboard/users/page.tsx` | Modif | Teruskan search param createSiswa |
+| `e2e/achievements-manager.spec.ts` | Modif | Test keyboard ArrowDown+Enter (Data Prestasi) |
+| `e2e/users-manager.spec.ts` | Modif | Test keyboard ArrowDown+Enter (Manajemen Akun) |
+| `e2e/students-manager.spec.ts` | Modif | Test quick action Buat akun SISWA |
+
+### Hasil Verifikasi
+- ESLint + `tsc --noEmit` clean.
+- **Full E2E suite green** via `test:e2e` (fresh seeded DB, port 3200, `.next-gate` distDir): **87 passed (8.5m)**, 0 retries, 0 five-hundreds — warm-up 93 rute, **58/58 deklarasi terpakai (0 stale)**, triage clean.
+- Kedua test keyboard (achievements + users-manager) lulus di dalam full suite — jalur picking ArrowDown + Enter identik diverifikasi di kedua form.
+- Quick action diverifikasi live di preview :3000 (upload akun SISWA via dialog auto-open, verifikasi DB, cleanup) + e2e permanen lulus.
+
+**Total: 33 dari 33 fase selesai (100%)**

@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SectionHeading } from "@/components/shared/section-heading";
+import { CopyableId } from "@/components/shared/copyable-id";
 import { SectionShell } from "./_shared";
 import type { ClassItem } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,8 @@ type ShowcaseItem = {
   name: string;
   photoUrl: string | null;
   className: string;
+  nis: string | null;
+  nisn: string | null;
 };
 
 function initials(name: string): string {
@@ -74,6 +77,18 @@ function StudentCard({
       <p className="w-full truncate text-[10px] text-muted-foreground">
         {s.className}
       </p>
+      {/* Identitas siswa (NIS/NISN) — bisa disalin sekali klik untuk
+          pengecekan silang Dapodik; varian ringkas di kartu marquee. */}
+      {(s.nis || s.nisn) && (
+        <div className="mt-1 w-full space-y-0.5">
+          {s.nis && (
+            <CopyableId label="NIS" value={s.nis} compact={compact} />
+          )}
+          {s.nisn && (
+            <CopyableId label="NISN" value={s.nisn} compact={compact} />
+          )}
+        </div>
+      )}
     </div>
   );
 }

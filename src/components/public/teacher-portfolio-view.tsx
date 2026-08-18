@@ -222,9 +222,8 @@ export function TeacherPortfolioView({ guruId }: { guruId?: string }) {
                     <UserCircle2 className="size-4 text-primary" /> Data Diri
                   </h2>
                   <dl>
-                    <InfoRow label="NUPTK" value={t.nuptk} />
-                    <InfoRow label="NIP" value={t.nip} />
-                    <InfoRow label="NIK" value={t.nik} />
+                    {/* NUPTK/NIP/NIK sengaja TIDAK dirender di publik — API
+                        sudah strip (no-leak contract, lihat identity-no-leak.spec). */}
                     <InfoRow
                       label="Tempat & Tgl Lahir"
                       value={[t.tempatLahir, formatDate(t.tanggalLahir)]

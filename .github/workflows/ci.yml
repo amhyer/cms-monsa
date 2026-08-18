@@ -12,6 +12,26 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Nilai tail log e2e — SATU definisi di level workflow agar step "Run E2E
+# tests" DAN step "Check tail heading matches E2E_TAIL_LINES" memakai nilai
+# yang sama (env step hanya terlihat di step itu sendiri; check heading butuh
+# nilai yang sama untuk memvalidasi heading step summary). Ubah di sini saja.
+env:
+  # 200 baris stdout (2× default 100) agar stall cold-compile Turbopack +
+  # query prisma di sekitarnya selalu terlihat penuh di konsol.
+  E2E_TAIL_LINES: 200
+  # 100 baris stderr (default 15) agar error context / stack trace
+  # (deprecation, Prisma, Next dev overlay) terekam DALAM — tidak ada konteks
+  # yang hilang.
+  E2E_TAIL_LINES_ERR: 100
+  # Masa simpan artifact (hari) — SATU definisi di level workflow, dipakai
+  # upload steps (retention-days) DAN teks komentar PR (env di step comment)
+  # agar tidak ada drift antara nilai YAML dan teks yang ditampilkan.
+  # server-log bertahan LEBIH LAMA (jejak post-mortem), report lebih pendek
+  # (file besar, jarang dibuka).
+  ARTIFACT_RETENTION_SERVER_LOG: 30
+  ARTIFACT_RETENTION_REPORT: 7
+
 jobs:
   validate:
     name: Typecheck, Lint, Test & Build
@@ -27,20 +47,8 @@ jobs:
       AUTH_SECRET: "ci-insecure-build-secret"
       NEXT_PUBLIC_SITE_URL: "https://sdn-mongisidi1.sch.id"
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.2.x
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
+      - name: Setup repo (checkout + Node + Bun + install)
+        uses: ./.github/actions/setup-repo
 
       - name: Typecheck
         run: bun run typecheck
@@ -54,15 +62,35 @@ jobs:
       - name: Check schema sync
         run: bun run check:schema
 
+      # Guard klasifikasi scope publik (public-scope.test.ts): setiap kolom
+      # model Teacher/OrgStructure harus terklasifikasi sadar (daftar PUTIH
+      # publik ATAU OMIT), kolom identitas NUPTK/NIP/NIK wajib di-omit, dan
+      # omit tidak boleh memuat kolom tak dikenal. Step TERPISAH dari unit
+      # suite agar penambahan kolom schema yang belum diklasifikasikan GAGAL
+      # CEPAT dengan nama step yang jelas (bukan terkubur di test unit umum).
+      - name: Check public-scope classification
+        run: bun run check:public-scope
+
       - name: Test (unit)
         run: bun run test
 
       - name: Build
         run: bun run build
 
+  # Gate pre-commit EXACT — SUMBER TUNGGAL di hooks-gate.yml (reusable
+  # workflow, dipakai juga playwright.yml) supaya tidak ada drift antara
+  # pengalaman developer (pre-commit) dan CI sebelum merge.
+  hooks-gate:
+    uses: ./.github/workflows/hooks-gate.yml
+
   e2e:
     name: E2E (Playwright)
     runs-on: ubuntu-latest
+    # pull-requests: write diperlukan untuk komentar link artifact di PR saat
+    # e2e gagal (lihat step "Comment failure links on PR").
+    permissions:
+      contents: read
+      pull-requests: write
     env:
       # E2E butuh database SQLite berisi seed (admin/operator/guru, berita,
       # pengumuman, agenda) — seed dilewati bila DB sudah terisi, jadi
@@ -71,20 +99,8 @@ jobs:
       AUTH_SECRET: "ci-insecure-build-secret"
       NEXT_PUBLIC_SITE_URL: "https://sdn-mongisidi1.sch.id"
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.2.x
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
+      - name: Setup repo (checkout + Node + Bun + install)
+        uses: ./.github/actions/setup-repo
 
       - name: Setup database (schema + seed)
         run: |
@@ -94,12 +110,94 @@ jobs:
       - name: Install Playwright browsers
         run: bunx playwright install --with-deps chromium
 
-      # playwright.config.ts memulai dev server sendiri di CI
-      # (reuseExistingServer: !process.env.CI → false) dan menunggu :3000.
+      # test:e2e = workflow scripts/run-e2e.ts: memulai dev server (bila
+      # belum ada), memanaskan rute utama, lalu menjalankan Playwright dengan
+      # reuseExistingServer aktif (PW_REUSE_SERVER=1).
+      # E2E_SERVER_LOG: wrapper menyalin log server ke workspace saat selesai
+      # (sekali, di akhir) agar bisa di-upload saat gagal — berguna untuk
+      # mendiagnosis stall cold-compile Turbopack & masalah jaringan.
+      # E2E_TAIL_LINES / E2E_TAIL_LINES_ERR didefinisikan di env level
+      # WORKFLOW (di atas) — step ini dan step "Check tail heading" memakai
+      # nilai yang sama.
       - name: Run E2E tests
         run: bun run test:e2e
+        env:
+          E2E_SERVER_LOG: ./server-e2e.log
+
+      # Setiap mutasi API yang dilakukan spec harus dideklarasikan di pragma
+      # // warmup: — membaca laporan dari fixture e2e/mutation-log.ts yang
+      # ditulis saat test:e2e di atas.
+      - name: Check warmup declarations
+        run: bun run check:warmup-declarations
+
+      # Sinyal kegagalan server TIDAK boleh muncul di log run hijau: response
+      # 5xx (suite e2e TIDAK pernah sengaja men-trigger 5xx — semua rejection
+      # path memakai 400) dan `[bos-documents] upload failed` (catch → 500;
+      # beda dari "unggahan ditolak" yang merupakan 400 yang memang dites
+      # spec). Memindai artifact merged (server-e2e.log + .err) yang sudah
+      # ditulis wrapper; exit 1 = temuan → run GAGAL walau suite lulus.
+      # if: always() — saat suite merah sekalipun, temuan 5xx tetap dilaporkan
+      # ke step summary dengan pesan khas (bukan sekadar ikut merah).
+      # E2E_LOG_ALLOW: regex per-baris untuk mengecualikan 5xx yang memang
+      # disengaja di masa depan (mis. endpoint yang dites error path-nya).
+      - name: Check server log for 5xx / upload failures
+        if: always()
+        run: bun run check:server-log
+        env:
+          E2E_SERVER_LOG: ./server-e2e.log
+
+      # Pastikan heading step summary sesuai E2E_TAIL_LINES — menangkap
+      # perubahan env var YAML tanpa mengupdate wrapper (atau sebaliknya).
+      - name: Check tail heading matches E2E_TAIL_LINES
+        if: failure()
+        run: |
+          if grep -q "server log tail ($E2E_TAIL_LINES baris stdout" "$GITHUB_STEP_SUMMARY"; then
+            echo "Tail heading matches E2E_TAIL_LINES ($E2E_TAIL_LINES) ✓"
+          else
+            ACTUAL=$(grep -o 'server log tail ([0-9]* baris' "$GITHUB_STEP_SUMMARY" | head -1)
+            echo "::error::Step summary tail heading ($ACTUAL) does not match E2E_TAIL_LINES ($E2E_TAIL_LINES)"
+            exit 1
+          fi
+
+      # Triage kegagalan TIDAK perlu step terpisah — scripts/run-e2e.ts sudah
+      # menjalankan scripts/triage-e2e.ts OTOMATIS saat suite gagal (verdict
+      # di konsol + step summary + artifact server-e2e.log). Step terpisah
+      # akan menjalankan scan yang sama dua kali.
+      # Verdict triage untuk komentar PR: jalankan ulang triage --json
+      # terhadap log server yang SUDAH ditulis wrapper (./server-e2e.log) dan
+      # simpan hasilnya ke file — dibaca step komentar di bawah. continue-
+      # on-error: triage exit 1 = ADA temuan (itu justru yang ditampilkan).
+      # Scan ulang ini murah (<1s) dan tidak bergantung plumbing output antar
+      # step.
+      - name: Get triage verdict
+        if: failure() && github.event_name == 'pull_request'
+        continue-on-error: true
+        run: bun run triage:e2e -- --json > triage-verdict.json 2>/dev/null || true
+        env:
+          E2E_SERVER_LOG: ./server-e2e.log
+
+      # Verdict cold-compile / warmup-failed = cache-flake (stall kompilasi
+      # on-demand / warm-up gagal diam-diam), BUKAN kegagalan nyata — step ini
+      # sengaja GAGAL dengan pesan khas (exit code 42) agar rerun karena cache
+      # dingin terlihat TERPISAH dari kegagalan asli (network/assertion) di UI
+      # run. Verdict lain / payload tidak ada → step lulus; job sudah merah
+      # dari step e2e itu sendiri.
+      - name: Flag cache-flake (cold-compile / warmup-failed)
+        if: failure() && github.event_name == 'pull_request'
+        run: |
+          node -e "
+            const fs = require('fs');
+            let v = null;
+            try { v = JSON.parse(fs.readFileSync('triage-verdict.json', 'utf8')); } catch {}
+            if (v && (v.verdict === 'cold-compile' || v.verdict === 'warmup-failed')) {
+              console.error('::error::E2E gagal diklasifikasikan sebagai ' + v.verdict + ' (cache-flake) — jalankan ulang dengan cache panas sebelum menyelidiki kegagalan nyata.');
+              process.exit(42);
+            }
+            console.log('Verdict: ' + (v ? v.verdict : 'n/a') + ' — bukan cache-flake (atau payload tidak tersedia).');
+          "
 
       - name: Upload Playwright report on failure
+        id: upload-report
         if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -107,4 +205,196 @@ jobs:
           path: |
             playwright-report/
             test-results/
-          retention-days: 7
+          retention-days: ${{ env.ARTIFACT_RETENTION_REPORT }}
+
+      # Link LANGSUNG ke artifact playwright-report di step summary — SATU-
+      # SATUNYA link report di summary (heading failure tidak lagi memuat
+      # link; itu dobel dengan blok ini). Heading ditulis wrapper SEBELUM
+      # upload, dan URL langsung butuh ID numerik yang baru ada sebagai
+      # output upload-artifact (artifact-url), jadi link hanya bisa ditempel
+      # SETELAH upload selesai — dirender di bawah section ## failure yang
+      # sama (blok step summary milik step ini ditambahkan ke job summary
+      # setelah blok wrapper). Fallback ke halaman artifacts bila output
+      # artifact-url kosong.
+      - name: Link playwright-report artifact in step summary
+        if: failure()
+        shell: bash
+        run: |
+          REPORT_URL="${{ steps.upload-report.outputs.artifact-url }}"
+          if [ -z "$REPORT_URL" ]; then
+            REPORT_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts"
+          fi
+          {
+            echo "### 🔗 Playwright report (artifact langsung)"
+            echo ""
+            echo "[📦 playwright-report]($REPORT_URL)"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Log server + log wrapper (warm-up statuses ✓/◇/✗, alur test:e2e) —
+      # satu file untuk diagnosa cold-compile stall / network. Di-upload di
+      # SEMUA run (sukses maupun gagal) agar setiap run meninggalkan jejak
+      # post-mortem tanpa mengunduh artifact hanya saat failure. Retention
+      # sengaja LEBIH LAMA (30 hari) daripada Playwright report (7 hari,
+      # failure-only, jauh lebih besar) — trail diagnosa harus bertahan
+      # lebih lama daripada laporan besar yang jarang dibuka.
+      - name: Upload server log
+        id: upload-server-log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-log
+          path: server-e2e.log*
+          retention-days: ${{ env.ARTIFACT_RETENTION_SERVER_LOG }}
+
+      # Riwayat statistik per run (e2e-stats.jsonl, SATU baris per run) —
+      # baseline cek tren non-2xx antar run (step "Check non-2xx trend").
+      # Di-upload di SEMUA run (if: always()) agar baseline selalu ada.
+      - name: Upload e2e-stats
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-stats
+          path: e2e-stats.jsonl
+          if-no-files-found: ignore
+          retention-days: ${{ env.ARTIFACT_RETENTION_SERVER_LOG }}
+
+      # Tren non-2xx antar run: cari artifact e2e-stats dari run SEBELUMNYA
+      # (workflow sama, run LAIN — bukan run ini) sebagai baseline.
+      - name: Find previous e2e-stats run
+        id: find-prev-stats
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const artifacts = await github.paginate(
+              github.rest.actions.listArtifactsForRepo,
+              { owner: context.repo.owner, repo: context.repo.repo, name: "e2e-stats", per_page: 100 }
+            );
+            const sorted = [...artifacts].sort(
+              (a, b) => new Date(b.created_at) - new Date(a.created_at)
+            );
+            const prev = sorted.find(
+              (a) => a.workflow_run && a.workflow_run.id !== context.runId
+            );
+            if (prev?.workflow_run?.id) {
+              core.setOutput("prev_run_id", String(prev.workflow_run.id));
+              console.log(`Baseline: e2e-stats dari run #${prev.workflow_run.id} (${prev.created_at}).`);
+            } else {
+              console.log("::notice::Belum ada e2e-stats dari run lain — run ini jadi baseline tren non-2xx.");
+            }
+
+      - name: Download previous e2e-stats
+        if: steps.find-prev-stats.outputs.prev_run_id != ''
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: e2e-stats
+          run-id: ${{ steps.find-prev-stats.outputs.prev_run_id }}
+          path: prev-stats
+
+      # Alert kenaikan non-2xx diam-diam (spec baru): bandingkan run ini vs
+      # baseline. Warning di step summary (section ⚠️); E2E_NON2XX_FAIL=true
+      # mengubahnya jadi gate (exit 1). Baseline hilang → run ini jadi
+      # baseline.
+      - name: Check non-2xx trend
+        run: bun run check:non2xx
+        env:
+          E2E_PREV_STATS: ./prev-stats/e2e-stats.jsonl
+
+      # Stage state untuk job orphan-check: DB SQLite e2e + file upload BOS.
+      # Hanya file bos-*.pdf yang disalin (bukan seluruh public/uploads)
+      # agar artifact kecil — check hanya peduli file BOS. Di-upload di
+      # SEMUA run (if: always()) konsisten dengan server log; job
+      # orphan-check sendiri hanya berjalan bila suite HIJAU (needs: e2e),
+      # jadi kegagalan suite tidak menambah noise "yatim" di atas merah.
+      - name: Stage e2e state for orphan check
+        if: always()
+        run: |
+          mkdir -p orphan-state/prisma orphan-state/uploads
+          cp prisma/ci-e2e.db* orphan-state/prisma/ 2>/dev/null || true
+          cp public/uploads/bos-*.pdf orphan-state/uploads/ 2>/dev/null || true
+
+      - name: Upload e2e orphan state
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-orphan-state
+          path: orphan-state/
+          if-no-files-found: ignore
+          retention-days: ${{ env.ARTIFACT_RETENTION_SERVER_LOG }}
+
+      # Komentar di PR saat e2e gagal: link langsung ke artifact Playwright
+      # report & server log (merged: wrapper + server) — diagnosa tanpa
+      # mencari artifact secara manual. Komentar lama bot diganti (marker),
+      # jadi tidak menumpuk di retry.
+      - name: Comment failure links on PR
+        if: failure() && github.event_name == 'pull_request'
+        uses: ./.github/actions/comment-e2e-failure
+        with:
+          report_url: ${{ steps.upload-report.outputs.artifact-url }}
+          server_log_url: ${{ steps.upload-server-log.outputs.artifact-url }}
+          retention_server_log: ${{ env.ARTIFACT_RETENTION_SERVER_LOG }}
+          retention_report: ${{ env.ARTIFACT_RETENTION_REPORT }}
+          check_run_id: ${{ job.check_run_id }}
+          marker: "<!-- e2e-failure-summary -->"
+          heading: "## ❌ E2E gagal"
+          sibling_marker: "<!-- e2e-failure-summary-prod -->"
+          sibling_name: "E2E (Production Build)"
+          label: "e2e-failed"
+
+      # Saat PR AKHIRNYA HIJAU (retry sukses / fix di commit berikutnya),
+      # komentar sticky kegagalan lama dibersihkan — green PR tidak menyisakan
+      # komentar bot basi. Label e2e-failed dilepas HANYA bila workflow sibling
+      # juga sudah tidak punya komentar kegagalan (PR setengah merah tetap
+      # berlabel). Tidak berjalan saat suite gagal (if: success()).
+      - name: Clean up failure comment on pass
+        if: success() && github.event_name == 'pull_request'
+        uses: ./.github/actions/cleanup-e2e-failure
+        with:
+          marker: "<!-- e2e-failure-summary -->"
+          sibling_marker: "<!-- e2e-failure-summary-prod -->"
+          label: "e2e-failed"
+
+  # Verifikasi kebersihan disk SETELAH suite e2e, dua arah: (1) rute DELETE
+  # (/api/bos-documents/[id]) harus menghapus file BOS bersama barisnya —
+  # bila baris dihapus di luar aplikasi atau rute gagal menghapus file,
+  # file bos-*.pdf tertinggal di public/uploads (yatim) dan tetap terlayani
+  # publik; (2) kebalikannya, baris BosDocument yang file-nya hilang dari
+  # disk (baris gantung) — link dokumen menjadi 404 di daftar publik. Job
+  # ini menjalankan clean:orphans -- --check (report-only, TIDAK menghapus)
+  # terhadap state e2e yang distage job e2e — gagal bila file yatim di luar
+  # ORPHAN_EXPECT ATAU baris gantung di luar ROWS_WITHOUT_FILE_EXPECT
+  # (keduanya default 0). Hanya berjalan bila suite HIJAU (needs: e2e), jadi
+  # kegagalan suite tidak menambah noise "yatim" di atas merah.
+  orphan-check:
+    name: Check orphaned BOS files
+    needs: e2e
+    runs-on: ubuntu-latest
+    env:
+      # PrismaClient membaca DATABASE_URL saat konstruksi; DB SQLite yang
+      # di-restore dari artifact e2e (berisi baris BosDocument hasil suite).
+      DATABASE_URL: "file:./ci-e2e.db"
+      AUTH_SECRET: "ci-insecure-build-secret"
+      NEXT_PUBLIC_SITE_URL: "https://sdn-mongisidi1.sch.id"
+    steps:
+      - name: Setup repo (checkout + Node + Bun + install)
+        uses: ./.github/actions/setup-repo
+
+      - name: Download e2e orphan state
+        uses: actions/download-artifact@v4
+        with:
+          name: e2e-orphan-state
+          path: orphan-state
+
+      # Pulihkan DB + uploads ke lokasi yang diharapkan skrip
+      # (prisma/ci-e2e.db relatif ke schema; public/uploads), lalu jalankan
+      # check. Skrip juga melaporkan BARIS BosDocument yang file-nya hilang
+      # (data-integrity) — exit 1 bila jumlah baris gantung melebihi
+      # ROWS_WITHOUT_FILE_EXPECT. Kedua knob bisa di-override via
+      # workflow_dispatch bila suatu saat ada baseline yang disengaja.
+      - name: Run orphan check
+        run: |
+          mkdir -p prisma public/uploads
+          cp orphan-state/prisma/ci-e2e.db* prisma/ 2>/dev/null || true
+          cp orphan-state/uploads/* public/uploads/ 2>/dev/null || true
+          bun run clean:orphans -- --check

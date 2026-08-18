@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./mutation-log";
 import { enableDarkMode, goldRef } from "./helpers";
 
 /** Halaman publik yang memakai PageBanner (band hero navy). */

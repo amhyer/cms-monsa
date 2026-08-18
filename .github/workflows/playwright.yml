@@ -1,0 +1,298 @@
+name: E2E (Production Build)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-prod-${{ github.ref }}
+  cancel-in-progress: true
+
+# Nilai tail log e2e — SATU definisi di level workflow agar step "Run E2E
+# tests (production server)" DAN step "Check tail heading matches
+# E2E_TAIL_LINES" memakai nilai yang sama (env step hanya terlihat di step
+# itu sendiri; check heading butuh nilai yang sama untuk memvalidasi heading
+# step summary). Ubah di sini saja.
+env:
+  # 200 baris stdout (2× default 100) agar error runtime / 500 produksi +
+  # konteks request di sekitarnya selalu terlihat penuh di konsol.
+  E2E_TAIL_LINES: 200
+  # 100 baris stderr (default 15) agar error context / stack trace
+  # (deprecation, Prisma, runtime prod) terekam DALAM — tidak ada konteks
+  # yang hilang.
+  E2E_TAIL_LINES_ERR: 100
+  # Masa simpan artifact (hari) — SATU definisi di level workflow, dipakai
+  # upload steps (retention-days) DAN teks komentar PR (env di step comment)
+  # agar tidak ada drift antara nilai YAML dan teks yang ditampilkan.
+  # server-log bertahan LEBIH LAMA (jejak post-mortem), report lebih pendek
+  # (file besar, jarang dibuka).
+  ARTIFACT_RETENTION_SERVER_LOG: 30
+  ARTIFACT_RETENTION_REPORT: 7
+
+jobs:
+  e2e-prod:
+    name: E2E on next build + next start
+    runs-on: ubuntu-latest
+    # pull-requests: write diperlukan untuk komentar link artifact di PR saat
+    # e2e-prod gagal (lihat step "Comment failure links on PR").
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      # E2E butuh database SQLite berisi seed (admin/operator/guru, berita,
+      # pengumuman, agenda), dan build juga membaca DB saat prerender
+      # sitemap — jadi db:push + db:seed harus selesai sebelum build.
+      DATABASE_URL: "file:./ci-e2e-prod.db"
+      # Bukan secret asli — cukup untuk build & test. Ganti dengan secret
+      # asli di production (jangan pernah commit secret di sini).
+      AUTH_SECRET: "ci-insecure-build-secret"
+      NEXT_PUBLIC_SITE_URL: "https://sdn-mongisidi1.sch.id"
+    steps:
+      - name: Setup repo (checkout + Node + Bun + install)
+        uses: ./.github/actions/setup-repo
+
+      - name: Setup database (schema + seed)
+        run: |
+          bun run db:push
+          bun run db:seed
+
+      - name: Install Playwright browsers
+        run: bunx playwright install --with-deps chromium
+
+      # Production build — suite dijalankan terhadap server produksi
+      # (next start), bukan dev mode: tanpa kompilasi on-demand Turbopack,
+      # hasilnya lebih stabil dan lebih mirip kondisi deploy.
+      - name: Build (production)
+        run: bun run build
+
+      # test:e2e = workflow scripts/run-e2e.ts: memulai server dari
+      # E2E_SERVER_CMD, memanaskan rute utama, lalu menjalankan Playwright
+      # dengan reuseExistingServer aktif (PW_REUSE_SERVER=1). Server
+      # dimatikan setelah suite selesai — termasuk saat gagal.
+      # E2E_SERVER_LOG: log server disalin ke workspace agar bisa di-upload.
+      # E2E_TAIL_LINES / E2E_TAIL_LINES_ERR didefinisikan di env level
+      # WORKFLOW (di atas) — step ini dan step "Check tail heading" memakai
+      # nilai yang sama.
+      - name: Run E2E tests (production server)
+        run: bun run test:e2e
+        env:
+          E2E_SERVER_CMD: "bun run start"
+          E2E_SERVER_LOG: ./server-e2e.log
+
+      # Mutasi API harus ter-deklarasi di pragma // warmup: (laporan dari
+      # fixture e2e/mutation-log.ts yang ditulis saat test:e2e di atas).
+      - name: Check warmup declarations
+        run: bun run check:warmup-declarations
+
+      # Sinyal kegagalan server (5xx / [bos-documents] upload failed) TIDAK
+      # boleh muncul di log run hijau — semua rejection path e2e memakai 400,
+      # jadi 5xx mana pun = regresi. Sama dengan job dev-mode di ci.yml;
+      # if: always() agar temuan tetap dilaporkan ke step summary saat suite
+      # merah. E2E_LOG_ALLOW: regex per-baris untuk 5xx yang disengaja.
+      - name: Check server log for 5xx / upload failures
+        if: always()
+        run: bun run check:server-log
+        env:
+          E2E_SERVER_LOG: ./server-e2e.log
+
+      # Pastikan heading step summary sesuai E2E_TAIL_LINES — menangkap
+      # perubahan env var YAML tanpa mengupdate wrapper (atau sebaliknya).
+      - name: Check tail heading matches E2E_TAIL_LINES
+        if: failure()
+        run: |
+          if grep -q "server log tail ($E2E_TAIL_LINES baris stdout" "$GITHUB_STEP_SUMMARY"; then
+            echo "Tail heading matches E2E_TAIL_LINES ($E2E_TAIL_LINES) ✓"
+          else
+            ACTUAL=$(grep -o 'server log tail ([0-9]* baris' "$GITHUB_STEP_SUMMARY" | head -1)
+            echo "::error::Step summary tail heading ($ACTUAL) does not match E2E_TAIL_LINES ($E2E_TAIL_LINES)"
+            exit 1
+          fi
+
+      # Triage kegagalan TIDAK perlu step terpisah — scripts/run-e2e.ts sudah
+      # menjalankan scripts/triage-e2e.ts OTOMATIS saat suite gagal (verdict
+      # di konsol + step summary + artifact server-e2e.log). Step terpisah
+      # akan menjalankan scan yang sama dua kali.
+      # Verdict triage untuk komentar PR: jalankan ulang triage --json
+      # terhadap log server yang SUDAH ditulis wrapper (./server-e2e.log) dan
+      # simpan hasilnya ke file — dibaca step komentar di bawah. continue-
+      # on-error: triage exit 1 = ADA temuan (itu justru yang ditampilkan).
+      # Scan ulang ini murah (<1s) dan tidak bergantung plumbing output antar
+      # step.
+      - name: Get triage verdict
+        if: failure() && github.event_name == 'pull_request'
+        continue-on-error: true
+        run: bun run triage:e2e -- --json > triage-verdict.json 2>/dev/null || true
+        env:
+          E2E_SERVER_LOG: ./server-e2e.log
+
+      # Verdict cold-compile / warmup-failed = cache-flake (stall kompilasi
+      # on-demand / warm-up gagal diam-diam), BUKAN kegagalan nyata — step ini
+      # sengaja GAGAL dengan pesan khas (exit code 42) agar rerun karena cache
+      # dingin terlihat TERPISAH dari kegagalan asli (network/assertion) di UI
+      # run. Verdict lain / payload tidak ada → step lulus; job sudah merah
+      # dari step e2e itu sendiri.
+      - name: Flag cache-flake (cold-compile / warmup-failed)
+        if: failure() && github.event_name == 'pull_request'
+        run: |
+          node -e "
+            const fs = require('fs');
+            let v = null;
+            try { v = JSON.parse(fs.readFileSync('triage-verdict.json', 'utf8')); } catch {}
+            if (v && (v.verdict === 'cold-compile' || v.verdict === 'warmup-failed')) {
+              console.error('::error::E2E gagal diklasifikasikan sebagai ' + v.verdict + ' (cache-flake) — jalankan ulang dengan cache panas sebelum menyelidiki kegagalan nyata.');
+              process.exit(42);
+            }
+            console.log('Verdict: ' + (v ? v.verdict : 'n/a') + ' — bukan cache-flake (atau payload tidak tersedia).');
+          "
+
+      - name: Upload Playwright report on failure
+        id: upload-report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-prod
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: ${{ env.ARTIFACT_RETENTION_REPORT }}
+
+      # Link LANGSUNG ke artifact playwright-report di step summary — SATU-
+      # SATUNYA link report di summary (heading failure tidak lagi memuat
+      # link; itu dobel dengan blok ini). Heading ditulis wrapper SEBELUM
+      # upload, dan URL langsung butuh ID numerik yang baru ada sebagai
+      # output upload-artifact (artifact-url), jadi link hanya bisa ditempel
+      # SETELAH upload selesai — dirender di bawah section ## failure yang
+      # sama (blok step summary milik step ini ditambahkan ke job summary
+      # setelah blok wrapper). Fallback ke halaman artifacts bila output
+      # artifact-url kosong.
+      - name: Link playwright-report artifact in step summary
+        if: failure()
+        shell: bash
+        run: |
+          REPORT_URL="${{ steps.upload-report.outputs.artifact-url }}"
+          if [ -z "$REPORT_URL" ]; then
+            REPORT_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts"
+          fi
+          {
+            echo "### 🔗 Playwright report (artifact langsung)"
+            echo ""
+            echo "[📦 playwright-report-prod]($REPORT_URL)"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Log server + log wrapper (warm-up statuses ✓/◇/✗, alur test:e2e) —
+      # satu file untuk diagnosa 500 / error runtime produksi. Di-upload di
+      # SEMUA run (sukses maupun gagal) agar setiap run meninggalkan jejak
+      # post-mortem tanpa mengunduh artifact hanya saat failure. Retention
+      # sengaja LEBIH LAMA (30 hari) daripada Playwright report (7 hari,
+      # failure-only, jauh lebih besar) — trail diagnosa harus bertahan
+      # lebih lama daripada laporan besar yang jarang dibuka.
+      - name: Upload server log
+        id: upload-server-log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-log-prod
+          path: server-e2e.log*
+          retention-days: ${{ env.ARTIFACT_RETENTION_SERVER_LOG }}
+
+      # Riwayat statistik per run (e2e-stats.jsonl, SATU baris per run) —
+      # baseline cek tren non-2xx antar run (step "Check non-2xx trend").
+      # Di-upload di SEMUA run (if: always()) agar baseline selalu ada.
+      - name: Upload e2e-stats
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-stats-prod
+          path: e2e-stats.jsonl
+          if-no-files-found: ignore
+          retention-days: ${{ env.ARTIFACT_RETENTION_SERVER_LOG }}
+
+      # Tren non-2xx antar run: cari artifact e2e-stats-prod dari run
+      # SEBELUMNYA (workflow sama, run LAIN — bukan run ini) sebagai baseline.
+      - name: Find previous e2e-stats run
+        id: find-prev-stats
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const artifacts = await github.paginate(
+              github.rest.actions.listArtifactsForRepo,
+              { owner: context.repo.owner, repo: context.repo.repo, name: "e2e-stats-prod", per_page: 100 }
+            );
+            const sorted = [...artifacts].sort(
+              (a, b) => new Date(b.created_at) - new Date(a.created_at)
+            );
+            const prev = sorted.find(
+              (a) => a.workflow_run && a.workflow_run.id !== context.runId
+            );
+            if (prev?.workflow_run?.id) {
+              core.setOutput("prev_run_id", String(prev.workflow_run.id));
+              console.log(`Baseline: e2e-stats-prod dari run #${prev.workflow_run.id} (${prev.created_at}).`);
+            } else {
+              console.log("::notice::Belum ada e2e-stats-prod dari run lain — run ini jadi baseline tren non-2xx.");
+            }
+
+      - name: Download previous e2e-stats
+        if: steps.find-prev-stats.outputs.prev_run_id != ''
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: e2e-stats-prod
+          run-id: ${{ steps.find-prev-stats.outputs.prev_run_id }}
+          path: prev-stats
+
+      # Alert kenaikan non-2xx diam-diam (spec baru): bandingkan run ini vs
+      # baseline. Warning di step summary (section ⚠️); E2E_NON2XX_FAIL=true
+      # mengubahnya jadi gate (exit 1). Baseline hilang → run ini jadi
+      # baseline.
+      - name: Check non-2xx trend
+        run: bun run check:non2xx
+        env:
+          E2E_PREV_STATS: ./prev-stats/e2e-stats.jsonl
+
+      # Komentar di PR saat e2e-prod gagal — cermin dari ci.yml, dengan
+      # nama artifact prod (playwright-report-prod / server-log-prod). Marker
+      # BEDA dari ci.yml (…-prod) agar komentar kedua workflow hidup
+      # berdampingan: marker yang sama justru membuat tiap workflow
+      # menghapus komentar yang lain. Komentar lama bot diganti (marker),
+      # jadi tidak menumpuk di retry.
+      - name: Comment failure links on PR
+        if: failure() && github.event_name == 'pull_request'
+        uses: ./.github/actions/comment-e2e-failure
+        with:
+          report_url: ${{ steps.upload-report.outputs.artifact-url }}
+          server_log_url: ${{ steps.upload-server-log.outputs.artifact-url }}
+          retention_server_log: ${{ env.ARTIFACT_RETENTION_SERVER_LOG }}
+          retention_report: ${{ env.ARTIFACT_RETENTION_REPORT }}
+          check_run_id: ${{ job.check_run_id }}
+          marker: "<!-- e2e-failure-summary-prod -->"
+          heading: "## ❌ E2E gagal (prod build)"
+          sibling_marker: "<!-- e2e-failure-summary -->"
+          sibling_name: "CI"
+          label: "e2e-failed"
+
+      # Saat PR AKHIRNYA HIJAU, komentar sticky kegagalan lama dibersihkan
+      # (pasangan dari step "Comment failure links on PR" di atas); label
+      # e2e-failed dilepas bila workflow CI juga sudah tidak melaporkan
+      # kegagalan. Tidak berjalan saat suite gagal (if: success()).
+      - name: Clean up failure comment on pass
+        if: success() && github.event_name == 'pull_request'
+        uses: ./.github/actions/cleanup-e2e-failure
+        with:
+          marker: "<!-- e2e-failure-summary-prod -->"
+          sibling_marker: "<!-- e2e-failure-summary -->"
+          label: "e2e-failed"
+
+  # Gate pre-commit TIDAK dijalankan di workflow ini — gate dijalankan oleh
+  # ci.yml (hooks-gate.yml reusable), karena ci.yml & playwright.yml sama-sama
+  # trigger di pull_request + push main. Dua pemanggil akan menjalankan gate
+  # DUA KALI per PR (double checkout + install + gate). Satu pemanggil =
+  # satu gate per PR/push, tanpa kehilangan cakupan: ci.yml selalu jalan di
+  # event yang sama dengan workflow ini. Untuk gate manual (mis. sebelum
+  # merge tanpa PR), jalankan hooks-gate.yml dari Actions sidebar
+  # (workflow_dispatch) atau `bun run hooks:check` lokal.

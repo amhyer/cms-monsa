@@ -37,7 +37,7 @@ import { ImageUpload } from "@/components/shared/image-upload";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { GALLERY_CATEGORIES } from "@/lib/nav";
 import type { GalleryItem } from "@/lib/types";
-import { PageLoader, EmptyState } from "../_shared";
+import { PageLoader, EmptyState, Pagination, usePersistedPageSize } from "../_shared";
 
 type FormState = {
   title: string;
@@ -61,6 +61,10 @@ export function GalleryManager() {
   const [items, setItems] = useState<GalleryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = usePersistedPageSize("gallery", 12, [12, 24, 48]);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<GalleryItem | null>(null);
@@ -69,20 +73,36 @@ export function GalleryManager() {
   const fetchList = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/gallery", { cache: "no-store" });
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(pageSize),
+      });
+      const res = await fetch(`/api/gallery?${params}`, { cache: "no-store" });
       if (!res.ok) throw new Error();
       const data = await res.json();
       setItems(data.items || []);
+      setTotal(data.total ?? 0);
+      setTotalPages(data.totalPages ?? 1);
     } catch {
       toast.error("Gagal memuat galeri.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, pageSize]);
 
   useEffect(() => {
     fetchList();
   }, [fetchList]);
+
+  // Ganti ukuran halaman → kembali ke halaman 1.
+  useEffect(() => {
+    setPage(1);
+  }, [pageSize]);
+
+  // Jaga agar page tidak melewati totalPages (mis. setelah menghapus baris).
+  useEffect(() => {
+    setPage((p) => Math.min(p, totalPages));
+  }, [totalPages]);
 
   function openCreate() {
     setEditing(null);
@@ -173,12 +193,17 @@ export function GalleryManager() {
             Unggah foto atau tautkan video YouTube ke galeri publik.
           </p>
         </div>
-        <Button
-          onClick={openCreate}
-          className="bg-gold text-gold-foreground hover:bg-gold/90"
-        >
-          <Plus className="size-4" /> Tambah Media
-        </Button>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground">
+            {items.length} dari {total} media
+          </span>
+          <Button
+            onClick={openCreate}
+            className="bg-gold text-gold-foreground hover:bg-gold/90"
+          >
+            <Plus className="size-4" /> Tambah Media
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -258,6 +283,15 @@ export function GalleryManager() {
           })}
         </div>
       )}
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onPage={setPage}
+        pageSize={pageSize}
+        pageSizes={[12, 24, 48]}
+        onPageSizeChange={setPageSize}
+      />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">

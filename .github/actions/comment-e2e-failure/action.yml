@@ -1,0 +1,248 @@
+# Komentar kegagalan E2E di PR — SATU implementasi untuk dua workflow
+# (ci.yml dev build + playwright.yml production build). Konsolidasi dari
+# github-script inline yang identik (hanya marker/heading/sibling yang
+# berbeda): update sticky (marker), render verdict triage + link artifact,
+# plus cross-link ke komentar kegagalan workflow SIBLING saat keduanya gagal.
+#
+# Pemakaian (panggil setelah upload artifact, saat suite gagal):
+#   steps:
+#     - name: Comment failure links on PR
+#       if: failure() && github.event_name == 'pull_request'
+#       uses: ./.github/actions/comment-e2e-failure
+#       with:
+#         report_url: ${{ steps.upload-report.outputs.artifact-url }}
+#         server_log_url: ${{ steps.upload-server-log.outputs.artifact-url }}
+#         retention_server_log: ${{ env.ARTIFACT_RETENTION_SERVER_LOG }}
+#         retention_report: ${{ env.ARTIFACT_RETENTION_REPORT }}
+#         marker: "<!-- e2e-failure-summary -->"
+#         heading: "## ❌ E2E gagal"
+#         sibling_marker: "<!-- e2e-failure-summary-prod -->"
+#         sibling_name: "E2E (Production Build)"
+#         label: "e2e-failed"   # label repo yang dipasang di PR bersama komentar
+name: Comment E2E failure on PR
+description: >-
+  Post/update the sticky PR failure comment (triage verdict + artifact
+  links) for an E2E workflow, and cross-link the sibling workflow's
+  failure comment when both fail.
+
+inputs:
+  report_url:
+    description: artifact-url output of the Playwright report upload (empty -> run artifacts page).
+    required: false
+    default: ""
+  server_log_url:
+    description: artifact-url output of the server log upload (empty -> run artifacts page).
+    required: false
+    default: ""
+  retention_server_log:
+    description: Server log artifact retention (days) shown in the retention callout.
+    required: true
+  retention_report:
+    description: Playwright report artifact retention (days) shown in the retention callout.
+    required: true
+  check_run_id:
+    description: >-
+      Job check run id (pass ${{ job.check_run_id }}) — deep-link ke section
+      step summary run di halaman run (#summary-<id>). Kosong -> tanpa link.
+    required: false
+    default: ""
+  marker:
+    description: Comment marker used for sticky updates (e.g. "<!-- e2e-failure-summary -->").
+    required: true
+  heading:
+    description: Comment heading (e.g. "## ❌ E2E gagal").
+    required: true
+  sibling_marker:
+    description: Marker of the SIBLING workflow's comment, for cross-linking when both fail.
+    required: true
+  sibling_name:
+    description: Display name of the sibling workflow (e.g. "E2E (Production Build)").
+    required: true
+  label:
+    description: >-
+      Repo label applied to the PR alongside the sticky comment (e.g.
+      "e2e-failed"). Empty -> no label. Applied idempotently — label must
+      exist in the repo (create it once in Settings → Labels), otherwise the
+      API call fails gracefully with a notice.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    # Baca triage-verdict.json dan render blok verdict — SATU implementasi
+    # (composite action verdict-from-triage), dipakai juga oleh komentar
+    # triage post-hoc. Verdict dikonsumsi via output verdict_block.
+    - name: Read triage verdict
+      id: verdict
+      uses: ./.github/actions/verdict-from-triage
+
+    # github-script menyediakan context (repo/runId/workflow) & token. Nilai
+    # workflow-specific lewat env (bukan interpolasi string di script) —
+    # menghindari masalah quoting marker yang berisi karakter HTML.
+    - name: Post failure comment
+      uses: actions/github-script@v7
+      env:
+        REPORT_URL: ${{ inputs.report_url }}
+        SERVER_LOG_URL: ${{ inputs.server_log_url }}
+        RETENTION_SERVER_LOG: ${{ inputs.retention_server_log }}
+        RETENTION_REPORT: ${{ inputs.retention_report }}
+        CHECK_RUN_ID: ${{ inputs.check_run_id }}
+        MARKER: ${{ inputs.marker }}
+        HEADING: ${{ inputs.heading }}
+        SIBLING_MARKER: ${{ inputs.sibling_marker }}
+        SIBLING_NAME: ${{ inputs.sibling_name }}
+        LABEL: ${{ inputs.label }}
+        VERDICT_BLOCK: ${{ steps.verdict.outputs.verdict_block }}
+      with:
+        script: |
+          const pr = context.payload.pull_request.number;
+          // Pola URL run-artifacts SAMA dengan step summary: link langsung
+          // diambil dari output upload-artifact (artifact-url) — satu
+          // sumber kebenaran, jadi komentar dan step summary selalu
+          // menautkan URL report yang identik (bukan di-resolve ulang via
+          // API). Fallback ke halaman artifacts — pola yang sama dengan
+          // heading step summary — bila output kosong, jadi link report
+          // tidak pernah hilang dari komentar.
+          const artifactsBase = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}/artifacts`;
+          const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+          const reportUrl = process.env.REPORT_URL || artifactsBase;
+          const logUrl = process.env.SERVER_LOG_URL || artifactsBase;
+          const marker = process.env.MARKER;
+          // Verdict + temuan triage dirender oleh composite action
+          // verdict-from-triage (SATU implementasi, dipakai juga oleh
+          // komentar triage post-hoc di triage.yml) dan dikonsumsi via env
+          // VERDICT_BLOCK — tidak ada parsing inline di script ini.
+          const verdictBlock = process.env.VERDICT_BLOCK || "";
+          const body = [
+            marker,
+            // Badge bot di heading: pembaca langsung mengenali komentar ini
+            // otomatis (dibuat GitHub Actions), bukan tulisan manusia —
+            // dipasang di SATU tempat (action ini) untuk kedua workflow,
+            // jadi identity bot tidak tersebar di config workflow.
+            `## 🤖 ${process.env.HEADING.replace(/^#+\s*/, "")}`,
+            "",
+            // Nama workflow SUMBER (github.workflow) — komentar dari ci.yml
+            // dan playwright.yml hidup berdampingan di PR yang sama, jadi
+            // asal kegagalan terlihat tanpa menebak dari nama artifact.
+            `- 🧩 Workflow: ${context.workflow}`,
+            `- 📊 [Playwright report](${reportUrl})`, 
+            `- 📜 [Server log (merged: wrapper + server)](${logUrl})`,
+            verdictBlock,
+            `- 🔗 [Run ini](${runUrl})`,
+            // Deep-link ke section step summary JOB ini di halaman run
+            // (anchor #summary-<check_run_id>) — tail log + verdict triage
+            // yang ditulis wrapper langsung terlihat, tanpa scroll manual.
+            // check_run_id kosong (job context lama / reusable) -> tanpa baris.
+            ...(process.env.CHECK_RUN_ID
+              ? [`- 📋 [Step summary run](${runUrl}#summary-${process.env.CHECK_RUN_ID})`]
+              : []),
+            "",
+            `> ⏳ Artifact bertahan: server log **${process.env.RETENTION_SERVER_LOG} hari**, Playwright report **${process.env.RETENTION_REPORT} hari** — unduh sebelum kedaluwarsa.`,
+
+            "",
+            "Tail log server (merged: wrapper + server) lengkap: artifact 📜 di atas — temuan triage sudah lengkap di komentar ini.",
+          ]
+            .filter(Boolean)
+            .join("\n");
+          // Sticky: komentar lama ber-marker di-UPDATE di tempat (ID & posisi
+          // komentar tetap stabil di thread PR) — bukan delete + repost yang
+          // membuat komentar baru di posisi bawah. Duplikat historis (sisa
+          // perilaku delete-repost lama) dibersihkan sekali.
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: pr,
+            per_page: 100,
+          });
+          const stale = comments.filter((c) => c.body && c.body.includes(marker));
+          for (const c of stale.slice(1)) {
+            await github.rest.issues.deleteComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: c.id,
+            });
+          }
+          if (stale[0]) {
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: stale[0].id,
+              body,
+            });
+          } else {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr,
+              body,
+            });
+          }
+          // Label repo (mis. "e2e-failed") dipasang di PR bersama komentar
+          // sticky — jadi kegagalan e2e terlihat di daftar PR/label filter
+          // tanpa membuka komentar. Idempoten: hanya menambahkan bila label
+          // belum ada (API addLabels tidak duplikat). Bila label belum dibuat
+          // di repo (Settings → Labels), API 422 → notice, bukan error run.
+          const label = process.env.LABEL;
+          if (label) {
+            try {
+              const { data: curLabels } = await github.rest.issues.listLabelsOnIssue({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr,
+              });
+              if (!curLabels.some((l) => l.name === label)) {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr,
+                  labels: [label],
+                });
+                console.log(`Label \"${label}\" dipasang di PR #${pr}.`);
+              } else {
+                console.log(`Label \"${label}\" sudah ada di PR #${pr} — dilewati.`);
+              }
+            } catch (e) {
+              console.log(`::notice::Label \"${label}\" gagal dipasang (buat dulu di Settings → Labels?): ${String(e)}`);
+            }
+          }
+          // Cross-link komentar kegagalan dev ↔ prod bila KEDUANYA gagal di
+          // PR yang sama: masing-masing menautkan komentar workflow satunya
+          // (idempoten — hanya menambahkan bila link belum ada), jadi
+          // pembaca komentar mana pun bisa melompat ke kegagalan workflow
+          // lain. Tidak bergantung urutan posting: siapa pun yang berjalan
+          // KEDUA menambal komentar yang pertama (sticky update lain tidak
+          // menghapus link — phase ini menjalankannya kembali tiap run).
+          const { data: allComments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: pr,
+            per_page: 100,
+          });
+          // Sibling workflow: playwright.yml (E2E Production Build) — marker
+          // dan nama hardcoded agar tautan stabil.
+          const OTHER_MARKER = process.env.SIBLING_MARKER;
+          const OTHER_NAME = process.env.SIBLING_NAME;
+          const mine = allComments.find((c) => c.body && c.body.includes(marker));
+          const other = allComments.find((c) => c.body && c.body.includes(OTHER_MARKER));
+          if (mine && other && mine.html_url && other.html_url) {
+            if (!mine.body.includes(other.html_url)) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: mine.id,
+                body: `${mine.body}\n- 🔗 Juga gagal: [${OTHER_NAME}](${other.html_url})`,
+              });
+            }
+            if (!other.body.includes(mine.html_url)) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: other.id,
+                body: `${other.body}\n- 🔗 Juga gagal: [${context.workflow}](${mine.html_url})`,
+              });
+            }
+            console.log(`Cross-link sibling aktif: komentar ${marker} ↔ ${OTHER_MARKER}.`);
+          } else {
+            console.log(`Cross-link: komentar ${OTHER_MARKER} belum ada — tanpa tautan silang.`);
+          }

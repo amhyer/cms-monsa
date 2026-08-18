@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
-// Galeri siswa publik (beranda): hanya siswa aktif, proyeksi aman tanpa
-// data pribadi (NIS/NISN, kontak, orang tua) — cukup untuk orang tua
-// mencari & melihat foto anaknya.
+// Galeri siswa publik (beranda): hanya siswa aktif. NIS/NISN disertakan agar
+// orang tua bisa mencocokkan identitas anaknya (sama seperti kartu prestasi
+// publik yang menampilkan NIS/NISN) — kontak & data orang tua tetap tidak
+// diekspos.
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const q = (searchParams.get("q") || "").trim();
@@ -38,6 +39,8 @@ export async function GET(req: NextRequest) {
       name: s.name,
       photoUrl: s.photoUrl,
       className: s.class?.name ?? "—",
+      nis: s.nis,
+      nisn: s.nisn,
     })),
     total,
     page,

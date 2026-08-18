@@ -1,6 +1,7 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./mutation-log";
 import { ADMIN, enableDarkMode, goldRef, login } from "./helpers";
 
+// warmup: /api/auth/login
 test.describe("Footer navy + emas — konsisten di dark mode", () => {
   test("footer publik tetap navy (bukan emas) di dark mode", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });

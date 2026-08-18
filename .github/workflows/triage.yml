@@ -1,0 +1,297 @@
+name: E2E Triage (post-hoc)
+
+# Analisa MANUAL kegagalan run yang lalu: unduh artifact server-log dari
+# sebuah run (Actions), lalu jalankan `bun run triage:e2e` di atasnya —
+# verdict stall/DNS/timeout tanpa perlu menjalankan ulang suite.
+#
+# Pemakaian:
+#   - Actions → E2E Triage (post-hoc) → Run workflow
+#   - run_id: ID run yang mau dianalisa (dari URL Actions — bagian
+#     `/actions/runs/<id>`). Artifact hanya tersedia selama retention-nya
+#     (server-log: 30 hari).
+#   - artifact_name: ci.yml meng-upload `server-log`; playwright.yml
+#     meng-upload `server-log-prod` (pilih sesuai run sumber).
+#   - report_name (OPSIONAL): nama artifact Playwright report
+#     (ci.yml: `playwright-report`; playwright.yml: `playwright-report-prod`)
+#     untuk ikut diunduh & discan — triage lalu membaca error-context
+#     (`test-results/**/*.md`) + `index.html` dari report, bukan hanya log
+#     server. Kosongkan untuk analisa berbasis log saja.
+#
+# Bila run sumber terkait PR (event pull_request), verdict triage juga
+# diposting sebagai komentar sticky di PR itu (marker
+# `<!-- e2e-triage-posthoc -->`) — diagnosa terlihat langsung di thread PR,
+# sama seperti komentar kegagalan e2e di ci.yml.
+#
+# Temuan pola dikenal (stall/DNS/timeout) membuat job merah (exit 1 di step
+# gate) — itu hasil yang DIINGINKAN untuk analisa ini; komentar PR tetap
+# ditulis (if: always()).
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "ID run Actions yang artifact server-log-nya mau dianalisa"
+        required: false
+      artifact_name:
+        description: "Nama artifact server log (ci.yml: server-log · playwright.yml: server-log-prod)"
+        required: false
+        default: server-log
+      report_name:
+        description: "OPSIONAL — nama artifact Playwright report (ci.yml: playwright-report · playwright.yml: playwright-report-prod) untuk ikut discan"
+        required: false
+
+permissions:
+  contents: read
+  actions: read
+  # pull-requests: write untuk memposting verdict ke PR run sumber
+  # (lihat step "Post verdict to PR & step summary").
+  pull-requests: write
+
+concurrency:
+  group: e2e-triage-${{ github.event.inputs.run_id || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  triage:
+    name: Triage past run
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup repo (checkout + Node + Bun + install)
+        uses: ./.github/actions/setup-repo
+
+      - name: Validate run_id
+        shell: bash
+        run: |
+          if [ -z "${{ inputs.run_id }}" ]; then
+            echo "::error::run_id wajib diisi — ambil dari URL Actions (/actions/runs/<id>) run yang mau dianalisa."
+            exit 1
+          fi
+
+      # download-artifact@v4 mendukung run-id (artifact dari run LAIN).
+      # Gagal dengan pesan "not found" bila run_id salah / artifact sudah
+      # lewat retention — pesan itu sendiri informatif.
+      - name: Download server log artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}
+          run-id: ${{ inputs.run_id }}
+          path: artifacts
+
+      # OPSIONAL: unduh juga artifact Playwright report bila report_name
+      # diisi — error-context (test-results/**/*.md) + index.html ikut
+      # discan triage, jadi verdict assertion/timeout lebih akurat daripada
+      # analisa berbasis log server saja.
+      - name: Download Playwright report artifact
+        if: ${{ inputs.report_name != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.report_name }}
+          run-id: ${{ inputs.run_id }}
+          path: artifacts/report
+
+      # E2E_SERVER_LOG menunjuk file hasil unduhan; pasangan `.err` ikut
+      # discan otomatis oleh triage. E2E_TEST_RESULTS / E2E_PLAYWRIGHT_REPORT
+      # menunjuk lokasi report yang (mungkin) diunduh — direktori yang tidak
+      # ada diabaikan triage, jadi aman di-set walau report_name kosong.
+      # `-- --json` menulis payload ke triage-verdict.json agar bisa dirender
+      # di komentar PR (mirror pola ci.yml); `|| true` menjaga file tetap
+      # tertulis walau scan menemukan pola (exit 1) — status merah job
+      # ditangani step "Fail job when patterns found" di bawah.
+      - name: Run triage on downloaded log
+        run: bun run triage:e2e -- --json > triage-verdict.json 2>/dev/null || true
+        env:
+          E2E_SERVER_LOG: ./artifacts/server-e2e.log
+          E2E_TEST_RESULTS: ./artifacts/report/test-results
+          E2E_PLAYWRIGHT_REPORT: ./artifacts/report/playwright-report
+
+      # Semantik asli "exit 1 = DIINGINKAN": verdict + counts dicetak sebagai
+      # ::error:: (terlihat di konsol), lalu step sengaja gagal. Step komentar
+      # di bawah tetap jalan (if: always()) untuk menulis verdict ke PR.
+      - name: Fail job when patterns found
+        if: hashFiles('triage-verdict.json') != ''
+        shell: bash
+        run: |
+          node -e "
+            const v = JSON.parse(require('fs').readFileSync('triage-verdict.json', 'utf8'));
+            if (v.ok) { console.log('Tidak ada pola dikenal — verdict: ' + v.verdict); process.exit(0); }
+            const c = v.counts ?? {};
+            console.error('::error::Pola dikenal ditemukan — verdict ' + v.verdict +
+              ' (stall ' + c.stalls + ' · dns ' + c.dns + ' · timeout ' + c.timeouts + ' · error ' + c.errors + ')');
+            process.exit(1);
+          "
+
+      # Post verdict ke PR dari run SUMBER (run_id): getWorkflowRun
+      # mengembalikan pull_requests untuk run bertipe pull_request; bila
+      # kosong (mis. run push di main), tidak ada PR yang bisa dikomentari —
+      # notice + skip. Sticky dengan marker sendiri (bukan marker komentar
+      # kegagalan e2e), jadi analisa ulang memperbarui komentar di tempat.
+      # Bila run sumber HIJAU (marker `ringkasan sukses:` wrapper di log
+      # merged), ringkasan sukses (warm-up ✓/◇/✗ + request) juga ditulis ke
+      # $GITHUB_STEP_SUMMARY — analisa run hijau meninggalkan ringkasan yang
+      # sama dengan CI, bahkan tanpa PR (ditulis sebelum cek PR di script).
+      - name: Read triage verdict
+        id: verdict
+        if: always() && hashFiles('triage-verdict.json') != ''
+        uses: ./.github/actions/verdict-from-triage
+
+      - name: Post verdict to PR & step summary
+        if: always() && hashFiles('triage-verdict.json') != ''
+        uses: actions/github-script@v7
+        env:
+          TARGET_RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: ${{ inputs.artifact_name }}
+          REPORT_NAME: ${{ inputs.report_name }}
+          VERDICT_BLOCK: ${{ steps.verdict.outputs.verdict_block }}
+          PAYLOAD_JSON: ${{ steps.verdict.outputs.payload_json }}
+        with:
+          script: |
+            const targetRun = Number(process.env.TARGET_RUN_ID);
+            // Verdict + temuan triage dirender oleh composite action
+            // verdict-from-triage (SATU implementasi, dipakai juga oleh
+            // comment-e2e-failure) dan dikonsumsi via env VERDICT_BLOCK —
+            // tidak ada parsing inline di script ini.
+            const verdictBlock = process.env.VERDICT_BLOCK || "";
+            let summaryBlock = "";
+            let stepSummarySection = "";
+            try {
+              // Payload mentah dari action yang sama (output payload_json) —
+              // hanya untuk field tambahan seperti summary.
+              const v = JSON.parse(process.env.PAYLOAD_JSON);
+              // Ringkasan sukses HANYA bila log merged memuat marker
+              // `ringkasan sukses:` wrapper (summary.runSucceeded) — jadi
+              // analisa run HIJAU meninggalkan ringkasan yang sama dengan CI,
+              // tanpa risiko melabeli run gagal (verdict clean bisa berasal
+              // dari run gagal tanpa pola dikenal) sebagai hijau.
+              if (v.summary?.runSucceeded) {
+                const s = v.summary;
+                const w = s.warmup ?? {};
+                const r = s.requests ?? {};
+                const methods = Object.entries(r.byMethod ?? {})
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([m, n]) => `${m} ${n}`)
+                  .join(" · ");
+                const a = v.summary?.artifact ?? {};
+                summaryBlock = [
+                  "## ✅ E2E passed — server log summary (post-hoc)",
+                  "",
+                  `warm-up ${w.ok + w.synth + w.fail} rute (✓ ${w.ok} · ◇ ${w.synth} · ✗ ${w.fail})`,
+                  `request ${r.total} (${methods}) · non-2xx ${r.non2xx}`,
+                  // Baris per seksi artifact — paritas buildArtifactLine wrapper:
+                  // angka SAMA dengan step summary run asli (tiga bagian
+                  // seragam: warm-up + request + artifact).
+                  ...(a.total
+                    ? [`artifact: wrapper ${a.wrapper ?? 0} baris · server ${a.server ?? 0} baris · stderr ${a.stderr ?? 0} baris (total ${a.total} baris)`]
+                    : []),
+                ].join("\n");
+                stepSummarySection = `${summaryBlock}\n\n`;
+              }
+            } catch {}
+            // Step summary ditulis SEBELUM cek PR — run tanpa PR (mis. push)
+            // tetap meninggalkan ringkasan hijau di workflow UI.
+            if (stepSummarySection) {
+              const sp = process.env.GITHUB_STEP_SUMMARY;
+              if (sp) {
+                try {
+                  require("fs").appendFileSync(sp, stepSummarySection);
+                  console.log("Ringkasan sukses ditambahkan ke step summary.");
+                } catch (e) {
+                  console.log(`gagal menulis step summary: ${String(e)}`);
+                }
+              }
+            }
+            const { data: run } = await github.rest.actions.getWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: targetRun,
+            });
+            const pr = run.pull_requests?.[0]?.number;
+            if (!pr) {
+              console.log(`::notice::Run #${targetRun} tidak terkait PR (event: ${run.event}) — komentar dilewati.`);
+              return;
+            }
+            // Parity dengan komentar kegagalan e2e (composite action
+            // comment-e2e-failure): nama workflow SUMBER (via API workflow)
+            // + deep-link ke section step summary run sumber
+            // (#summary-<check_run_id>, dari job e2e yang menulis summary
+            // kegagalan). Gagal lookup -> tanpa baris (graceful).
+            let workflowName = "";
+            let checkRunId = "";
+            try {
+              if (run.workflow_id) {
+                const wf = await github.rest.actions.getWorkflow({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  workflow_id: run.workflow_id,
+                });
+                workflowName = wf.data.name ?? "";
+              }
+            } catch {}
+            try {
+              const jobs = await github.rest.actions.listJobsForWorkflowRun({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: targetRun,
+              });
+              const e2e =
+                jobs.data.jobs?.find((j) => /E2E/i.test(j.name || "")) ??
+                jobs.data.jobs?.find((j) => j.check_run_url);
+              const m = e2e?.check_run_url?.match(/check-runs\/(\d+)/);
+              if (m) checkRunId = m[1];
+            } catch {}
+            const artifactsBase = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${targetRun}/artifacts`;
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${targetRun}`;
+            const summaryUrl = checkRunId ? `${runUrl}#summary-${checkRunId}` : "";
+            const marker = "<!-- e2e-triage-posthoc -->";
+            const body = [
+              marker,
+              // Badge bot di heading — paritas dengan komentar kegagalan e2e
+              // (comment-e2e-failure): pembaca langsung tahu komentar ini
+              // otomatis, bukan tulisan manusia.
+              `## 🤖 Triage post-hoc — run #${targetRun}`,
+              "",
+              ...(workflowName ? [`- 🧩 Workflow: ${workflowName}`] : []),
+              `- 🧪 Run sumber: event \`${run.event}\` · PR #${pr}`,
+              `- 📜 Artifact discan: \`${process.env.ARTIFACT_NAME}\`${process.env.REPORT_NAME ? ` + report \`${process.env.REPORT_NAME}\`` : ""}`,
+              verdictBlock,
+              summaryBlock,
+              `- 🔗 [Run sumber](${runUrl})`,
+              ...(summaryUrl ? [`- 📋 [Step summary run](${summaryUrl})`] : []),
+              `- 📦 [Artifact](${artifactsBase})`,
+              "",
+              // Retensi artifact (parity komentar e2e; nilai sama dengan
+              // ARTIFACT_RETENTION_* di workflow e2e).
+              `> ⏳ Artifact bertahan: server log **30 hari**, Playwright report **7 hari** — unduh sebelum kedaluwarsa.`,
+            ]
+              .filter(Boolean)
+              .join("\n");
+            // Sticky: komentar lama ber-marker di-UPDATE di tempat; duplikat
+            // historis dibersihkan sekali (pola sama dengan ci.yml).
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr,
+              per_page: 100,
+            });
+            const stale = comments.filter((c) => c.body && c.body.includes(marker));
+            for (const c of stale.slice(1)) {
+              await github.rest.issues.deleteComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: c.id,
+              });
+            }
+            if (stale[0]) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: stale[0].id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr,
+                body,
+              });
+            }
+            console.log(`Verdict triage diposting ke PR #${pr} (run sumber #${targetRun}).`);

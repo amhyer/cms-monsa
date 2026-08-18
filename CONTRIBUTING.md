@@ -71,6 +71,12 @@ dan CI selalu identik.
 Wrapper [scripts/run-e2e.ts](scripts/run-e2e.ts): **tentukan server target →
 panaskan rute → `playwright test` → bersihkan server & tulis artifact log**.
 
+> Bila wrapper men-spawn server sendiri, jalankan suite terhadap **DB e2e
+> terpisah** (jangan DB dev) — `DATABASE_URL` wajib **path absolut** karena
+> Prisma meresolve path relatif terhadap direktori schema (jebakan
+> `prisma/prisma/`). Contoh reseed + run lengkap: README → *E2E
+> Troubleshooting → Env var (knob E2E)*.
+
 ### Warm-up pragma (cold-compile)
 
 Dev mode Next.js meng-compile route **saat pertama diakses** — mutasi

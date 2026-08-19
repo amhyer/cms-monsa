@@ -97,11 +97,64 @@ export function combineParentName(ayah?: string, ibu?: string): string | null {
   return parts.length > 0 ? parts.join(" / ") : null;
 }
 
+// Ekstrak angka kelas dari nama rombel ("1.a" → 1, "III.b" → 3, "VI.a" → 6).
+// Dipakai oleh resolveNis untuk membuat fallback NIS numerik.
+const ROMBEL_GRADE_MAP: Record<string, number> = {
+  I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6, VII: 7, VIII: 8, IX: 9,
+};
+export function parseGradeFromRombel(namaRombel?: string): number | null {
+  if (!namaRombel) return null;
+  const m = namaRombel.match(/^(\d+|[IVX]+)\./i);
+  if (!m) return null;
+  const token = m[1];
+  // Angka Arab: "1.a" → 1
+  const asNum = Number(token);
+  if (!isNaN(asNum) && asNum >= 1 && asNum <= 12) return asNum;
+  // Angka Romawi: "III.b" → 3
+  const upper = token.toUpperCase();
+  return ROMBEL_GRADE_MAP[upper] ?? null;
+}
+
 // nis wajib unik & tidak boleh kosong. Utamakan nipd (NIS lokal); kalau
-// tidak ada, pakai peserta_didik_id (selalu ada & unik dari Dapodik)
-// supaya tidak pernah gagal karena nis null/duplikat.
-export function resolveNis(s: DapodikSiswa): string {
-  return normalize(s.nipd) ?? s.peserta_didik_id;
+// tidak ada, generate NIS numerik berbasis kelas/angkatan (bukan UUID)
+// supaya sinkronisasi Dapodik berikutnya tidak menimbulkan UUID baru.
+//
+// Pola fallback: {YY_angkatan}{YY+1}{0715}{hash3} — 10 digit, deterministik
+// berdasarkan nama_rombel + nama siswa sehingga konsisten antar sync.
+export function resolveNis(
+  s: DapodikSiswa,
+  namaRombel?: string,
+): string {
+  const nipd = normalize(s.nipd);
+  if (nipd) return nipd;
+
+  // Fallback: NIS numerik berbasis kelas/angkatan
+  const grade = parseGradeFromRombel(namaRombel ?? s.nama_rombel);
+  if (grade) {
+    const now = new Date();
+    // Angkatan = tahun saat ini − (kelas − 1)
+    // Kelas 1 thn 2026 → angkatan 2026 → 2627
+    // Kelas 3 thn 2026 → angkatan 2024 → 2425
+    const angkatan = now.getFullYear() - (grade - 1);
+    const yy = angkatan % 100;
+    const yyNext = (yy + 1) % 100;
+    // 3 digit deterministik dari nama siswa (001–999)
+    const hash = Array.from(s.nama).reduce(
+      (h, c) => ((h << 5) - h + c.charCodeAt(0)) | 0,
+      0,
+    );
+    const seq = (Math.abs(hash) % 999) + 1;
+    return `${String(yy).padStart(2, "0")}${String(yyNext).padStart(2, "0")}07${String(seq).padStart(4, "0")}`;
+  }
+
+  // Terakhir: hash deterministik dari nama (bukan UUID)
+  // Guard: bila nama kosong, pakai peserta_didik_id sebagai fallback mutlak
+  if (!s.nama) return s.peserta_didik_id;
+  const hash = Array.from(s.nama).reduce(
+    (h, c) => ((h << 5) - h + c.charCodeAt(0)) | 0,
+    0,
+  );
+  return String(Math.abs(hash)).padStart(10, "0");
 }
 
 // ---- Get Dapodik Client from DB config ----

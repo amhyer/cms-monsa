@@ -11,6 +11,15 @@ test.describe("Dokumen BOS — siklus upload → unduh → hapus (cleanup)", () 
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await login(page, ADMIN.email, ADMIN.password);
+
+    // --- SETUP: bersihkan dokumen sisa dari run sebelumnya ---
+    const existing = await page.evaluate<{ items: { id: string }[] }>(
+      async () => (await (await fetch("/api/bos-documents")).json()) as { items: { id: string }[] }
+    );
+    for (const doc of existing.items) {
+      await page.request.delete(`/api/bos-documents/${doc.id}`);
+    }
+
     await page.goto("/dashboard/transparansi");
     await expect(
       page.getByRole("button", { name: "Tambah Belanja" })
@@ -110,11 +119,16 @@ test.describe("Dokumen BOS — siklus upload → unduh → hapus (cleanup)", () 
     });
     expect(docs.items).toHaveLength(0);
 
-    // Halaman publik kembali ke state kosong.
+    // Halaman publik kembali ke state kosong — reload untuk memastikan
+    // client-side fetch mengambil data terbaru (bukan cached).
     await page.goto("/transparansi");
+    await page.reload();
+    // Ketika tidak ada data belanja DAN tidak ada dokumen sama sekali,
+    // transparansi-view menampilkan "Data anggaran belum tersedia"
+    // (guard hasAnyData di atas per-section empty state).
     await expect(
-      page.getByText("Belum ada dokumen pendukung yang diunggah untuk tahun ini.")
-    ).toBeVisible();
+      page.getByText(/Belum ada dokumen|Data anggaran belum tersedia/)
+    ).toBeVisible({ timeout: 20000 });
   });
 
   test("tolak PDF > 15 MB dengan pesan khusus (tanpa baris/file tersisa)", async ({

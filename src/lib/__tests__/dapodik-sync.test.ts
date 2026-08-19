@@ -4,6 +4,7 @@ import {
   normalize,
   combineParentName,
   resolveNis,
+  parseGradeFromRombel,
   currentAcademicYear,
   parseDate,
 } from "@/lib/dapodik-sync";
@@ -52,10 +53,112 @@ describe("resolveNis", () => {
     ).toBe("uuid-2");
   });
 
-  it("fallback ke peserta_didik_id bila nipd kosong", () => {
+  it("fallback ke peserta_didik_id bila nipd kosong dan nama kosong", () => {
     expect(resolveNis({ peserta_didik_id: "uuid-3" } as unknown as ResolveNisInput)).toBe(
       "uuid-3"
     );
+  });
+
+  it("fallback numerik berbasis kelas bila nipd kosong dan nama_rombel ada", () => {
+    const result = resolveNis(
+      { peserta_didik_id: "uuid-4", nama: "Budi Santoso" } as unknown as ResolveNisInput,
+      "1.a",
+    );
+    // Harus numerik 10 digit, bukan UUID
+    expect(result).toMatch(/^\d{10}$/);
+    expect(result).not.toContain("-");
+  });
+
+  it("fallback numerik konsisten antar panggilan (nama + rombel sama)", () => {
+    const input = { peserta_didik_id: "uuid-5", nama: "Siti Aminah" } as unknown as ResolveNisInput;
+    const r1 = resolveNis(input, "III.a");
+    const r2 = resolveNis(input, "III.a");
+    expect(r1).toBe(r2);
+  });
+
+  it("fallback numerik berbeda untuk siswa berbeda di kelas sama", () => {
+    const r1 = resolveNis(
+      { peserta_didik_id: "uuid-6", nama: "Ahmad" } as unknown as ResolveNisInput,
+      "II.a",
+    );
+    const r2 = resolveNis(
+      { peserta_didik_id: "uuid-7", nama: "Zahra" } as unknown as ResolveNisInput,
+      "II.a",
+    );
+    expect(r1).not.toBe(r2);
+  });
+
+  // --- Guard: fallback TIDAK PERNAH menghasilkan UUID ---
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  it("fallback tanpa nama_rombel (hanya nama) tetap numerik, bukan UUID", () => {
+    const result = resolveNis(
+      { peserta_didik_id: "550e8400-e29b-41d4-a716-446655440000", nama: "Andi" } as unknown as ResolveNisInput,
+    );
+    expect(result).not.toMatch(UUID_RE);
+    expect(result).toMatch(/^\d+$/);
+  });
+
+  it("fallback untuk semua kelas 1–6 tidak pernah UUID", () => {
+    const rombels = ["1.a", "2.b", "III.a", "IV.b", "V.a", "VI.b"];
+    for (const rombel of rombels) {
+      const result = resolveNis(
+        { peserta_didik_id: "550e8400-e29b-41d4-a716-446655440000", nama: "Test" } as unknown as ResolveNisInput,
+        rombel,
+      );
+      expect(result).not.toMatch(UUID_RE);
+      expect(result).toMatch(/^\d+$/);
+    }
+  });
+
+  it("fallback nama sangat panjang tetap numerik, bukan UUID", () => {
+    const longName = "A".repeat(200);
+    const result = resolveNis(
+      { peserta_didik_id: "550e8400-e29b-41d4-a716-446655440000", nama: longName } as unknown as ResolveNisInput,
+      "IV.a",
+    );
+    expect(result).not.toMatch(UUID_RE);
+    expect(result).toMatch(/^\d+$/);
+  });
+
+  it("fallback nama mengandung karakter unik tetap numerik, bukan UUID", () => {
+    const weirdName = "Siswa \u00e9\u00e8\u00ea test @#$%!";
+    const result = resolveNis(
+      { peserta_didik_id: "550e8400-e29b-41d4-a716-446655440000", nama: weirdName } as unknown as ResolveNisInput,
+      "V.a",
+    );
+    expect(result).not.toMatch(UUID_RE);
+    expect(result).toMatch(/^\d+$/);
+  });
+
+  it("nipd diprioritaskan — tidak pernah fallback meskipun ada nama+rombel", () => {
+    const result = resolveNis(
+      { nipd: "9999", peserta_didik_id: "550e8400-e29b-41d4-a716-446655440000", nama: "Test" } as unknown as ResolveNisInput,
+      "VI.a",
+    );
+    expect(result).toBe("9999");
+    expect(result).not.toMatch(UUID_RE);
+  });
+});
+
+describe("parseGradeFromRombel", () => {
+  it("angka Arab: \"1.a\" → 1", () => {
+    expect(parseGradeFromRombel("1.a")).toBe(1);
+  });
+  it("angka Arab: \"3.b\" → 3", () => {
+    expect(parseGradeFromRombel("3.b")).toBe(3);
+  });
+  it("angka Romawi: \"III.a\" → 3", () => {
+    expect(parseGradeFromRombel("III.a")).toBe(3);
+  });
+  it("angka Romawi: \"VI.b\" → 6", () => {
+    expect(parseGradeFromRombel("VI.b")).toBe(6);
+  });
+  it("undefined → null", () => {
+    expect(parseGradeFromRombel(undefined)).toBeNull();
+  });
+  it("string kosong → null", () => {
+    expect(parseGradeFromRombel("")).toBeNull();
   });
 });
 

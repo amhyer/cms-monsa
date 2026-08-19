@@ -301,6 +301,10 @@ jobs:
         env:
           E2E_PREV_STATS: ./prev-stats/e2e-stats.jsonl
 
+      # Guard data leak — pastikan judul E2E/AUDIT tidak bocor ke dataset
+      - name: Check test data leak
+        run: bun run check:data-leak
+
       # Stage state untuk job orphan-check: DB SQLite e2e + file upload BOS.
       # Hanya file bos-*.pdf yang disalin (bukan seluruh public/uploads)
       # agar artifact kecil — check hanya peduli file BOS. Di-upload di

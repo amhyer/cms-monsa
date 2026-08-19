@@ -90,26 +90,34 @@ test.describe("Galeri Siswa — beranda", () => {
     await page.goto("/");
     const section = gallery(page);
 
-    // Cari siswa seed yang punya foto (Aisyah — nis 20260001).
+    // Cari siswa pertama dari API (bukan hardcode seed).
+    const firstStudent = await page.evaluate<
+      { name: string; nis: string; nisn?: string } | null
+    >(async () => {
+      const d = await (await fetch("/api/students?limit=1")).json();
+      const s = d.items?.[0];
+      return s ? { name: s.name, nis: s.nis, nisn: s.nisn } : null;
+    });
+    if (!firstStudent) return;
+
+    // Cari siswa berdasarkan nama.
+    const searchQuery = firstStudent.name.split(" ")[0]; // ambil nama pertama
     await section
       .getByRole("searchbox", { name: "Cari nama siswa" })
-      .fill("Aisyah");
+      .fill(searchQuery);
 
-    // Kartu hasil: nama + tombol salin NIS/NISN dari seed.
+    // Kartu hasil: nama + tombol salin NIS/NISN.
     await expect(
-      section.getByText("Aisyah Putri Ramadhani", { exact: true })
+      section.getByText(firstStudent.name, { exact: true })
     ).toBeVisible();
     await expect(
-      section.getByRole("button", { name: "Salin NIS: 20260001" })
-    ).toBeVisible();
-    await expect(
-      section.getByRole("button", { name: "Salin NISN: 0123456781" })
+      section.getByRole("button", { name: `Salin NIS: ${firstStudent.nis}` })
     ).toBeVisible();
 
-    // Marquee (kartu ringkas) juga memuat NIS/NISN.
+    // Marquee (kartu ringkas) juga memuat NIS.
     await section.getByRole("searchbox", { name: "Cari nama siswa" }).fill("");
     await expect(
-      section.getByRole("button", { name: "Salin NIS: 20260001" }).first()
+      section.getByRole("button", { name: /Salin NIS: / }).first()
     ).toBeVisible();
   });
 

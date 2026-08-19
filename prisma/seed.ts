@@ -389,18 +389,18 @@ async function main() {
     classIds[c.name] = created.id;
   }
   const students = [
-    { name: "Aisyah Putri Ramadhani", nis: "20260001", nisn: "0123456781", gender: "PEREMPUAN", cls: "Kelas 1.a", img: 21 },
-    { name: "Bima Arya Saputra", nis: "20260002", nisn: "0123456782", gender: "LAKI_LAKI", cls: "Kelas 1.a", img: 22 },
-    { name: "Citra Ayu Lestari", nis: "20260003", nisn: "0123456783", gender: "PEREMPUAN", cls: "Kelas 1.a", img: 23 },
-    { name: "Dimas Prasetyo Nugroho", nis: "20260004", nisn: "0123456784", gender: "LAKI_LAKI", cls: "Kelas 1.a", img: 24 },
-    { name: "Eka Nurhaliza", nis: "20260005", nisn: "0123456785", gender: "PEREMPUAN", cls: "Kelas 1.a" },
-    { name: "Farhan Maulana Rizki", nis: "20260006", nisn: "0123456786", gender: "LAKI_LAKI", cls: "Kelas 1.a" },
-    { name: "Gita Maharani", nis: "20260007", nisn: "0123456787", gender: "PEREMPUAN", cls: "Kelas 1.b" },
-    { name: "Hadi Firmansyah", nis: "20260008", nisn: "0123456788", gender: "LAKI_LAKI", cls: "Kelas 1.b" },
-    { name: "Intan Permata Sari", nis: "20260009", nisn: "0123456789", gender: "PEREMPUAN", cls: "Kelas 1.b" },
-    { name: "Joko Susilo", nis: "20260010", nisn: "0123456790", gender: "LAKI_LAKI", cls: "Kelas 1.b" },
-    { name: "Kirana Dewi", nis: "20260011", nisn: "0123456791", gender: "PEREMPUAN", cls: "Kelas 1.b" },
-    { name: "Lutfi Ardiansyah", nis: "20260012", nisn: "0123456792", gender: "LAKI_LAKI", cls: "Kelas 1.b" },
+    { name: "Aisyah Putri Ramadhani", nis: "2627078144", nisn: "0123456781", gender: "PEREMPUAN", cls: "Kelas 1.a", img: 21 },
+    { name: "Bima Arya Saputra", nis: "2627076274", nisn: "0123456782", gender: "LAKI_LAKI", cls: "Kelas 1.a", img: 22 },
+    { name: "Citra Ayu Lestari", nis: "2627078808", nisn: "0123456783", gender: "PEREMPUAN", cls: "Kelas 1.a", img: 23 },
+    { name: "Dimas Prasetyo Nugroho", nis: "2627078851", nisn: "0123456784", gender: "LAKI_LAKI", cls: "Kelas 1.a", img: 24 },
+    { name: "Eka Nurhaliza", nis: "2627072115", nisn: "0123456785", gender: "PEREMPUAN", cls: "Kelas 1.a" },
+    { name: "Farhan Maulana Rizki", nis: "2627078952", nisn: "0123456786", gender: "LAKI_LAKI", cls: "Kelas 1.a" },
+    { name: "Gita Maharani", nis: "2627072712", nisn: "0123456787", gender: "PEREMPUAN", cls: "Kelas 1.b" },
+    { name: "Hadi Firmansyah", nis: "2627077926", nisn: "0123456788", gender: "LAKI_LAKI", cls: "Kelas 1.b" },
+    { name: "Intan Permata Sari", nis: "2627076405", nisn: "0123456789", gender: "PEREMPUAN", cls: "Kelas 1.b" },
+    { name: "Joko Susilo", nis: "2627071218", nisn: "0123456790", gender: "LAKI_LAKI", cls: "Kelas 1.b" },
+    { name: "Kirana Dewi", nis: "2627071149", nisn: "0123456791", gender: "PEREMPUAN", cls: "Kelas 1.b" },
+    { name: "Lutfi Ardiansyah", nis: "2627077858", nisn: "0123456792", gender: "LAKI_LAKI", cls: "Kelas 1.b" },
   ];
   const studentIds: Record<string, string> = {};
   for (const s of students) {
@@ -428,7 +428,7 @@ async function main() {
       password: hashPassword("ortu123"),
       role: "ORANG_TUA",
       isActive: true,
-      guardianStudentId: studentIds["20260001"] ?? null,
+      guardianStudentId: studentIds["2627078144"] ?? null,
     },
   });
   await db.user.create({
@@ -438,7 +438,7 @@ async function main() {
       password: hashPassword("siswa123"),
       role: "SISWA",
       isActive: true,
-      studentId: studentIds["20260002"] ?? null,
+      studentId: studentIds["2627076274"] ?? null,
     },
   });
 
@@ -553,10 +553,10 @@ async function main() {
   const ach = [
     { title: "Juara 1 Lomba Cerdas Cermat Tingkat Kota", studentName: "Tim LCC SDN Mongisidi 1", level: "Kabupaten", category: "Akademik", date: new Date(now - 9 * 86400000) },
     { title: "Juara Umum Festival Drumband Pelajar", studentName: "Tim Drumband Monsa Jaya", level: "Kabupaten", category: "Non-Akademik", date: new Date(now - 28 * 86400000) },
-    { title: "Juara 2 Olimpiade Matematika SD Tingkat Provinsi", studentName: "Bima Arya Saputra", studentId: studentIds["20260002"] ?? null, level: "Provinsi", category: "Akademik", date: new Date(now - 45 * 86400000) },
-    { title: "Juara 1 Lomba Mewarnai Tingkat Kota", studentName: "Citra Ayu Lestari", studentId: studentIds["20260003"] ?? null, level: "Kabupaten", category: "Non-Akademik", date: new Date(now - 60 * 86400000) },
-    { title: "Juara 1 Tahfidz Juz 30 Tingkat Kota", studentName: "Hadi Firmansyah", studentId: studentIds["20260008"] ?? null, level: "Kabupaten", category: "Non-Akademik", date: new Date(now - 90 * 86400000) },
-    { title: "Juara 3 Pidato Bahasa Inggris Tingkat Provinsi", studentName: "Gita Maharani", studentId: studentIds["20260007"] ?? null, level: "Provinsi", category: "Non-Akademik", date: new Date(now - 120 * 86400000) },
+    { title: "Juara 2 Olimpiade Matematika SD Tingkat Provinsi", studentName: "Bima Arya Saputra", studentId: studentIds["2627076274"] ?? null, level: "Provinsi", category: "Akademik", date: new Date(now - 45 * 86400000) },
+    { title: "Juara 1 Lomba Mewarnai Tingkat Kota", studentName: "Citra Ayu Lestari", studentId: studentIds["2627078808"] ?? null, level: "Kabupaten", category: "Non-Akademik", date: new Date(now - 60 * 86400000) },
+    { title: "Juara 1 Tahfidz Juz 30 Tingkat Kota", studentName: "Hadi Firmansyah", studentId: studentIds["2627077926"] ?? null, level: "Kabupaten", category: "Non-Akademik", date: new Date(now - 90 * 86400000) },
+    { title: "Juara 3 Pidato Bahasa Inggris Tingkat Provinsi", studentName: "Gita Maharani", studentId: studentIds["2627072712"] ?? null, level: "Provinsi", category: "Non-Akademik", date: new Date(now - 120 * 86400000) },
   ];
   for (const a of ach) {
     await db.achievement.create({

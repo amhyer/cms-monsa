@@ -23,6 +23,7 @@
     "check:warmup-declarations": "bunx tsx scripts/check-warmup-declarations.ts",
     "check:non2xx": "bunx tsx scripts/check-non2xx.ts",
     "check:server-log": "bunx tsx scripts/check-server-log.ts",
+    "check:data-leak": "bunx tsx scripts/check-test-data-leak.ts",
     "triage:e2e": "bunx tsx scripts/triage-e2e.ts",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",

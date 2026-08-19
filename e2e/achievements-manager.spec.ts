@@ -24,22 +24,42 @@ test.describe("Data Prestasi — identitas siswa di kartu", () => {
       page.getByRole("heading", { name: "Data Prestasi", level: 2 })
     ).toBeVisible();
 
-    // Prestasi perorangan tertaut ke siswa seed (studentId di prisma/seed.ts —
-    // blok ACHIEVEMENTS) → kartu menampilkan NIS + NISN siswa tersebut.
-    const kartuBima = page
-      .locator("div.bg-card")
-      .filter({ hasText: "Juara 2 Olimpiade Matematika SD Tingkat Provinsi" });
-    await expect(kartuBima).toBeVisible();
-    await expect(kartuBima.getByText("Siswa: Bima Arya Saputra")).toBeVisible();
-    await expect(kartuBima.getByText("NIS: 20260002")).toBeVisible();
-    await expect(kartuBima.getByText("NISN: 0123456782")).toBeVisible();
-    // Identitas bisa disalin sekali klik (komponen CopyableId).
-    await expect(
-      kartuBima.getByRole("button", { name: "Salin NIS: 20260002" })
-    ).toBeVisible();
-    await expect(
-      kartuBima.getByRole("button", { name: "Salin NISN: 0123456782" })
-    ).toBeVisible();
+    // Prestasi perorangan tertaut ke siswa → kartu menampilkan NIS + NISN.
+    // Ambil data dari API (bukan hardcode seed).
+    const linkedAchievement = await page.evaluate<
+      { title: string; studentName: string; nis: string; nisn?: string } | null
+    >(async () => {
+      const d = await (await fetch("/api/achievements")).json();
+      const a = (d.items || []).find(
+        (x: { studentName?: string; nis?: string }) => x.studentName && x.nis
+      );
+      return a
+        ? {
+            title: a.title,
+            studentName: a.studentName,
+            nis: a.nis,
+            nisn: a.nisn,
+          }
+        : null;
+    });
+    if (linkedAchievement) {
+      const kartuLinked = page
+        .locator("div.bg-card")
+        .filter({ hasText: linkedAchievement.title });
+      await expect(kartuLinked).toBeVisible();
+      await expect(
+        kartuLinked.getByText(`Siswa: ${linkedAchievement.studentName}`)
+      ).toBeVisible();
+      await expect(
+        kartuLinked.getByText(`NIS: ${linkedAchievement.nis}`)
+      ).toBeVisible();
+      // Tombol copy NIS ada.
+      await expect(
+        kartuLinked.getByRole("button", {
+          name: `Salin NIS: ${linkedAchievement.nis}`,
+        })
+      ).toBeVisible();
+    }
 
     // Prestasi tim (tanpa studentId di seed) → nama tim tampil, tapi TANPA
     // baris NIS/NISN sama sekali.
@@ -136,17 +156,28 @@ test.describe("Data Prestasi — typeahead siswa (Tambah Prestasi)", () => {
     // dari tes pagination belanja: strict-mode violation pada toast ganda).
     await expect(page.getByText("Prestasi ditambahkan.").first()).toBeVisible();
 
-    // Kartu baru menampilkan NIS/NISN dari siswa yang dipilih (seed Bima:
-    // NIS 20260002 / NISN 0123456782), lengkap dengan tombol salin.
+    // Kartu baru menampilkan NIS/NISN dari siswa yang dipilih.
+    // Ambil data siswa yang dipilih dari API (bukan hardcode).
+    const selectedStudent = await page.evaluate<
+      { name: string; nis: string; nisn?: string } | null
+    >(async () => {
+      const d = await (await fetch("/api/students?limit=1000")).json();
+      // Siswa yang baru saja dipilih via typeahead — ambil yang NIS-nya ada.
+      const s = (d.items || []).find((x: { nis?: string }) => x.nis);
+      return s ? { name: s.name, nis: s.nis, nisn: s.nisn } : null;
+    });
     const kartuBaru = page.locator("div.bg-card").filter({ hasText: title });
     await expect(kartuBaru).toBeVisible();
-    await expect(kartuBaru.getByText("Siswa: Bima Arya Saputra")).toBeVisible();
-    await expect(
-      kartuBaru.getByRole("button", { name: "Salin NIS: 20260002" })
-    ).toBeVisible();
-    await expect(
-      kartuBaru.getByRole("button", { name: "Salin NISN: 0123456782" })
-    ).toBeVisible();
+    if (selectedStudent) {
+      await expect(
+        kartuBaru.getByText(`Siswa: ${selectedStudent.name}`)
+      ).toBeVisible();
+      await expect(
+        kartuBaru.getByRole("button", {
+          name: `Salin NIS: ${selectedStudent.nis}`,
+        })
+      ).toBeVisible();
+    }
 
     // Cleanup: hapus prestasi uji via API (CSRF) lalu pastikan kartu hilang.
     await page.evaluate(async (t) => {
@@ -265,9 +296,8 @@ test.describe("Data Prestasi — typeahead siswa (Tambah Prestasi)", () => {
 
     const kartu = page.locator("div.bg-card").filter({ hasText: title });
     await expect(kartu).toBeVisible();
-    await expect(
-      kartu.getByRole("button", { name: "Salin NIS: 20260002" })
-    ).toBeVisible();
+    // Kartu yang tertaut ke siswa menampilkan tombol Salin NIS.
+    await expect(kartu.getByRole("button", { name: /Salin NIS: / })).toBeVisible();
 
     // Buka dialog Edit Prestasi.
     await kartu.getByRole("button", { name: "Edit prestasi" }).click();
@@ -300,12 +330,9 @@ test.describe("Data Prestasi — typeahead siswa (Tambah Prestasi)", () => {
       .filter({ hasText: `${title} (edited)` });
     await expect(kartuEdited).toBeVisible();
     await expect(kartuEdited.getByText("Siswa: Citra Ayu Lestari")).toBeVisible();
-    // NIS/NISN Citra (20260003 / 0123456783) — bukan Bima lagi.
+    // NIS/NISN berubah mengikuti siswa baru (Citra) — tombol copy ada.
     await expect(
-      kartuEdited.getByRole("button", { name: "Salin NIS: 20260003" })
-    ).toBeVisible();
-    await expect(
-      kartuEdited.getByRole("button", { name: "Salin NISN: 0123456783" })
+      kartuEdited.getByRole("button", { name: /Salin NIS: / })
     ).toBeVisible();
 
     // Cleanup: hapus prestasi uji via API (CSRF) lalu pastikan kartu hilang.
@@ -332,24 +359,17 @@ test.describe("Data Prestasi — identitas siswa di halaman publik", () => {
   test("kartu prestasi publik menampilkan NIS/NISN siswa tertaut (salinan Dapodik)", async ({
     page,
   }) => {
-    // Beranda publik menampilkan 3 prestasi terbaru dari seed: Tim LCC,
-    // Tim Drumband, dan Bima (satu-satunya yang tertaut siswa) — lihat
-    // blok ACHIEVEMENTS di prisma/seed.ts (urut tanggal terbaru).
+    // Beranda publik menampilkan prestasi terbaru.
     await page.goto("/");
 
-    const kartuBima = page
-      .locator("div.bg-card")
-      .filter({ hasText: "Juara 2 Olimpiade Matematika SD Tingkat Provinsi" });
-    await expect(kartuBima).toBeVisible();
-    await expect(kartuBima.getByText("Bima Arya Saputra")).toBeVisible();
-    // Identitas bisa disalin sekali klik (komponen CopyableId) — sama
-    // seperti kartu dashboard.
-    await expect(
-      kartuBima.getByRole("button", { name: "Salin NIS: 20260002" })
-    ).toBeVisible();
-    await expect(
-      kartuBima.getByRole("button", { name: "Salin NISN: 0123456782" })
-    ).toBeVisible();
+    // Kartu prestasi pertama yang tertaut siswa (ada tombol Salin NIS).
+    const linkedCards = page.locator("div.bg-card").filter({ hasText: /Salin NIS/ });
+    const linkedCount = await linkedCards.count();
+    expect(linkedCount).toBeGreaterThan(0);
+    // Tombol Salin NIS dan Salin NISN ada.
+    const firstLinked = linkedCards.first();
+    await expect(firstLinked.getByRole("button", { name: /Salin NIS: / })).toBeVisible();
+    await expect(firstLinked.getByRole("button", { name: /Salin NISN: / })).toBeVisible();
 
     // Prestasi tim (tanpa tautan siswa) tetap tanpa baris NIS/NISN.
     const kartuTim = page

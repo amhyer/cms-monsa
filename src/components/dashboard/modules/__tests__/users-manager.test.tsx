@@ -169,13 +169,48 @@ vi.mock("@/components/ui/select", async () => {
   return { Select, SelectTrigger, SelectValue, SelectContent, SelectItem };
 });
 
+// Dialog → simplified mock: renders children when `open` is true, no Radix
+// Presence/Portal/DismissableLayer async internals that cause act() warnings.
+vi.mock("@/components/ui/dialog", async () => {
+  const React = await import("react");
+  const Dialog = ({ open, children }: { open?: boolean; children?: React.ReactNode }) =>
+    open ? React.createElement("div", { "data-testid": "dialog" }, children) : null;
+  const DialogContent = ({ children, className }: { children?: React.ReactNode; className?: string }) =>
+    React.createElement("div", { role: "dialog", "data-testid": "dialog-content", className }, children);
+  const DialogHeader = ({ children }: { children?: React.ReactNode }) =>
+    React.createElement("div", null, children);
+  const DialogTitle = ({ children }: { children?: React.ReactNode }) =>
+    React.createElement("h2", null, children);
+  const DialogDescription = ({ children }: { children?: React.ReactNode }) =>
+    React.createElement("p", null, children);
+  const DialogFooter = ({ children }: { children?: React.ReactNode }) =>
+    React.createElement("div", null, children);
+  return { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter };
+});
+
+// Switch → native checkbox (no Radix async internals).
+vi.mock("@/components/ui/switch", async () => {
+  const React = await import("react");
+  const Switch = ({ checked, onCheckedChange, disabled }: { checked?: boolean; onCheckedChange?: (v: boolean) => void; disabled?: boolean }) =>
+    React.createElement("input", {
+      type: "checkbox",
+      role: "switch",
+      checked: !!checked,
+      disabled,
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) => onCheckedChange?.(e.target.checked),
+    });
+  return { Switch };
+});
+
 import { UsersManager } from "../users-manager";
 
 async function openEditRow(name: RegExp) {
   // fetchList dipicu useEffect → tunggu baris muncul (bukan getByRole sinkron
   // yang masih melihat PageLoader saat efek belum jalan).
   const row = await screen.findByRole("row", { name });
-  within(row).getByRole("button", { name: "Edit akun" }).click();
+  await act(async () => {
+    within(row).getByRole("button", { name: "Edit akun" }).click();
+  });
 }
 
 // Flush kontinuasi async (resolusi fetch → setState) di dalam act agar tidak
@@ -221,7 +256,10 @@ describe("UsersManager — adaptasi form saat role akun diganti", () => {
 
     // Ganti role → SISWA: field baru muncul dan nama siswa DIBWA (carry
     // guardianStudentId → studentId, nama di-resolve dari daftar siswa).
-    fireEvent.change(roleSelect, { target: { value: "SISWA" } });
+    await act(async () => {
+      fireEvent.change(roleSelect, { target: { value: "SISWA" } });
+    });
+    await flushAsync(); // flush Radix UI Presence/Portal async state
     expect(screen.queryByLabelText("Anak / Siswa yang Dipantau")).toBeNull();
     const siswaField = screen.getByLabelText("Siswa Pemilik Akun");
     await waitFor(() => expect(siswaField).toHaveValue("Siswa A"));
@@ -233,9 +271,15 @@ describe("UsersManager — adaptasi form saat role akun diganti", () => {
     // typeahead agar tautan terpasang kembali, lalu simpan.
     // (Nilai harus BEDA dari nilai saat ini — React melewati onChange bila
     // nilai tidak berubah, jadi ketik "Siswa" dulu.)
-    fireEvent.change(siswaField, { target: { value: "Siswa" } });
+    await act(async () => {
+      fireEvent.change(siswaField, { target: { value: "Siswa" } });
+    });
+    await flushAsync();
     expect(screen.queryByText(/Tautan dibawa dari Orang Tua/)).toBeNull();
-    fireEvent.mouseDown(await screen.findByRole("option", { name: /Siswa A/ }));
+    await act(async () => {
+      fireEvent.mouseDown(await screen.findByRole("option", { name: /Siswa A/ }));
+    });
+    await flushAsync();
     await waitFor(() => expect(siswaField).toHaveValue("Siswa A"));
 
     // Simpan → payload PUT membawa role SISWA + studentId, tanpa field basi.
@@ -264,14 +308,19 @@ describe("UsersManager — adaptasi form saat role akun diganti", () => {
     expect(screen.getByLabelText("Siswa Pemilik Akun")).toHaveValue("Siswa B");
 
     // Ganti role → GURU: field siswa hilang, muncul Wali Kelas (kosong).
-    fireEvent.change(selects[0], { target: { value: "GURU" } });
+    await act(async () => {
+      fireEvent.change(selects[0], { target: { value: "GURU" } });
+    });
+    await flushAsync(); // flush Radix UI Presence/Portal async state
     expect(screen.queryByLabelText("Siswa Pemilik Akun")).not.toBeInTheDocument();
     selects = screen.getAllByTestId("ui-select");
     expect(selects).toHaveLength(2); // role + wali kelas
     await screen.findByRole("option", { name: "Kelas 1.a" });
     expect(selects[1]).toHaveValue("");
 
-    fireEvent.change(selects[1], { target: { value: "c1" } });
+    await act(async () => {
+      fireEvent.change(selects[1], { target: { value: "c1" } });
+    });
     await act(async () => {
       await screen.getByRole("button", { name: "Simpan" }).click();
       await new Promise((r) => setTimeout(r, 0));
@@ -299,7 +348,10 @@ describe("UsersManager — adaptasi form saat role akun diganti", () => {
 
     // GURU → ORANG_TUA: wali hilang; anak muncul KOSONG karena tidak ada
     // tautan siswa untuk dibawa; tanpa petunjuk "tautan dibawa".
-    fireEvent.change(selects[0], { target: { value: "ORANG_TUA" } });
+    await act(async () => {
+      fireEvent.change(selects[0], { target: { value: "ORANG_TUA" } });
+    });
+    await flushAsync(); // flush Radix UI Presence/Portal async state
     selects = screen.getAllByTestId("ui-select");
     expect(selects).toHaveLength(1);
     const anak = screen.getByLabelText("Anak / Siswa yang Dipantau");
@@ -309,14 +361,19 @@ describe("UsersManager — adaptasi form saat role akun diganti", () => {
     // ORANG_TUA → GURU lagi: wali kelas muncul KOSONG — guardianClassId basi
     // sudah dimigrasi (dikosongkan) saat keluar GURU, mirror PUT route yang
     // menetapkan null untuk role non-GURU.
-    fireEvent.change(selects[0], { target: { value: "GURU" } });
+    await act(async () => {
+      fireEvent.change(selects[0], { target: { value: "GURU" } });
+    });
+    await flushAsync(); // flush Radix UI Presence/Portal async state
     selects = screen.getAllByTestId("ui-select");
     expect(selects).toHaveLength(2);
     await screen.findByRole("option", { name: "Kelas 1.a" });
     expect(selects[1]).toHaveValue("");
 
     // Pilih wali kelas lalu simpan → payload GURU dengan guardianClassId.
-    fireEvent.change(selects[1], { target: { value: "c1" } });
+    await act(async () => {
+      fireEvent.change(selects[1], { target: { value: "c1" } });
+    });
     await act(async () => {
       await screen.getByRole("button", { name: "Simpan" }).click();
       await new Promise((r) => setTimeout(r, 0));

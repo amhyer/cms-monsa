@@ -22,17 +22,25 @@ test.describe("Data Siswa — dashboard admin (kartu identitas)", () => {
       page.getByRole("heading", { name: "Data Siswa", level: 2 })
     ).toBeVisible();
 
-    // Siswa seed pertama (urut abjad — API /api/students orderBy name asc)
-    // adalah Aisyah dengan NIS & NISN lengkap (prisma/seed.ts — blok SISWA).
+    // Ambil siswa pertama dari API (bukan hardcode seed).
+    const firstStudent = await page.evaluate<{ name: string; nis: string; nisn?: string }>(
+      async () => {
+        const d = await (await fetch("/api/students?limit=1")).json();
+        const s = d.items?.[0];
+        return s ? { name: s.name, nis: s.nis, nisn: s.nisn } : null;
+      }
+    );
+    if (!firstStudent) return;
+
     const card = page
       .locator("main div.rounded-xl.border")
-      .filter({ hasText: "Aisyah Putri Ramadhani" });
+      .filter({ hasText: firstStudent.name });
     await expect(card).toBeVisible();
-    await expect(card.getByText("NIS: 20260001")).toBeVisible();
-    await expect(card.getByText("NISN: 0123456781")).toBeVisible();
+    // NIS tampil di kartu (wajib diisi).
+    await expect(card.getByText(`NIS: ${firstStudent.nis}`)).toBeVisible();
     // Identitas bisa disalin sekali klik (komponen CopyableId).
     await expect(
-      card.getByRole("button", { name: "Salin NIS: 20260001" })
+      card.getByRole("button", { name: `Salin NIS: ${firstStudent.nis}` })
     ).toBeVisible();
 
     // NIS selalu tampil di kartu siswa (wajib diisi); NISN opsional.

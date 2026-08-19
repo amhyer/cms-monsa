@@ -1530,3 +1530,161 @@ baru, a11y marquee).
 - Quick action diverifikasi live di preview :3000 (upload akun SISWA via dialog auto-open, verifikasi DB, cleanup) + e2e permanen lulus.
 
 **Total: 33 dari 33 fase selesai (100%)**
+
+## 2026-08-19 — FASE 34: Audit Disk + Pembersihan Artefak + Run Doc Update
+
+### Status: SELESAI
+
+### Ringkasan
+
+Audit menyeluruh penggunaan disk proyek (3.10 GB total), identifikasi artefak
+bersih, dan dokumentasi prosedur pembersihan rutin ke run doc.
+
+### Hasil
+
+#### Audit disk proyek
+- Total project: **3.10 GB**, di mana artefak build paralel + node_modules = 97%:
+  - `node_modules` = 1.12 GB (deps, regenerable)
+  - `.next-gate` = 1.03 GB (distDir e2e, gitignored)
+  - `.next` = 878 MB (distDir dev server, jangan hapus saat server berjalan)
+  - `.freebuff/` = 37 MB (desktop-v2.db + log thread)
+  - `dapodik-client/node_modules/` = 37 MB (ter-track di git — kandidat gitignore)
+  - `backups/` = 3 MB (3 backup DB: seed, Dapodik, NIS fix)
+- Artefak kecil bersih: `server-e2e.log` (2 MB), `test-results/` (1.9 MB),
+  `playwright-report/` (672 KB), `coverage/` (279 KB), `e2e-stats.jsonl` (503 KB)
+
+#### Run doc — section pembersihan artefak
+- **`.freebuff/run.md`** — section baru "Pembersihan artefak build paralel"
+  (baris 325–354): tabel 3 artefak (next-gate/preview/warm), perintah `rm -rf`
+  siap pakai, peringatan jangan hapus `.next` saat server berjalan, snapshot
+  ukuran saat ini (2026-08-19).
+
+#### Commit batch QA terverifikasi
+- Commit `3dc12cc` (FASE 32–33): 129 file, +15.170/−881 baris — tooling QA
+  (triage, warm-up, hooks, CI) + fitur konsolidasi (role SISWA, typeahead,
+  pagination, BOS upload, identifier visibility).
+- Commit `0832802`: sinkronkan contoh DATABASE_URL e2e (path absolut) di
+  README dan RUNNING.md.
+- Commit `3e88e51`: pointer DB e2e di CONTRIBUTING.md §3.
+- **Gate penuh lulus** saat commit `3dc12cc` (pre-commit hook): tsc + eslint +
+  markdownlint + schema-sync + vitest (372 test, 36 file), warm-up 93 rute.
+
+#### Database Dapodik
+- Backup `backups/custom.db.pre-postgres-20260810-153144.db` (399 siswa, 389
+  user, 31 guru) direstore ke `prisma/db/custom.db` — schema tersinkron via
+  `prisma db push --accept-data-loss` (drop tabel Payment SPP lama yang sudah
+  diganti Transparansi Anggaran FASE 31).
+- **48 NIS UUID** (fallback `peserta_didik_id` Dapodik karena `nipd` kosong)
+  diisi dengan NIS numerik valid mengikuti pola angkatan: kelas 1 `26270715xxx`,
+  kelas III `24250715` lanjut 062–068, kelas IV `23240717` lanjut 068–070,
+  kelas V lanjut `0XX1872022` 061–066. Backup `pre-nis-fix` tersedia.
+- 5 pengumuman sisa e2e (E2E Pengumuman, AUDIT ANN 0–2, AUDIT TEST ANN)
+  dihapus via dashboard admin.
+
+#### E2E terhadap DB Dapodik (skala 399 siswa)
+- 55 passed / 33 failed (25.4m) — semua kegagalan terklasifikasi:
+  - **~30 seed-assertion** (diharapkan: spec mengekspektasi nilai seed fixed)
+  - **2 temuan data**: org-structure = 0 anggota di DB Dapodik (perlu diisi),
+    BOS docs = 4 (upload sebelumnya, membuat assert "Belum ada dokumen" gagal)
+- 55 test yang lulus membuktikan skala 399 siswa tidak memecah CRUD, pagination,
+  login, warm-up, atau no-leak endpoints.
+
+#### E2E dari nol (.next-gate di-wipe)
+- Wrapper `test:e2e` berhasil membuat `.next-gate` dari nol: warm-up 93 rute
+  semua 200, flake font Geist dari run sebelumnya tidak terulang (one-off).
+  36/88 test berjalan tanpa kegagalan sebelum sesi terputus.
+
+### File yang Diubah/Dibuat
+| File | Tipe | Deskripsi |
+|------|------|-----------|
+| `.freebuff/run.md` | Modif | Section "Pembersihan artefak build paralel" (tabel + perintah + peringatan) |
+| `README.md` | Modif | Contoh DATABASE_URL e2e (path absolut + placeholder `<worktree>`) |
+| `docs/RUNNING.md` | Modif | Contoh DATABASE_URL e2e (mirror dari README) |
+| `CONTRIBUTING.md` | Modif | Pointer DB e2e path absolut di §3 |
+
+### Hasil Verifikasi
+- markdownlint: **0 issues** (19 file).
+- Gate penuh `bun run check`: tsc + eslint + markdownlint + schema-sync + vitest
+  (**372 test, 36 file**) — lulus.
+- `bun run hooks:check -- --quick`: eslint clean, exit 0.
+- Disk setelah pembersihan artefak e2e sisa: **3.10 GB** (sebelum clean: ~3.10 GB
+  — artefak e2e sisa sudah di-gitignore dan kecil).
+
+**Total: 34 dari 34 fase selesai (100%)**
+
+## 2026-08-19 — FASE 35: Perbaikan DATABASE_URL Path + Dokumentasi E2E + Cleanup act() Warnings
+
+### Status: SELESAI
+
+### Ringkasan
+
+Perbaikan jebakan path relatif Prisma pada DATABASE_URL e2e, sinkronisasi
+dokumentasi ke README/RUNNING.md/CONTRIBUTING.md, pembersihan act() warnings
+di unit test users-manager, dan penambahan section pembersihan artefak ke
+run doc.
+
+### Hasil
+
+#### Perbaikan DATABASE_URL e2e (jebakan path relatif)
+- **Temuan**: `DATABASE_URL=file:./prisma/e2e-gate.db` di-resolve Prisma
+  relatif terhadap direktori schema (`prisma/`), jadi file DB sebenarnya
+  dibuat di `prisma/prisma/e2e-gate.db` — DB lama di sana tidak pernah
+  di-wipe, sehingga seed terlewati ("sudah berisi 7 akun" padahal seharusnya
+  kosong).
+- **Perbaikan**: run doc (`.freebuff/run.md`) diperbaiki: wajib path absolut
+  (`file:D:/Project/CMS MONSA/prisma/e2e-gate.db`) + prosedur reseed yang
+  benar.
+
+#### Dokumentasi — 3 commit
+1. **`0832802`** — sinkronkan contoh DATABASE_URL e2e (path absolut + placeholder
+   `<worktree>`) di README.md dan docs/RUNNING.md. Kedua file mendapat blok
+   17 baris identik: catatan jebakan path relatif, contoh reseed, contoh run
+   suite.
+2. **`3e88e51`** — pointer DB e2e di CONTRIBUTING.md §3: satu blockquote
+   menegaskan suite wajib pakai DB e2e terpisah dengan DATABASE_URL absolut,
+   lalu menunjuk ke README E2E Troubleshooting.
+3. Kedua commit lulus gate penuh (pre-commit hook): tsc + eslint + markdownlint
+   (0 issues) + schema-sync + vitest (372 test).
+
+#### Pembersihan act() warnings (users-manager unit tests)
+- **Temuan**: 36 act() warnings per full gate run dari Radix UI components
+  (Dialog, Presence, Portal, DismissableLayer, Switch) yang memiliki async
+  state updates di luar `act()`.
+- **Perbaikan** (`users-manager.test.tsx`):
+  - Mock `@/components/ui/dialog` — Dialog Radix diganti render sederhana
+    (`<div role="dialog">`) tanpa Presence/Portal async internals.
+  - Mock `@/components/ui/switch` — Switch Radix diganti native
+    `<input type="checkbox" role="switch">`.
+  - `fireEvent.change` role-switch di-wrap `await act()` + `flushAsync()`.
+  - `openEditRow.click()` di-wrap `await act()`.
+- **Hasil**: 0 act() warnings, ESLint clean (372 test, 36 file).
+
+#### Run doc — section pembersihan artefak
+- (`.freebuff/run.md`) — section baru "Pembersihan artefak build paralel"
+  (tabel 3 artefak, perintah `rm -rf`, peringatan `NEXT`, snapshot ukuran).
+
+#### Audit disk & pembersihan
+- Total proyek: **3.10 GB** — artefak build paralel + node_modules = 97%.
+- Artefak e2e sisa (server-e2e.log, test-results, playwright-report) dibersihkan.
+- DB Dapodik (399 siswa, 389 user) direstore dari backup; 48 NIS UUID diisi
+  dengan NIS numerik valid.
+
+### File yang Diubah/Dibuat
+| File | Tipe | Deskripsi |
+|------|------|-----------|
+| `README.md` | Modif | Contoh DATABASE_URL e2e (path absolut + `<worktree>` placeholder) |
+| `docs/RUNNING.md` | Modif | Mirror contoh DATABASE_URL dari README |
+| `CONTRIBUTING.md` | Modif | Pointer DB e2e path absolut di §3 |
+| `.freebuff/run.md` | Modif | Section "Pembersihan artefak build paralel" + perbaikan path DB |
+| `src/components/dashboard/modules/__tests__/users-manager.test.tsx` | Modif | Mock Dialog/Switch + act() wrapping (0 warnings) |
+
+### Hasil Verifikasi
+- `bun run check` (tsc + eslint + markdownlint + schema-sync + vitest):
+  **372 test, 36 file** — lulus, 0 act() warnings.
+- markdownlint: **0 issues** (19 file).
+- Commit `0832802` + `3e88e51`: gate penuh lulus saat commit (pre-commit hook).
+- Commit `3dc12cc` (FASE 32-33): gate penuh lulus saat commit (pre-commit hook).
+
+**Total: 35 dari 35 fase selesai (100%)**
+
+

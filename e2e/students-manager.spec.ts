@@ -103,13 +103,21 @@ test.describe("Data Siswa — dashboard admin (kartu identitas)", () => {
     await expect(page.getByText("Akun dibuat.").first()).toBeVisible();
 
     // Verifikasi lewat API: role SISWA + studentId menunjuk ke Aisyah.
+    // Paginate untuk Dapodik scale — akun baru berada di halaman terakhir.
     const created = await page.evaluate<{ id: string; role: string; studentId: string | null } | null>(
       async (em) => {
-        const d = await (await fetch("/api/users?limit=100")).json();
-        const u = (d.items as { id: string; role: string; studentId: string | null; email: string }[]).find(
-          (x) => x.email === em
-        );
-        return u ? { id: u.id, role: u.role, studentId: u.studentId } : null;
+        let pg = 1;
+        let hasMore = true;
+        while (hasMore) {
+          const d = await (await fetch(`/api/users?page=${pg}&limit=100`)).json();
+          const u = (d.items as { id: string; role: string; studentId: string | null; email: string }[]).find(
+            (x) => x.email === em
+          );
+          if (u) return { id: u.id, role: u.role, studentId: u.studentId };
+          hasMore = d.items.length === 100;
+          pg++;
+        }
+        return null;
       },
       email
     );

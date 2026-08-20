@@ -316,17 +316,25 @@ test.describe("Manajemen Akun — pemisahan & filter per role", () => {
       page.getByRole("heading", { name: "Manajemen Akun", level: 2 })
     ).toBeVisible();
 
-    // Bersihkan sisa akun uji.
+    // Bersihkan sisa akun uji — paginate untuk Dapodik scale.
     await page.evaluate(async () => {
       const csrf = await (await fetch("/api/csrf-token")).json();
-      const list = await (await fetch("/api/users?limit=100")).json();
-      for (const u of list.items as { id: string; name: string }[]) {
-        if (u.name.startsWith("Edit Rol e2e")) {
-          await fetch(`/api/users/${u.id}`, {
-            method: "DELETE",
-            headers: { "x-csrf-token": csrf.token },
-          });
+      let pg = 1;
+      let hasMore = true;
+      while (hasMore) {
+        const list = await (
+          await fetch(`/api/users?page=${pg}&limit=100`)
+        ).json();
+        for (const u of list.items as { id: string; name: string }[]) {
+          if (u.name.startsWith("Edit Rol e2e")) {
+            await fetch(`/api/users/${u.id}`, {
+              method: "DELETE",
+              headers: { "x-csrf-token": csrf.token },
+            });
+          }
         }
+        hasMore = list.items.length === 100;
+        pg++;
       }
     });
 
@@ -336,30 +344,32 @@ test.describe("Manajemen Akun — pemisahan & filter per role", () => {
       studentB: { id: string; name: string; className: string };
       waliClass: { id: string; name: string };
     }>(async () => {
-      const [studentsRes, usersRes, classesRes] = await Promise.all([
+      const [studentsRes, classesRes] = await Promise.all([
         fetch("/api/students?limit=1000"),
-        fetch("/api/users?limit=100"),
         fetch("/api/classes?scope=admin"),
       ]);
+      // Paginate users untuk membangun set studentId yang dipakai SISWA.
+      const takenBySiswa = new Set<string>();
+      { let pg = 1; let hasMore = true;
+        while (hasMore) {
+          const res = await fetch(`/api/users?page=${pg}&limit=100`);
+          const d = await res.json();
+          for (const u of d.items as { role: string; studentId: string | null }[]) {
+            if (u.role === "SISWA" && u.studentId) takenBySiswa.add(u.studentId);
+          }
+          hasMore = d.items.length === 100;
+          pg++;
+        }
+      }
       const students = (await studentsRes.json()).items as {
         id: string;
         name: string;
         className?: string;
       }[];
-      const users = (await usersRes.json()).items as {
-        role: string;
-        studentId: string | null;
-      }[];
       const classes = (await classesRes.json()).items as {
         id: string;
         name: string;
       }[];
-      const takenBySiswa = new Set(
-        users
-          .filter((u) => u.role === "SISWA")
-          .map((u) => u.studentId)
-          .filter(Boolean)
-      );
       const free = students.filter((s) => !takenBySiswa.has(s.id));
       const studentA = students[0];
       const studentB = free.find((s) => s.id !== studentA.id) ?? free[0];
@@ -492,18 +502,27 @@ test.describe("Manajemen Akun — pemisahan & filter per role", () => {
     await dialog.getByRole("button", { name: "Batal" }).click();
     await expect(dialog).toHaveCount(0);
 
-    // CLEANUP.
+    // CLEANUP — paginate untuk Dapodik scale.
     await page.evaluate(async (em) => {
       const csrf = await (await fetch("/api/csrf-token")).json();
-      const d = await (await fetch("/api/users?limit=100")).json();
-      const u = (d.items as { id: string; email: string }[]).find(
-        (x) => x.email === em
-      );
-      if (u) {
-        await fetch(`/api/users/${u.id}`, {
-          method: "DELETE",
-          headers: { "x-csrf-token": csrf.token },
-        });
+      let pg = 1;
+      let hasMore = true;
+      while (hasMore) {
+        const d = await (
+          await fetch(`/api/users?page=${pg}&limit=100`)
+        ).json();
+        const u = (d.items as { id: string; email: string }[]).find(
+          (x) => x.email === em
+        );
+        if (u) {
+          await fetch(`/api/users/${u.id}`, {
+            method: "DELETE",
+            headers: { "x-csrf-token": csrf.token },
+          });
+          break;
+        }
+        hasMore = d.items.length === 100;
+        pg++;
       }
     }, email);
     await page.reload();

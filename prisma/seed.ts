@@ -449,7 +449,6 @@ async function main() {
     { name: "Siti Aminah, S.Pd.", position: "Bendahara Sekolah", order: 2, img: 2, nuptk: "6349763666130003", nip: "198009052006042004", nik: "7371010509800003", bio: "Mengelola keuangan sekolah secara transparan, termasuk penatausahaan dana BOS dan laporan anggaran.", contact: "bendahara@mongisidi1.sch.id" },
     { name: "Andi Mappangara, S.Pd.", position: "Koordinator Kurikulum", order: 3, img: 33, nuptk: "9351765667130004", nip: null, nik: "7371011205780004", bio: "Menyusun dan mengawal implementasi kurikulum serta program pembelajaran di semua jenjang kelas.", contact: "kurikulum@mongisidi1.sch.id" },
     { name: "Rahmat Hidayat, S.Pd.", position: "Koordinator Kesiswaan", order: 4, img: 5, nuptk: "4351766668130005", nip: null, nik: "7371012301800005", bio: "Membina kedisiplinan, kegiatan ekstrakurikuler, dan kesejahteraan siswa.", contact: "kesiswaan@mongisidi1.sch.id" },
-    { name: "Nurul Aini, S.Pd.", position: "Koordinator Sarana Prasarana", order: 5, img: 6, nuptk: "2356773669130006", nip: null, nik: "7371010601840006", bio: "Menjaga ketersediaan dan perawatan sarana prasarana sekolah agar menunjang kegiatan belajar mengajar.", contact: "sarana@mongisidi1.sch.id" },
   ];
   for (const o of org) {
     await db.orgStructure.create({

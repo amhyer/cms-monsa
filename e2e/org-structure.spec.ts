@@ -8,7 +8,7 @@ function uniqueName(prefix: string) {
 }
 
 test.describe("Struktur Organisasi — halaman publik", () => {
-  test("banner + 6 anggota (foto, nama, jabatan) tampil", async ({ page }) => {
+  test("banner + 5 anggota (foto, nama, jabatan) tampil", async ({ page }) => {
     await page.goto("/struktur-organisasi");
 
     await expect(
@@ -22,7 +22,6 @@ test.describe("Struktur Organisasi — halaman publik", () => {
       { name: "Siti Aminah, S.Pd.", position: "Bendahara Sekolah" },
       { name: "Andi Mappangara, S.Pd.", position: "Koordinator Kurikulum" },
       { name: "Rahmat Hidayat, S.Pd.", position: "Koordinator Kesiswaan" },
-      { name: "Nurul Aini, S.Pd.", position: "Koordinator Sarana Prasarana" },
     ];
     for (const a of anggota) {
       await expect(
@@ -190,12 +189,12 @@ test.describe("Struktur Organisasi — dashboard admin (CRUD)", () => {
     await expect(kartuAndi.getByText("NIK: 7371011205780004")).toBeVisible();
     await expect(kartuAndi.getByText(/^NIP: /)).toHaveCount(0);
 
-    // Semua anggota seed membawa NUPTK → tepat 6 baris NUPTK di daftar.
+    // Semua anggota seed membawa NUPTK → tepat 5 baris NUPTK di daftar.
     const nuptkLines = await page
       .locator("main")
       .getByText(/^NUPTK: /)
       .count();
     console.log("NUPTK LINES:", nuptkLines);
-    expect(nuptkLines).toBe(6);
+    expect(nuptkLines).toBe(5);
   });
 });

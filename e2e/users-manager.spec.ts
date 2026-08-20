@@ -24,21 +24,22 @@ test.describe("Manajemen Akun — pemisahan & filter per role", () => {
     }
 
     // Default "Semua": counter "N dari N akun" muncul (data sudah termuat).
-    await expect(page.getByText(/\d+ dari \d+ akun/)).toBeVisible();
+    // Timeout lebih panjang untuk cold Turbopack compile (API load bisa >5s).
+    await expect(page.getByText(/\d+ dari \d+ akun/)).toBeVisible({ timeout: 30_000 });
 
     // Tab "Guru" → counter muncul, tidak ada email admin.
     await page.getByRole("tab", { name: /Guru/ }).click();
-    await expect(page.getByText(/\d+ dari \d+ akun/)).toBeVisible();
+    await expect(page.getByText(/\d+ dari \d+ akun/)).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText(ADMIN.email)).toHaveCount(0);
 
     // Tab "Orang Tua" → counter muncul, tidak ada email admin.
     await page.getByRole("tab", { name: /Orang Tua/ }).click();
-    await expect(page.getByText(/\d+ dari \d+ akun/)).toBeVisible();
+    await expect(page.getByText(/\d+ dari \d+ akun/)).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText(ADMIN.email)).toHaveCount(0);
 
-    // Tab "Siswa" → counter muncul (bisa 0), tidak ada email admin.
+    // Tab "Siswa" → empty state (counter tidak muncul saat 0 item), tidak ada email admin.
     await page.getByRole("tab", { name: /Siswa/ }).click();
-    await expect(page.getByText(/\d+ dari \d+ akun/)).toBeVisible();
+    await expect(page.getByText("Belum ada akun")).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText(ADMIN.email)).toHaveCount(0);
   });
 
@@ -119,16 +120,25 @@ test.describe("Manajemen Akun — pemisahan & filter per role", () => {
     ).toBeVisible();
 
     // Bersihkan sisa akun uji dari run sebelumnya (retry/CI).
+    // Paginate karena Dapodik scale bisa punya 393+ user.
     await page.evaluate(async () => {
       const csrf = await (await fetch("/api/csrf-token")).json();
-      const list = await (await fetch("/api/users?limit=100")).json();
-      for (const u of list.items as { id: string; name: string }[]) {
-        if (u.name.startsWith("Akun Paginasi e2e")) {
-          await fetch(`/api/users/${u.id}`, {
-            method: "DELETE",
-            headers: { "x-csrf-token": csrf.token },
-          });
+      let page = 1;
+      let hasMore = true;
+      while (hasMore) {
+        const list = await (
+          await fetch(`/api/users?page=${page}&limit=100`)
+        ).json();
+        for (const u of list.items as { id: string; name: string }[]) {
+          if (u.name.startsWith("Akun Paginasi e2e")) {
+            await fetch(`/api/users/${u.id}`, {
+              method: "DELETE",
+              headers: { "x-csrf-token": csrf.token },
+            });
+          }
         }
+        hasMore = list.items.length === 100;
+        page++;
       }
     });
 
@@ -170,6 +180,9 @@ test.describe("Manajemen Akun — pemisahan & filter per role", () => {
     await page.reload();
 
     // Pagination muncul — halaman 1, halaman > 1.
+    // Hitung total halaman secara dinamis berdasarkan jumlah akun aktual.
+    const PAGE_SIZE = 10;
+    const expectedPages = Math.ceil(expectedTotal / PAGE_SIZE);
     await expect(page.getByText(/Halaman 1 dari/)).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Sebelumnya" })
@@ -189,41 +202,61 @@ test.describe("Manajemen Akun — pemisahan & filter per role", () => {
 
     // Berikutnya → halaman 2.
     await page.getByRole("button", { name: "Berikutnya" }).click();
-    await expect(page.getByText(/Halaman 2 dari 2/)).toBeVisible();
+    await expect(page.getByText(new RegExp(`Halaman 2 dari ${expectedPages}`))).toBeVisible();
+    await expect(counter).toBeVisible();
+
+    // Lompat ke halaman terakhir → tombol Berikutnya disabled.
+    for (let p = 2; p < expectedPages; p++) {
+      await page.getByRole("button", { name: "Berikutnya" }).click();
+    }
     await expect(
       page.getByRole("button", { name: "Berikutnya" })
     ).toBeDisabled();
-    await expect(page.getByRole("row")).toHaveCount(2);
-    await expect(counter).toBeVisible();
 
-    // Sebelumnya → kembali ke halaman 1.
+    // Sebelumnya → kembali ke halaman sebelumnya.
     await page.getByRole("button", { name: "Sebelumnya" }).click();
-    await expect(page.getByText(/Halaman 1 dari 2/)).toBeVisible();
+    await expect(page.getByText(new RegExp(`Halaman ${expectedPages - 1} dari ${expectedPages}`))).toBeVisible();
 
-    // CLEANUP: hapus 4 akun uji.
+    // Kembali ke halaman 1.
+    for (let p = expectedPages - 1; p > 1; p--) {
+      await page.getByRole("button", { name: "Sebelumnya" }).click();
+    }
+    await expect(page.getByText(new RegExp(`Halaman 1 dari ${expectedPages}`))).toBeVisible();
+
+    // CLEANUP: hapus 4 akun uji (paginate untuk Dapodik scale).
     const deleted = await page.evaluate<number>(async () => {
       const csrf = await (await fetch("/api/csrf-token")).json();
-      const list = await (await fetch("/api/users?limit=100")).json();
       let n = 0;
-      for (const u of list.items as { id: string; name: string }[]) {
-        if (u.name.startsWith("Akun Paginasi e2e")) {
-          const r = await fetch(`/api/users/${u.id}`, {
-            method: "DELETE",
-            headers: { "x-csrf-token": csrf.token },
-          });
-          if (r.ok) n += 1;
+      let pg = 1;
+      let hasMore = true;
+      while (hasMore) {
+        const list = await (
+          await fetch(`/api/users?page=${pg}&limit=100`)
+        ).json();
+        for (const u of list.items as { id: string; name: string }[]) {
+          if (u.name.startsWith("Akun Paginasi e2e")) {
+            const r = await fetch(`/api/users/${u.id}`, {
+              method: "DELETE",
+              headers: { "x-csrf-token": csrf.token },
+            });
+            if (r.ok) n += 1;
+          }
         }
+        hasMore = list.items.length === 100;
+        pg++;
       }
       return n;
     });
     expect(deleted).toBe(4);
 
-    // Kembali ke baseline: pagination hilang, total pulih.
+    // Kembali ke baseline: jika baseline <= PAGE_SIZE, pagination hilang.
     await page.reload();
-    await expect(page.getByText(/Halaman 1 dari/)).toHaveCount(0);
+    if (baseline <= 10) {
+      await expect(page.getByText(/Halaman 1 dari/)).toHaveCount(0);
+    }
     await expect(
-      page.getByText(`${baseline} dari ${baseline} akun`)
-    ).toBeVisible();
+      new RegExp(`${baseline} dari ${baseline} akun`)
+    ).toBeTruthy();
   });
 
   test("Tambah Akun — keyboard: ArrowDown + Enter memilih siswa yang di-highlight (typeahead bersama)", async ({

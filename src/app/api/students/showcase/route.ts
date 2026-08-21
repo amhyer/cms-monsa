@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { rateLimitPublicGet } from "@/lib/rate-limit";
 
 // Galeri siswa publik (beranda): hanya siswa aktif. NIS/NISN disertakan agar
 // orang tua bisa mencocokkan identitas anaknya (sama seperti kartu prestasi
 // publik yang menampilkan NIS/NISN) — kontak & data orang tua tetap tidak
 // diekspos.
 export async function GET(req: NextRequest) {
+  // Rate limit: max 30 requests per minute per IP (anti-scraping)
+  const rateLimited = await rateLimitPublicGet(req, 30, 60000);
+  if (rateLimited) return rateLimited;
   const { searchParams } = new URL(req.url);
   const q = (searchParams.get("q") || "").trim();
   const classId = searchParams.get("classId");

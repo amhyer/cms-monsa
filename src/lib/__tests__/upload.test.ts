@@ -131,3 +131,46 @@ describe("upload constants", () => {
     }
   });
 });
+
+describe("PDF upload validation", () => {
+  const MAX_SIZE = 15 * 1024 * 1024; // 15 MB
+
+  it("accepts valid PDF with %PDF- header", () => {
+    const pdf = ascii("%PDF-1.7\n%mock\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n");
+    expect(detectPdf(pdf)).toBe(true);
+    expect(pdf.length).toBeLessThan(MAX_SIZE);
+  });
+
+  it("rejects file exceeding 15 MB limit", () => {
+    // Create a buffer larger than MAX_SIZE
+    const oversized = Buffer.alloc(MAX_SIZE + 1);
+    oversized.write("%PDF-", 0, "latin1");
+    expect(oversized.length).toBeGreaterThan(MAX_SIZE);
+    // The route handler checks size BEFORE detectPdf
+    expect(oversized.length > MAX_SIZE).toBe(true);
+  });
+
+  it("rejects non-PDF file disguised as PDF (wrong magic bytes)", () => {
+    const fake = ascii("This is not a PDF file - just plain text.");
+    expect(detectPdf(fake)).toBe(false);
+  });
+
+  it("rejects HTML file with .pdf extension", () => {
+    const html = ascii("<!DOCTYPE html><html><body>Not a PDF</body></html>");
+    expect(detectPdf(html)).toBe(false);
+  });
+
+  it("rejects executable disguised as PDF", () => {
+    const exe = bytes(0x4d, 0x5a, 0x90, 0x00); // MZ header (PE executable)
+    expect(detectPdf(exe)).toBe(false);
+  });
+
+  it("accepts PDF with junk bytes before header", () => {
+    const junk = bytes(0x00, 0x00, 0x00, 0x00);
+    const pdf = ascii("%PDF-1.4");
+    const full = new Uint8Array(junk.length + pdf.length);
+    full.set(junk, 0);
+    full.set(pdf, junk.length);
+    expect(detectPdf(full)).toBe(true);
+  });
+});

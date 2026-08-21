@@ -2,18 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth, requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
+import { rateLimitPublicGet } from "@/lib/rate-limit";
 import { logActivity } from "@/lib/log";
 import { slugify } from "@/lib/format";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { createNewsSchema, validateBody } from "@/lib/validations";
 
 export async function GET(req: NextRequest) {
+  // Rate limit public scope: max 60 requests per minute per IP
   const { searchParams } = new URL(req.url);
+  const scope = searchParams.get("scope") || "public";
+  if (scope === "public") {
+    const rateLimited = await rateLimitPublicGet(req, 60, 60000);
+    if (rateLimited) return rateLimited;
+  }
   const category = searchParams.get("category") || "";
   const search = searchParams.get("search") || "";
   const page = Math.max(1, Number(searchParams.get("page") || "1"));
   const limit = Math.min(24, Math.max(1, Number(searchParams.get("limit") || "9")));
-  const scope = searchParams.get("scope") || "public"; // public | admin
   const status = searchParams.get("status") || "";
 
   const where: Record<string, unknown> = {};

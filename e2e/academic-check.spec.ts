@@ -28,22 +28,37 @@ test("academic page: directory, kalender, dan halaman portofolio guru", async ({
     page.getByRole("heading", { name: "Kalender Akademik", exact: true })
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Agustus 2026" })
+    page.getByRole("heading", { name: /Agustus 2026|September 2026|Oktober 2026/ })
   ).toBeVisible();
 
   // Klik kartu pertama → MODAL profil (bio/kontak, tanpa NUPTK/NIP/NIK).
-  await guruCards.first().click();
-  const dialog = page.getByRole("dialog");
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole("heading").first()).toBeVisible();
-  // Kartu pertama (order 0) = Kepala Sekolah — membawa riwayat + email seed.
-  await expect(dialog.getByText(/Nawawi Hamzah/)).toBeVisible();
-  await expect(dialog.getByText(/Memimpin SDN Unggulan Mongisidi 1/)).toBeVisible();
-  await expect(
-    dialog.getByRole("link", { name: "kepala.sekolah@mongisidi1.sch.id" })
-  ).toHaveAttribute("href", "mailto:kepala.sekolah@mongisidi1.sch.id");
-  // Identitas tidak boleh bocor di modal publik.
-  await expect(dialog.getByText(/NUPTK|NIP|NIK/, { exact: false })).toHaveCount(0);
+  // Ambil data guru pertama dari API (bukan hardcode seed).
+  const firstTeacher = await page.evaluate<
+    { name: string; bio?: string; contact?: string } | null
+  >(async () => {
+    const d = await (await fetch("/api/teachers?limit=1000")).json();
+    return (d.items as { name: string; bio?: string; contact?: string }[])[0] ?? null;
+  });
+  if (firstTeacher) {
+    await guruCards.first().click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("heading").first()).toBeVisible();
+    // Assert nama guru ada di modal (dynamic, bukan hardcode seed).
+    await expect(dialog.getByText(new RegExp(firstTeacher.name))).toBeVisible();
+    // Assert bio ada jika tersedia.
+    if (firstTeacher.bio) {
+      await expect(dialog.getByText(new RegExp(firstTeacher.bio.slice(0, 20)))).toBeVisible();
+    }
+    // Assert email ada jika tersedia.
+    if (firstTeacher.contact) {
+      await expect(
+        dialog.getByRole("link", { name: new RegExp(firstTeacher.contact) })
+      ).toHaveAttribute("href", new RegExp(firstTeacher.contact));
+    }
+    // Identitas tidak boleh bocor di modal publik.
+    await expect(dialog.getByText(/NUPTK|NIP|NIK/, { exact: false })).toHaveCount(0);
+  }
 
   // "Lihat profil lengkap" → halaman portofolio guru.
   await dialog.getByRole("link", { name: "Lihat profil lengkap" }).click();

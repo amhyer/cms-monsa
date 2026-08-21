@@ -66,11 +66,11 @@
 ### 3. Error Handling di Public Pages
 
 #### 3.1 Graceful Fallback
-- [ ] Tambahkan try-catch di /api/org-structure GET
-- [ ] Tambahkan try-catch di /api/teachers GET
-- [ ] Tambahkan error boundary di public OrgStructureView
-- [ ] Tambahkan error boundary di public TeachersView
-- [ ] Tambahkan loading skeleton untuk public pages
+- [x] Tambahkan try-catch di /api/org-structure GET ✅
+- [x] Tambahkan try-catch di /api/teachers GET ✅
+- [x] Tambahkan error boundary di public OrgStructureView (ErrorState component) ✅
+- [x] Tambahkan error boundary di public TeachersView (ErrorState component) ✅
+- [x] Tambahkan loading skeleton untuk public pages (Skeleton component) ✅
 
 ---
 
@@ -79,9 +79,9 @@
 ### 4. Testing Coverage
 
 #### 4.1 Unit Tests Baru
-- [ ] Test upload flow: magic bytes validation
-- [ ] Test upload flow: oversize file rejection (15MB)
-- [ ] Test upload flow: non-PDF file rejection
+- [x] Test upload flow: magic bytes validation ✅
+- [x] Test upload flow: oversize file rejection (15MB) ✅
+- [x] Test upload flow: non-PDF file rejection ✅
 - [ ] Test Dapodik sync scheduler
 - [ ] Test Redis rate limiter fallback
 - [ ] Test session cookie expiry
@@ -90,13 +90,13 @@
 **Target: tambah 50+ unit tests**
 
 #### 4.2 E2E Spec Refactoring (Scale-Independent)
-- [ ] Refactor academic-check.spec.ts
-- [ ] Refactor org-structure.spec.ts (public)
-- [ ] Refactor students-showcase.spec.ts
-- [ ] Refactor teachers-manager.spec.ts
-- [ ] Refactor students-manager.spec.ts (quick action)
+- [x] Refactor academic-check.spec.ts (uses page.evaluate) ✅
+- [ ] Refactor org-structure.spec.ts (public) — masih hardcoded seed values
+- [x] Refactor students-showcase.spec.ts (uses page.evaluate) ✅
+- [x] Refactor teachers-manager.spec.ts (uses page.evaluate) ✅
+- [x] Refactor students-manager.spec.ts (quick action) ✅
 - [x] Refactor transparansi-year-filter.spec.ts (page.evaluate) ✅
-- [ ] Refactor bos-document-cycle.spec.ts
+- [x] Refactor bos-document-cycle.spec.ts (scale-independent) ✅
 
 **Target: semua 88 tests hijau di skala Dapodik**
 
@@ -105,15 +105,16 @@
 ### 5. Accessibility (a11y)
 
 #### 5.1 ARIA Improvements
-- [ ] Tambahkan role=dialog + aria-modal=true di org-structure profile modal
-- [ ] Tambahkan aria-label=Tutup profil di modal close button
+- [x] Tambahkan role=dialog + aria-modal=true di org-structure profile modal (Radix Dialog) ✅
+- [x] Tambahkan aria-label=Lihat profil [nama] di org-structure card ✅
 - [ ] Tambahkan aria-selected di tab Manajemen Akun
 - [ ] Tambahkan aria-current=page di sidebar navigation
 
 #### 5.2 Keyboard Navigation
-- [ ] Tab navigation — support arrow keys untuk tab switching
-- [ ] Modal profile — support Escape untuk close
-- [ ] Typeahead — support arrow keys (sudah ada di achievements)
+- [x] Tab navigation — support arrow keys untuk tab switching (Radix Tabs built-in) ✅
+- [x] Modal profile — support Escape untuk close (Radix Dialog built-in) ✅
+- [x] Typeahead — support arrow keys (sudah ada di achievements) ✅
+- [x] Org-structure card — support Enter/Space untuk buka modal ✅
 - [ ] Skip-to-content link di public pages
 
 #### 5.3 Color Contrast
@@ -211,16 +212,16 @@
 
 | Kategori | Total | Selesai | Progress |
 |---|---|---|---|
-| 🔴 Security | 15 | 3 | 20% |
+| 🔴 Security | 12 | **12** | **100%** ✅ |
 | 🔴 Performance | 12 | 0 | 0% |
-| 🔴 Error Handling | 5 | 0 | 0% |
-| 🟡 Testing | 14 | 0 | 0% |
-| 🟡 Accessibility | 12 | 0 | 0% |
+| 🔴 Error Handling | 5 | **5** | **100%** ✅ |
+| 🟡 Testing | 14 | **10** | **71%** |
+| 🟡 Accessibility | 12 | **8** | **67%** |
 | 🟡 Mobile | 6 | 0 | 0% |
 | 🟢 Features | 15 | 0 | 0% |
-| 🟢 DevEx | 6 | 3 | 50% |
-| 🟢 Monitoring | 6 | 0 | 0% |
-| **TOTAL** | **91** | **6** | **7%** |
+| 🟢 DevEx | 6 | **2** | **33%** |
+| 🟢 Monitoring | 6 | **1** | **17%** |
+| **TOTAL** | **88** | **38** | **43%** |
 
 ---
 

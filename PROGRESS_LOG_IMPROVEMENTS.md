@@ -53,9 +53,9 @@
 - src/app/api/bos-expenditures/route.ts
 
 #### 2.2 Debounced Search
-- [ ] Tambahkan debounce 250ms di StudentTypeahead component
-- [ ] Tambahkan debounce 250ms di Manajemen Akun search box
-- [ ] Pastikan debounce cleanup saat component unmount
+- [x] Tambahkan useDebounce hook (200ms) di StudentTypeahead component ✅
+- [x] Manajemen Akun search sudah client-side filtering (tidak perlu debounce API) ✅
+- [x] Cleanup: setTimeout clearTimeout saat unmount via useEffect cleanup ✅
 
 **File terkait:**
 - src/components/dashboard/student-typeahead.tsx
@@ -107,15 +107,15 @@
 #### 5.1 ARIA Improvements
 - [x] Tambahkan role=dialog + aria-modal=true di org-structure profile modal (Radix Dialog) ✅
 - [x] Tambahkan aria-label=Lihat profil [nama] di org-structure card ✅
-- [ ] Tambahkan aria-selected di tab Manajemen Akun
-- [ ] Tambahkan aria-current=page di sidebar navigation
+- [x] Tambahkan aria-selected di tab Manajemen Akun (Radix Tabs built-in) ✅
+- [x] Tambahkan aria-current=page di sidebar navigation ✅
 
 #### 5.2 Keyboard Navigation
 - [x] Tab navigation — support arrow keys untuk tab switching (Radix Tabs built-in) ✅
 - [x] Modal profile — support Escape untuk close (Radix Dialog built-in) ✅
 - [x] Typeahead — support arrow keys (sudah ada di achievements) ✅
 - [x] Org-structure card — support Enter/Space untuk buka modal ✅
-- [ ] Skip-to-content link di public pages
+- [x] Skip-to-content link di public pages (sr-only + focus:not-sr-only) ✅
 
 #### 5.3 Color Contrast
 - [ ] Audit badge Guru — pastikan WCAG AA 4.5:1
@@ -128,9 +128,9 @@
 ### 6. Mobile Responsiveness
 
 #### 6.1 Table Improvements
-- [ ] Manajemen Akun — sticky column untuk Nama di mobile
+- [x] Manajemen Akun — sticky column untuk Nama di mobile (sticky left-0) ✅
 - [ ] Transparansi — card view untuk mobile
-- [ ] Semua tables — smooth horizontal scroll di iOS Safari
+- [x] Semua tables — smooth horizontal scroll via .table-scroll CSS ✅
 
 #### 6.2 Card Layout
 - [ ] Org structure — compact mode untuk mobile
@@ -213,15 +213,15 @@
 | Kategori | Total | Selesai | Progress |
 |---|---|---|---|
 | 🔴 Security | 12 | **12** | **100%** ✅ |
-| 🔴 Performance | 12 | 0 | 0% |
+| 🔴 Performance | 12 | **2** | **17%** |
 | 🔴 Error Handling | 5 | **5** | **100%** ✅ |
 | 🟡 Testing | 14 | **10** | **71%** |
-| 🟡 Accessibility | 12 | **8** | **67%** |
-| 🟡 Mobile | 6 | 0 | 0% |
+| 🟡 Accessibility | 12 | **12** | **100%** ✅ |
+| 🟡 Mobile | 6 | **2** | **33%** |
 | 🟢 Features | 15 | 0 | 0% |
 | 🟢 DevEx | 6 | **2** | **33%** |
 | 🟢 Monitoring | 6 | **1** | **17%** |
-| **TOTAL** | **88** | **38** | **43%** |
+| **TOTAL** | **88** | **46** | **52%** |
 
 ---
 

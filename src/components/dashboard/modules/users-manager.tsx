@@ -516,7 +516,7 @@ export function UsersManager({
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="min-w-[180px]">Nama</TableHead>
+                          <TableHead className="sticky left-0 z-10 min-w-[180px] bg-background">Nama</TableHead>
                           <TableHead>Email</TableHead>
                           <TableHead>Peran</TableHead>
                           <TableHead>Status</TableHead>
@@ -529,7 +529,7 @@ export function UsersManager({
                           const isSelf = me?.id === u.id;
                           return (
                             <TableRow key={u.id}>
-                              <TableCell className="font-medium">
+                              <TableCell className="sticky left-0 z-10 bg-background font-medium">
                                 <Highlighted text={u.name} query={search} />
                                 {isSelf && (
                                   <Badge

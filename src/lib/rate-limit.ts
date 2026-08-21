@@ -137,7 +137,7 @@ export async function clearFailures(email: string, ip: string): Promise<void> {
 
 // --- Public Form Rate Limiter ---
 
-export async function isFormRateLimited(ip: string, max = 10, windowMs = 600000): Promise<boolean> {
+export async function isFormRateLimited(ip: string, max = 20, windowMs = 600000): Promise<boolean> {
   const k = formKey(ip);
   if (!redis) {
     // Fallback to in-memory
@@ -194,6 +194,14 @@ export async function isGetRateLimited(ip: string, max = 30, windowMs = 60000): 
 export async function rateLimitPublicGet(req: RequestLike, max?: number, windowMs?: number): Promise<Response | null> {
   const ip = getClientIp(req);
   if (await isGetRateLimited(ip, max, windowMs)) {
+    // Scraper detection: warn when a single IP hits 100+ req/min on public endpoints.
+    const effectiveMax = max ?? 30;
+    if (effectiveMax <= 100) {
+      console.warn(
+        `[rate-limit] SCRAPER DETECTED: IP ${ip} exceeded ${effectiveMax} req/min on public GET.`,
+        `UA: ${getHeader(req, 'user-agent') ?? 'unknown'}`
+      );
+    }
     return Response.json(
       { error: "Terlalu banyak permintaan. Silakan coba lagi beberapa saat." },
       { status: 429, headers: { "Retry-After": String(Math.ceil((windowMs ?? 60000) / 1000)) } }

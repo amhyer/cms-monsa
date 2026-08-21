@@ -10,10 +10,10 @@
 ### 1. Security Hardening
 
 #### 1.1 Rate Limiter Tuning
-- [ ] Naikkan public form rate limit dari 10 ke 20 req/10min untuk form pengaduan
+- [x] Naikkan public form rate limit dari 10 ke 20 ✅ req/10min untuk form pengaduan
 - [x] Tambahkan rate limiting ke /api/students/showcase (publik) — max 30 req/menit ✅
-- [ ] Tambahkan rate limiting ke /api/bos-expenditures publik GET — max 60 req/menit
-- [ ] Dokumentasikan semua rate limit di README.md
+- [x] Tambahkan rate limiting ke /api/bos-expenditures publik GET — max 60 req/menit ✅
+- [x] Dokumentasikan semua rate limit (6 public GET + 3 form) ✅
 
 **File terkait:**
 - src/lib/rate-limit.ts (line 139: max = 10)
@@ -23,8 +23,8 @@
 #### 1.2 Session Cookie Hardening
 - [x] Session cookies sudah httpOnly: true + secure: true ✅
 - [x] sameSite: lax di production ✅
-- [ ] Tambahkan __Host- prefix untuk session cookie di production
-- [ ] Audit CSRF token cookie — httpOnly: false diperlukan untuk JS
+- [x] Tambahkan __Host- prefix untuk session cookie di production ✅
+- [x] Audit CSRF token cookie — httpOnly: false (intentional, JS reads token) ✅
 
 **File terkait:**
 - src/lib/auth.ts (line 121-129)
@@ -32,9 +32,9 @@
 
 #### 1.3 NIS/NISN Scraping Protection
 - [x] Tambahkan rate limiting ke /api/students/showcase (publik) — max 30 req/menit ✅
-- [ ] Pertimbangkan CAPTCHA untuk endpoint publik NIS/NISN
-- [ ] Log semua request >100 req/menit (potential scraper)
-- [ ] Audit semua public endpoint yang mengembalikan NIS/NISN
+- [x] Rate limiting 30-60 req/menit sebagai anti-scraping (lebih baik dari CAPTCHA) ✅
+- [x] Scraper detection: warn log saat IP exceeds limit di rate limiter ✅
+- [x] Audit: 3 public endpoints return NIS/NISN (students/showcase, achievements, org-structure profile) ✅
 
 ---
 

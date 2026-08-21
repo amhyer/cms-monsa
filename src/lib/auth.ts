@@ -3,7 +3,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { db } from "@/lib/db";
 import type { Role, SessionUser } from "@/lib/types";
 
-export const SESSION_COOKIE = "monsa_session";
+export const SESSION_COOKIE = process.env.NODE_ENV === "production" ? "__Host-monsa_session" : "monsa_session";
 
 const DEFAULT_DEV_SECRET = "monsa-dev-secret-DO-NOT-USE-IN-PROD-9f2a7c1e";
 
@@ -150,6 +150,8 @@ export async function updateSessionRole(role: Role) {
 
 export async function clearSession() {
   const store = await cookies();
+  // __Host- prefix cookies need path=/ to delete; Next.js cookies.delete
+  // handles this automatically.
   store.delete(SESSION_COOKIE);
 }
 

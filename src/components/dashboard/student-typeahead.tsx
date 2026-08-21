@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type KeyboardEvent } from "react";
 import { Input } from "@/components/ui/input";
+import { useDebounce } from "@/hooks/use-debounce";
 
 /**
  * Opsi siswa dari /api/students (GET publik/proteksi — sudah dimuat parent).
@@ -43,9 +44,10 @@ export function StudentTypeahead({
 }) {
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
+  const debouncedQuery = useDebounce(query, 200);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = debouncedQuery.trim().toLowerCase();
     const all = q
       ? students.filter((s) =>
           `${s.name} ${s.className ?? ""} ${s.nis ?? ""}`

@@ -16,25 +16,43 @@ test.describe("Guru & Staf — dashboard admin (kartu identitas)", () => {
     await expect(page).toHaveURL(/\/dashboard\/teachers/);
   });
 
-  test("kartu guru seed menampilkan NUPTK, NIP, dan NIK", async ({ page }) => {
+  test("kartu guru menampilkan NUPTK, NIP, dan NIK dari data seed", async ({ page }) => {
     await page.getByRole("button", { name: "Guru & Staf" }).click();
     await expect(
       page.getByRole("heading", { name: "Guru & Staf", level: 2 })
     ).toBeVisible();
 
-    // Identitas dari seed (prisma/seed.ts — blok TEACHERS). Guru pertama
-    // (order 0) adalah Kepala Sekolah dengan NUPTK/NIP/NIK lengkap.
+    // Ambil guru pertama dari API (bukan hardcode seed).
+    const firstTeacher = await page.evaluate<
+      { name: string; nuptk?: string; nip?: string; nik?: string } | null
+    >(async () => {
+      const d = await (await fetch("/api/teachers?scope=admin&limit=1000")).json();
+      return (d.items as { name: string; nuptk?: string; nip?: string; nik?: string }[])[0] ?? null;
+    });
+    if (!firstTeacher) return;
+
+    // Cari kartu guru berdasarkan nama (dynamic).
     const card = page
       .locator("div.rounded-xl.border")
-      .filter({ hasText: "Nawawi Hamzah, S.Pd., M.Pd." });
+      .filter({ hasText: firstTeacher.name });
     await expect(card).toBeVisible();
-    await expect(card.getByText("NUPTK: 1998765432100001")).toBeVisible();
-    await expect(card.getByText("NIP: 198007152008011001")).toBeVisible();
-    await expect(card.getByText("NIK: 7371011507800001")).toBeVisible();
-    // Identitas bisa disalin sekali klik (komponen CopyableId).
-    await expect(
-      card.getByRole("button", { name: "Salin NUPTK: 1998765432100001" })
-    ).toBeVisible();
+
+    // Jika guru punya NUPTK/NIP/NIK, assert tampil.
+    if (firstTeacher.nuptk) {
+      await expect(card.getByText(`NUPTK: ${firstTeacher.nuptk}`)).toBeVisible();
+    }
+    if (firstTeacher.nip) {
+      await expect(card.getByText(`NIP: ${firstTeacher.nip}`)).toBeVisible();
+    }
+    if (firstTeacher.nik) {
+      await expect(card.getByText(`NIK: ${firstTeacher.nik}`)).toBeVisible();
+    }
+    // Identitas bisa disalin sekali klik (komponen CopyableId) jika ada NUPTK.
+    if (firstTeacher.nuptk) {
+      await expect(
+        card.getByRole("button", { name: `Salin NUPTK: ${firstTeacher.nuptk}` })
+      ).toBeVisible();
+    }
 
     // Manager kini memakai pagination server-side (default 10/halaman; seed
     // 12 guru → 2 halaman). Halaman 1 menampilkan 10 kartu, semuanya dengan

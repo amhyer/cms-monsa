@@ -12,13 +12,25 @@ test.describe("Dokumen BOS — siklus upload → unduh → hapus (cleanup)", () 
     await page.setViewportSize({ width: 1440, height: 900 });
     await login(page, ADMIN.email, ADMIN.password);
 
-    // --- SETUP: bersihkan dokumen sisa dari run sebelumnya ---
-    const existing = await page.evaluate<{ items: { id: string }[] }>(
-      async () => (await (await fetch("/api/bos-documents")).json()) as { items: { id: string }[] }
-    );
-    for (const doc of existing.items) {
-      await page.request.delete(`/api/bos-documents/${doc.id}`);
-    }
+    // --- SETUP: bersihkan dokumen sisa dari run sebelumnya (paginate) ---
+    await page.evaluate(async () => {
+      const csrf = await (await fetch("/api/csrf-token")).json();
+      let pg = 1;
+      let hasMore = true;
+      while (hasMore) {
+        const list = await (
+          await fetch(`/api/bos-documents?page=${pg}&limit=100`)
+        ).json();
+        for (const doc of list.items) {
+          await fetch(`/api/bos-documents/${doc.id}`, {
+            method: "DELETE",
+            headers: { "x-csrf-token": csrf.token },
+          });
+        }
+        hasMore = list.items.length === 100;
+        pg++;
+      }
+    });
 
     await page.goto("/dashboard/transparansi");
     await expect(
@@ -93,9 +105,11 @@ test.describe("Dokumen BOS — siklus upload → unduh → hapus (cleanup)", () 
       })
     ).toBeVisible();
     await expect(page.getByText(title)).toBeVisible();
-    await expect(
-      page.getByRole("link", { name: "Unduh PDF" })
-    ).toHaveAttribute("href", downloadUrl);
+    // Cari link unduh spesifik untuk dokumen ini (bisa banyak "Unduh PDF" lain).
+    const unduhLink = page
+      .locator(`a[href="${downloadUrl}"]`)
+      .first();
+    await expect(unduhLink).toBeVisible();
 
     // --- HAPUS lewat dashboard ---
     await page.goto("/dashboard/transparansi");
@@ -113,22 +127,18 @@ test.describe("Dokumen BOS — siklus upload → unduh → hapus (cleanup)", () 
     expect(existsSync(diskPath)).toBe(false);
     const old = await page.request.get(downloadUrl);
     expect(old.status()).toBe(404);
-    const docs = await page.evaluate<{ items: unknown[] }>(async () => {
-      const r = await fetch("/api/bos-documents");
+    // Verifikasi dokumen ini sudah tidak ada di API.
+    const docs = await page.evaluate<{ items: { id: string }[] }>(async () => {
+      const r = await fetch("/api/bos-documents?limit=1000");
       return r.json();
     });
-    expect(docs.items).toHaveLength(0);
+    const stillExists = docs.items.some((d) => d.id === docId);
+    expect(stillExists).toBe(false);
 
-    // Halaman publik kembali ke state kosong — reload untuk memastikan
-    // client-side fetch mengambil data terbaru (bukan cached).
+    // Halaman publik: dokumen yang dihapus sudah tidak tampil.
     await page.goto("/transparansi");
     await page.reload();
-    // Ketika tidak ada data belanja DAN tidak ada dokumen sama sekali,
-    // transparansi-view menampilkan "Data anggaran belum tersedia"
-    // (guard hasAnyData di atas per-section empty state).
-    await expect(
-      page.getByText(/Belum ada dokumen|Data anggaran belum tersedia/)
-    ).toBeVisible({ timeout: 20000 });
+    await expect(page.getByText(title)).toHaveCount(0, { timeout: 20_000 });
   });
 
   test("tolak PDF > 15 MB dengan pesan khusus (tanpa baris/file tersisa)", async ({

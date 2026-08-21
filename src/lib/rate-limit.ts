@@ -26,6 +26,7 @@ const IP_MAX_ATTEMPTS = 20;
 const store = new Map<string, { failures: number; lockedUntil: number }>();
 const ipStore = new Map<string, { failures: number; lockedUntil: number }>();
 const formStore = new Map<string, { count: number; windowStart: number }>();
+const getStore = new Map<string, { count: number; windowStart: number }>();
 
 function key(email: string, ip: string) {
   return `login-limit:${email.toLowerCase()}::${ip}`;
@@ -166,4 +167,37 @@ export async function rateLimitPublicForm(req: RequestLike, max?: number, window
         );
     }
     return null;
+}
+
+// --- Public GET Rate Limiter ---
+
+export async function isGetRateLimited(ip: string, max = 30, windowMs = 60000): Promise<boolean> {
+  const k = `get-limit:${ip}`;
+  if (!redis) {
+    const now = Date.now();
+    const rec = getStore.get(k);
+    if (!rec || now - rec.windowStart >= windowMs) {
+      getStore.set(k, { count: 1, windowStart: now });
+      return false;
+    }
+    rec.count += 1;
+    return rec.count > max;
+  }
+
+  const count = await redis.incr(k);
+  if (count === 1) {
+    await redis.pexpire(k, windowMs);
+  }
+  return count > max;
+}
+
+export async function rateLimitPublicGet(req: RequestLike, max?: number, windowMs?: number): Promise<Response | null> {
+  const ip = getClientIp(req);
+  if (await isGetRateLimited(ip, max, windowMs)) {
+    return Response.json(
+      { error: "Terlalu banyak permintaan. Silakan coba lagi beberapa saat." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil((windowMs ?? 60000) / 1000)) } }
+    );
+  }
+  return null;
 }

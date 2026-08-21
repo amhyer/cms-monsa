@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
+import { rateLimitPublicGet } from "@/lib/rate-limit";
 import { logActivity } from "@/lib/log";
 import { createBosExpenditureSchema, validateBody } from "@/lib/validations";
 
@@ -10,6 +11,9 @@ import { createBosExpenditureSchema, validateBody } from "@/lib/validations";
  * Data ini memang untuk dilihat semua orang, jadi tidak ada scope admin.
  */
 export async function GET(req: NextRequest) {
+  // Rate limit: max 60 requests per minute per IP (public transparency data)
+  const rateLimited = await rateLimitPublicGet(req, 60, 60000);
+  if (rateLimited) return rateLimited;
   const { searchParams } = new URL(req.url);
   const year = searchParams.get("year");
   const page = Math.max(1, Number(searchParams.get("page") || "1"));

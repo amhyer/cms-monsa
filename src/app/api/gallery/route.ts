@@ -2,10 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
+import { rateLimitPublicGet } from "@/lib/rate-limit";
 import { logActivity } from "@/lib/log";
 import { createGallerySchema, validateBody } from "@/lib/validations";
 
 export async function GET(req: NextRequest) {
+  // Rate limit: max 60 requests per minute per IP (public gallery)
+  const rateLimited = await rateLimitPublicGet(req, 60, 60000);
+  if (rateLimited) return rateLimited;
+
   const { searchParams } = new URL(req.url);
   const category = searchParams.get("category");
   const type = searchParams.get("type");

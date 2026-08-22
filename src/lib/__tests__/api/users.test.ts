@@ -77,28 +77,22 @@ describe("GET /api/users", () => {
   it("mengembalikan daftar ter-paginasi + counts per peran", async () => {
     mockRequireRole.mockResolvedValue({ ok: true, user: createMockUser() });
     mockPrisma.user.count.mockResolvedValue(7);
-    mockPrisma.user.findMany
-      .mockResolvedValueOnce([userRow()])
-      .mockResolvedValueOnce([
-        { role: "SUPER_ADMIN" },
-        { role: "OPERATOR" },
-        { role: "OPERATOR" },
-        { role: "GURU" },
-        { role: "GURU" },
-        { role: "ORANG_TUA" },
-        { role: "SISWA" },
-      ]);
+    mockPrisma.user.findMany.mockResolvedValue([userRow()]);
+    mockPrisma.user.groupBy.mockResolvedValue([
+      { role: "SUPER_ADMIN", _count: { _all: 1 } },
+      { role: "OPERATOR", _count: { _all: 2 } },
+      { role: "GURU", _count: { _all: 2 } },
+      { role: "ORANG_TUA", _count: { _all: 1 } },
+      { role: "SISWA", _count: { _all: 1 } },
+    ]);
 
-    const req = createMockRequest("http://localhost/api/users?page=1&limit=10");
+    const req = createMockRequest("http://localhost/api/users?limit=10");
     const res = await GET(asNextRequest(req));
     const data = await res.json();
 
     expect(res.status).toBe(200);
     expect(data.items).toHaveLength(1);
     expect(data.total).toBe(7);
-    expect(data.page).toBe(1);
-    expect(data.limit).toBe(10);
-    expect(data.totalPages).toBe(1);
     expect(data.counts).toEqual({
       all: 7,
       STAFF: 3,
@@ -106,38 +100,37 @@ describe("GET /api/users", () => {
       ORANG_TUA: 1,
       SISWA: 1,
     });
-    // findMany dipanggil dua kali: daftar (skip/take) lalu ringkasan peran.
-    expect(mockPrisma.user.findMany).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({ skip: 0, take: 10 })
+    // Cursor-based: findMany uses take: limit + 1, orderBy: id
+    expect(mockPrisma.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ take: 11, orderBy: { id: "asc" } })
     );
-    expect(mockPrisma.user.findMany).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({ select: { role: true } })
+    expect(mockPrisma.user.groupBy).toHaveBeenCalledWith(
+      expect.objectContaining({ by: ["role"], _count: { _all: true } })
     );
   });
 
-  it("menghitung totalPages dari total & limit", async () => {
+  it("returns hasMore and nextCursor when there are more items", async () => {
     mockRequireRole.mockResolvedValue({ ok: true, user: createMockUser() });
     mockPrisma.user.count.mockResolvedValue(23);
-    mockPrisma.user.findMany.mockResolvedValue([]);
+    // Return 11 items (limit + 1) to signal there are more
+    const manyItems = Array.from({ length: 11 }, (_, i) => userRow({ id: `u-${i}` }));
+    mockPrisma.user.findMany.mockResolvedValue(manyItems);
+    mockPrisma.user.groupBy.mockResolvedValue([]);
 
-    const req = createMockRequest("http://localhost/api/users?page=3&limit=10");
+    const req = createMockRequest("http://localhost/api/users?limit=10");
     const res = await GET(asNextRequest(req));
     const data = await res.json();
 
-    expect(data.page).toBe(3);
-    expect(data.totalPages).toBe(3);
-    expect(mockPrisma.user.findMany).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({ skip: 20, take: 10 })
-    );
+    expect(data.items).toHaveLength(10);
+    expect(data.hasMore).toBe(true);
+    expect(data.nextCursor).toBeTruthy();
   });
 
   it("meneruskan filter peran STAFF sebagai in [SUPER_ADMIN, OPERATOR]", async () => {
     mockRequireRole.mockResolvedValue({ ok: true, user: createMockUser() });
     mockPrisma.user.count.mockResolvedValue(3);
     mockPrisma.user.findMany.mockResolvedValue([]);
+    mockPrisma.user.groupBy.mockResolvedValue([]);
 
     const req = createMockRequest("http://localhost/api/users?role=STAFF");
     await GET(asNextRequest(req));
@@ -151,6 +144,7 @@ describe("GET /api/users", () => {
     mockRequireRole.mockResolvedValue({ ok: true, user: createMockUser() });
     mockPrisma.user.count.mockResolvedValue(2);
     mockPrisma.user.findMany.mockResolvedValue([]);
+    mockPrisma.user.groupBy.mockResolvedValue([]);
 
     const req = createMockRequest("http://localhost/api/users?role=GURU");
     await GET(asNextRequest(req));
@@ -164,6 +158,7 @@ describe("GET /api/users", () => {
     mockRequireRole.mockResolvedValue({ ok: true, user: createMockUser() });
     mockPrisma.user.count.mockResolvedValue(1);
     mockPrisma.user.findMany.mockResolvedValue([]);
+    mockPrisma.user.groupBy.mockResolvedValue([]);
 
     const req = createMockRequest(
       "http://localhost/api/users?q=Aisyah%20Putri"
@@ -192,6 +187,29 @@ describe("GET /api/users", () => {
     const res = await GET(asNextRequest(req));
     expect(res.status).toBe(403);
     expect(mockPrisma.user.findMany).not.toHaveBeenCalled();
+  });
+
+  it("menjalankan cursor-based pagination dengan benar", async () => {
+    mockRequireRole.mockResolvedValue({ ok: true, user: createMockUser() });
+    mockPrisma.user.count.mockResolvedValue(50);
+    mockPrisma.user.findMany.mockResolvedValue(
+      Array.from({ length: 11 }, (_, i) => userRow({ id: `u-${i}` }))
+    );
+    mockPrisma.user.groupBy.mockResolvedValue([
+      { role: "GURU", _count: { _all: 3 } },
+    ]);
+
+    const req = createMockRequest("http://localhost/api/users?limit=10");
+    const res = await GET(asNextRequest(req));
+    const data = await res.json();
+
+    expect(data.items).toHaveLength(10);
+    expect(data.hasMore).toBe(true);
+    expect(data.nextCursor).toBeTruthy();
+    // should not use skip
+    expect(mockPrisma.user.findMany).toHaveBeenCalledWith(
+      expect.not.objectContaining({ skip: expect.any(Number) })
+    );
   });
 });
 

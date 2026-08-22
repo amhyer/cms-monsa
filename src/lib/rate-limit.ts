@@ -1,4 +1,5 @@
 import { redis } from "./redis";
+import { logger } from "@/lib/logger";
 
 /**
  * Minimal structural request type — works with Next.js web `Request`
@@ -197,9 +198,9 @@ export async function rateLimitPublicGet(req: RequestLike, max?: number, windowM
     // Scraper detection: warn when a single IP hits 100+ req/min on public endpoints.
     const effectiveMax = max ?? 30;
     if (effectiveMax <= 100) {
-      console.warn(
-        `[rate-limit] SCRAPER DETECTED: IP ${ip} exceeded ${effectiveMax} req/min on public GET.`,
-        `UA: ${getHeader(req, 'user-agent') ?? 'unknown'}`
+      logger.warn(
+        { ip, max: effectiveMax, userAgent: getHeader(req, 'user-agent') ?? 'unknown' },
+        "[rate-limit] SCRAPER DETECTED: exceeded public GET limit"
       );
     }
     return Response.json(

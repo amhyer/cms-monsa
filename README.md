@@ -125,6 +125,28 @@ bun run dev
 
 Buka http://localhost:3000 di browser.
 
+## Security
+
+CMS MONSA menerapkan security hardening di semua lapisan:
+
+| Layer | Implementasi |
+|-------|-------------|
+| **Authentication** | HMAC-signed session cookies (httpOnly, secure, sameSite: lax) |
+| **Authorization** | RBAC — SUPER_ADMIN > OPERATOR > GURU > ORANG_TUA/SISWA |
+| **CSRF** | Double-submit cookie pattern (x-csrf-token header + monsa_csrf cookie) |
+| **Input Validation** | Zod schemas di semua mutation endpoints |
+| **Rate Limiting** | Login brute-force (5 attempts → 15min lock), public form anti-spam, GET anti-scraping |
+| **SQL Injection** | Prisma ORM parameterized queries (tidak ada raw SQL) |
+| **XSS** | React auto-escaping + CSP headers |
+| **Secrets** | AUTH_SECRET wajib di-production, pre-commit hook memblokir .env commit |
+| **Session Expiry** | Server-side 7 hari (H3: token decode menolak session expired) |
+| **Audit Trail** | Semua CRUD operations logged ke activity_log |
+| **Database Indexes** | @@index di role, isActive, date, category untuk query performance |
+
+Untuk detail implementasi, lihat [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+---
+
 ## Configuration
 
 Buat file `.env` di root project (template: [.env.example](.env.example)):

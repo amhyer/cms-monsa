@@ -145,15 +145,16 @@ export function ContactView() {
               title="Formulir Kontak"
               description="Isi formulir berikut, tim kami akan menanggapi pesan Anda."
             />
-            <form onSubmit={onSubmit} className="mt-6 flex flex-col gap-4">
+            <form onSubmit={onSubmit} noValidate className="mt-6 flex flex-col gap-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Nama Lengkap" required>
+                <Field label="Nama Lengkap" required error={errors.name}>
                   <Input
                     required
                     value={form.name}
                     onChange={(e) => update("name", e.target.value)}
                     placeholder="Nama Anda"
                     autoComplete="name"
+                    aria-invalid={!!errors.name}
                   />
                 </Field>
                 <Field label="Email" required error={errors.email}>
@@ -298,14 +299,14 @@ export function ContactView() {
         id="spmb"
         className="scroll-mt-20 bg-sidebar text-sidebar-foreground"
       >
-        <div className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6 sm:py-20">
+        <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 sm:py-14 md:py-20">
           <div className="grid grid-cols-1 gap-10 lg:grid-cols-3">
             <div className="lg:col-span-1">
               <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gold">
                 <span className="h-px w-6 bg-gold" />
                 SPMB 2025/2026
               </span>
-              <h2 className="mt-3 font-sans text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl">
+              <h2 className="mt-3 font-sans text-xl font-bold tracking-tight sm:text-2xl md:text-3xl lg:text-4xl">
                 Info SPMB 2025/2026
               </h2>
               <p className="mt-4 text-sm leading-relaxed text-sidebar-foreground/80 sm:text-base">

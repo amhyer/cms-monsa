@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { createContactSchema, validateBody } from "@/lib/validations";
 import { sendEmail, emailTemplates } from "@/lib/email";
 import { rateLimitPublicForm } from "@/lib/rate-limit";
+import { logger } from "@/lib/logger";
 
 export async function POST(req: NextRequest) {
   try {
@@ -39,7 +40,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, id: item.id });
   } catch (e) {
-    console.error("[contact]", e);
+    logger.error({ err: e }, "[contact] error");
     return NextResponse.json({ error: "Gagal mengirim pesan." }, { status: 500 });
   }
 }

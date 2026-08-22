@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { setSession } from "@/lib/auth";
 import { logActivity } from "@/lib/log";
 import { verifyPassword } from "@/lib/password";
+import { logger } from "@/lib/logger";
 import {
   isLocked,
   isIpLocked,
@@ -105,7 +106,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (e) {
-    console.error("[login]", e);
+    logger.error({ err: e }, "[login] error");
     return NextResponse.json(
       { error: "Terjadi kesalahan server." },
       { status: 500 }

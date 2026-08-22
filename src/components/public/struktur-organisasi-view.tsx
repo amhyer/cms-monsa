@@ -86,7 +86,7 @@ export function StrukturOrganisasiView() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
             {items.map((m) => (
               <div
                 key={m.id}
@@ -100,29 +100,29 @@ export function StrukturOrganisasiView() {
                     setSelected(m);
                   }
                 }}
-                className="flex cursor-pointer items-center gap-4 rounded-xl border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+                className="flex cursor-pointer items-center gap-3 rounded-xl border bg-card p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold sm:gap-4 sm:p-5"
               >
                 {m.photo ? (
                   <img
                     src={m.photo}
                     alt={m.name}
                     loading="lazy"
-                    className="size-16 shrink-0 rounded-full border object-cover"
+                    className="size-12 shrink-0 rounded-full border object-cover sm:size-16"
                   />
                 ) : (
-                  <span className="flex size-16 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-foreground ring-2 ring-gold/40">
-                    <UserCircle2 className="size-8 text-gold" />
+                  <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-foreground ring-2 ring-gold/40 sm:size-16">
+                    <UserCircle2 className="size-6 text-gold sm:size-8" />
                   </span>
                 )}
                 <div className="min-w-0">
                   <h3 className="truncate font-sans font-bold text-foreground">
                     {m.name}
                   </h3>
-                  <p className="truncate text-sm font-medium text-primary">
+                  <p className="truncate text-xs font-medium text-primary sm:text-sm">
                     {m.position}
                   </p>
                   {(m.bio || m.contact) && (
-                    <p className="mt-1 truncate text-xs text-muted-foreground">
+                    <p className="mt-0.5 truncate text-[10px] text-muted-foreground sm:mt-1 sm:text-xs">
                       Lihat profil & kontak
                     </p>
                   )}

@@ -3,11 +3,17 @@ import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
+import { logger } from "@/lib/logger";
 import { requireCsrf } from "@/lib/csrf";
 import { rateLimitPublicGet } from "@/lib/rate-limit";
 import { logActivity } from "@/lib/log";
 import { createBosDocumentSchema, validateBody } from "@/lib/validations";
 import { detectPdf } from "@/lib/upload";
+import {
+  parsePaginationParams,
+  decodeCursor,
+  buildPaginatedResponse,
+} from "@/lib/pagination";
 
 const MAX_SIZE = 15 * 1024 * 1024; // 15 MB — output ARKAS bisa berisi banyak halaman
 
@@ -40,17 +46,20 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const year = searchParams.get("year");
-  const page = Math.max(1, Number(searchParams.get("page") || "1"));
-  const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit") || "20")));
-  const where = year ? { year: Number(year) } : {};
+  const { cursor, limit } = parsePaginationParams(searchParams, 10, 100);
+  const cursorId = decodeCursor(cursor);
+  const baseWhere = year ? { year: Number(year) } : {};
+  const where = {
+    ...baseWhere,
+    ...(cursorId ? { id: { gt: cursorId } } : {}),
+  };
 
   const [total, rows, yearRows] = await Promise.all([
-    db.bosDocument.count({ where }),
+    db.bosDocument.count({ where: baseWhere }),
     db.bosDocument.findMany({
       where,
       orderBy: [{ year: "desc" }, { createdAt: "desc" }],
-      skip: (page - 1) * limit,
-      take: limit,
+      take: limit + 1,
       include: { uploadedBy: { select: { name: true } } },
     }),
     db.bosDocument.findMany({
@@ -60,23 +69,21 @@ export async function GET(req: NextRequest) {
     }),
   ]);
 
+  const mapped = rows.map((d) => ({
+    id: d.id,
+    year: d.year,
+    title: d.title,
+    description: d.description,
+    fileUrl: d.fileUrl,
+    fileName: d.fileName,
+    fileSize: d.fileSize,
+    uploadedByName: d.uploadedBy?.name ?? null,
+    createdAt: d.createdAt,
+    updatedAt: d.updatedAt,
+  }));
+
   return NextResponse.json({
-    items: rows.map((d) => ({
-      id: d.id,
-      year: d.year,
-      title: d.title,
-      description: d.description,
-      fileUrl: d.fileUrl,
-      fileName: d.fileName,
-      fileSize: d.fileSize,
-      uploadedByName: d.uploadedBy?.name ?? null,
-      createdAt: d.createdAt,
-      updatedAt: d.updatedAt,
-    })),
-    total,
-    page,
-    limit,
-    totalPages: Math.max(1, Math.ceil(total / limit)),
+    ...buildPaginatedResponse(mapped, total, limit),
     years: yearRows.map((r) => r.year),
   });
 }
@@ -101,7 +108,7 @@ export async function POST(req: NextRequest) {
     attemptedSize = file instanceof File ? file.size : 0;
 
     if (!file || !(file instanceof File)) {
-      console.warn("[bos-documents] unggahan ditolak", {
+      logger.warn({
         reason: "file-tidak-ada",
         filename: attemptedName,
         source,
@@ -112,7 +119,7 @@ export async function POST(req: NextRequest) {
       );
     }
     if (file.size > MAX_SIZE) {
-      console.warn("[bos-documents] unggahan ditolak", {
+      logger.warn({
         reason: "terlalu-besar",
         filename: attemptedName,
         size: file.size,
@@ -129,7 +136,7 @@ export async function POST(req: NextRequest) {
     // bytes ("%PDF-") dan paksa ekstensi .pdf — yang lain ditolak.
     const bytes = new Uint8Array(await file.arrayBuffer());
     if (!detectPdf(bytes)) {
-      console.warn("[bos-documents] unggahan ditolak", {
+      logger.warn({
         reason: "bukan-pdf",
         filename: attemptedName,
         size: file.size,
@@ -153,7 +160,7 @@ export async function POST(req: NextRequest) {
       }
     );
     if (!validation.ok) {
-      console.warn("[bos-documents] unggahan ditolak", {
+      logger.warn({
         reason: "validasi-gagal",
         filename: attemptedName,
         size: file.size,
@@ -195,7 +202,7 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json(doc);
   } catch (e) {
-    console.error("[bos-documents] upload failed", {
+    logger.error({
       filename: attemptedName,
       size: attemptedSize,
       source,

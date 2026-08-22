@@ -7,21 +7,26 @@ import {
   validateBody,
 } from "@/lib/validations";
 import { logActivity } from "@/lib/log";
+import {
+  parsePaginationParams,
+  decodeCursor,
+  buildPaginatedResponse,
+} from "@/lib/pagination";
 
 export async function GET(req: NextRequest) {
   const auth = await requireRole("GURU");
   if (!auth.ok) return auth.response;
 
   const { searchParams } = new URL(req.url);
+  const { cursor, limit } = parsePaginationParams(searchParams, 50, 1000);
+  const cursorId = decodeCursor(cursor);
   const classId = searchParams.get("classId");
   const search = searchParams.get("search");
-  const page = Math.max(1, Number(searchParams.get("page") || "1"));
-  const limit = Math.min(1000, Math.max(1, Number(searchParams.get("limit") || "50")));
 
-  const where: Record<string, unknown> = {};
-  if (classId) where.classId = classId;
+  const baseWhere: Record<string, unknown> = {};
+  if (classId) baseWhere.classId = classId;
   if (search) {
-    where.OR = [
+    baseWhere.OR = [
       { name: { contains: search } },
       { nis: { contains: search } },
       { nisn: { contains: search } },
@@ -29,27 +34,29 @@ export async function GET(req: NextRequest) {
     ];
   }
 
+  const where = {
+    ...baseWhere,
+    // Cursor-based: fetch items after the cursor
+    ...(cursorId ? { id: { gt: cursorId } } : {}),
+  };
+
   const [total, items] = await Promise.all([
-    db.student.count({ where }),
+    db.student.count({ where: baseWhere }),
     db.student.findMany({
       where,
       include: { class: { select: { name: true } } },
-      orderBy: { name: "asc" },
-      skip: (page - 1) * limit,
-      take: limit,
+      orderBy: { id: "asc" }, // Use id for consistent cursor ordering
+      take: limit + 1, // Fetch one extra to determine if there's more
     }),
   ]);
 
-  return NextResponse.json({
-    items: items.map((s) => ({
-      ...s,
-      className: s.class?.name ?? "—",
-    })),
-    total,
-    page,
-    limit,
-    totalPages: Math.max(1, Math.ceil(total / limit)),
-  });
+  return NextResponse.json(
+    buildPaginatedResponse(
+      items.map((s) => ({ ...s, className: s.class?.name ?? "—" })),
+      total,
+      limit
+    )
+  );
 }
 
 export async function POST(req: NextRequest) {

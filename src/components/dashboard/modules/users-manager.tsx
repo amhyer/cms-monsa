@@ -11,6 +11,10 @@ import {
   ShieldAlert,
   Search,
   ArrowRightLeft,
+  Trash,
+  Power,
+  PowerOff,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -59,7 +63,7 @@ import { useAppStore } from "@/store/app";
 import { formatDate } from "@/lib/format";
 import type { UserItem } from "@/lib/types";
 import { accountCounter, carryStudentLink, type RoleFilter } from "@/lib/user-roles";
-import { PageLoader, EmptyState, Pagination, usePersistedPageSize } from "../_shared";
+import { PageLoader, EmptyState, CursorPagination, usePersistedPageSize, useCursorPagination } from "../_shared";
 
 type Role = "OPERATOR" | "SUPER_ADMIN" | "GURU" | "ORANG_TUA" | "SISWA";
 
@@ -150,10 +154,10 @@ export function UsersManager({
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
-  const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePersistedPageSize("users", 10, [10, 25, 50]);
   const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const cp = useCursorPagination({ limit: pageSize, total, nextCursor });
   const [counts, setCounts] = useState({
     all: 0,
     STAFF: 0,
@@ -162,6 +166,8 @@ export function UsersManager({
     SISWA: 0,
   });
   const [saving, setSaving] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<UserItem | null>(null);
@@ -181,9 +187,9 @@ export function UsersManager({
     setLoading(true);
     try {
       const params = new URLSearchParams({
-        page: String(page),
         limit: String(pageSize),
       });
+      if (cp.currentCursor) params.set("cursor", cp.currentCursor);
       if (roleFilter !== "all") params.set("role", roleFilter);
       if (debounced.trim()) params.set("q", debounced.trim());
       const res = await fetch(`/api/users?${params}`, { cache: "no-store" });
@@ -196,7 +202,7 @@ export function UsersManager({
       const data = await res.json();
       setItems(data.items || []);
       setTotal(data.total ?? 0);
-      setTotalPages(data.totalPages ?? 1);
+      setNextCursor(data.nextCursor ?? null);
       setCounts(
         data.counts ?? { all: 0, STAFF: 0, GURU: 0, ORANG_TUA: 0, SISWA: 0 }
       );
@@ -205,7 +211,7 @@ export function UsersManager({
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, roleFilter, debounced]);
+  }, [cp.currentCursor, pageSize, roleFilter, debounced]);
 
   const fetchClasses = useCallback(async () => {
     try {
@@ -284,13 +290,8 @@ export function UsersManager({
 
   // Kembali ke halaman 1 saat filter/pencarian/ukuran halaman berubah.
   useEffect(() => {
-    setPage(1);
+    cp.reset();
   }, [debounced, roleFilter, pageSize]);
-
-  // Jaga agar page tidak melewati totalPages (mis. setelah menghapus baris).
-  useEffect(() => {
-    setPage((p) => Math.min(p, totalPages));
-  }, [totalPages]);
 
   function openCreate() {
     setEditing(null);
@@ -447,6 +448,98 @@ export function UsersManager({
     }
   }
 
+  // --- Bulk actions ---
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === items.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(items.map((u) => u.id)));
+    }
+  }
+
+  async function handleBulkDelete() {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setBulkLoading(true);
+    try {
+      const res = await fetch("/api/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entity: "users", ids }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gagal menghapus");
+      toast.success(`${data.deleted} akun dihapus.`);
+      setSelectedIds(new Set());
+      fetchList();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Gagal menghapus.");
+    } finally {
+      setBulkLoading(false);
+    }
+  }
+
+  async function handleBulkToggleActive(activate: boolean) {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setBulkLoading(true);
+    try {
+      let success = 0;
+      let failed = 0;
+      for (const id of ids) {
+        const res = await fetch(`/api/users/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isActive: activate }),
+        });
+        if (res.ok) success++; else failed++;
+      }
+      toast.success(`${success} akun ${activate ? "diaktifkan" : "dinonaktifkan"}${failed > 0 ? `, ${failed} gagal` : ""}.`);
+      setSelectedIds(new Set());
+      fetchList();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Gagal.");
+    } finally {
+      setBulkLoading(false);
+    }
+  }
+
+  async function handleBulkRoleChange(newRole: string) {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0 || !newRole) return;
+    setBulkLoading(true);
+    try {
+      let success = 0;
+      let failed = 0;
+      for (const id of ids) {
+        const res = await fetch(`/api/users/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ role: newRole }),
+        });
+        if (res.ok) success++; else failed++;
+      }
+      toast.success(`${success} akun diubah ke ${roleLabel(newRole)}${failed > 0 ? `, ${failed} gagal` : ""}.`);
+      setSelectedIds(new Set());
+      fetchList();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Gagal.");
+    } finally {
+      setBulkLoading(false);
+    }
+  }
+
+  const hasSelection = selectedIds.size > 0;
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -511,11 +604,77 @@ export function UsersManager({
                 />
               ) : (
                 <>
+                  {/* Bulk action toolbar */}
+                  {hasSelection && (
+                    <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                      <span className="text-sm font-medium">
+                        <Users className="mr-1 inline size-4" />
+                        {selectedIds.size} dipilih
+                      </span>
+                      <div className="ml-auto flex flex-wrap gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={bulkLoading}
+                          onClick={() => handleBulkToggleActive(true)}
+                        >
+                          <Power className="size-3.5" /> Aktifkan
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={bulkLoading}
+                          onClick={() => handleBulkToggleActive(false)}
+                        >
+                          <PowerOff className="size-3.5" /> Nonaktifkan
+                        </Button>
+                        <Select onValueChange={handleBulkRoleChange} disabled={bulkLoading}>
+                          <SelectTrigger className="h-8 w-36 text-xs">
+                            <SelectValue placeholder="Ubah Peran" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="SUPER_ADMIN">Admin</SelectItem>
+                            <SelectItem value="OPERATOR">Operator</SelectItem>
+                            <SelectItem value="GURU">Guru</SelectItem>
+                            <SelectItem value="ORANG_TUA">Orang Tua</SelectItem>
+                            <SelectItem value="SISWA">Siswa</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <ConfirmDialog
+                          trigger={
+                            <Button variant="destructive" size="sm" disabled={bulkLoading}>
+                              <Trash className="size-3.5" /> Hapus
+                            </Button>
+                          }
+                          title="Hapus Akun Terpilih"
+                          description={`Hapus ${selectedIds.size} akun yang dipilih? Tindakan ini tidak dapat dibatalkan.`}
+                          confirmText="Hapus Semua"
+                          onConfirm={handleBulkDelete}
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedIds(new Set())}
+                        >
+                          Batal
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                   <div className="rounded-md border">
                   <div className="table-scroll">
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead className="w-10">
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.size === items.length && items.length > 0}
+                              onChange={toggleSelectAll}
+                              className="size-4 rounded border-gray-300"
+                              aria-label="Pilih semua"
+                            />
+                          </TableHead>
                           <TableHead className="sticky left-0 z-10 min-w-[180px] bg-background">Nama</TableHead>
                           <TableHead>Email</TableHead>
                           <TableHead>Peran</TableHead>
@@ -529,6 +688,16 @@ export function UsersManager({
                           const isSelf = me?.id === u.id;
                           return (
                             <TableRow key={u.id}>
+                              <TableCell>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedIds.has(u.id)}
+                                  onChange={() => toggleSelect(u.id)}
+                                  disabled={isSelf}
+                                  className="size-4 rounded border-gray-300"
+                                  aria-label={`Pilih ${u.name}`}
+                                />
+                              </TableCell>
                               <TableCell className="sticky left-0 z-10 bg-background font-medium">
                                 <Highlighted text={u.name} query={search} />
                                 {isSelf && (
@@ -666,12 +835,19 @@ export function UsersManager({
                     </Table>
                   </div>
                   </div>
-                  <Pagination
-                    page={page}
-                    totalPages={totalPages}
-                    onPage={setPage}
+                  <CursorPagination
+                    page={cp.page}
+                    totalPages={cp.totalPages}
+                    total={total}
+                    canGoBack={cp.canGoBack}
+                    canGoForward={cp.canGoForward}
+                    onPrev={cp.goPrev}
+                    onNext={cp.goNext}
                     pageSize={pageSize}
-                    onPageSizeChange={setPageSize}
+                    onPageSizeChange={(s) => {
+                      setPageSize(s);
+                      cp.reset();
+                    }}
                   />
                 </>
               )}

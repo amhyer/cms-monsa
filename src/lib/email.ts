@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { logger } from "@/lib/logger";
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "smtp.gmail.com",
@@ -33,7 +34,7 @@ function escapeHtml(str: string): string {
 export async function sendEmail(options: SendEmailOptions): Promise<boolean> {
   try {
     if (!process.env.SMTP_USER) {
-      console.warn("[email] SMTP not configured, skipping email send");
+      logger.warn("[email] SMTP not configured, skipping email send");
       return false;
     }
 
@@ -45,10 +46,10 @@ export async function sendEmail(options: SendEmailOptions): Promise<boolean> {
       text: options.text,
     });
 
-    console.log(`[email] Sent to ${options.to}: ${options.subject}`);
+    logger.info({ to: options.to, subject: options.subject }, "[email] Sent");
     return true;
   } catch (error) {
-    console.error("[email] Failed to send:", error);
+    logger.error({ err: error }, "[email] Failed to send");
     return false;
   }
 }

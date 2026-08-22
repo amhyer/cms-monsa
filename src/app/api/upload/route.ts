@@ -3,6 +3,7 @@ import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import { requireAuth } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
+import { logger } from "@/lib/logger";
 import { detectImageType, IMAGE_TYPE_EXT } from "@/lib/upload";
 
 const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ url: `/uploads/${filename}` });
   } catch (e) {
-    console.error("[upload] failed", e);
+    logger.error({ err: e }, "[upload] failed");
     return NextResponse.json(
       { error: "Gagal mengunggah file. Silakan coba lagi." },
       { status: 500 }

@@ -8,6 +8,7 @@ import {
   sendWhatsApp,
   sendBulkWhatsApp,
 } from "@/lib/whatsapp";
+import { logger } from "@/lib/logger";
 
 describe("normalizePhone (format HP Indonesia)", () => {
   it("mengubah 08xx menjadi 628xx", () => {
@@ -243,7 +244,7 @@ describe("notifyParentWhatsApp", { timeout: 5_000 }, () => {
       status: 200,
       json: async () => ({ status: false, detail: "number not on whatsapp" }),
     });
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warn = vi.spyOn(logger, "warn").mockImplementation(() => {});
 
     await expect(
       notifyParentWhatsApp("6281234567890", () => "pesan")
@@ -254,7 +255,7 @@ describe("notifyParentWhatsApp", { timeout: 5_000 }, () => {
 
   it("tidak melempar bila pembuat pesan error (mis. DB mati)", async () => {
     process.env.FONNTE_TOKEN = "test-token";
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warn = vi.spyOn(logger, "warn").mockImplementation(() => {});
 
     await expect(
       notifyParentWhatsApp("6281234567890", () => {

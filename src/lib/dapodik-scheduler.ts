@@ -12,6 +12,7 @@
  */
 import { db } from "@/lib/db";
 import { runSync } from "@/lib/dapodik-sync";
+import { logger } from "@/lib/logger";
 
 // Rentang interval yang diizinkan (jam).
 export const MIN_INTERVAL_HOURS = 1;
@@ -186,14 +187,15 @@ async function tick() {
       return; // belum waktunya
     }
 
-    console.log("[dapodik-auto-sync] mulai menarik data…");
+    logger.info("[dapodik-auto-sync] mulai menarik data…");
     try {
       const result = await runSync("commit");
       const c = result.siswa;
       const g = result.gtk;
       const r = result.rombel;
-      console.log(
-        `[dapodik-auto-sync] selesai — siswa ${c.updated}+${c.created} (${c.errors} err), guru ${g.updated}+${g.created} (${g.errors} err), rombel ${r.updated}+${r.created} (${r.errors} err)`
+      logger.info(
+        { siswa: `${c.updated}+${c.created} (${c.errors} err)`, guru: `${g.updated}+${g.created} (${g.errors} err)`, rombel: `${r.updated}+${r.created} (${r.errors} err)` },
+        "[dapodik-auto-sync] selesai"
       );
       await db.dapodikConfig.update({
         where: { id: "singleton" },
@@ -201,7 +203,7 @@ async function tick() {
       });
     } catch (e) {
       const message = e instanceof Error ? e.message : "Gagal sinkronisasi otomatis";
-      console.error("[dapodik-auto-sync] GAGAL:", message);
+      logger.error({ message }, "[dapodik-auto-sync] GAGAL");
       await db.dapodikConfig
         .update({
           where: { id: "singleton" },

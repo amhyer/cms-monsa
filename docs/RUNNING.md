@@ -576,6 +576,133 @@ hijau keliru.
 
 ---
 
+## 13. Rate Limiting Policy
+
+CMS MONSA menerapkan rate limiting di beberapa endpoint untuk melindungi
+aplikasi dari abuse, brute-force, dan scraping. Semua implementasi ada di
+`src/lib/rate-limit.ts`.
+
+### Public GET Endpoints (Anti-Scraping)
+
+| Endpoint | Default Limit | Window | Catatan |
+|----------|--------------|--------|----------|
+| `GET /api/students/showcase` | 30 req | 1 menit | Anti-scraping NIS/NISN |
+| `GET /api/bos-expenditures` | 60 req | 1 menit | Public transparansi |
+| `GET /api/org-structure` | 30 req | 1 menit | Anti-scraping |
+| `GET /api/achievements` | 30 req | 1 menit | Anti-scraping |
+| `GET /api/teachers` | 30 req | 1 menit | Anti-scraping |
+| `GET /api/news` | 30 req | 1 menit | Anti-scraping |
+
+Saat IP melampaui limit, sistem akan:
+1. Mengembalikan HTTP 429 (Too Many Requests) dengan header `Retry-After`.
+2. Mencatat warning log untuk deteksi scraper (`[rate-limit] SCRAPER DETECTED`).
+
+### Public Form Endpoints (Anti-Spam)
+
+| Endpoint | Default Limit | Window |
+|----------|--------------|--------|
+| `POST /api/complaints` | 20 req | 10 menit |
+| `POST /api/contact` | 20 req | 10 menit |
+
+### Login Endpoint (Anti-Brute-Force)
+
+| Mekanisme | Threshold | Durasi Lock |
+|-----------|-----------|-------------|
+| Per email+IP | 5 kegagalan | 15 menit |
+| Per IP | 20 percobaan | 15 menit |
+
+### Redis vs In-Memory
+
+- **Tanpa `REDIS_URL`** (default dev): rate limiter menggunakan in-memory `Map`.
+  Cukup untuk single-instance deployment.
+- **Dengan `REDIS_URL`** (production multi-instance): rate limiter menggunakan
+  Redis dengan TTL otomatis. Cocok untuk horizontal scaling.
+
+### Konfigurasi
+
+Rate limit values bisa dikonfigurasi per endpoint melalui parameter fungsi.
+Untuk perubahan global, edit `src/lib/rate-limit.ts`.
+
+---
+
+## 14. Uptime Monitoring & Health Checks
+
+### Health Endpoint
+
+`GET /api/health` mengembalikan status JSON dengan informasi:
+
+```json
+{
+  "status": "healthy",
+  "timestamp": "2026-08-22T10:00:00.000Z",
+  "uptime": 3600,
+  "totalLatencyMs": 12,
+  "checks": {
+    "db": { "ok": true, "latencyMs": 5 },
+    "redis": { "ok": true, "latencyMs": 3 }
+  },
+  "process": {
+    "heapUsedMB": 85,
+    "heapTotalMB": 120,
+    "rssMB": 200
+  }
+}
+```
+
+- **status**: `healthy` (200) atau `degraded` (503)
+- **uptime**: detik sejak process start
+- **totalLatencyMs**: waktu respons total
+- **checks.db / checks.redis**: status masing-masing dependency
+- **process**: penggunaan memori Node.js
+
+### Self-Monitoring Script
+
+```bash
+# Jalankan health check dari command line
+bun run health:check
+
+# Atau dengan URL custom
+HEALTH_URL=https://sdn-mongisidi1.sch.id/api/health bun run health:check
+```
+
+Script akan exit code 0 jika healthy, 1 jika unhealthy — cocok untuk cron:
+
+```bash
+# Contoh cron (setiap 5 menit)
+*/5 * * * * cd /path/to/cms && HEALTH_URL=https://sdn-mongisidi1.sch.id/api/health bun run health:check >> logs/health-check.log 2>&1
+```
+
+### Rekomendasi External Monitoring
+
+Untuk produksi, gunakan layanan monitoring eksternal yang mem-*ping* endpoint
+health secara berkala:
+
+| Layanan | Gratis? | Fitur Utama |
+|---------|---------|-------------|
+| **[UptimeRobot](https://uptimerobot.com)** | ✅ 50 monitor gratis | HTTP(s), keyword, port, heartbeat. Notifikasi email/Telegram/Webhook. |
+| **[Better Uptime](https://betterstack.com)** | ✅ 10 monitor gratis | Incident management, status page, notifikasi multi-channel. |
+| **[Freshping](https://freshping.io)** | ✅ 50 check gratis | HTTP, TCP, DNS checks. Integrasi Freshdesk. |
+| **[Grafana Cloud](https://grafana.com/products/cloud/)** | ✅ 10k metrics | Full APM + uptime + logs dalam satu platform. |
+
+**Setup UptimeRobot (recommended):**
+
+1. Buat akun gratis di [uptimerobot.com](https://uptimerobot.com)
+2. Tambah monitor baru → **HTTP(s)**
+3. URL: `https://sdn-mongisidi1.sch.id/api/health`
+4. Interval: 5 menit
+5. Alert contacts: email admin + Telegram webhook
+6. Pasca-insiden: cek `response-text` untuk melihat field `status` dan `checks`
+
+**Threshold yang direkomendasikan:**
+
+| Metric | Threshold | Aksi |
+|--------|-----------|------|
+| Response time | > 3 detik | Warning (latency tinggi) |
+| HTTP status | != 200 | Critical (service down/degraded) |
+| Uptime < 99.9% | Bulanan | Review infrastructure |
+
+---
+
 ## Referensi Cepat
 
 | Aksi | Perintah |
@@ -591,3 +718,4 @@ hijau keliru.
 | Warm-up rute (tanpa suite) | `bun run e2e:warmup` |
 | Triage kegagalan E2E | `bun run triage:e2e` |
 | Cek tren non-2xx | `bun run check:non2xx` |
+| Health check (self-monitoring) | `bun run health:check` |

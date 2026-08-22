@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import * as Sentry from "@sentry/nextjs";
 import { AlertTriangle, RefreshCw, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +20,10 @@ export default function DashboardError({
   reset: () => void;
 }) {
   useEffect(() => {
+    // Client component — console.error is appropriate here (pino is server-only)
     console.error("[DashboardError]", error);
+    // Send error to Sentry for tracking
+    Sentry.captureException(error);
   }, [error]);
 
   function handleGoHome() {

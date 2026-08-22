@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
 import { rateLimitPublicForm } from "@/lib/rate-limit";
+import { logger } from "@/lib/logger";
 import { createEnrollmentSchema, validateBody } from "@/lib/validations";
 
 // Note: createEnrollmentSchema and validateBody are used for Zod validation
@@ -118,7 +119,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, id: item.id });
   } catch (e) {
-    console.error("[enrollment-create]", e);
+    logger.error({ err: e }, "[enrollment-create] error");
     return NextResponse.json({ error: "Gagal mendaftarkan siswa." }, { status: 500 });
   }
 }

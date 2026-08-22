@@ -10,6 +10,7 @@ import {
   Megaphone,
   Pin,
   Star,
+  FileDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -52,6 +53,51 @@ const EMPTY: FormState = {
   expiresAt: "",
   isActive: true,
 };
+
+function exportAnnouncementsToPdf(items: AnnouncementItem[]) {
+  const html = `
+    <!DOCTYPE html>
+    <html lang="id">
+    <head>
+      <meta charset="utf-8">
+      <title>Pengumuman Sekolah</title>
+      <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1 { text-align: center; color: #1e40af; border-bottom: 2px solid #1e40af; padding-bottom: 10px; }
+        .item { border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 16px; page-break-inside: avoid; }
+        .item h2 { margin: 0 0 8px; font-size: 16px; }
+        .meta { font-size: 12px; color: #6b7280; margin-bottom: 8px; }
+        .content { font-size: 14px; line-height: 1.6; }
+        .badge { display: inline-block; background: #f3f4f6; border-radius: 4px; padding: 2px 8px; font-size: 11px; margin-right: 4px; }
+        .pinned { background: #fef3c7; }
+        @media print { body { padding: 0; } }
+      </style>
+    </head>
+    <body>
+      <h1>Pengumuman Sekolah</h1>
+      <p style="text-align:center;color:#6b7280;font-size:12px;">Dicetak: ${new Date().toLocaleDateString("id-ID", { year: "numeric", month: "long", day: "numeric" })}</p>
+      ${items.map((a) => `
+        <div class="item">
+          <h2>${a.title}</h2>
+          <div class="meta">
+            <span class="badge">${new Date(a.createdAt).toLocaleDateString("id-ID")}</span>
+            ${a.isPinned ? `<span class="badge pinned">📌 Dipinned</span>` : ""}
+            ${!a.isActive ? `<span class="badge">Nonaktif</span>` : ""}
+          </div>
+          <div class="content">${a.content}</div>
+        </div>
+      `).join("")}
+      <p style="text-align:center;color:#9ca3af;font-size:11px;margin-top:30px;">CMS MONSA — UPT SPF SD Negeri Unggulan Mongisidi 1</p>
+    </body>
+    </html>
+  `;
+  const win = window.open("", "_blank");
+  if (win) {
+    win.document.write(html);
+    win.document.close();
+    win.print();
+  }
+}
 
 export function AnnouncementsManager() {
   const [items, setItems] = useState<AnnouncementItem[]>([]);
@@ -160,12 +206,22 @@ export function AnnouncementsManager() {
             Kelola pengumuman yang tampil di situs publik.
           </p>
         </div>
-        <Button
-          onClick={openCreate}
-          className="bg-gold text-gold-foreground hover:bg-gold/90"
-        >
-          <Plus className="size-4" /> Buat Pengumuman
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => exportAnnouncementsToPdf(items)}
+            disabled={items.length === 0}
+          >
+            <FileDown className="size-4" /> Export PDF
+          </Button>
+          <Button
+            onClick={openCreate}
+            className="bg-gold text-gold-foreground hover:bg-gold/90"
+          >
+            <Plus className="size-4" /> Buat Pengumuman
+          </Button>
+        </div>
       </div>
 
       {loading ? (

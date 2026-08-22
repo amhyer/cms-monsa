@@ -5,6 +5,8 @@ node_modules
 /.next/
 # distDir server dev paralel (NEXT_DIST_DIR, mis. .next-preview)
 /.next-*/
+# Next.js typegen output (generated, not source)
+/.next-gate/
 /out/
 
 # production

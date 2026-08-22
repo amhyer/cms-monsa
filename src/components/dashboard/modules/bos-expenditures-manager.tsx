@@ -49,7 +49,7 @@ import {
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import type { BosExpenditureItem, BosDocumentItem } from "@/lib/types";
 import { formatCurrency, formatCompactCurrency, formatBytes } from "@/lib/format";
-import { PageLoader, EmptyState, Pagination, usePersistedPageSize } from "../_shared";
+import { PageLoader, EmptyState, CursorPagination, usePersistedPageSize, useCursorPagination } from "../_shared";
 
 const SOURCES = ["BOS Reguler", "BOS Kinerja", "DAK", "Lainnya"] as const;
 
@@ -88,10 +88,10 @@ export function BosExpendituresManager() {
   const [yearStats, setYearStats] = useState<
     { year: number; count: number; docs: number; amount: number }[]
   >([]);
-  const [expPage, setExpPage] = useState(1);
   const [expPageSize, setExpPageSize] = usePersistedPageSize("bos-expenditures", EXP_LIMIT, [10, 25, 50]);
   const [expTotal, setExpTotal] = useState(0);
-  const [expTotalPages, setExpTotalPages] = useState(1);
+  const [expNextCursor, setExpNextCursor] = useState<string | null>(null);
+  const expCp = useCursorPagination({ limit: expPageSize, total: expTotal, nextCursor: expNextCursor });
   const [expTotalAmount, setExpTotalAmount] = useState(0);
 
   const [open, setOpen] = useState(false);
@@ -101,10 +101,10 @@ export function BosExpendituresManager() {
   // ---- Dokumen PDF (output ARKAS / bukti belanja) ----
   const [docs, setDocs] = useState<BosDocumentItem[]>([]);
   const [docsLoading, setDocsLoading] = useState(true);
-  const [docPage, setDocPage] = useState(1);
   const [docPageSize, setDocPageSize] = usePersistedPageSize("bos-documents", DOC_LIMIT, [10, 25, 50]);
   const [docTotal, setDocTotal] = useState(0);
-  const [docTotalPages, setDocTotalPages] = useState(1);
+  const [docNextCursor, setDocNextCursor] = useState<string | null>(null);
+  const docCp = useCursorPagination({ limit: docPageSize, total: docTotal, nextCursor: docNextCursor });
   const [uploading, setUploading] = useState(false);
   const [docForm, setDocForm] = useState(EMPTY_DOC);
   const [docFile, setDocFile] = useState<File | null>(null);
@@ -114,9 +114,9 @@ export function BosExpendituresManager() {
     setLoading(true);
     try {
       const params = new URLSearchParams({
-        page: String(expPage),
         limit: String(expPageSize),
       });
+      if (expCp.currentCursor) params.set("cursor", expCp.currentCursor);
       if (yearFilter !== "all") params.set("year", yearFilter);
       const res = await fetch(`/api/bos-expenditures?${params}`, {
         cache: "no-store",
@@ -125,7 +125,7 @@ export function BosExpendituresManager() {
       const data = await res.json();
       setItems(data.items || []);
       setExpTotal(data.total ?? 0);
-      setExpTotalPages(data.totalPages ?? 1);
+      setExpNextCursor(data.nextCursor ?? null);
       setExpTotalAmount(data.totalAmount ?? 0);
       if (Array.isArray(data.years)) setYears(data.years);
       if (Array.isArray(data.yearStats)) setYearStats(data.yearStats);
@@ -134,15 +134,15 @@ export function BosExpendituresManager() {
     } finally {
       setLoading(false);
     }
-  }, [yearFilter, expPage, expPageSize]);
+  }, [yearFilter, expCp.currentCursor, expPageSize]);
 
   const fetchDocs = useCallback(async () => {
     setDocsLoading(true);
     try {
       const params = new URLSearchParams({
-        page: String(docPage),
         limit: String(docPageSize),
       });
+      if (docCp.currentCursor) params.set("cursor", docCp.currentCursor);
       const res = await fetch(`/api/bos-documents?${params}`, {
         cache: "no-store",
       });
@@ -150,13 +150,13 @@ export function BosExpendituresManager() {
       const data = await res.json();
       setDocs(data.items || []);
       setDocTotal(data.total ?? 0);
-      setDocTotalPages(data.totalPages ?? 1);
+      setDocNextCursor(data.nextCursor ?? null);
     } catch {
       toast.error("Gagal memuat dokumen.");
     } finally {
       setDocsLoading(false);
     }
-  }, [docPage, docPageSize]);
+  }, [docCp.currentCursor, docPageSize]);
 
   useEffect(() => {
     fetchList();
@@ -168,11 +168,11 @@ export function BosExpendituresManager() {
 
   // Ganti tahun / ukuran halaman → kembali ke halaman 1.
   useEffect(() => {
-    setExpPage(1);
+    expCp.reset();
   }, [yearFilter, expPageSize]);
 
   useEffect(() => {
-    setDocPage(1);
+    docCp.reset();
   }, [docPageSize]);
 
   function openCreate() {
@@ -253,7 +253,7 @@ export function BosExpendituresManager() {
       if (!res.ok) throw new Error(data.error || "Gagal menghapus");
       toast.success("Belanja dihapus.");
       // Hapus baris terakhir di halaman → mundur satu halaman.
-      if (items.length === 1 && expPage > 1) setExpPage((p) => p - 1);
+      if (items.length === 1 && expCp.canGoBack) expCp.goPrev();
       else fetchList();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal menghapus.");
@@ -303,7 +303,7 @@ export function BosExpendituresManager() {
       if (!res.ok) throw new Error(data.error || "Gagal menghapus");
       toast.success("Dokumen dihapus.");
       // Hapus dokumen terakhir di halaman → mundur satu halaman.
-      if (docs.length === 1 && docPage > 1) setDocPage((p) => p - 1);
+      if (docs.length === 1 && docCp.canGoBack) docCp.goPrev();
       else fetchDocs();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal menghapus.");
@@ -444,12 +444,19 @@ export function BosExpendituresManager() {
                 </Table>
               </div>
             </div>
-            <Pagination
-              page={expPage}
-              totalPages={expTotalPages}
-              onPage={setExpPage}
+            <CursorPagination
+              page={expCp.page}
+              totalPages={expCp.totalPages}
+              total={expTotal}
+              canGoBack={expCp.canGoBack}
+              canGoForward={expCp.canGoForward}
+              onPrev={expCp.goPrev}
+              onNext={expCp.goNext}
               pageSize={expPageSize}
-              onPageSizeChange={setExpPageSize}
+              onPageSizeChange={(s) => {
+                setExpPageSize(s);
+                expCp.reset();
+              }}
             />
             </>
           )}
@@ -618,12 +625,19 @@ export function BosExpendituresManager() {
                 </Table>
               </div>
             </div>
-            <Pagination
-              page={docPage}
-              totalPages={docTotalPages}
-              onPage={setDocPage}
+            <CursorPagination
+              page={docCp.page}
+              totalPages={docCp.totalPages}
+              total={docTotal}
+              canGoBack={docCp.canGoBack}
+              canGoForward={docCp.canGoForward}
+              onPrev={docCp.goPrev}
+              onNext={docCp.goNext}
               pageSize={docPageSize}
-              onPageSizeChange={setDocPageSize}
+              onPageSizeChange={(s) => {
+                setDocPageSize(s);
+                docCp.reset();
+              }}
             />
             </>
           )}

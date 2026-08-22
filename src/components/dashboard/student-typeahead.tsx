@@ -56,7 +56,7 @@ export function StudentTypeahead({
         )
       : students;
     return all.slice(0, 8);
-  }, [students, query]);
+  }, [students, debouncedQuery]);
 
   function pick(s: StudentOption) {
     onPick(s);

@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const isProd = process.env.NODE_ENV === "production";
 // Production domain — frame-ancestors only allows embedding from the school site itself.
@@ -42,8 +43,8 @@ const securityHeaders = [
       "media-src 'self' https:",
       // Frames: allow youtube embeds for gallery videos.
       "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com",
-      // Connect: same-origin API + dev websocket for HMR.
-      "connect-src 'self' ws: wss:",
+      // Connect: same-origin API + dev websocket for HMR + Sentry error tracking.
+      "connect-src 'self' ws: wss: https://*.sentry.io",
       // No plugins.
       "object-src 'none'",
       "base-uri 'self'",
@@ -87,4 +88,28 @@ const nextConfig: NextConfig = {
 // next-intl: menghubungkan konfigurasi request (src/i18n/request.ts) ke next-intl.
 const withNextIntl = createNextIntlPlugin();
 
-export default withNextIntl(nextConfig);
+export default withSentryConfig(
+  withNextIntl(nextConfig),
+  {
+    // For all available options, see:
+    // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
+
+    // Upload a larger source map for presale sources to increase the
+    // accuracy of stack traces in error messages.
+    widenClientFileUpload: true,
+
+    // Transpile Sentry client-side config files to work with older browsers.
+    transpileClientSDK: true,
+
+    // Hides source maps from generated client bundles.
+    hideSourceMaps: true,
+
+    // Automatically tree-shake Sentry logger statements to reduce bundle size.
+    disableLogger: true,
+
+    // Enables automatic instrumentation of Vercel Cron Monitors.
+    // See https://docs.sentry.io/platforms/javascript/guides/nextjs/crons/ for
+    // further information.
+    automaticVercelMonitors: true,
+  },
+);

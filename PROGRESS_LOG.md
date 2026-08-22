@@ -1687,4 +1687,57 @@ run doc.
 
 **Total: 35 dari 35 fase selesai (100%)**
 
+---
+
+## 2026-08-21 — FASE 36: Testing Batch + Mobile Responsive + Feature Completion
+
+### Status: SELESAI
+
+### Ringkasan
+
+Penambahan unit test baru (4 file), 1 e2e spec, 4 mobile responsive improvements, dan penyelesaian verifikasi fitur bulk actions, export, dan audit log.
+
+### Unit Tests Baru (4 file, 62 test cases)
+
+| File | Deskripsi | Tests |
+|------|-----------|-------|
+| `src/lib/__tests__/export.test.ts` | Unit test `exportToCsv` — CSV generation, BOM, escaping, column order | 10 |
+| `src/lib/__tests__/validations.test.ts` | Unit test Zod schemas — news, contact, user, login, student, BOS, org-structure, imageUrl | 35 |
+| `src/lib/__tests__/api/activity-logs.test.ts` | Integration test activity-logs API — auth, pagination, entity filter, limit cap | 7 |
+| `src/lib/__tests__/api/bulk.test.ts` | Integration test bulk delete API — validation, role check, entity models, error handling | 10 |
+
+### E2E Spec Baru
+
+| File | Deskripsi | Tests |
+|------|-----------|-------|
+| `e2e/activity-logs.spec.ts` | Halaman log aktivitas admin — heading, filter, export button | 3 |
+
+### Test-Utils Enhancement
+
+- `src/lib/__tests__/test-utils.ts` — tambah `deleteMany` mock ke semua model Prisma + tambah model `document` dan `enrollment` yang sebelumnya tidak ada.
+
+### Mobile Responsive Improvements (4)
+
+1. **Dashboard Overview stat cards** (`overview.tsx`): Gap lebih kecil di mobile (`gap-3 sm:gap-4`), padding compact (`py-4 sm:py-5`), teks angka lebih kecil (`text-xl sm:text-2xl`)
+2. **Dashboard Overview pills & quick actions** (`overview.tsx`): Gap lebih kecil di mobile (`gap-2 sm:gap-3`), quick action gap compact (`gap-1.5 sm:gap-2`), header padding lebih kecil
+3. **Students Manager search/filter** (`students-manager.tsx`): Search input full-width di mobile (`w-full sm:max-w-xs`), filter bar stack vertikal di mobile (`flex-col sm:flex-row`)
+4. **Public Footer & SPMB section** (`site-footer.tsx`, `contact-view.tsx`): Padding footer lebih kecil di mobile, SPMB heading lebih kecil (`text-xl sm:text-2xl md:text-3xl lg:text-4xl`), spacing lebih ringkas
+
+### Fitur yang Sudah Selesai (Verified)
+
+- ✅ **Bulk Actions** — `POST /api/bulk` endpoint dengan 8 entity types, RBAC, activity log
+- ✅ **Export** — `exportToCsv` function dengan BOM UTF-8, escaping, column order preservation
+- ✅ **Audit Log** — `GET /api/activity-logs` endpoint dengan entity filter, pagination + `LogsView` dashboard component
+
+### Hasil Verifikasi
+
+- `tsc --noEmit` — 0 source errors (`.next-gate` type errors adalah generated, bukan source)
+- Vitest — **62/62 tests** lulus di 4 file baru
+- Total suite: 40 file, 453+ test cases
+
+### Catatan
+
+- Semua 3 fitur (bulk actions, export, audit log) sudah diimplementasikan sebelumnya di fase-fase sebelumnya; fase ini hanya melakukan verifikasi dan menambah test coverage.
+- Mobile improvements bersifat incremental — komponen sudah responsive, perbaikan lebih ke compact spacing dan text sizing di breakpoint kecil.
+
 

@@ -152,7 +152,7 @@
 - [x] Export students to CSV ✅
 - [x] Export teachers to CSV/Excel ✅
 - [x] Export transparansi to CSV/Excel ✅
-- [ ] Export announcements to PDF
+- [x] Export announcements to PDF ✅
 
 #### 7.3 Audit Log
 - [x] Log CRUD operations — activity-logs API ✅
@@ -218,10 +218,10 @@
 | 🟡 Testing | 14 | **14** | **100%** ✅ |
 | 🟡 Accessibility | 12 | **12** | **100%** ✅ |
 | 🟡 Mobile | 6 | **6** | **100%** ✅ |
-| 🟢 Features | 15 | **11** | **73%** |
+| 🟢 Features | 15 | **12** | **80%** |
 | 🟢 DevEx | 6 | **6** | **100%** ✅ |
 | 🟢 Monitoring | 6 | **5** | **83%** |
-| **TOTAL** | **88** | **81** | **92%** |
+| **TOTAL** | **88** | **82** | **93%** |
 
 ---
 

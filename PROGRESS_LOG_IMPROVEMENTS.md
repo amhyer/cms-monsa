@@ -156,7 +156,7 @@
 - [x] Export siswa ke CSV/Excel ✅ (students-manager pakai exportToCsv)
 - [x] Export guru ke CSV/Excel ✅ (teachers-manager pakai exportToCsv)
 - [x] Export transparansi ke CSV/Excel ✅ (`transparansi-view.tsx` line 299: `exportToCsv(...)` dengan button "Export CSV")
-- [ ] Export pengumuman ke PDF ❌
+- [x] Export pengumuman ke PDF ✅ (`src/lib/export.ts`: `exportAnnouncementsToPdf` — jsPDF client-side, A4 format, auto-pagination, `announcements-manager.tsx` button "Export PDF")
 
 #### 7.3 Audit Log
 - [x] Log semua CRUD operations ✅ (48 route files pakai logActivity)
@@ -221,10 +221,10 @@
 | 🟡 Testing | 14 | **14** | **100%** ✅ |
 | 🟡 Accessibility | 12 | **12** | **100%** ✅ |
 | 🟡 Mobile | 6 | **6** | **100%** ✅ |
-| 🟢 Features | 15 | **11** | **73%** |
+| 🟢 Features | 15 | **12** | **80%** |
 | 🟢 DevEx | 6 | **6** | **100%** ✅ |
 | 🟢 Monitoring | 6 | **5** | **83%** |
-| **TOTAL** | **88** | **81** | **92%** |
+| **TOTAL** | **88** | **82** | **93%** |
 
 ---
 
@@ -240,7 +240,7 @@
 
 ---
 
-## 📋 Items Tersisa (7 remaining)
+## 📋 Items Tersisa (6 remaining)
 
 ### Yang bisa dikerjakan sekarang:
 1. **Monitoring**: Log aggregation

@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { createComplaintSchema, validateBody } from "@/lib/validations";
 import { sendEmail, emailTemplates } from "@/lib/email";
+import { notifyComplaintToAdmin } from "@/lib/notifications";
 import { logger } from "@/lib/logger";
 import { rateLimitPublicForm } from "@/lib/rate-limit";
 
@@ -70,6 +71,16 @@ export async function POST(req: NextRequest) {
         html: template.html,
       });
     }
+
+    // Send WhatsApp/Telegram notification to admin (fire-and-forget)
+    notifyComplaintToAdmin({
+      name: isAnonymous ? "Anonim" : name || "Anonim",
+      subject,
+      message,
+      category: category || "Akademik",
+      isAnonymous,
+      priority: body.priority === "TINGGI" ? "TINGGI" : "NORMAL",
+    }).catch(() => {}); // Never block the request
 
     return NextResponse.json({ ok: true, id: item.id });
   } catch (e) {

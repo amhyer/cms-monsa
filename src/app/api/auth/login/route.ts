@@ -78,6 +78,21 @@ export async function POST(req: NextRequest) {
     // Success — clear any prior failure counter.
     await clearFailures(normalizedEmail, ip);
 
+    // Check if 2FA is enabled — if so, don't create session yet
+    if (user.twoFactorEnabled) {
+      return NextResponse.json({
+        requires2FA: true,
+        userId: user.id,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          isActive: user.isActive,
+        },
+      });
+    }
+
     await setSession(user.id, user.role as Role);
 
     await logActivity(

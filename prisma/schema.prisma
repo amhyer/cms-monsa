@@ -27,6 +27,10 @@ model User {
   studentId String?  @unique // Untuk role SISWA: akun portal siswa
   student   Student? @relation("StudentAccount", fields: [studentId], references: [id])
   isActive  Boolean  @default(true)
+  // 2FA (TOTP)
+  twoFactorSecret    String?  // Encrypted TOTP secret
+  twoFactorEnabled   Boolean  @default(false)
+  twoFactorBackupCodes String? // JSON array of hashed backup codes
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -1,0 +1,69 @@
+# Docker Compose for CMS MONSA Logging Stack
+# Loki + Grafana + Promtail for log aggregation
+#
+# Usage:
+#   docker compose -f docker-compose.logging.yml up -d
+#
+# Access:
+#   Grafana: http://localhost:3001 (admin/admin)
+#   Loki:    http://localhost:3100/ready
+#
+# Environment:
+#   LOKI_URL=http://localhost:3100/loki/api/v1/push  (set in .env)
+
+services:
+  # ── Loki ──────────────────────────────────────────────────────────
+  # Log aggregation system — stores and queries logs
+  loki:
+    image: grafana/loki:3.1.0
+    container_name: monsa-loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./config/loki/loki-config.yml:/etc/loki/local-config.yaml
+      - loki-data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3100/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ── Promtail ──────────────────────────────────────────────────────
+  # Log collector — tails log files and ships to Loki
+  promtail:
+    image: grafana/promtail:3.1.0
+    container_name: monsa-promtail
+    volumes:
+      - ./config/loki/promtail-config.yml:/etc/promtail/config.yml
+      - /var/log:/var/log:ro
+      - ./logs:/var/log/app:ro  # CMS MONSA logs directory
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      loki:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Grafana ───────────────────────────────────────────────────────
+  # Visualization dashboard — queries Loki for log data
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: monsa-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./config/loki/grafana-provisioning:/etc/grafana/provisioning
+    depends_on:
+      loki:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  loki-data:
+  grafana-data:

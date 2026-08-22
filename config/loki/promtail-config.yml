@@ -1,0 +1,77 @@
+# Promtail Configuration for CMS MONSA
+# Tails application logs and ships to Loki
+# Documentation: https://grafana.com/docs/loki/latest/send-data/promtail/
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # ── CMS MONSA Application Logs ──────────────────────────────────
+  # Tails pino JSON logs from the logs/ directory
+  - job_name: cms-monsa-app
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: cms-monsa
+          service: cms-monsa
+          environment: production
+          __path__: /var/log/app/*.log
+
+    # Parse pino JSON logs
+    pipeline_stages:
+      - json:
+          expressions:
+            level: level
+            msg: msg
+            time: time
+            requestId: requestId
+            userId: userId
+            err: err
+            service: service
+
+      # Map pino levels to Loki levels
+      - labels:
+          level:
+          service:
+
+      # Add timestamp
+      - timestamp:
+          source: time
+          format: RFC3339Nano
+
+      # Enrich labels from parsed fields
+      - labels:
+          requestId:
+          userId:
+
+  # ── System Logs (optional) ──────────────────────────────────────
+  - job_name: system
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: system
+          __path__: /var/log/syslog
+
+  # ── Nginx Access Logs (if using nginx) ──────────────────────────
+  - job_name: nginx-access
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nginx
+          __path__: /var/log/nginx/access.log
+    pipeline_stages:
+      - regex:
+          expression: '^(?P<remote_addr>[\w\.]+) - (?P<remote_user>\S+) \[(?P<time_local>.*)\] "(?P<method>\S+) (?P<request_uri>\S+) (?P<server_protocol>\S+)" (?P<status>\d{3}) (?P<body_bytes_sent>\d+) "(?P<http_referer>.*)" "(?P<http_user_agent>.*)"'
+      - labels:
+          method:
+          status:

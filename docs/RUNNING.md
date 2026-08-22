@@ -701,6 +701,75 @@ health secara berkala:
 | HTTP status | != 200 | Critical (service down/degraded) |
 | Uptime < 99.9% | Bulanan | Review infrastructure |
 
+### Log Aggregation (Loki + Grafana)
+
+CMS MONSA mendukung log aggregation menggunakan Grafana Loki untuk
+menyimpan, mencari, dan menganalisis logs secara terpusat.
+
+**Quick Start:**
+
+```bash
+# 1. Jalankan stack logging (Loki + Grafana + Promtail)
+docker compose -f docker-compose.logging.yml up -d
+
+# 2. Set LOKI_URL di .env
+LOKI_URL="http://localhost:3100/loki/api/v1/push"
+
+# 3. Restart aplikasi
+bun run dev
+
+# 4. Buka Grafana
+dashboard: http://localhost:3001 (admin/admin)
+```
+
+**Architecture:**
+
+```
+┌─────────────┐    ┌──────────┐    ┌─────────┐
+│ CMS MONSA   │───▶│ Promtail │───▶│  Loki   │
+│ (pino-loki) │    │  (tail)  │    │ (store) │
+└─────────────┘    └──────────┘    └─────────┘
+                                          │
+                                     ┌────▼────┐
+                                     │ Grafana │
+                                     │ (query) │
+                                     └─────────┘
+```
+
+**Log Labels:**
+
+| Label | Value | Keterangan |
+|-------|-------|------------|
+| `service` | `cms-monsa` | Nama aplikasi |
+| `environment` | `production` / `development` | Lingkungan |
+| `level` | `debug`, `info`, `warn`, `error`, `fatal` | Level log pino |
+| `requestId` | UUID per request | Tracking permintaan |
+| `userId` | User ID | Siapa yang melakukan aksi |
+
+**Grafana Dashboard:**
+
+Dashboard `CMS MONSA — Logs` menyediakan:
+- Log volume by level (bar chart)
+- Error/warning count (24h)
+- Log stream dengan filter (errors, warnings, login, 2FA)
+- Template variables untuk quick filter
+
+**Environment Variables:**
+
+| Variable | Default | Keterangan |
+|----------|---------|------------|
+| `LOKI_URL` | `""` | URL endpoint Loki push API |
+| `LOG_LEVEL` | `debug` (dev) / `info` (prod) | Minimum log level |
+
+**Tanpa Docker:**
+
+Jika tidak menggunakan Docker, logs tetap ditulis ke stdout dalam format
+JSON. Gunakan tool seperti `jq` untuk filtering:
+
+```bash
+bun run dev 2>&1 | jq 'select(.level == "error")'
+```
+
 ---
 
 ## Referensi Cepat

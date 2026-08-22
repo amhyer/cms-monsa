@@ -27,6 +27,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ImageUpload } from "@/components/shared/image-upload";
+import { TwoFactorSettings } from "./two-factor-settings";
 import { useAppStore } from "@/store/app";
 import type { SiteSettingItem } from "@/lib/types";
 import { PageLoader } from "../_shared";
@@ -443,6 +444,9 @@ export function SettingsManager() {
           </div>
         </CardContent>
       </Card>
+
+      {/* 2FA Settings — only visible to SUPER_ADMIN */}
+      <TwoFactorSettings />
 
       {/* Sticky save bar */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">

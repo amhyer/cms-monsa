@@ -9,22 +9,64 @@ import pino from "pino";
  *   logger.error({ err, requestId }, "Something failed");
  *
  * In development, logs are pretty-printed. In production, they're JSON.
+ * When LOKI_URL is set, logs are also shipped to Grafana Loki.
  */
 
 const isDev = process.env.NODE_ENV !== "production";
+const lokiUrl = process.env.LOKI_URL; // e.g. "http://localhost:3100/loki/api/v1/push"
+
+// Build transport configuration
+function buildTransport() {
+  // Development: pretty-print to console
+  if (isDev && !lokiUrl) {
+    return {
+      target: "pino-pretty",
+      options: {
+        colorize: true,
+        translateTime: "SYS:HH:MM:ss",
+        ignore: "pid,hostname",
+      },
+    };
+  }
+
+  // Production with Loki: multi-transport (console JSON + Loki)
+  if (lokiUrl) {
+    return {
+      targets: [
+        // Always write JSON to stdout (for Docker/K8s log collectors)
+        {
+          target: "pino/file",
+          options: { destination: 1 }, // stdout
+          level: process.env.LOG_LEVEL ?? "info",
+        },
+        // Ship to Loki
+        {
+          target: "pino-loki",
+          options: {
+            baseUrl: lokiUrl,
+            labels: {
+              service: "cms-monsa",
+              environment: process.env.NODE_ENV ?? "development",
+            },
+            // Batch settings for efficiency
+            batchInterval: 5000, // ms
+            batchSize: 100,
+            clearByAge: true,
+            clearAge: 60000, // 1 min
+          },
+          level: process.env.LOG_LEVEL ?? "info",
+        },
+      ],
+    };
+  }
+
+  // Production without Loki: JSON to stdout
+  return undefined;
+}
 
 export const logger = pino({
   level: process.env.LOG_LEVEL ?? (isDev ? "debug" : "info"),
-  transport: isDev
-    ? {
-        target: "pino-pretty",
-        options: {
-          colorize: true,
-          translateTime: "SYS:HH:MM:ss",
-          ignore: "pid,hostname",
-        },
-      }
-    : undefined,
+  transport: buildTransport(),
   // Redact sensitive fields in production
   redact: isDev
     ? undefined

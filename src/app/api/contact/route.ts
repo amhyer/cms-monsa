@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { createContactSchema, validateBody } from "@/lib/validations";
 import { sendEmail, emailTemplates } from "@/lib/email";
+import { notifyContactToAdmin } from "@/lib/notifications";
 import { rateLimitPublicForm } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 
@@ -37,6 +38,9 @@ export async function POST(req: NextRequest) {
         html: template.html,
       });
     }
+
+    // Send WhatsApp/Telegram notification to admin (fire-and-forget)
+    notifyContactToAdmin({ name, subject, message }).catch(() => {});
 
     return NextResponse.json({ ok: true, id: item.id });
   } catch (e) {

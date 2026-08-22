@@ -170,9 +170,9 @@
 - [x] Backup codes generation ✅ (`generateBackupCodes` — 10 codes, SHA-256 hashed, verify backup during login)
 
 #### 7.5 Webhook Notifications
-- [ ] Push ke WhatsApp saat pengaduan baru ❌ (sudah ada whatsapp.ts, tapi bukan auto-push saat pengaduan)
-- [ ] Push ke Telegram ❌
-- [ ] Email notification untuk admin ❌ (sudah ada email.ts, tapi belum auto-notif admin)
+- [x] Push ke WhatsApp saat pengaduan baru ✅ (`src/lib/notifications.ts`: `notifyComplaintToAdmin` → `sendWhatsApp(ADMIN_PHONE, ...)` — fire-and-forget)
+- [x] Push ke Telegram ✅ (`src/lib/notifications.ts`: `sendTelegram` → Telegram Bot API dengan Markdown formatting)
+- [x] Email notification untuk admin ✅ (sudah ada di `complaints/route.ts` + `contact/route.ts` via `sendEmail` + `notifyContactToAdmin`)
 
 ---
 

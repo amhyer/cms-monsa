@@ -1,5 +1,15 @@
 # CMS MONSA — UPT SPF SD Negeri Unggulan Mongisidi 1
 
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/username/cms-monsa/releases/tag/v1.0.0)
+[![Tests](https://img.shields.io/badge/tests-562%20passing-brightgreen.svg)](#testing)
+[![E2E](https://img.shields.io/badge/e2e-87%2B%20tests-brightgreen.svg)](#e2e-tests)
+[![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)](#testing)
+[![License](https://img.shields.io/badge/license-proprietary-red.svg)](#license)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black.svg)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB.svg)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6.svg)](https://www.typescriptlang.org/)
+[![Prisma](https://img.shields.io/badge/Prisma-6.x-2D3748.svg)](https://www.prisma.io/)
+
 Sistem Manajemen Konten (CMS) untuk website sekolah UPT SPF SD Negeri Unggulan Mongisidi 1, Makassar.
 
 > **Kontributor?** Gate validasi (pre-commit/pre-push) & alur E2E

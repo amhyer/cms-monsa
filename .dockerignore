@@ -1,81 +1,66 @@
-# ============================================
-# CMS MONSA - Docker Ignore
-# ============================================
-# This file excludes files/directories from the Docker build context
-# to speed up builds and reduce image size.
-
 # Dependencies
 node_modules
 .next
-out
+.next-*
+.next-gate
 
-# Build outputs
-*.tsbuildinfo
-
-# Testing
-test-results
-playwright-report
-coverage
-*.test.ts
-*.spec.ts
-
-# Development files
-.env
-.env.local
-.env.development
+# Git
 .git
 .gitignore
-.gitattributes
-.github
-.zscripts
-.githooks
+
+# IDE
 .vscode
 .idea
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+.env.production
+.env*.local
+
+# Build artifacts
+out/
+coverage/
+playwright-report/
+test-results/
+
+# Database
+db/
+*.db
+*.db-journal
+
+# Uploads
+upload/
+download/
 
 # Documentation
 *.md
 !README.md
-docs
-DEPLOYMENT.md
-REFACTOR_PLAN.md
-REPO_HEALTH_AUDIT.md
-SECURITY_AUDIT.md
-PROGRESS_LOG.md
-TODO.md
 
-# Scripts
-scripts
+# Scripts (not needed in production)
+scripts/
+e2e/
+skills/
+examples/
+mini-services/
 .zscripts
+.freebuff
 
-# Dapodik client (separate project)
-dapodik-client
+# Logs
+logs/
+*.log
 
-# Database files (will be in volumes)
-prisma/db/*.db
-prisma/db/*.db-journal
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
 
-# Uploads (will be in volumes)
-public/uploads
-
-# Backup files
-backups
-
-# OS files
+# OS
 .DS_Store
 Thumbs.db
-*.swp
-*.swo
 
-# IDE files
-.vscode
-.idea
-*.code-workspace
-
-# Misc
-postcss.config.mjs
-tailwind.config.ts
+# Testing
 vitest.config.ts
 playwright.config.ts
-eslint.config.mjs
-components.json
-markdownlint-cli2.cjs

@@ -121,7 +121,7 @@ export function ComplaintView() {
                 title="Sampaikan Pengaduan Anda"
                 description="Isi formulir di bawah dengan lengkap. Semua pengaduan akan ditindaklanjuti."
               />
-              <form onSubmit={onSubmit} className="mt-6 space-y-4">
+              <form onSubmit={onSubmit} noValidate className="mt-6 space-y-4">
                 {/* Anonymous toggle */}
                 <div className="flex items-center justify-between rounded-lg border bg-muted/30 p-3">
                   <div className="flex items-center gap-2">

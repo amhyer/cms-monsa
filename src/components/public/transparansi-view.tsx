@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Landmark, FileText, Download } from "lucide-react";
+import { Landmark, FileText, Download, DownloadCloud } from "lucide-react";
 import { PageBanner, SectionShell } from "./_shared";
 import { ErrorState } from "@/components/shared/error-state";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,7 @@ import {
   formatCompactCurrency,
   formatBytes,
 } from "@/lib/format";
+import { exportToCsv } from "@/lib/export";
 import type { BosExpenditureItem, BosDocumentItem } from "@/lib/types";
 
 const EXP_LIMIT = 20;
@@ -289,53 +290,133 @@ export function TransparansiView() {
                     Belum ada data belanja untuk tahun ini.
                   </p>
                 ) : (
-                  <div className="rounded-xl border bg-card">
-                    <div className="table-scroll">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Tahun</TableHead>
-                            <TableHead>Sumber Dana</TableHead>
-                            <TableHead>Kategori</TableHead>
-                            <TableHead>Uraian Belanja</TableHead>
-                            <TableHead className="text-center">Triwulan</TableHead>
-                            <TableHead className="text-right">Nominal</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {items.map((i) => (
-                            <TableRow key={i.id}>
-                              <TableCell className="font-medium">
-                                {i.year}
+                  <>
+                    <div className="flex justify-end">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          exportToCsv(
+                            `belanja-bos-${year === "all" ? "semua" : year}`,
+                            items.map((i) => ({
+                              Tahun: i.year,
+                              "Sumber Dana": i.source,
+                              Kategori: i.category,
+                              Uraian: i.item,
+                              Triwulan: i.quarter ? `TW ${i.quarter}` : "",
+                              Nominal: i.amount,
+                            })),
+                            [
+                              { key: "Tahun", label: "Tahun" },
+                              { key: "Sumber Dana", label: "Sumber Dana" },
+                              { key: "Kategori", label: "Kategori" },
+                              { key: "Uraian", label: "Uraian Belanja" },
+                              { key: "Triwulan", label: "Triwulan" },
+                              { key: "Nominal", label: "Nominal" },
+                            ]
+                          );
+                        }}
+                        disabled={items.length === 0}
+                      >
+                        <DownloadCloud className="size-4" /> Export CSV
+                      </Button>
+                    </div>
+
+                    {/* Desktop: Table view */}
+                    <div className="hidden rounded-xl border bg-card md:block">
+                      <div className="table-scroll">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Tahun</TableHead>
+                              <TableHead>Sumber Dana</TableHead>
+                              <TableHead>Kategori</TableHead>
+                              <TableHead>Uraian Belanja</TableHead>
+                              <TableHead className="text-center">Triwulan</TableHead>
+                              <TableHead className="text-right">Nominal</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {items.map((i) => (
+                              <TableRow key={i.id}>
+                                <TableCell className="font-medium">
+                                  {i.year}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="outline">{i.source}</Badge>
+                                </TableCell>
+                                <TableCell className="text-muted-foreground">
+                                  {i.category}
+                                </TableCell>
+                                <TableCell>{i.item}</TableCell>
+                                <TableCell className="text-center">
+                                  {i.quarter ? `TW ${i.quarter}` : "—"}
+                                </TableCell>
+                                <TableCell className="text-right font-medium">
+                                  {formatCurrency(i.amount)}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                            <TableRow className="border-t-2">
+                              <TableCell colSpan={5} className="font-semibold">
+                                Total
                               </TableCell>
-                              <TableCell>
-                                <Badge variant="outline">{i.source}</Badge>
-                              </TableCell>
-                              <TableCell className="text-muted-foreground">
-                                {i.category}
-                              </TableCell>
-                              <TableCell>{i.item}</TableCell>
-                              <TableCell className="text-center">
-                                {i.quarter ? `TW ${i.quarter}` : "—"}
-                              </TableCell>
-                              <TableCell className="text-right font-medium">
-                                {formatCurrency(i.amount)}
+                              <TableCell className="text-right font-bold">
+                                {formatCurrency(expMeta.totalAmount)}
                               </TableCell>
                             </TableRow>
-                          ))}
-                          <TableRow className="border-t-2">
-                            <TableCell colSpan={5} className="font-semibold">
-                              Total
-                            </TableCell>
-                            <TableCell className="text-right font-bold">
-                              {formatCurrency(expMeta.totalAmount)}
-                            </TableCell>
-                          </TableRow>
-                        </TableBody>
-                      </Table>
+                          </TableBody>
+                        </Table>
+                      </div>
                     </div>
-                  </div>
+
+                    {/* Mobile: Card view */}
+                    <div className="space-y-3 md:hidden">
+                      {items.map((i) => (
+                        <div
+                          key={i.id}
+                          className="rounded-xl border bg-card p-4"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate font-semibold text-foreground">
+                                {i.item}
+                              </p>
+                              <div className="mt-1 flex flex-wrap gap-1.5">
+                                <Badge variant="outline" className="text-[10px]">
+                                  {i.year}
+                                </Badge>
+                                <Badge variant="secondary" className="text-[10px]">
+                                  {i.source}
+                                </Badge>
+                                {i.quarter && (
+                                  <Badge variant="outline" className="text-[10px]">
+                                    TW {i.quarter}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            <p className="shrink-0 text-sm font-bold text-foreground">
+                              {formatCurrency(i.amount)}
+                            </p>
+                          </div>
+                          {i.category && (
+                            <p className="mt-1.5 text-xs text-muted-foreground">
+                              {i.category}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                      <div className="rounded-xl border bg-muted/40 p-3 text-right">
+                        <p className="text-xs text-muted-foreground">Total</p>
+                        <p className="text-lg font-bold">
+                          {formatCurrency(expMeta.totalAmount)}
+                        </p>
+                      </div>
+                    </div>
+                  </>
                 )}
+
                 <Pagination
                   page={expPage}
                   totalPages={expMeta.totalPages}

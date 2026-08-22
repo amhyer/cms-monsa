@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { createComplaintSchema, validateBody } from "@/lib/validations";
 import { sendEmail, emailTemplates } from "@/lib/email";
+import { logger } from "@/lib/logger";
 import { rateLimitPublicForm } from "@/lib/rate-limit";
 
 export async function GET(req: NextRequest) {
@@ -72,7 +73,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, id: item.id });
   } catch (e) {
-    console.error("[complaint-create]", e);
+    logger.error({ err: e }, "[complaint-create] error");
     return NextResponse.json({ error: "Gagal mengirim pengaduan." }, { status: 500 });
   }
 }

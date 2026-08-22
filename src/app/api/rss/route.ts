@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
 export async function GET() {
   try {
@@ -77,7 +78,7 @@ export async function GET() {
       },
     });
   } catch (err) {
-    console.error("[rss]", err);
+    logger.error({ err }, "[rss] error");
     return NextResponse.json(
       { error: "Gagal memuat data RSS." },
       { status: 500 }

@@ -10,6 +10,11 @@ import {
   notifyParentWhatsApp,
   parentAccountCreatedMessage,
 } from "@/lib/whatsapp";
+import {
+  parsePaginationParams,
+  decodeCursor,
+  buildPaginatedResponse,
+} from "@/lib/pagination";
 
 /**
  * Kirim akun portal orang tua lewat WhatsApp (non-blokir: kegagalan tidak
@@ -66,8 +71,8 @@ export async function GET(req: NextRequest) {
   if (!auth.ok) return auth.response;
 
   const { searchParams } = new URL(req.url);
-  const page = Math.max(1, Number(searchParams.get("page") || "1"));
-  const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit") || "10")));
+  const { cursor, limit } = parsePaginationParams(searchParams, 10, 100);
+  const cursorId = decodeCursor(cursor);
   const role = searchParams.get("role");
   const q = searchParams.get("q")?.trim() || "";
 
@@ -95,54 +100,52 @@ export async function GET(req: NextRequest) {
   const where = {
     ...(roleWhere ?? {}),
     ...(searchWhere ?? {}),
+    // Cursor-based: fetch items after the cursor
+    ...(cursorId ? { id: { gt: cursorId } } : {}),
   };
 
-  const [total, items, roleRows] = await Promise.all([
-    db.user.count({ where }),
+  const [total, items, roleGroupRows] = await Promise.all([
+    db.user.count({ where: { ...(roleWhere ?? {}), ...(searchWhere ?? {}) } }),
     db.user.findMany({
       where,
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * limit,
-      take: limit,
+      orderBy: { id: "asc" }, // Use id for consistent cursor ordering
+      take: limit + 1, // Fetch one extra to determine if there's more
       select: USER_SELECT,
     }),
-    // Hitungan per peran atas SELURUH akun (tidak ikut filter pencarian /
-    // halaman) — dipakai label tab agar akurat walau tabel di-paginate.
-    db.user.findMany({ select: { role: true } }),
+    // Hitungan per peran atas SELURUH akun — pakai groupBy agar efisien
+    // (tidak perlu fetch semua row hanya untuk count).
+    db.user.groupBy({ by: ["role"], _count: { _all: true } }),
   ]);
 
-  // Hitung ringkasan peran server-side.
+  // Build role counts from groupBy result (O(rows) instead of O(all users)).
+  const roleCountMap = new Map(roleGroupRows.map((r) => [r.role, r._count._all]));
   const counts = {
-    all: roleRows.length,
-    STAFF: roleRows.filter(
-      (u) => u.role === "SUPER_ADMIN" || u.role === "OPERATOR"
-    ).length,
-    GURU: roleRows.filter((u) => u.role === "GURU").length,
-    ORANG_TUA: roleRows.filter((u) => u.role === "ORANG_TUA").length,
-    SISWA: roleRows.filter((u) => u.role === "SISWA").length,
+    all: Array.from(roleCountMap.values()).reduce((a, b) => a + b, 0),
+    STAFF: (roleCountMap.get("SUPER_ADMIN") ?? 0) + (roleCountMap.get("OPERATOR") ?? 0),
+    GURU: roleCountMap.get("GURU") ?? 0,
+    ORANG_TUA: roleCountMap.get("ORANG_TUA") ?? 0,
+    SISWA: roleCountMap.get("SISWA") ?? 0,
   };
 
+  const mappedItems = items.map((u) => ({
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    role: u.role,
+    isActive: u.isActive,
+    guardianClassId: u.guardianClassId,
+    guardianClassName: u.guardianClass?.name ?? null,
+    guardianStudentId: u.guardianStudentId,
+    guardianStudentName: u.guardianStudent?.name ?? null,
+    guardianStudentClassName: u.guardianStudent?.class?.name ?? null,
+    studentId: u.studentId,
+    studentName: u.student?.name ?? null,
+    studentClassName: u.student?.class?.name ?? null,
+    createdAt: u.createdAt,
+  }));
+
   return NextResponse.json({
-    items: items.map((u) => ({
-      id: u.id,
-      name: u.name,
-      email: u.email,
-      role: u.role,
-      isActive: u.isActive,
-      guardianClassId: u.guardianClassId,
-      guardianClassName: u.guardianClass?.name ?? null,
-      guardianStudentId: u.guardianStudentId,
-      guardianStudentName: u.guardianStudent?.name ?? null,
-      guardianStudentClassName: u.guardianStudent?.class?.name ?? null,
-      studentId: u.studentId,
-      studentName: u.student?.name ?? null,
-      studentClassName: u.student?.class?.name ?? null,
-      createdAt: u.createdAt,
-    })),
-    total,
-    page,
-    limit,
-    totalPages: Math.max(1, Math.ceil(total / limit)),
+    ...buildPaginatedResponse(mappedItems, total, limit),
     counts,
   });
 }

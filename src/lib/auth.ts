@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { createHmac, timingSafeEqual } from "crypto";
 import { db } from "@/lib/db";
 import type { Role, SessionUser } from "@/lib/types";
+import { logger } from "@/lib/logger";
 
 export const SESSION_COOKIE = process.env.NODE_ENV === "production" ? "__Host-monsa_session" : "monsa_session";
 
@@ -14,10 +15,8 @@ const DEFAULT_DEV_SECRET = "monsa-dev-secret-DO-NOT-USE-IN-PROD-9f2a7c1e";
 function getSessionSecret(): string {
   const secret = process.env.AUTH_SECRET;
   if (!secret) {
-    console.error(
-      "[AUTH] CRITICAL: AUTH_SECRET tidak di-set. " +
-      "Session cookies tidak akan aman. " +
-      "Set AUTH_SECRET di .env atau environment variables."
+    logger.fatal(
+      "[AUTH] CRITICAL: AUTH_SECRET tidak di-set. Session cookies tidak akan aman. Set AUTH_SECRET di .env atau environment variables."
     );
     // Use dev fallback only in development, throw in production
     if (process.env.NODE_ENV === "production") {
@@ -26,14 +25,12 @@ function getSessionSecret(): string {
         "Generate dengan: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\""
       );
     }
-    console.warn("[AUTH] Menggunakan dev fallback secret. JANGAN gunakan di production!");
+    logger.warn("[AUTH] Menggunakan dev fallback secret. JANGAN gunakan di production!");
     return DEFAULT_DEV_SECRET;
   }
   if (secret === DEFAULT_DEV_SECRET) {
-    console.warn(
-      "[AUTH] WARNING: AUTH_SECRET masih menggunakan default dev value. " +
-      "Generate secret baru untuk keamanan: " +
-      "node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\""
+    logger.warn(
+      "[AUTH] WARNING: AUTH_SECRET masih menggunakan default dev value. Generate secret baru untuk keamanan."
     );
   }
   return secret;
@@ -67,7 +64,7 @@ function encode(payload: SessionPayload): string {
 }
 
 /** Verify signature and return payload, or null if tampered/expired/invalid. */
-function decode(token: string): SessionPayload | null {
+export function decode(token: string): SessionPayload | null {
   try {
     const dot = token.lastIndexOf(".");
     if (dot < 1) return null;

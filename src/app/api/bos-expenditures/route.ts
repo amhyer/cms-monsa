@@ -5,6 +5,11 @@ import { requireCsrf } from "@/lib/csrf";
 import { rateLimitPublicGet } from "@/lib/rate-limit";
 import { logActivity } from "@/lib/log";
 import { createBosExpenditureSchema, validateBody } from "@/lib/validations";
+import {
+  parsePaginationParams,
+  decodeCursor,
+  buildPaginatedResponse,
+} from "@/lib/pagination";
 
 /**
  * Daftar belanja dana BOS/ARKAS — PUBLIK (transparansi anggaran sekolah).
@@ -15,19 +20,23 @@ export async function GET(req: NextRequest) {
   const rateLimited = await rateLimitPublicGet(req, 60, 60000);
   if (rateLimited) return rateLimited;
   const { searchParams } = new URL(req.url);
+  const { cursor, limit } = parsePaginationParams(searchParams, 20, 100);
+  const cursorId = decodeCursor(cursor);
   const year = searchParams.get("year");
-  const page = Math.max(1, Number(searchParams.get("page") || "1"));
-  const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit") || "20")));
-  const where = year ? { year: Number(year) } : {};
+  const baseWhere = year ? { year: Number(year) } : {};
+  const where = {
+    ...baseWhere,
+    // Cursor-based: fetch items after the cursor
+    ...(cursorId ? { id: { gt: cursorId } } : {}),
+  };
 
   const [total, items, yearGroupRows, agg, bySourceRows, docYearRows] =
     await Promise.all([
-      db.bosExpenditure.count({ where }),
+      db.bosExpenditure.count({ where: baseWhere }),
       db.bosExpenditure.findMany({
         where,
-        orderBy: [{ year: "desc" }, { source: "asc" }, { createdAt: "asc" }],
-        skip: (page - 1) * limit,
-        take: limit,
+        orderBy: [{ id: "asc" }], // Use id for consistent cursor ordering
+        take: limit + 1, // Fetch one extra to determine if there's more
       }),
       // Statistik per tahun SELALU lengkap (tidak terpotong pagination, dan
       // tidak ikut filter tahun) — dipakai dropdown admin agar admin melihat
@@ -79,11 +88,7 @@ export async function GET(req: NextRequest) {
     });
 
   return NextResponse.json({
-    items,
-    total,
-    page,
-    limit,
-    totalPages: Math.max(1, Math.ceil(total / limit)),
+    ...buildPaginatedResponse(items, total, limit),
     years: yearStats.map((s) => s.year),
     yearStats,
     totalAmount: agg._sum.amount ?? 0,

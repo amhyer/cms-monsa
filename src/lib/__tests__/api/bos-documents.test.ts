@@ -42,30 +42,52 @@ describe("GET /api/bos-documents", () => {
     });
     expect(data.items[0]).not.toHaveProperty("uploadedBy");
     expect(data.total).toBe(1);
-    expect(data.page).toBe(1);
-    expect(data.totalPages).toBe(1);
+    expect(data.hasMore).toBe(false);
+    expect(data.nextCursor).toBeNull();
     expect(data.years).toEqual([2026]);
   });
 
-  it("paginates with page/limit and honors ?year=", async () => {
+  it("paginates with cursor/limit and honors ?year=", async () => {
     mockPrisma.bosDocument.count.mockResolvedValue(7);
     mockPrisma.bosDocument.findMany.mockResolvedValue([]);
 
     const req = createMockRequest(
-      "http://localhost/api/bos-documents?year=2025&page=2&limit=5"
+      "http://localhost/api/bos-documents?year=2025&limit=5"
     );
     const res = await GET(asNextRequest(req));
     const data = await res.json();
 
     expect(res.status).toBe(200);
-    expect(data.page).toBe(2);
-    expect(data.limit).toBe(5);
-    expect(data.totalPages).toBe(2);
+    expect(data.total).toBe(7);
+    expect(data.hasMore).toBe(false);
+    expect(data.years).toEqual([]);
     expect(mockPrisma.bosDocument.count).toHaveBeenCalledWith({
       where: { year: 2025 },
     });
     expect(mockPrisma.bosDocument.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { year: 2025 }, skip: 5, take: 5 })
+      expect.objectContaining({ where: { year: 2025 }, take: 6 })
     );
+  });
+
+  it("returns nextCursor when more items exist", async () => {
+    mockPrisma.bosDocument.count.mockResolvedValue(12);
+    // Return limit+1 items to signal there's a next page
+    const moreDocs = Array.from({ length: 6 }, (_, i) => ({
+      ...doc,
+      id: `doc-${i + 2}`,
+      title: `Doc ${i + 2}`,
+    }));
+    mockPrisma.bosDocument.findMany.mockResolvedValueOnce(moreDocs);
+
+    const req = createMockRequest(
+      "http://localhost/api/bos-documents?limit=5"
+    );
+    const res = await GET(asNextRequest(req));
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.items).toHaveLength(5);
+    expect(data.hasMore).toBe(true);
+    expect(data.nextCursor).toBeTruthy();
   });
 });

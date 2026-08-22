@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireAuth, requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
+import { logger } from "@/lib/logger";
 import { omitFields } from "@/lib/utils";
 import { PUBLIC_TEACHER_OMIT } from "@/lib/public-scope";
 import { createTeacherSchema, validateBody, teacherProfileData } from "@/lib/validations";
@@ -58,7 +59,7 @@ export async function GET(req: NextRequest) {
       items: items.map((t) => omitFields(t, PUBLIC_TEACHER_OMIT)),
     });
   } catch (error) {
-    console.error("[teachers] GET error:", error);
+    logger.error({ err: error }, "[teachers] GET error");
     return NextResponse.json(
       { items: [], error: "Gagal memuat data guru/staf." },
       { status: 500 }

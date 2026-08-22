@@ -42,7 +42,7 @@ import { ImageUpload } from "@/components/shared/image-upload";
 import { CopyableId } from "@/components/shared/copyable-id";
 import type { StudentItem, ClassItem } from "@/lib/types";
 import { exportToCsv } from "@/lib/export";
-import { PageLoader, EmptyState, toDateInputValue, fromDateInputValue, usePersistedPageSize } from "../_shared";
+import { PageLoader, EmptyState, CursorPagination, toDateInputValue, fromDateInputValue, usePersistedPageSize, useCursorPagination } from "../_shared";
 
 type FormState = {
   nis: string;
@@ -85,10 +85,10 @@ export function StudentsManager() {
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
   const [saving, setSaving] = useState(false);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [pageSize, setPageSize] = usePersistedPageSize("students", 10, [10, 20, 50, 100]);
+  const cp = useCursorPagination({ limit: pageSize, total, nextCursor });
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<StudentItem | null>(null);
@@ -111,33 +111,28 @@ export function StudentsManager() {
     setLoading(true);
     try {
       const params = new URLSearchParams({
-        page: String(page),
         limit: String(pageSize),
       });
+      if (cp.currentCursor) params.set("cursor", cp.currentCursor);
       if (classFilter !== "all") params.set("classId", classFilter);
       if (debounced.trim()) params.set("search", debounced.trim());
       const res = await fetch(`/api/students?${params}`, { cache: "no-store" });
       if (!res.ok) throw new Error();
       const data = await res.json();
       setItems(data.items || []);
-      setTotalPages(data.totalPages || 1);
       setTotal(data.total || 0);
+      setNextCursor(data.nextCursor ?? null);
     } catch {
       toast.error("Gagal memuat data siswa.");
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, classFilter, debounced]);
+  }, [cp.currentCursor, pageSize, classFilter, debounced]);
 
   // Kembali ke halaman 1 saat pencarian/filter/ukuran halaman berubah.
   useEffect(() => {
-    setPage(1);
+    cp.reset();
   }, [debounced, classFilter, pageSize]);
-
-  // Jaga agar page tidak melewati totalPages (mis. setelah menghapus baris).
-  useEffect(() => {
-    setPage((p) => Math.min(p, totalPages));
-  }, [totalPages]);
 
   const fetchClasses = useCallback(async () => {
     try {
@@ -394,14 +389,14 @@ export function StudentsManager() {
         />
       ) : (
         <>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:flex-wrap">
             <div className="flex items-center gap-2">
               <Search className="size-4 text-muted-foreground" />
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Cari nama, NIS, NISN, ortu…"
-                className="max-w-xs"
+                className="w-full sm:max-w-xs"
               />
             </div>
             <Select value={classFilter} onValueChange={setClassFilter}>
@@ -520,46 +515,21 @@ export function StudentsManager() {
         </>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span className="whitespace-nowrap">Tampilkan</span>
-          <select
-            value={pageSize}
-            onChange={(e) => {
-              setPageSize(Number(e.target.value));
-              setPage(1);
-            }}
-            className="h-8 rounded-md border bg-background px-2 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {[10, 20, 50, 100].map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-          <span className="whitespace-nowrap">data • Halaman {page} dari {totalPages} ({total} siswa)</span>
-        </div>
-        {totalPages > 1 && (
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1 || loading}
-            >
-              Sebelumnya
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages || loading}
-            >
-              Selanjutnya
-            </Button>
-          </div>
-        )}
-      </div>
+      <CursorPagination
+        page={cp.page}
+        totalPages={cp.totalPages}
+        total={total}
+        canGoBack={cp.canGoBack}
+        canGoForward={cp.canGoForward}
+        onPrev={cp.goPrev}
+        onNext={cp.goNext}
+        pageSize={pageSize}
+        onPageSizeChange={(s) => {
+          setPageSize(s);
+          cp.reset();
+        }}
+        pageSizes={[10, 20, 50, 100]}
+      />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">

@@ -268,19 +268,19 @@ function AgendaRow({ item }: { item: AgendaItem }) {
 /* ----------------------------- Achievement card ----------------------------- */
 function AchievementCard({ item }: { item: AchievementItem }) {
   return (
-    <div className="flex flex-col gap-3 rounded-xl border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+    <div className="flex flex-col gap-2 rounded-xl border bg-card p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md sm:gap-3 sm:p-5">
       <div className="flex items-center justify-between">
-        <span className="flex size-10 items-center justify-center rounded-full bg-gold/15 text-gold-foreground">
-          <Trophy className="size-5 text-gold" />
+        <span className="flex size-8 items-center justify-center rounded-full bg-gold/15 text-gold-foreground sm:size-10">
+          <Trophy className="size-4 text-gold sm:size-5" />
         </span>
-        <span className="inline-flex items-center rounded-full bg-sidebar-accent px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sidebar-foreground">
+        <span className="inline-flex items-center rounded-full bg-sidebar-accent px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sidebar-foreground sm:px-2.5">
           {item.level}
         </span>
       </div>
-      <h4 className="font-sans text-base font-bold leading-snug text-foreground">
+      <h4 className="font-sans text-sm font-bold leading-snug text-foreground sm:text-base">
         {item.title}
       </h4>
-      <p className="text-sm text-muted-foreground">
+      <p className="text-xs text-muted-foreground sm:text-sm">
         {item.studentName ?? "Tim Sekolah"}
       </p>
       {/* Identitas siswa tertaut (NIS/NISN) — sama seperti kartu dashboard,
@@ -564,14 +564,14 @@ export function HomeView() {
                 <ArrowRight className="size-4" />
               </Button>
             </div>
-            <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
               {isLoading ? (
                 Array.from({ length: 3 }).map((_, i) => (
                   <div
                     key={i}
-                    className="flex items-start gap-3 rounded-xl border bg-card p-5 shadow-sm"
+                    className="flex items-start gap-3 rounded-xl border bg-card p-3 shadow-sm sm:p-5"
                   >
-                    <Skeleton className="size-10 shrink-0 rounded-full" />
+                    <Skeleton className="size-8 shrink-0 rounded-full sm:size-10" />
                     <div className="flex flex-1 flex-col gap-2 pt-1">
                       <Skeleton className="h-4 w-full" />
                       <Skeleton className="h-3 w-2/3" />
@@ -579,7 +579,7 @@ export function HomeView() {
                   </div>
                 ))
               ) : achievements.length === 0 ? (
-                <div className="rounded-xl border bg-card p-6 text-center text-sm text-muted-foreground">
+                <div className="col-span-full rounded-xl border bg-card p-6 text-center text-sm text-muted-foreground">
                   Belum ada prestasi terbaru.
                 </div>
               ) : (

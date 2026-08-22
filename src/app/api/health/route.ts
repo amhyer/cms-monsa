@@ -3,8 +3,12 @@ import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
+// Track process start time for uptime reporting.
+const startedAt = Date.now();
+
 export async function GET() {
   const ts = new Date().toISOString();
+  const tStart = Date.now();
   const checks: Record<string, { ok: boolean; latencyMs?: number; error?: string }> = {};
 
   // --- Database check ---
@@ -38,12 +42,23 @@ export async function GET() {
   }
 
   const allOk = Object.values(checks).every((c) => c.ok);
+  const totalLatencyMs = Date.now() - tStart;
+
+  // Process-level metrics for uptime monitoring dashboards.
+  const mem = process.memoryUsage();
 
   return NextResponse.json(
     {
       status: allOk ? "healthy" : "degraded",
       timestamp: ts,
+      uptime: Math.floor((Date.now() - startedAt) / 1000), // seconds since process start
+      totalLatencyMs,
       checks,
+      process: {
+        heapUsedMB: Math.round(mem.heapUsed / 1024 / 1024),
+        heapTotalMB: Math.round(mem.heapTotal / 1024 / 1024),
+        rssMB: Math.round(mem.rss / 1024 / 1024),
+      },
     },
     { status: allOk ? 200 : 503 }
   );

@@ -44,6 +44,9 @@ model User {
   attendanceRecords Attendance[]
   bosExpenditures   BosExpenditure[]
   bosDocuments      BosDocument[]
+
+  @@index([role])
+  @@index([isActive])
 }
 
 // ---------- CONTENT ----------
@@ -75,6 +78,8 @@ model Announcement {
   isActive    Boolean   @default(true)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+
+  @@index([isActive])
 }
 
 model Agenda {
@@ -87,6 +92,9 @@ model Agenda {
   category    String   @default("Umum") // Akademik | Kegiatan | Libur | Umum
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([date])
+  @@index([category])
 }
 
 model Teacher {
@@ -126,6 +134,7 @@ model Teacher {
   account        User?
 
   @@index([nuptk])
+  @@index([isActive])
 }
 
 model GalleryItem {
@@ -138,6 +147,8 @@ model GalleryItem {
   category    String   @default("Kegiatan") // Kegiatan | Prestasi | Fasilitas | Upacara
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([category])
 }
 
 model Achievement {
@@ -395,6 +406,8 @@ model Complaint {
 
   @@index([status])
   @@index([createdAt])
+  @@index([role])
+  @@index([category])
 }
 
 // ---------- ORGANISASI ----------

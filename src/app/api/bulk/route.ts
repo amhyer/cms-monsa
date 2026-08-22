@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
+import { logger } from "@/lib/logger";
 
 export async function POST(req: NextRequest) {
   const csrfError = await requireCsrf(req);
@@ -78,7 +79,7 @@ export async function POST(req: NextRequest) {
       entity,
     });
   } catch (e) {
-    console.error("[bulk-delete]", e);
+    logger.error({ err: e }, "[bulk-delete] error");
     return NextResponse.json({ error: "Gagal menghapus item." }, { status: 500 });
   }
 }

@@ -1,87 +1,119 @@
-import { describe, expect, it } from "vitest";
+import { describe, it, expect } from "vitest";
 import {
-  DEFAULT_INTERVAL_HOURS,
-  MAX_INTERVAL_HOURS,
-  MIN_INTERVAL_HOURS,
-  isAutoSyncDue,
   sanitizeIntervalHours,
+  isAutoSyncDue,
   scheduleBase,
-} from "@/lib/dapodik-scheduler";
+  MIN_INTERVAL_HOURS,
+  MAX_INTERVAL_HOURS,
+  DEFAULT_INTERVAL_HOURS,
+} from "../dapodik-scheduler";
 
-describe("sanitizeIntervalHours", () => {
-  it("mengembalikan nilai bulat dalam rentang yang diizinkan", () => {
-    expect(sanitizeIntervalHours(6)).toBe(6);
-    expect(sanitizeIntervalHours(24)).toBe(24);
-    expect(sanitizeIntervalHours(24.7)).toBe(25);
+describe("dapodik-scheduler", () => {
+  describe("sanitizeIntervalHours", () => {
+    it("returns default for non-finite values", () => {
+      expect(sanitizeIntervalHours(NaN)).toBe(DEFAULT_INTERVAL_HOURS);
+      expect(sanitizeIntervalHours(Infinity)).toBe(DEFAULT_INTERVAL_HOURS);
+    });
+
+    it("clamps to MIN_INTERVAL_HOURS for values below minimum", () => {
+      expect(sanitizeIntervalHours(0)).toBe(MIN_INTERVAL_HOURS);
+      expect(sanitizeIntervalHours(-5)).toBe(MIN_INTERVAL_HOURS);
+      expect(sanitizeIntervalHours(0.3)).toBe(MIN_INTERVAL_HOURS);
+    });
+
+    it("clamps to MAX_INTERVAL_HOURS for values above maximum", () => {
+      expect(sanitizeIntervalHours(1000)).toBe(MAX_INTERVAL_HOURS);
+      expect(sanitizeIntervalHours(99999)).toBe(MAX_INTERVAL_HOURS);
+    });
+
+    it("rounds fractional hours to nearest integer", () => {
+      expect(sanitizeIntervalHours(2.3)).toBe(2);
+      expect(sanitizeIntervalHours(2.7)).toBe(3);
+      expect(sanitizeIntervalHours(24)).toBe(24);
+    });
   });
 
-  it("menjepit nilai di bawah batas minimum", () => {
-    expect(sanitizeIntervalHours(0)).toBe(MIN_INTERVAL_HOURS);
-    expect(sanitizeIntervalHours(-5)).toBe(MIN_INTERVAL_HOURS);
+  describe("isAutoSyncDue", () => {
+    it("returns false when auto-sync is disabled", () => {
+      expect(
+        isAutoSyncDue({
+          enabled: false,
+          lastSyncAt: null,
+          intervalHours: 24,
+        })
+      ).toBe(false);
+    });
+
+    it("returns true when never synced (lastSyncAt is null)", () => {
+      expect(
+        isAutoSyncDue({
+          enabled: true,
+          lastSyncAt: null,
+          intervalHours: 24,
+        })
+      ).toBe(true);
+    });
+
+    it("returns true when interval has elapsed since last sync", () => {
+      const now = new Date("2026-08-21T12:00:00Z");
+      const lastSync = new Date("2026-08-20T11:00:00Z"); // 25 hours ago
+      expect(
+        isAutoSyncDue({
+          enabled: true,
+          lastSyncAt: lastSync,
+          intervalHours: 24,
+          now,
+        })
+      ).toBe(true);
+    });
+
+    it("returns false when interval has not yet elapsed", () => {
+      const now = new Date("2026-08-21T12:00:00Z");
+      const lastSync = new Date("2026-08-21T00:00:00Z"); // 12 hours ago
+      expect(
+        isAutoSyncDue({
+          enabled: true,
+          lastSyncAt: lastSync,
+          intervalHours: 24,
+          now,
+        })
+      ).toBe(false);
+    });
+
+    it("returns true at exactly the interval boundary", () => {
+      const now = new Date("2026-08-21T12:00:00Z");
+      const lastSync = new Date("2026-08-20T12:00:00Z"); // exactly 24 hours
+      expect(
+        isAutoSyncDue({
+          enabled: true,
+          lastSyncAt: lastSync,
+          intervalHours: 24,
+          now,
+        })
+      ).toBe(true);
+    });
   });
 
-  it("menjepit nilai di atas batas maksimum", () => {
-    expect(sanitizeIntervalHours(9999)).toBe(MAX_INTERVAL_HOURS);
-  });
+  describe("scheduleBase", () => {
+    it("returns null when both dates are null", () => {
+      expect(scheduleBase({ lastSyncAt: null, autoSyncLastRunAt: null })).toBeNull();
+    });
 
-  it("fallback ke default untuk nilai non-angka", () => {
-    expect(sanitizeIntervalHours(Number.NaN)).toBe(DEFAULT_INTERVAL_HOURS);
-    expect(sanitizeIntervalHours(Number.POSITIVE_INFINITY)).toBe(DEFAULT_INTERVAL_HOURS);
-  });
-});
+    it("returns lastSyncAt when autoSyncLastRunAt is null", () => {
+      const d = new Date("2026-08-21T10:00:00Z");
+      expect(scheduleBase({ lastSyncAt: d, autoSyncLastRunAt: null })).toEqual(d);
+    });
 
-describe("isAutoSyncDue", () => {
-  const now = new Date("2026-08-08T12:00:00Z");
+    it("returns autoSyncLastRunAt when lastSyncAt is null", () => {
+      const d = new Date("2026-08-21T10:00:00Z");
+      expect(scheduleBase({ lastSyncAt: null, autoSyncLastRunAt: d })).toEqual(d);
+    });
 
-  it("tidak jalan kalau auto-sync dinonaktifkan", () => {
-    expect(
-      isAutoSyncDue({ enabled: false, lastSyncAt: new Date("2026-08-01T00:00:00Z"), intervalHours: 24, now })
-    ).toBe(false);
-  });
-
-  it("langsung jalan kalau belum pernah sync sama sekali", () => {
-    expect(isAutoSyncDue({ enabled: true, lastSyncAt: null, intervalHours: 24, now })).toBe(true);
-  });
-
-  it("belum waktunya kalau interval belum lewat", () => {
-    const lastSync = new Date("2026-08-08T02:00:00Z"); // 10 jam lalu
-    expect(isAutoSyncDue({ enabled: true, lastSyncAt: lastSync, intervalHours: 24, now })).toBe(false);
-  });
-
-  it("sudah waktunya kalau interval sudah lewat", () => {
-    const lastSync = new Date("2026-08-06T12:00:00Z"); // 48 jam lalu
-    expect(isAutoSyncDue({ enabled: true, lastSyncAt: lastSync, intervalHours: 24, now })).toBe(true);
-  });
-
-  it("tepat di batas interval dianggap sudah waktunya", () => {
-    const lastSync = new Date("2026-08-07T12:00:00Z"); // tepat 24 jam lalu
-    expect(isAutoSyncDue({ enabled: true, lastSyncAt: lastSync, intervalHours: 24, now })).toBe(true);
-  });
-
-  it("interval jam di-sanitize sebelum dihitung", () => {
-    const lastSync = new Date("2026-08-07T12:00:00Z"); // 24 jam lalu, tapi interval 0 → clamp ke 1 jam
-    expect(isAutoSyncDue({ enabled: true, lastSyncAt: lastSync, intervalHours: 0, now })).toBe(true);
-  });
-});
-
-describe("scheduleBase", () => {
-  it("null bila belum pernah sync sama sekali", () => {
-    expect(scheduleBase({ lastSyncAt: null, autoSyncLastRunAt: null })).toBeNull();
-  });
-
-  it("memakai lastSyncAt bila hanya itu yang ada", () => {
-    const d = new Date("2026-08-08T10:00:00Z");
-    expect(scheduleBase({ lastSyncAt: d, autoSyncLastRunAt: null })).toEqual(d);
-  });
-
-  it("memakai autoSyncLastRunAt bila hanya itu yang ada (percobaan gagal)", () => {
-    const d = new Date("2026-08-08T10:00:00Z");
-    expect(scheduleBase({ lastSyncAt: null, autoSyncLastRunAt: d })).toEqual(d);
-  });
-
-  it("memakai yang TERBARU dari keduanya — percobaan gagal tidak diabaikan", () => {
-    const lastSync = new Date("2026-08-07T12:00:00Z");
-    const failedAttempt = new Date("2026-08-08T10:00:00Z"); // lebih baru dari lastSync
-    expect(scheduleBase({ lastSyncAt: lastSync, autoSyncLastRunAt: failedAttempt })).toEqual(failedAttempt);
+    it("returns the later of the two dates", () => {
+      const earlier = new Date("2026-08-20T10:00:00Z");
+      const later = new Date("2026-08-21T10:00:00Z");
+      expect(scheduleBase({ lastSyncAt: earlier, autoSyncLastRunAt: later })).toEqual(later);
+      expect(scheduleBase({ lastSyncAt: later, autoSyncLastRunAt: earlier })).toEqual(later);
+    });
   });
 });

@@ -61,8 +61,8 @@ describe("/api/bos-expenditures", () => {
       expect(data.items).toHaveLength(1);
       expect(data.items[0].item).toBe("Honorarium guru tidak tetap");
       expect(data.total).toBe(1);
-      expect(data.page).toBe(1);
-      expect(data.totalPages).toBe(1);
+      expect(data.hasMore).toBe(false);
+      expect(data.nextCursor).toBeNull();
       expect(data.years).toEqual([2026]);
       expect(data.yearStats).toEqual([
         { year: 2026, count: 1, docs: 0, amount: 24000000 },
@@ -96,7 +96,7 @@ describe("/api/bos-expenditures", () => {
       });
     });
 
-    it("paginates with page/limit", async () => {
+    it("paginates with cursor-based pagination", async () => {
       mockPrisma.bosExpenditure.count.mockResolvedValue(23);
       mockPrisma.bosExpenditure.findMany.mockResolvedValue([]);
       mockPrisma.bosExpenditure.aggregate.mockResolvedValue({
@@ -105,18 +105,15 @@ describe("/api/bos-expenditures", () => {
       mockPrisma.bosExpenditure.groupBy.mockResolvedValue([]);
 
       const req = createMockRequest(
-        "http://localhost/api/bos-expenditures?page=3&limit=10"
+        "http://localhost/api/bos-expenditures?limit=10"
       );
       const res = await GET(asNextRequest(req));
       const data = await res.json();
 
       expect(res.status).toBe(200);
-      expect(data.page).toBe(3);
-      expect(data.limit).toBe(10);
       expect(data.total).toBe(23);
-      expect(data.totalPages).toBe(3);
       expect(mockPrisma.bosExpenditure.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ skip: 20, take: 10 })
+        expect.objectContaining({ take: 11, orderBy: [{ id: "asc" }] })
       );
     });
   });

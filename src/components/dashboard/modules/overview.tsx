@@ -171,17 +171,17 @@ export function Overview() {
       </div>
 
       {/* Primary stat cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
         {primaryCards(stats, isGuru).map((c) => {
           const Icon = c.icon;
           return (
             <Card key={c.label} className="overflow-hidden">
-              <CardContent className="flex items-center justify-between gap-4 py-5">
+              <CardContent className="flex items-center justify-between gap-3 py-4 sm:gap-4 sm:py-5">
                 <div className="min-w-0">
                   <p className="truncate text-sm text-muted-foreground">
                     {c.label}
                   </p>
-                  <p className="mt-1 text-2xl font-bold tracking-tight">
+                  <p className="mt-1 text-xl font-bold tracking-tight sm:text-2xl">
                     {c.value}
                   </p>
                 </div>
@@ -248,7 +248,7 @@ export function Overview() {
       </div>
 
       {/* Secondary stat pills */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-6">
         {secondary.map((s) => {
           const Icon = s.icon;
           return (
@@ -291,10 +291,10 @@ export function Overview() {
 
       {/* Quick actions */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-2 sm:pb-6">
           <CardTitle className="text-base">Aksi Cepat</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-2">
+        <CardContent className="flex flex-wrap gap-1.5 sm:gap-2">
           {quickActions.map((a) => {
             const Icon = a.icon;
             return (

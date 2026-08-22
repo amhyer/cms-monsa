@@ -37,7 +37,7 @@ export function SiteFooter() {
       className="mt-auto w-full border-t border-gold/25 bg-sidebar text-sidebar-foreground"
       aria-label="Footer situs"
     >
-      <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 sm:py-16">
+      <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 sm:py-14 md:py-16">
         <div className="grid grid-cols-1 gap-10 md:grid-cols-3">
           {/* Identity */}
           <div className="flex flex-col gap-4">
@@ -130,7 +130,7 @@ export function SiteFooter() {
           </div>
         </div>
 
-        <div className="mt-10 flex flex-col items-center gap-3 border-t border-gold/25 pt-6 sm:flex-row sm:justify-between">
+        <div className="mt-8 flex flex-col items-center gap-3 border-t border-gold/25 pt-6 sm:mt-10 sm:flex-row sm:justify-between">
           <p className="text-center text-xs text-sidebar-foreground/70 sm:text-sm">
             &copy; {year} SD Negeri Unggulan Mongisidi 1. Hak cipta dilindungi.
           </p>

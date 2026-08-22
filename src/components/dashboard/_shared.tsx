@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, Inbox } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -137,6 +137,68 @@ export function usePersistedPageSize(
 }
 
 /**
+ * Cursor-based pagination state management.
+ * Maintains a stack of cursors for back-navigation, tracks page number
+ * for display, and provides goNext/goPrev/reset methods.
+ *
+ * The component manages `nextCursor` state externally (from API response)
+ * and passes it to the hook after each fetch.
+ */
+export function useCursorPagination({
+  limit,
+  total,
+  nextCursor,
+}: {
+  limit: number;
+  total: number;
+  /** Latest nextCursor from API response. Update after each fetch. */
+  nextCursor: string | null;
+}) {
+  const [page, setPage] = useState(1);
+  const cursorStackRef = useRef<string[]>([]);
+  const [currentCursor, setCurrentCursor] = useState<string | null>(null);
+  const [canGoBack, setCanGoBack] = useState(false);
+
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+
+  const goNext = useCallback(() => {
+    if (!nextCursor) return;
+    cursorStackRef.current.push(currentCursor ?? "");
+    setCurrentCursor(nextCursor);
+    setPage((p) => p + 1);
+    setCanGoBack(true);
+  }, [nextCursor, currentCursor]);
+
+  const goPrev = useCallback(() => {
+    if (cursorStackRef.current.length === 0) return;
+    const prev = cursorStackRef.current.pop()!;
+    setCurrentCursor(prev || null);
+    setPage((p) => Math.max(1, p - 1));
+    setCanGoBack(cursorStackRef.current.length > 0);
+  }, []);
+
+  const reset = useCallback(() => {
+    cursorStackRef.current = [];
+    setCurrentCursor(null);
+    setCanGoBack(false);
+    setPage(1);
+  }, []);
+
+  const canGoForward = nextCursor !== null;
+
+  return {
+    page,
+    totalPages,
+    currentCursor,
+    canGoBack,
+    canGoForward,
+    goNext,
+    goPrev,
+    reset,
+  };
+}
+
+/**
  * Kontrol pagination sederhana: "Halaman X dari Y" + tombol Sebelumnya/Berikutnya.
  * Otomatis null (tidak dirender) saat hanya ada satu halaman.
  *
@@ -200,6 +262,83 @@ export function Pagination({
           size="sm"
           disabled={page >= totalPages}
           onClick={() => onPage(page + 1)}
+        >
+          Berikutnya
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Cursor-based pagination controls — "Halaman X (total N data)" + Prev/Next.
+ * Uses useCursorPagination state. Hidden when only one page exists.
+ */
+export function CursorPagination({
+  page,
+  totalPages,
+  total,
+  canGoBack,
+  canGoForward,
+  onPrev,
+  onNext,
+  pageSize,
+  pageSizes = [10, 25, 50],
+  onPageSizeChange,
+}: {
+  page: number;
+  totalPages: number;
+  total: number;
+  canGoBack: boolean;
+  canGoForward: boolean;
+  onPrev: () => void;
+  onNext: () => void;
+  pageSize?: number;
+  pageSizes?: number[];
+  onPageSizeChange?: (size: number) => void;
+}) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 pt-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <p className="text-xs text-muted-foreground">
+          Halaman {page} dari {totalPages} ({total} data)
+        </p>
+        {onPageSizeChange && (
+          <Select
+            value={String(pageSize ?? pageSizes[0])}
+            onValueChange={(v) => onPageSizeChange(Number(v))}
+          >
+            <SelectTrigger
+              className="h-8 w-24 text-xs"
+              aria-label="Baris per halaman"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {pageSizes.map((s) => (
+                <SelectItem key={s} value={String(s)}>
+                  {s} / hal.
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+      <div className="flex items-center gap-1">
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={!canGoBack}
+          onClick={onPrev}
+        >
+          Sebelumnya
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={!canGoForward}
+          onClick={onNext}
         >
           Berikutnya
         </Button>

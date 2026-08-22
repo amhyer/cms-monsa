@@ -12,6 +12,8 @@
  * normal (fitur ini opsional, seperti SMTP).
  */
 
+import { logger } from "@/lib/logger";
+
 const FONNTE_API_URL = "https://api.fonnte.com/send";
 
 /** Token API Fonnte — dibaca sekali (lazy, agar test mudah di-mock). */
@@ -66,7 +68,7 @@ export async function sendWhatsApp(
 ): Promise<SendWhatsAppResult> {
   const token = fonnteToken();
   if (!token) {
-    console.warn("[whatsapp] FONNTE_TOKEN belum di-set — pengiriman dilewati.");
+    logger.warn("[whatsapp] FONNTE_TOKEN belum di-set — pengiriman dilewati.");
     return { ok: false, message: "FONNTE_TOKEN belum dikonfigurasi." };
   }
   const timeoutMs = opts.timeoutMs ?? 20_000;
@@ -94,20 +96,20 @@ export async function sendWhatsApp(
     };
 
     if (!res.ok || data.status === false) {
-      console.error("[whatsapp] Gagal mengirim ke", phone, data.detail || data);
+      logger.error({ phone, detail: data.detail }, "[whatsapp] Gagal mengirim");
       return { ok: false, message: data.detail || "Gagal mengirim." };
     }
-    console.log(`[whatsapp] Terkirim ke ${phone}: ${message.slice(0, 60)}…`);
+    logger.info({ phone, preview: message.slice(0, 60) }, "[whatsapp] Terkirim");
     return { ok: true, detail: data.detail, id: data.id };
   } catch (e) {
     if (controller.signal.aborted) {
-      console.error(`[whatsapp] Timeout setelah ${timeoutMs} ms ke`, phone);
+      logger.error({ phone, timeoutMs }, "[whatsapp] Timeout");
       return {
         ok: false,
         message: `Timeout: Fonnte tidak merespons dalam ${timeoutMs} ms.`,
       };
     }
-    console.error("[whatsapp] Error:", e);
+    logger.error({ err: e }, "[whatsapp] Error");
     return { ok: false, message: e instanceof Error ? e.message : "Network error." };
   } finally {
     clearTimeout(timer);
@@ -172,10 +174,10 @@ export async function notifyParentWhatsApp(
     const message = await build();
     const result = await sendWhatsApp(phone, message);
     if (!result.ok) {
-      console.warn("[whatsapp] Notifikasi orang tua gagal:", result.message);
+      logger.warn({ phone, message: result.message }, "[whatsapp] Notifikasi orang tua gagal");
     }
   } catch (e) {
-    console.warn("[whatsapp] Notifikasi orang tua gagal:", e);
+    logger.warn({ err: e }, "[whatsapp] Notifikasi orang tua gagal");
   }
 }
 

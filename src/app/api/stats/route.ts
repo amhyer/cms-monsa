@@ -24,7 +24,7 @@ export async function GET() {
     classCount,
     recentLogs,
     recentMessages,
-    roleRows,
+    roleGroupRows,
   ] = await Promise.all([
     db.news.count(),
     db.news.count({ where: { status: "PUBLISHED" } }),
@@ -61,17 +61,16 @@ export async function GET() {
     // Ringkasan per role akun — bentuknya SAMA dengan counts di GET
     // /api/users (Semua / Admin & Operator / Guru / Orang Tua / Siswa) agar
     // badge sidebar & ringkasan dashboard konsisten dengan tab users page.
-    db.user.findMany({ select: { role: true } }),
+    db.user.groupBy({ by: ["role"], _count: { _all: true } }),
   ]);
 
+  const roleCountMap = new Map(roleGroupRows.map((r) => [r.role, r._count._all]));
   const userRoleCounts = {
-    all: roleRows.length,
-    STAFF: roleRows.filter(
-      (u) => u.role === "SUPER_ADMIN" || u.role === "OPERATOR"
-    ).length,
-    GURU: roleRows.filter((u) => u.role === "GURU").length,
-    ORANG_TUA: roleRows.filter((u) => u.role === "ORANG_TUA").length,
-    SISWA: roleRows.filter((u) => u.role === "SISWA").length,
+    all: Array.from(roleCountMap.values()).reduce((a, b) => a + b, 0),
+    STAFF: (roleCountMap.get("SUPER_ADMIN") ?? 0) + (roleCountMap.get("OPERATOR") ?? 0),
+    GURU: roleCountMap.get("GURU") ?? 0,
+    ORANG_TUA: roleCountMap.get("ORANG_TUA") ?? 0,
+    SISWA: roleCountMap.get("SISWA") ?? 0,
   };
 
   // Today's attendance summary

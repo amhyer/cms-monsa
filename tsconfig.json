@@ -34,7 +34,9 @@
     "src/**/*.ts",
     "src/**/*.tsx",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts",
+    ".next-gate/types/**/*.ts",
+    ".next-gate/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
@@ -43,6 +45,7 @@
     "upload",
     "download",
     "mini-services",
-    ".zscripts"
+    ".zscripts",
+    ".next-gate/dev/types/**/*.ts"
   ]
 }

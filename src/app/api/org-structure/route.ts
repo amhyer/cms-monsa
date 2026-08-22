@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireAuth, requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
+import { logger } from "@/lib/logger";
 import { omitFields } from "@/lib/utils";
 import { PUBLIC_ORG_STRUCTURE_OMIT } from "@/lib/public-scope";
 import { createOrgStructureSchema, validateBody } from "@/lib/validations";
@@ -52,7 +53,7 @@ export async function GET(req: NextRequest) {
       items: items.map((item) => omitFields(item, PUBLIC_ORG_STRUCTURE_OMIT)),
     });
   } catch (error) {
-    console.error("[org-structure] GET error:", error);
+    logger.error({ err: error }, "[org-structure] GET error");
     return NextResponse.json(
       { items: [], error: "Gagal memuat data struktur organisasi." },
       { status: 500 }

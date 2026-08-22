@@ -45,6 +45,37 @@ describe("computeScopeCounts", () => {
     expect(c["2"]).toBe(0);
     expect(c.all).toBe(3);
   });
+
+  it("handles null/undefined values in items gracefully", () => {
+    const items = [
+      { id: "1", category: "A" },
+      { id: "2", category: null as unknown as string },
+      { id: "3", category: undefined as unknown as string },
+    ];
+    const c = computeScopeCounts(items, "category", ["A", "B"]);
+    expect(c.all).toBe(3);
+    expect(c.A).toBe(1);
+    // null/undefined → String(…) → "" → counted under empty string key
+    expect(c[""]).toBe(2);
+  });
+
+  it("handles items with values not in options list (first occurrence)", () => {
+    // Grade "2" is in GRADE_OPTIONS but has no items initially,
+    // then an item with grade "7" (outside options) tests the ?? 0 path
+    const mixed = [
+      { id: "1", grade: "7" },
+      { id: "2", grade: "7" },
+    ];
+    const c = computeScopeCounts(mixed, "grade", GRADE_OPTIONS);
+    expect(c["7"]).toBe(2);
+    expect(c.all).toBe(2);
+  });
+
+  it("handles empty items array", () => {
+    const c = computeScopeCounts([], "category", AGENDA_OPTIONS);
+    expect(c.all).toBe(0);
+    expect(c.Akademik).toBe(0);
+  });
 });
 
 describe("applyScopeFilter", () => {
@@ -122,6 +153,22 @@ describe("scopeCounter — penyebut mengikuti tab scope aktif", () => {
     const counts = computeScopeCounts(agenda, "category", AGENDA_OPTIONS);
     expect(scopeCounter(counts, "all", [], "agenda", true)).toBe(
       "0 dari 4 agenda · 0 hasil pencarian"
+    );
+  });
+
+  it("unknown active scope → denominator defaults to 0", () => {
+    const counts = computeScopeCounts(agenda, "category", AGENDA_OPTIONS);
+    // "Tidak Ada" is not a key in counts → counts["Tidak Ada"] ?? 0 = 0
+    expect(scopeCounter(counts, "Tidak Ada", [], "agenda")).toBe(
+      "0 dari 0 agenda"
+    );
+  });
+
+  it("unknown active scope with visible items → denominator 0, numerator matches", () => {
+    const counts = computeScopeCounts(agenda, "category", AGENDA_OPTIONS);
+    const items = [{ id: "x", category: "Extra" }];
+    expect(scopeCounter(counts, "Nonexistent", items, "item")).toBe(
+      "1 dari 0 item"
     );
   });
 });

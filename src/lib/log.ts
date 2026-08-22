@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import type { SessionUser } from "@/lib/types";
+import { logger } from "@/lib/logger";
 
 /**
  * Record an activity log entry. Fire-and-forget — should never break the
@@ -24,6 +25,6 @@ export async function logActivity(
       },
     });
   } catch (e) {
-    console.error("[logActivity] failed", e);
+    logger.error({ err: e, action, entity, userId: user.id }, "[logActivity] failed");
   }
 }

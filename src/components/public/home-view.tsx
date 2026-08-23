@@ -400,11 +400,11 @@ export function HomeView() {
                 <img
                   src={settings.principalPhoto}
                   alt={settings.principalName ?? "Kepala Sekolah"}
-                  className="relative size-64 rounded-full border-4 border-gold object-cover shadow-lg sm:size-80 md:w-[320px] md:h-[320px]"
+                  className="relative size-72 rounded-full border-4 border-gold object-cover shadow-lg sm:size-96 md:w-[384px] md:h-[384px]"
                 />
               ) : (
-                <div className="relative flex size-64 items-center justify-center rounded-full border-4 border-gold bg-muted shadow-lg sm:size-80 md:w-[320px] md:h-[320px]">
-                  <GraduationCap className="size-20 text-muted-foreground" />
+                <div className="relative flex size-72 items-center justify-center rounded-full border-4 border-gold bg-muted shadow-lg sm:size-96 md:w-[384px] md:h-[384px]">
+                  <GraduationCap className="size-24 text-muted-foreground" />
                 </div>
               )}
             </div>

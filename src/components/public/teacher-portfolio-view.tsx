@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageBanner } from "./_shared";
+import { SectionRenderer } from "./section-renderer";
 import type { TeacherItem } from "@/lib/types";
 
 function isKepalaSekolah(t: TeacherItem): boolean {
@@ -213,6 +214,9 @@ export function TeacherPortfolioView({ guruId }: { guruId?: string }) {
                     </div>
                   </section>
                 )}
+
+                {/* Custom sections added by teacher */}
+                <SectionRenderer teacherId={t.id} />
               </div>
 
               {/* Kolom kanan */}

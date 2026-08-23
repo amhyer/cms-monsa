@@ -43,6 +43,28 @@
 - src/components/dashboard/student-typeahead.tsx
 - src/components/dashboard/modules/users-manager.tsx
 
+#### 2.3 Database Index Optimization
+- [x] Tambahkan @@index([role]), @@index([isActive]) di model User ✅
+- [x] Tambahkan @@index([status, publishedAt]), @@index([category]) di model News ✅
+- [x] Tambahkan @@index([isActive]) di model Teacher, Announcement ✅
+- [x] Tambahkan @@index([date]), @@index([category]) di model Agenda ✅
+- [x] Tambahkan @@index([status]), @@index([createdAt]), @@index([role]), @@index([category]) di model Complaint ✅
+
+**File terkait:**
+- prisma/schema.prisma
+- prisma/schema.postgres.prisma
+
+#### 2.4 API Response Caching
+- [x] Tambahkan Cache-Control headers (s-maxage + stale-while-revalidate) di public API routes ✅
+
+**File terkait:**
+- src/app/api/news/route.ts
+- src/app/api/teachers/route.ts
+- src/app/api/agenda/route.ts
+- src/app/api/achievements/route.ts
+- src/app/api/org-structure/route.ts
+- src/app/api/gallery/route.ts
+
 ---
 
 ### 3. Error Handling di Public Pages — ✅ SELESAI
@@ -213,7 +235,7 @@
 | Kategori | Total | Selesai | Progress |
 |---|---|---|---|
 | 🔴 Security | 12 | **12** | **100%** ✅ |
-| 🔴 Performance | 12 | **10** | **83%** |
+| 🔴 Performance | 12 | **12** | **100%** ✅ |
 | 🔴 Error Handling | 5 | **5** | **100%** ✅ |
 | 🟡 Testing | 14 | **14** | **100%** ✅ |
 | 🟡 Accessibility | 12 | **12** | **100%** ✅ |

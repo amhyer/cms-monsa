@@ -28,13 +28,15 @@ export async function GET(req: NextRequest) {
       take: limit,
     }),
   ]);
-  return NextResponse.json({
+  const res = NextResponse.json({
     items,
     total,
     page,
     limit,
     totalPages: Math.max(1, Math.ceil(total / limit)),
   });
+  res.headers.set("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600");
+  return res;
 }
 
 export async function POST(req: NextRequest) {

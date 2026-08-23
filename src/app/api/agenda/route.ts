@@ -19,7 +19,9 @@ export async function GET(req: NextRequest) {
     orderBy: { date: "asc" },
     take: upcoming === "true" ? 10 : undefined,
   });
-  return NextResponse.json({ items });
+  const res = NextResponse.json({ items });
+  res.headers.set("Cache-Control", "public, s-maxage=120, stale-while-revalidate=300");
+  return res;
 }
 
 export async function POST(req: NextRequest) {

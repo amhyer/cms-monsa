@@ -69,6 +69,10 @@ type FormState = {
   sertifikasi: string;
   prestasi: string;
   badges: string;
+  cvUrl: string;
+  linkedinUrl: string;
+  githubUrl: string;
+  websiteUrl: string;
 };
 
 const EMPTY: FormState = {
@@ -96,6 +100,10 @@ const EMPTY: FormState = {
   sertifikasi: "",
   prestasi: "",
   badges: "",
+  cvUrl: "",
+  linkedinUrl: "",
+  githubUrl: "",
+  websiteUrl: "",
 };
 
 export function TeachersManager() {
@@ -194,6 +202,10 @@ export function TeachersManager() {
       sertifikasi: t.sertifikasi ?? "",
       prestasi: t.prestasi ?? "",
       badges: t.badges ?? "",
+      cvUrl: t.cvUrl ?? "",
+      linkedinUrl: t.linkedinUrl ?? "",
+      githubUrl: t.githubUrl ?? "",
+      websiteUrl: t.websiteUrl ?? "",
     });
     setOpen(true);
   }
@@ -232,6 +244,10 @@ export function TeachersManager() {
         sertifikasi: form.sertifikasi,
         prestasi: form.prestasi,
         badges: form.badges,
+        cvUrl: form.cvUrl || null,
+        linkedinUrl: form.linkedinUrl || null,
+        githubUrl: form.githubUrl || null,
+        websiteUrl: form.websiteUrl || null,
       };
       const res = editing
         ? await fetch(`/api/teachers/${editing.id}`, {
@@ -754,6 +770,48 @@ export function TeachersManager() {
                     placeholder="Mis. Sertifikasi Guru, Pengawas, Pembina Inklusi"
                   />
                 </div>
+              </div>
+            </div>
+            <div className="h-px bg-border" />
+            <p className="text-xs font-medium text-muted-foreground">
+              Portofolio & Media Sosial (opsional)
+            </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="t-cvUrl">URL CV/Resume (PDF)</Label>
+                <Input
+                  id="t-cvUrl"
+                  value={form.cvUrl}
+                  onChange={(e) => setForm({ ...form, cvUrl: e.target.value })}
+                  placeholder="https://drive.google.com/file/d/..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="t-linkedin">URL LinkedIn</Label>
+                <Input
+                  id="t-linkedin"
+                  value={form.linkedinUrl}
+                  onChange={(e) => setForm({ ...form, linkedinUrl: e.target.value })}
+                  placeholder="https://linkedin.com/in/..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="t-github">URL GitHub</Label>
+                <Input
+                  id="t-github"
+                  value={form.githubUrl}
+                  onChange={(e) => setForm({ ...form, githubUrl: e.target.value })}
+                  placeholder="https://github.com/..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="t-website">URL Website Personal</Label>
+                <Input
+                  id="t-website"
+                  value={form.websiteUrl}
+                  onChange={(e) => setForm({ ...form, websiteUrl: e.target.value })}
+                  placeholder="https://..."
+                />
               </div>
             </div>
           </div>

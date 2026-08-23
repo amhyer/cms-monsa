@@ -96,6 +96,10 @@ export type TeacherItem = {
   sertifikasi: string | null;
   prestasi: string | null;
   badges: string | null;
+  cvUrl: string | null;
+  linkedinUrl: string | null;
+  githubUrl: string | null;
+  websiteUrl: string | null;
   order: number;
   isActive: boolean;
   homeroomClasses?: Array<{ id: string; name: string }>;

@@ -125,6 +125,12 @@ model Teacher {
   sertifikasi String? // sertifikasi / diklat (teks bebas)
   prestasi  String?  // prestasi / penghargaan (teks bebas)
   badges    String?  // badge terpisah koma: "Sertifikasi,MRI,Inklusi"
+  // ---- Portofolio & media sosial ----
+  cvUrl         String?  // URL download CV/Resume (PDF)
+  linkedinUrl   String?  // URL profil LinkedIn
+  githubUrl     String?  // URL profil GitHub
+  websiteUrl    String?  // URL website personal
+  socialLinks   String?  // JSON string: {"twitter":"...","instagram":"..."}
   order       Int      @default(0)
   isActive    Boolean  @default(true)
   archivedAt  DateTime? // null = aktif, DateTime = diarsipkan oleh sync Dapodik

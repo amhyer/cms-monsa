@@ -20,6 +20,10 @@ import {
   BookOpen,
   Award,
   UserCircle2,
+  Globe,
+  FileText,
+  Linkedin,
+  Github,
 } from "lucide-react";
 
 function isKepalaSekolah(t: TeacherItem): boolean {
@@ -224,6 +228,45 @@ export function TeacherProfileModal({
                 <p className="whitespace-pre-line text-sm text-muted-foreground">{t.prestasi}</p>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Blok 5 — Portofolio & Media Sosial */}
+        {(t.cvUrl || t.linkedinUrl || t.githubUrl || t.websiteUrl) && (
+          <div className="rounded-xl border bg-card p-4">
+            <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+              <Globe className="size-4 text-primary" /> Portofolio & Media Sosial
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              {t.cvUrl && (
+                <a href={t.cvUrl} target="_blank" rel="noreferrer">
+                  <Button variant="outline" size="sm" className="gap-1">
+                    <FileText className="size-3" /> Download CV
+                  </Button>
+                </a>
+              )}
+              {t.linkedinUrl && (
+                <a href={t.linkedinUrl} target="_blank" rel="noreferrer">
+                  <Button variant="outline" size="sm" className="gap-1">
+                    <Linkedin className="size-3" /> LinkedIn
+                  </Button>
+                </a>
+              )}
+              {t.githubUrl && (
+                <a href={t.githubUrl} target="_blank" rel="noreferrer">
+                  <Button variant="outline" size="sm" className="gap-1">
+                    <Github className="size-3" /> GitHub
+                  </Button>
+                </a>
+              )}
+              {t.websiteUrl && (
+                <a href={t.websiteUrl} target="_blank" rel="noreferrer">
+                  <Button variant="outline" size="sm" className="gap-1">
+                    <Globe className="size-3" /> Website
+                  </Button>
+                </a>
+              )}
+            </div>
           </div>
         )}
       </DialogContent>

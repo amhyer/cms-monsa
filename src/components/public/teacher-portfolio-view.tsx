@@ -8,7 +8,13 @@ import {
   BookOpen,
   Briefcase,
   Crown,
+  Download,
+  ExternalLink,
+  FileText,
   GraduationCap,
+  Github,
+  Globe,
+  Linkedin,
   Mail,
   MessageCircle,
   Phone,
@@ -310,6 +316,45 @@ export function TeacherPortfolioView({ guruId }: { guruId?: string }) {
                         <a href={`mailto:${t.email}`} className="w-full">
                           <Button variant="outline" className="w-full gap-2">
                             <Mail className="size-4" /> {t.email}
+                          </Button>
+                        </a>
+                      )}
+                    </div>
+                  </section>
+                )}
+
+                {/* Portofolio & Media Sosial */}
+                {(t.cvUrl || t.linkedinUrl || t.githubUrl || t.websiteUrl) && (
+                  <section className="rounded-xl border bg-card p-5">
+                    <h2 className="mb-3 flex items-center gap-2 font-sans text-base font-bold">
+                      <Globe className="size-4 text-primary" /> Portofolio & Media Sosial
+                    </h2>
+                    <div className="flex flex-col gap-2">
+                      {t.cvUrl && (
+                        <a href={t.cvUrl} target="_blank" rel="noreferrer" className="w-full">
+                          <Button variant="outline" className="w-full gap-2">
+                            <Download className="size-4" /> Download CV/Resume
+                          </Button>
+                        </a>
+                      )}
+                      {t.linkedinUrl && (
+                        <a href={t.linkedinUrl} target="_blank" rel="noreferrer" className="w-full">
+                          <Button variant="outline" className="w-full gap-2">
+                            <Linkedin className="size-4" /> LinkedIn
+                          </Button>
+                        </a>
+                      )}
+                      {t.githubUrl && (
+                        <a href={t.githubUrl} target="_blank" rel="noreferrer" className="w-full">
+                          <Button variant="outline" className="w-full gap-2">
+                            <Github className="size-4" /> GitHub
+                          </Button>
+                        </a>
+                      )}
+                      {t.websiteUrl && (
+                        <a href={t.websiteUrl} target="_blank" rel="noreferrer" className="w-full">
+                          <Button variant="outline" className="w-full gap-2">
+                            <ExternalLink className="size-4" /> Website Personal
                           </Button>
                         </a>
                       )}

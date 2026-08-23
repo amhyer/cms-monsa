@@ -20,7 +20,7 @@ import { logger } from "@/lib/logger";
 export async function POST() {
   try {
     const auth = await requireAuth();
-    if (!auth.ok) return auth;
+    if (!auth.ok) return auth.response;
 
     // Only SUPER_ADMIN can enable 2FA
     if (auth.user.role !== "SUPER_ADMIN") {

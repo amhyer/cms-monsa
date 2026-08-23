@@ -200,10 +200,9 @@ export async function PUT(req: NextRequest) {
       if (!section.id) continue;
 
       // Build where clause with ownership check for GURU
-      const where: Record<string, unknown> = { id: section.id };
-      if (ownedTeacherId) {
-        where.teacherId = ownedTeacherId; // GURU can only update own
-      }
+      const where = ownedTeacherId
+        ? { id: section.id, teacherId: ownedTeacherId }
+        : { id: section.id };
 
       await db.teacherSection.update({
         where,
@@ -270,10 +269,9 @@ export async function DELETE(req: NextRequest) {
     }
 
     // Build where clause with ownership check for GURU
-    const where: Record<string, unknown> = { id: sectionId };
-    if (ownedTeacherId) {
-      where.teacherId = ownedTeacherId; // GURU can only delete own
-    }
+    const where = ownedTeacherId
+      ? { id: sectionId, teacherId: ownedTeacherId }
+      : { id: sectionId };
 
     // Delete the section
     const deleted = await db.teacherSection.deleteMany({ where });

@@ -116,7 +116,7 @@ async function main() {
       principalName: "Nawawi Hamzah, S.Pd., M.Pd.",
       principalPhoto: avatar(60),
       principalWelcome:
-        "Selamat datang di website resmi UPT SPF SD Negeri Unggulan Mongisidi 1 Makassar. Kami berkomitmen menyelenggarakan pendidikan dasar berkualitas yang memadukan iman, taqwa, dan budaya unggul berwawasan lingkungan. Sebagai sekolah inklusi, kami merangkul setiap anak untuk tumbuh sesuai potensinya. Mari bersama membangun generasi cerdas, berkarakter, dan berakhlak mulia.",
+        "Selamat datang di website resmi UPT SPF SD Negeri Unggulan Mongisidi 1 Makassar. Kami berkomitmen menyelenggarakan pendidikan dasar berkualitas yang memadukan iman, taqwa, dan budaya unggul berwawasan lingkungan. Sebagai sekolah inklusi, kami merangkul setiap anak untuk tumbuh sesuai potensinya.\n\nKami memiliki berbagai fasilitas dan program unggulan, termasuk website perpustakaan untuk mendukung literasi siswa, aplikasi Pandai untuk pembelajaran digital, serta sistem pengaduan yang terbuka untuk masukan demi kemajuan sekolah kita bersama. Kami juga bekerja sama aktif dengan komite sekolah dalam menjalankan program-program pendidikan.\n\nUntuk mengembangkan bakat dan minat siswa, kami menyediakan berbagai ekstrakurikuler seperti Futsal, Tari, Pencak Silat, dan Pramuka. Kedepan, kami berencana membangkitkan kembali ekstrakurikuler Drumband yang pernah berjaya di masanya.\n\nMari bersama membangun generasi cerdas, berkarakter, dan berakhlak mulia.",
       facebook: "https://facebook.com/mongisidisatu",
       instagram: "https://instagram.com/monsajaya_",
       youtube: null,

@@ -189,7 +189,7 @@ export function TeacherPortfolioView({ guruId }: { guruId?: string }) {
               {/* Kolom utama */}
               <div className="space-y-4">
                 {t.riwayat && (
-                  <section className="rounded-xl border bg-card p-5">
+                  <section className="rounded-xl border bg-card p-5 transition-all hover:border-primary/50 hover:shadow-md">
                     <h2 className="mb-2 flex items-center gap-2 font-sans text-base font-bold">
                       <Briefcase className="size-4 text-primary" /> Tentang Saya
                     </h2>
@@ -200,7 +200,7 @@ export function TeacherPortfolioView({ guruId }: { guruId?: string }) {
                 )}
 
                 {t.prestasi && (
-                  <section className="rounded-xl border bg-card p-5">
+                  <section className="rounded-xl border bg-card p-5 transition-all hover:border-primary/50 hover:shadow-md">
                     <h2 className="mb-2 flex items-center gap-2 font-sans text-base font-bold">
                       <Award className="size-4 text-primary" /> Prestasi &
                       Penghargaan
@@ -337,28 +337,28 @@ export function TeacherPortfolioView({ guruId }: { guruId?: string }) {
                     <div className="flex flex-col gap-2">
                       {t.cvUrl && (
                         <a href={t.cvUrl} target="_blank" rel="noreferrer" className="w-full">
-                          <Button variant="outline" className="w-full gap-2">
+                          <Button variant="outline" className="w-full gap-2 transition-all hover:bg-primary hover:text-primary-foreground">
                             <Download className="size-4" /> Download CV/Resume
                           </Button>
                         </a>
                       )}
                       {t.linkedinUrl && (
                         <a href={t.linkedinUrl} target="_blank" rel="noreferrer" className="w-full">
-                          <Button variant="outline" className="w-full gap-2">
+                          <Button variant="outline" className="w-full gap-2 transition-all hover:bg-blue-600 hover:text-white">
                             <Linkedin className="size-4" /> LinkedIn
                           </Button>
                         </a>
                       )}
                       {t.githubUrl && (
                         <a href={t.githubUrl} target="_blank" rel="noreferrer" className="w-full">
-                          <Button variant="outline" className="w-full gap-2">
+                          <Button variant="outline" className="w-full gap-2 transition-all hover:bg-gray-800 hover:text-white">
                             <Github className="size-4" /> GitHub
                           </Button>
                         </a>
                       )}
                       {t.websiteUrl && (
                         <a href={t.websiteUrl} target="_blank" rel="noreferrer" className="w-full">
-                          <Button variant="outline" className="w-full gap-2">
+                          <Button variant="outline" className="w-full gap-2 transition-all hover:bg-emerald-600 hover:text-white">
                             <ExternalLink className="size-4" /> Website Personal
                           </Button>
                         </a>

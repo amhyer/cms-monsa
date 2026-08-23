@@ -335,3 +335,185 @@
     border: 1px solid ButtonText;
   }
 }
+
+/* ==================== INTERACTIVE STYLES ==================== */
+
+/* Cursor pointer for all clickable elements */
+a,
+button,
+[role="button"],
+[role="link"],
+[role="tab"],
+[role="menuitem"],
+.clickable,
+.cursor-pointer {
+  cursor: pointer;
+}
+
+/* Disable cursor for disabled elements */
+a[disabled],
+button[disabled],
+button:disabled,
+a[aria-disabled="true"],
+[role="button"][aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Interactive card styles */
+.card-interactive,
+article[role="button"],
+button[class*="card"],
+[class*="hover\:-translate-y"] {
+  transition: all 0.2s ease-in-out;
+}
+
+.card-interactive:hover,
+article[role="button"]:hover,
+button[class*="card"]:hover,
+[class*="hover\:-translate-y"]:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+/* Button hover effects */
+button:not(:disabled):not([aria-disabled="true"]):hover {
+  transform: translateY(-1px);
+}
+
+button:not(:disabled):not([aria-disabled="true"]):active {
+  transform: translateY(0);
+}
+
+/* Link hover underline effect */
+a:not([class*="no-underline"]):hover {
+  text-decoration-thickness: 2px;
+}
+
+/* Focus ring for keyboard navigation */
+*:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Interactive sidebar items */
+nav a,
+nav button,
+.sidebar-item {
+  transition: all 0.15s ease-in-out;
+}
+
+nav a:hover,
+nav button:hover,
+.sidebar-item:hover {
+  background-color: var(--sidebar-accent);
+  color: var(--sidebar-accent-foreground);
+}
+
+/* Badge hover effect */
+.badge-interactive:hover {
+  transform: scale(1.05);
+}
+
+/* Avatar hover effect */
+img[class*="rounded-full"][class*="cursor"],
+button[class*="rounded-full"][class*="cursor"] {
+  transition: all 0.2s ease-in-out;
+}
+
+img[class*="rounded-full"][class*="cursor"]:hover,
+button[class*="rounded-full"][class*="cursor"]:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 0 3px var(--primary);
+}
+
+/* Table row hover */
+tr[class*="cursor"]:hover {
+  background-color: var(--muted);
+}
+
+/* Dropdown menu items */
+[role="menu"] [role="menuitem"]:hover,
+[role="listbox"] [role="option"]:hover {
+  background-color: var(--accent);
+  color: var(--accent-foreground);
+}
+
+/* Tab hover effect */
+[role="tab"]:hover:not([aria-selected="true"]) {
+  background-color: var(--muted);
+}
+
+/* Input focus effect */
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px oklch(0.32 0.1 264 / 0.1);
+}
+
+/* Tooltip on hover for interactive elements */
+[title]:hover {
+  position: relative;
+}
+
+/* Pulse animation for active/clickable items */
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+.animate-pulse-subtle:hover {
+  animation: pulse-subtle 1s ease-in-out infinite;
+}
+
+/* Glow effect for important buttons */
+.btn-glow:hover {
+  box-shadow: 0 0 20px oklch(0.83 0.15 84 / 0.4);
+}
+
+/* Smooth scroll for anchor links */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar for better UX */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--muted);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--muted-foreground);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--foreground);
+}
+
+/* Selection color */
+::selection {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

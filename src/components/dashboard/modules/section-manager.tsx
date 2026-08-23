@@ -52,6 +52,10 @@ const TEMPLATES = [
   { icon: "🎓", title: "Pendidikan Lanjutan", placeholder: "Sedang menempuh S2 Pendidikan Dasar di Universitas Negeri Makassar..." },
   { icon: "💡", title: "Tips untuk Siswa", placeholder: "1. Rajin membaca setiap hari\n2. Berani bertanya di kelas\n3. Selalu mengerjakan PR tepat waktu..." },
   { icon: "🌟", title: "Motivasi & Filosofi", placeholder: "Pembelajaran harus menyenangkan dan bermakna. Setiap anak punya potensi unik yang perlu dikembangkan..." },
+  { icon: "💼", title: "Visi & Misi Personal", placeholder: "Menjadi pendidik yang menginspirasi siswa untuk mencapai potensi terbaik mereka melalui pendekatan yang inklusif dan inovatif..." },
+  { icon: "🤝", title: "Testimoni & Review", placeholder: "\"Bu Guru sangat sabar dan kreatif dalam mengajar. Anak saya jadi lebih semangat belajar.\" — Orang Tua Siswa\n\"Metode mengajarnya mudah dipahami dan menyenangkan.\" — Siswa Kelas 4A" },
+  { icon: "🔬", title: "Penelitian & Publikasi", placeholder: "• Penelitian Tindakan Kelas: Peningkatan Kemampuan Membaca Anak SD (2024)\n• Artikel: Strategi Pembelajaran Diferensiasi di Kelas Rendah" },
+  { icon: "🏅", title: "Penghargaan & Juara", placeholder: "• Juara 1 Guru Berprestasi Tingkat Kabupaten (2023)\n• Penghargaan Inovasi Pembelajaran Terbaik (2024)" },
 ];
 
 export function SectionManager({ teacherId: propTeacherId }: { teacherId?: string }) {

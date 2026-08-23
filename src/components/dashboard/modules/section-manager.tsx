@@ -37,6 +37,12 @@ type TeacherSection = {
   isVisible: boolean;
 };
 
+type TeacherListItem = {
+  id: string;
+  name: string;
+  position: string;
+};
+
 const TEMPLATES = [
   { icon: "📚", title: "Pengalaman Mengajar", placeholder: "10 tahun mengajar kelas 1-3, fokus pada literasi dan numerasi dasar..." },
   { icon: "🏆", title: "Sertifikasi & Pelatihan", placeholder: "• Sertifikat Pendidik (2018)\n• Pelatihan Kurikulum Merdeka (2024)\n• Workshop Pembelajaran Diferensiasi..." },
@@ -51,6 +57,8 @@ const TEMPLATES = [
 export function SectionManager({ teacherId: propTeacherId }: { teacherId?: string }) {
   const user = useAppStore((s) => s.user);
   const [sections, setSections] = useState<TeacherSection[]>([]);
+  const [teachers, setTeachers] = useState<TeacherListItem[]>([]);
+  const [selectedTeacherId, setSelectedTeacherId] = useState<string>(propTeacherId || "");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -63,11 +71,32 @@ export function SectionManager({ teacherId: propTeacherId }: { teacherId?: strin
 
   // Determine which teacherId to use
   const isOperator = user?.role === "SUPER_ADMIN" || user?.role === "OPERATOR";
-  const activeTeacherId = propTeacherId || null;
+  const activeTeacherId = isOperator ? selectedTeacherId : (propTeacherId || "");
+
+  // Fetch teachers list for OPERATOR
+  useEffect(() => {
+    if (!isOperator) return;
+    (async () => {
+      try {
+        const res = await fetch("/api/teachers?scope=operator", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          setTeachers(data.items || []);
+        }
+      } catch {
+        // Ignore error
+      }
+    })();
+  }, [isOperator]);
 
   // Fetch sections
   useEffect(() => {
     (async () => {
+      if (isOperator && !activeTeacherId) {
+        setSections([]);
+        setLoading(false);
+        return;
+      }
       try {
         let url = "/api/me/teacher/sections";
         if (isOperator && activeTeacherId) {
@@ -273,14 +302,38 @@ export function SectionManager({ teacherId: propTeacherId }: { teacherId?: strin
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          📋 Bagian Profil Saya
+          📋 Bagian Profil Guru
         </CardTitle>
         <CardDescription>
-          Tambahkan bagian kustom untuk menampilkan informasi tambahan di profil
-          website Anda. Guru lain tidak bisa mengubah bagian Anda.
+          {isOperator
+            ? "Pilih guru yang ingin dikelola bagian profilnya."
+            : "Tambahkan bagian kustom untuk menampilkan informasi tambahan di profil website Anda."}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent>
+        {/* Teacher selector for OPERATOR */}
+        {isOperator && (
+          <div className="mb-4 space-y-2">
+            <Label htmlFor="teacher-select">Pilih Guru</Label>
+            <select
+              id="teacher-select"
+              value={selectedTeacherId}
+              onChange={(e) => {
+                setSelectedTeacherId(e.target.value);
+                setLoading(true);
+              }}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="">-- Pilih Guru --</option>
+              {teachers.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} ({t.position})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {/* Existing sections */}
         {sections.length > 0 && (
           <div className="space-y-2">

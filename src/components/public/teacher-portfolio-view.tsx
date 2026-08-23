@@ -26,6 +26,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageBanner } from "./_shared";
 import { SectionRenderer } from "./section-renderer";
+import { TeacherContactCard } from "@/components/shared/teacher-contact-card";
+import { TeacherRating } from "./teacher-rating";
 import type { TeacherItem } from "@/lib/types";
 
 function isKepalaSekolah(t: TeacherItem): boolean {
@@ -361,7 +363,35 @@ export function TeacherPortfolioView({ guruId }: { guruId?: string }) {
                     </div>
                   </section>
                 )}
+
+                {/* Ketersediaan & Jam Konsultasi */}
+                {(t.officeHours || t.languages) && (
+                  <section className="rounded-xl border bg-card p-5">
+                    <h2 className="mb-3 flex items-center gap-2 font-sans text-base font-bold">
+                      <Globe className="size-4 text-primary" /> Ketersediaan
+                    </h2>
+                    <dl className="space-y-2">
+                      {t.officeHours && (
+                        <InfoRow label="Jam Konsultasi" value={t.officeHours} />
+                      )}
+                      {t.languages && (
+                        <InfoRow label="Bahasa" value={t.languages} />
+                      )}
+                    </dl>
+                  </section>
+                )}
+
+                {/* Rating & Review */}
+                <TeacherRating teacherId={t.id} />
               </div>
+            </div>
+
+            {/* Contact Card Actions */}
+            <div className="rounded-xl border bg-card p-5">
+              <h2 className="mb-3 font-sans text-base font-bold">
+                Hubungi & Bagikan
+              </h2>
+              <TeacherContactCard teacher={t} />
             </div>
 
             <div className="flex justify-center">

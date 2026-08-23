@@ -100,6 +100,11 @@ export type TeacherItem = {
   linkedinUrl: string | null;
   githubUrl: string | null;
   websiteUrl: string | null;
+  officeHours: string | null;
+  consultationNote: string | null;
+  languages: string | null;
+  averageRating?: number;
+  totalRatings?: number;
   order: number;
   isActive: boolean;
   homeroomClasses?: Array<{ id: string; name: string }>;

@@ -73,6 +73,9 @@ type FormState = {
   linkedinUrl: string;
   githubUrl: string;
   websiteUrl: string;
+  officeHours: string;
+  consultationNote: string;
+  languages: string;
 };
 
 const EMPTY: FormState = {
@@ -104,6 +107,9 @@ const EMPTY: FormState = {
   linkedinUrl: "",
   githubUrl: "",
   websiteUrl: "",
+  officeHours: "",
+  consultationNote: "",
+  languages: "",
 };
 
 export function TeachersManager() {
@@ -206,6 +212,9 @@ export function TeachersManager() {
       linkedinUrl: t.linkedinUrl ?? "",
       githubUrl: t.githubUrl ?? "",
       websiteUrl: t.websiteUrl ?? "",
+      officeHours: t.officeHours ?? "",
+      consultationNote: t.consultationNote ?? "",
+      languages: t.languages ?? "",
     });
     setOpen(true);
   }
@@ -248,6 +257,9 @@ export function TeachersManager() {
         linkedinUrl: form.linkedinUrl || null,
         githubUrl: form.githubUrl || null,
         websiteUrl: form.websiteUrl || null,
+        officeHours: form.officeHours || null,
+        consultationNote: form.consultationNote || null,
+        languages: form.languages || null,
       };
       const res = editing
         ? await fetch(`/api/teachers/${editing.id}`, {
@@ -811,6 +823,39 @@ export function TeachersManager() {
                   value={form.websiteUrl}
                   onChange={(e) => setForm({ ...form, websiteUrl: e.target.value })}
                   placeholder="https://..."
+                />
+              </div>
+            </div>
+            <div className="h-px bg-border" />
+            <p className="text-xs font-medium text-muted-foreground">
+              Ketersediaan & Jam Konsultasi (opsional)
+            </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="t-officeHours">Jam Konsultasi</Label>
+                <Input
+                  id="t-officeHours"
+                  value={form.officeHours}
+                  onChange={(e) => setForm({ ...form, officeHours: e.target.value })}
+                  placeholder="Mis. Senin-Kamis 08:00-15:00"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="t-languages">Bahasa</Label>
+                <Input
+                  id="t-languages"
+                  value={form.languages}
+                  onChange={(e) => setForm({ ...form, languages: e.target.value })}
+                  placeholder="Mis. Indonesia, Inggris, Arab"
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="t-consultationNote">Catatan Konsultasi</Label>
+                <Input
+                  id="t-consultationNote"
+                  value={form.consultationNote}
+                  onChange={(e) => setForm({ ...form, consultationNote: e.target.value })}
+                  placeholder="Mis. Konsultasi via WhatsApp atau langsung ke sekolah"
                 />
               </div>
             </div>

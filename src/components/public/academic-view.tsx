@@ -120,6 +120,8 @@ export function AcademicView() {
   const [teachers, setTeachers] = useState<TeacherItem[] | null>(null);
   const [agenda, setAgenda] = useState<AgendaItem[]>([]);
   const [query, setQuery] = useState("");
+  const [filterPosition, setFilterPosition] = useState("all");
+  const [filterSubject, setFilterSubject] = useState("all");
   // Guru yang sedang dibuka di modal detail (bio/kontak — tanpa NUPTK/NIP/NIK).
   const [selected, setSelected] = useState<TeacherItem | null>(null);
 
@@ -149,17 +151,53 @@ export function AcademicView() {
     };
   }, []);
 
+  // Get unique positions and subjects for filters
+  const uniquePositions = useMemo(() => {
+    if (!teachers) return [];
+    const positions = new Set<string>();
+    teachers.forEach((t) => positions.add(t.position));
+    return Array.from(positions).sort();
+  }, [teachers]);
+
+  const uniqueSubjects = useMemo(() => {
+    if (!teachers) return [];
+    const subjects = new Set<string>();
+    teachers.forEach((t) => {
+      if (t.subject && t.subject !== "-") subjects.add(t.subject);
+    });
+    return Array.from(subjects).sort();
+  }, [teachers]);
+
+  // Teacher statistics
+  const teacherStats = useMemo(() => {
+    if (!teachers) return null;
+    return {
+      total: teachers.length,
+      active: teachers.filter((t) => t.isActive).length,
+      teachers: teachers.filter((t) => t.position.toLowerCase().includes("guru")).length,
+      staff: teachers.filter((t) => !t.position.toLowerCase().includes("guru")).length,
+    };
+  }, [teachers]);
+
   const filteredTeachers = useMemo(() => {
     if (!teachers) return null;
     const q = query.trim().toLowerCase();
-    if (!q) return teachers;
-    return teachers.filter(
-      (t) =>
+    return teachers.filter((t) => {
+      // Text search
+      const matchesQuery =
+        !q ||
         t.name.toLowerCase().includes(q) ||
         t.position.toLowerCase().includes(q) ||
-        (t.subject ?? "").toLowerCase().includes(q)
-    );
-  }, [teachers, query]);
+        (t.subject ?? "").toLowerCase().includes(q);
+      // Position filter
+      const matchesPosition =
+        filterPosition === "all" || t.position === filterPosition;
+      // Subject filter
+      const matchesSubject =
+        filterSubject === "all" || t.subject === filterSubject;
+      return matchesQuery && matchesPosition && matchesSubject;
+    });
+  }, [teachers, query, filterPosition, filterSubject]);
 
   // Group agenda by month
   const groupedAgenda = useMemo(() => {
@@ -194,21 +232,68 @@ export function AcademicView() {
       {/* Direktori Guru */}
       <SectionShell>
         <div className="flex flex-col gap-6">
+          {/* Teacher Statistics */}
+          {teacherStats && (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <div className="rounded-xl border bg-card p-4 text-center">
+                <p className="text-2xl font-bold text-primary">{teacherStats.total}</p>
+                <p className="text-xs text-muted-foreground">Total Guru & Staf</p>
+              </div>
+              <div className="rounded-xl border bg-card p-4 text-center">
+                <p className="text-2xl font-bold text-emerald-600">{teacherStats.active}</p>
+                <p className="text-xs text-muted-foreground">Aktif</p>
+              </div>
+              <div className="rounded-xl border bg-card p-4 text-center">
+                <p className="text-2xl font-bold text-blue-600">{teacherStats.teachers}</p>
+                <p className="text-xs text-muted-foreground">Guru</p>
+              </div>
+              <div className="rounded-xl border bg-card p-4 text-center">
+                <p className="text-2xl font-bold text-orange-600">{teacherStats.staff}</p>
+                <p className="text-xs text-muted-foreground">Tenaga Kependidikan</p>
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-wrap items-end justify-between gap-4">
             <SectionHeading
               eyebrow="Tenaga Pendidik"
               title="Direktori Guru & Staf"
             />
-            <div className="relative w-full sm:w-72">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Cari nama / jabatan / mapel…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="pl-9"
-                aria-label="Cari guru atau staf"
-              />
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Search */}
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Cari nama…"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="pl-9"
+                  aria-label="Cari guru atau staf"
+                />
+              </div>
+              {/* Position Filter */}
+              <select
+                value={filterPosition}
+                onChange={(e) => setFilterPosition(e.target.value)}
+                className="rounded-md border bg-background px-3 py-2 text-sm"
+              >
+                <option value="all">Semua Jabatan</option>
+                {uniquePositions.map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+              {/* Subject Filter */}
+              <select
+                value={filterSubject}
+                onChange={(e) => setFilterSubject(e.target.value)}
+                className="rounded-md border bg-background px-3 py-2 text-sm"
+              >
+                <option value="all">Semua Mapel</option>
+                {uniqueSubjects.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
             </div>
           </div>
 

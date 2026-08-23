@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
+import { withCache } from "@/lib/cache";
 import { logActivity } from "@/lib/log";
 
 export async function GET() {
@@ -9,7 +10,7 @@ export async function GET() {
   if (!settings) {
     settings = await db.siteSetting.create({ data: { id: "singleton", vision: "", mission: "", history: "", principalWelcome: "", spmbInfo: "" } });
   }
-  return NextResponse.json(settings);
+  return withCache(NextResponse.json(settings), "public, s-maxage=3600, stale-while-revalidate=7200");
 }
 
 export async function PUT(req: NextRequest) {

@@ -317,10 +317,13 @@ export function HomeView() {
     setLoadError(false);
     (async () => {
       try {
+        // Browser respects Cache-Control headers from API routes (s-maxage for
+        // CDN, max-age for browser). No cache-busting needed — the API sets
+        // appropriate staleness windows per route.
         const [newsRes, agendaRes, achRes] = await Promise.all([
-          fetch(`/api/news?scope=public&limit=3&_=${Date.now()}`, { cache: "no-store" }),
-          fetch(`/api/agenda?upcoming=true&_=${Date.now()}`, { cache: "no-store" }),
-          fetch(`/api/achievements?limit=3&_=${Date.now()}`, { cache: "no-store" }),
+          fetch("/api/news?scope=public&limit=3"),
+          fetch("/api/agenda?upcoming=true"),
+          fetch("/api/achievements?limit=3"),
         ]);
         if (!newsRes.ok || !agendaRes.ok || !achRes.ok) throw new Error("fetch failed");
         const newsData = await newsRes.json();
@@ -397,10 +400,10 @@ export function HomeView() {
                 <img
                   src={settings.principalPhoto}
                   alt={settings.principalName ?? "Kepala Sekolah"}
-                  className="relative size-40 rounded-full border-4 border-gold object-cover sm:size-52"
+                  className="relative size-56 rounded-full border-4 border-gold object-cover sm:size-72 md:w-[272px] md:h-[272px]"
                 />
               ) : (
-                <div className="relative flex size-40 items-center justify-center rounded-full border-4 border-gold bg-muted sm:size-52">
+                <div className="relative flex size-56 items-center justify-center rounded-full border-4 border-gold bg-muted sm:size-72 md:w-[272px] md:h-[272px]">
                   <GraduationCap className="size-16 text-muted-foreground" />
                 </div>
               )}

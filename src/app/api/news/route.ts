@@ -6,6 +6,7 @@ import { rateLimitPublicGet } from "@/lib/rate-limit";
 import { logActivity } from "@/lib/log";
 import { slugify } from "@/lib/format";
 import { sanitizeHtml } from "@/lib/sanitize";
+import { withCache } from "@/lib/cache";
 import { createNewsSchema, validateBody } from "@/lib/validations";
 
 export async function GET(req: NextRequest) {
@@ -50,20 +51,14 @@ export async function GET(req: NextRequest) {
     }),
   ]);
 
-  const res = NextResponse.json({
-    items: items.map((n) => ({
-      ...n,
-      authorName: n.author?.name ?? "—",
-    })),
-    total,
-    page,
-    limit,
-    totalPages: Math.max(1, Math.ceil(total / limit)),
-  });
-  if (scope === "public") {
-    res.headers.set("Cache-Control", "public, s-maxage=120, stale-while-revalidate=300");
-  }
-  return res;
+  return withCache(
+    NextResponse.json({
+      items: items.map((n) => ({ ...n, authorName: n.author?.name ?? "—" })),
+      total, page, limit,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    }),
+    scope === "public" ? "public, s-maxage=120, stale-while-revalidate=300" : ""
+  );
 }
 
 export async function POST(req: NextRequest) {

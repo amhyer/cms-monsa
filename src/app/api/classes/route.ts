@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth, requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
+import { withCache } from "@/lib/cache";
 import { logActivity } from "@/lib/log";
 
 export async function GET(req: NextRequest) {
@@ -43,7 +44,7 @@ export async function GET(req: NextRequest) {
     orderBy: [{ grade: "asc" }, { name: "asc" }],
   });
 
-  return NextResponse.json({ items });
+  return withCache(NextResponse.json({ items }), "public, s-maxage=300, stale-while-revalidate=600");
 }
 
 export async function POST(req: NextRequest) {

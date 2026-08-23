@@ -392,25 +392,25 @@ export function HomeView() {
 
       {/* Sambutan Kepala Sekolah */}
       <SectionShell>
-        <div className="grid grid-cols-1 items-center gap-8 rounded-2xl border bg-card p-6 shadow-sm sm:p-10 md:grid-cols-3">
-          <div className="flex flex-col items-center md:col-span-1">
+        <div className="grid grid-cols-1 items-center gap-8 rounded-2xl border bg-card p-6 shadow-sm sm:p-10 md:grid-cols-[1fr_2fr]">
+          <div className="flex flex-col items-center">
             <div className="relative">
               <div className="absolute -inset-1 rounded-full bg-gold/30 blur-sm" />
               {settings?.principalPhoto ? (
                 <img
                   src={settings.principalPhoto}
                   alt={settings.principalName ?? "Kepala Sekolah"}
-                  className="relative size-72 rounded-full border-4 border-gold object-cover shadow-lg sm:size-96 md:w-[384px] md:h-[384px]"
+                  className="relative w-full max-w-[420px] aspect-square rounded-full border-4 border-gold object-cover shadow-lg"
                 />
               ) : (
-                <div className="relative flex size-72 items-center justify-center rounded-full border-4 border-gold bg-muted shadow-lg sm:size-96 md:w-[384px] md:h-[384px]">
-                  <GraduationCap className="size-24 text-muted-foreground" />
+                <div className="relative flex w-full max-w-[420px] aspect-square items-center justify-center rounded-full border-4 border-gold bg-muted shadow-lg">
+                  <GraduationCap className="size-32 text-muted-foreground" />
                 </div>
               )}
             </div>
             <Quote className="mt-4 size-6 text-gold" />
           </div>
-          <div className="md:col-span-2">
+          <div>
             <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gold-foreground">
               <span className="h-px w-6 bg-gold" />
               Sambutan Kepala Sekolah

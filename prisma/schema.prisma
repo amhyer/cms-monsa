@@ -154,6 +154,7 @@ model Teacher {
   account        User?
   sections       TeacherSection[]
   ratings        TeacherRating[]
+  starOfMonth    StarOfMonth[]
 
   @@index([nuptk])
   @@index([isActive])
@@ -271,6 +272,7 @@ model Student {
   account      User?   @relation("StudentAccount")   // akun portal siswa (role SISWA)
   achievements Achievement[]
   studentAchievements StudentAchievement[]
+  starOfMonth    StarOfMonth[]
 
   @@index([classId])
   @@index([nis])
@@ -699,4 +701,93 @@ model AnnouncementRead {
 
   @@unique([announcementId, userId])
   @@index([userId, readAt])
+}
+
+// ---------- NEWSLETTER SUBSCRIPTION ----------
+model NewsletterSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  isActive  Boolean  @default(true)
+  token     String   @unique // token untuk unsubscribe
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([isActive])
+}
+
+// ---------- STUDENT/TEACHER OF THE MONTH ----------
+model StarOfMonth {
+  id          String   @id @default(cuid())
+  type        String   // STUDENT | TEACHER
+  month       Int      // 1-12
+  year        Int      // 2024, 2025, etc.
+  studentId   String?
+  student     Student? @relation(fields: [studentId], references: [id])
+  teacherId   String?
+  teacher     Teacher? @relation(fields: [teacherId], references: [id])
+  reason      String   // alasan dipilih
+  achievement String?  // pencapaian spesifik
+  photoUrl    String?  // foto profil
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([type, month, year])
+  @@index([type, month, year])
+}
+
+// ---------- PARENT TESTIMONIALS ----------
+model ParentTestimonial {
+  id          String   @id @default(cuid())
+  parentName  String   // nama orang tua
+  studentName String?  // nama siswa
+  className   String?  // kelas siswa
+  relation    String?  // Hubungan: Ayah/Ibu/Wali
+  content     String   // isi testimoni
+  rating      Int?     // 1-5 bintang
+  photoUrl    String?  // foto orang tua
+  isApproved  Boolean  @default(false) // admin approval
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isPublished, createdAt])
+  @@index([rating])
+}
+
+// ---------- SCHOOL HISTORY TIMELINE ----------
+model SchoolTimeline {
+  id          String   @id @default(cuid())
+  year        Int      // tahun kejadian
+  month       Int?     // bulan (opsional)
+  title       String   // judul kejadian
+  description String?  // deskripsi kejadian
+  imageUrl    String?  // gambar pendukung
+  category    String   @default("Pencapaian") // Pencapaian | Pembangunan | Penghargaan | Peristiwa
+  isPublished Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([year, sortOrder])
+  @@index([category])
+}
+
+// ---------- SCHOOL NEWS TICKER ----------
+model NewsTicker {
+  id          String   @id @default(cuid())
+  content     String   // isi berita ticker
+  category    String   @default("Info") // Info | Prestasi | Jadwal | Penting
+  link        String?  // link tujuan
+  isActive    Boolean  @default(true)
+  priority    Int      @default(0) // urutan prioritas
+  startsAt    DateTime? // waktu mulai tampil
+  expiresAt   DateTime? // waktu berhenti tampil
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive, priority])
+  @@index([startsAt, expiresAt])
 }

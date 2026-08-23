@@ -133,9 +133,26 @@ model Teacher {
 
   homeroomClasses Class[]
   account        User?
+  sections       TeacherSection[]
 
   @@index([nuptk])
   @@index([isActive])
+}
+
+// ---------- TEACHER CUSTOM SECTIONS ----------
+model TeacherSection {
+  id        String   @id @default(cuid())
+  teacherId String
+  teacher   Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  title     String   // judul bagian (mis: "Pengalaman Mengajar")
+  content   String   // isi konten (teks bebas, bisa markdown ringan)
+  icon      String?  // emoji/icon (mis: "📚", "🏆", "🎯")
+  order     Int      @default(0) // urutan tampil
+  isVisible Boolean  @default(true) // show/hide
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([teacherId, order])
 }
 
 model GalleryItem {

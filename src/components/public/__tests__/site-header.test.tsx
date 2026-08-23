@@ -166,15 +166,6 @@ describe("SiteHeader", () => {
     expect(pushMock).toHaveBeenCalledWith("/");
   });
 
-  it("navigates to /login when Login button is clicked (desktop)", () => {
-    render(<SiteHeader />);
-    // Login appears twice (desktop + mobile) — click the first one
-    const loginBtns = screen.getAllByRole("button", { name: "Login" });
-    expect(loginBtns.length).toBeGreaterThanOrEqual(1);
-    fireEvent.click(loginBtns[0]);
-    expect(pushMock).toHaveBeenCalledWith("/login");
-  });
-
   it("SPMB button opens external link when spmbLink is set", () => {
     h.settings = { spmbLink: "https://spmb.example.com" };
     render(<SiteHeader />);

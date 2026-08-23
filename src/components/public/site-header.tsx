@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { GraduationCap, Menu, LogIn, PencilLine, ExternalLink } from "lucide-react";
+import { GraduationCap, Menu, PencilLine, ExternalLink } from "lucide-react";
 import { useAppStore } from "@/store/app";
 import { PUBLIC_NAV } from "@/lib/nav";
 import { Button } from "@/components/ui/button";
@@ -151,16 +151,6 @@ export function SiteHeader() {
           <ThemeToggle className="hidden text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground sm:inline-flex" />
           <Button
             type="button"
-            variant="ghost"
-            size="sm"
-            className="hidden text-sidebar-foreground/90 hover:bg-sidebar-accent hover:text-sidebar-foreground sm:inline-flex"
-            onClick={() => go("/login")}
-          >
-            <LogIn className="size-4" />
-            Login
-          </Button>
-          <Button
-            type="button"
             size="sm"
             className="bg-gold text-gold-foreground hover:bg-gold/90"
             onClick={openSpmb}
@@ -235,14 +225,6 @@ export function SiteHeader() {
                 })}
               </nav>
               <div className="mt-auto flex flex-col gap-2 p-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => go("/login")}
-                >
-                  <LogIn className="size-4" />
-                  Login
-                </Button>
                 <Button
                   type="button"
                   className="bg-gold text-gold-foreground hover:bg-gold/90"

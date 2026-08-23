@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   GraduationCap,
   Menu,
-  Repeat,
   ExternalLink,
   LogOut,
   Lock,
@@ -14,6 +13,7 @@ import {
   ShieldAlert,
   Search,
 } from "lucide-react";
+
 import { toast } from "sonner";
 import { useAppStore } from "@/store/app";
 import { DASHBOARD_NAV, type NavItem } from "@/lib/nav";
@@ -237,17 +237,12 @@ function AccessDenied({ description }: { description?: string }) {
   );
 }
 
-// Dev-only mock (REFACTOR_PLAN #7): tombol Switch Role disembunyikan di produksi.
-// process.env.NODE_ENV di-inline oleh Next.js pada build untuk client component.
-const IS_PROD = process.env.NODE_ENV === "production";
-
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const user = useAppStore((s) => s.user);
   const authLoading = useAppStore((s) => s.authLoading);
   const logout = useAppStore((s) => s.logout);
-  const switchRole = useAppStore((s) => s.switchRole);
   const settings = useAppStore((s) => s.settings);
   const fetchMe = useAppStore((s) => s.fetchMe);
   const fetchSettings = useAppStore((s) => s.fetchSettings);
@@ -298,15 +293,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const isAdminRoute = ADMIN_PATHS.has(pathname);
   const showAccessDenied =
     (isAdminRoute && !isAdmin) || (isGuru && isGuruDeniedPath(pathname));
-
-  async function handleSwitchRole() {
-    if (isGuru) return;
-    const next = isAdmin ? "OPERATOR" : "SUPER_ADMIN";
-    await switchRole(next);
-    toast.success(
-      `Berhasil beralih ke peran ${next === "SUPER_ADMIN" ? "Admin" : "Operator"}.`
-    );
-  }
 
   async function handleLogout() {
     await logout();
@@ -389,34 +375,18 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
           <ThemeToggle className="hidden text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground sm:inline-flex" />
 
-          {!isGuru && !IS_PROD && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSwitchRole}
-                  className="hidden border-sidebar-border bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 hover:text-sidebar-foreground md:inline-flex"
-                >
-                  <Repeat className="size-4" />
-                  <span className="hidden lg:inline">Switch Role (Mock)</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Beralih peran untuk uji coba hak akses</TooltipContent>
-            </Tooltip>
-          )}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => router.push("/")}
+                onClick={() => window.open("/", "_blank")}
                 className="hidden text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground sm:inline-flex"
               >
                 <ExternalLink className="size-4" /> Lihat Situs
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Buka halaman publik</TooltipContent>
+            <TooltipContent>Buka halaman publik di tab baru</TooltipContent>
           </Tooltip>
 
           <DropdownMenu>
@@ -438,14 +408,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 </span>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {!isGuru && !IS_PROD && (
-                <DropdownMenuItem className="sm:hidden" onClick={handleSwitchRole}>
-                  <Repeat className="size-4" /> Beralih Peran
-                </DropdownMenuItem>
-              )}
               <DropdownMenuItem
                 className="sm:hidden"
-                onClick={() => router.push("/")}
+                onClick={() => window.open("/", "_blank")}
               >
                 <ExternalLink className="size-4" /> Lihat Situs
               </DropdownMenuItem>

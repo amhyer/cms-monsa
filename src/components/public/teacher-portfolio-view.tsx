@@ -28,6 +28,7 @@ import { PageBanner } from "./_shared";
 import { SectionRenderer } from "./section-renderer";
 import { TeacherContactCard } from "@/components/shared/teacher-contact-card";
 import { TeacherRating } from "./teacher-rating";
+import { TeacherTimeline } from "./teacher-timeline";
 import type { TeacherItem } from "@/lib/types";
 
 function isKepalaSekolah(t: TeacherItem): boolean {
@@ -380,6 +381,9 @@ export function TeacherPortfolioView({ guruId }: { guruId?: string }) {
                     </dl>
                   </section>
                 )}
+
+                {/* Linimasa Prestasi */}
+                <TeacherTimeline teacherId={t.id} />
 
                 {/* Rating & Review */}
                 <TeacherRating teacherId={t.id} />

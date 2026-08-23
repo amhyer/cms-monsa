@@ -55,9 +55,11 @@ export async function GET(req: NextRequest) {
       include: { homeroomClasses: { select: { id: true, name: true } } },
       orderBy: [{ order: "asc" }, { name: "asc" }],
     });
-    return NextResponse.json({
+    const res = NextResponse.json({
       items: items.map((t) => omitFields(t, PUBLIC_TEACHER_OMIT)),
     });
+    res.headers.set("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600");
+    return res;
   } catch (error) {
     logger.error({ err: error }, "[teachers] GET error");
     return NextResponse.json(

@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
     }),
   ]);
 
-  return NextResponse.json({
+  const res = NextResponse.json({
     items: items.map((n) => ({
       ...n,
       authorName: n.author?.name ?? "—",
@@ -60,6 +60,10 @@ export async function GET(req: NextRequest) {
     limit,
     totalPages: Math.max(1, Math.ceil(total / limit)),
   });
+  if (scope === "public") {
+    res.headers.set("Cache-Control", "public, s-maxage=120, stale-while-revalidate=300");
+  }
+  return res;
 }
 
 export async function POST(req: NextRequest) {

@@ -49,9 +49,11 @@ export async function GET(req: NextRequest) {
       where: { isActive: true },
       orderBy: [{ order: "asc" }, { name: "asc" }],
     });
-    return NextResponse.json({
+    const res = NextResponse.json({
       items: items.map((item) => omitFields(item, PUBLIC_ORG_STRUCTURE_OMIT)),
     });
+    res.headers.set("Cache-Control", "public, s-maxage=600, stale-while-revalidate=3600");
+    return res;
   } catch (error) {
     logger.error({ err: error }, "[org-structure] GET error");
     return NextResponse.json(

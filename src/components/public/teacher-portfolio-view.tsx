@@ -29,6 +29,8 @@ import { SectionRenderer } from "./section-renderer";
 import { TeacherContactCard } from "@/components/shared/teacher-contact-card";
 import { TeacherRating } from "./teacher-rating";
 import { TeacherTimeline } from "./teacher-timeline";
+import { TeacherPDFExport } from "@/components/shared/teacher-pdf-export";
+import { MeetingScheduler } from "./meeting-scheduler";
 import type { TeacherItem } from "@/lib/types";
 
 function isKepalaSekolah(t: TeacherItem): boolean {
@@ -397,6 +399,17 @@ export function TeacherPortfolioView({ guruId }: { guruId?: string }) {
               </h2>
               <TeacherContactCard teacher={t} />
             </div>
+
+            {/* Print & Export */}
+            <div className="rounded-xl border bg-card p-5">
+              <h2 className="mb-3 font-sans text-base font-bold">
+                Cetak & Unduh
+              </h2>
+              <TeacherPDFExport teacher={t} />
+            </div>
+
+            {/* Meeting Scheduler */}
+            <MeetingScheduler teacherId={t.id} teacherName={t.name} />
 
             <div className="flex justify-center">
               <Link href="/academic">

@@ -47,7 +47,8 @@ const TEMPLATES = [
   { icon: "🌟", title: "Motivasi & Filosofi", placeholder: "Pembelajaran harus menyenangkan dan bermakna. Setiap anak punya potensi unik yang perlu dikembangkan..." },
 ];
 
-export function SectionManager() {
+export function SectionManager({ teacherId: propTeacherId }: { teacherId?: string }) {
+  const user = useAppStore((s) => s.user);
   const [sections, setSections] = useState<TeacherSection[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -59,11 +60,19 @@ export function SectionManager() {
     icon: "",
   });
 
+  // Determine which teacherId to use
+  const isOperator = user?.role === "SUPER_ADMIN" || user?.role === "OPERATOR";
+  const activeTeacherId = propTeacherId || null;
+
   // Fetch sections
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/me/teacher/sections", {
+        let url = "/api/me/teacher/sections";
+        if (isOperator && activeTeacherId) {
+          url += `?teacherId=${activeTeacherId}`;
+        }
+        const res = await fetch(url, {
           cache: "no-store",
         });
         if (res.ok) {
@@ -76,7 +85,7 @@ export function SectionManager() {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [isOperator, activeTeacherId]);
 
   // Add section from template
   const addFromTemplate = useCallback((template: (typeof TEMPLATES)[number]) => {
@@ -106,13 +115,24 @@ export function SectionManager() {
       const csrfRes = await fetch("/api/csrf-token");
       const { token: csrfToken } = await csrfRes.json();
 
+      const payload: Record<string, unknown> = {
+        title: newSection.title,
+        content: newSection.content,
+        icon: newSection.icon,
+      };
+
+      // Include teacherId for OPERATOR
+      if (isOperator && activeTeacherId) {
+        payload.teacherId = activeTeacherId;
+      }
+
       const res = await fetch("/api/me/teacher/sections", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-csrf-token": csrfToken,
         },
-        body: JSON.stringify(newSection),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -130,7 +150,7 @@ export function SectionManager() {
     } finally {
       setSaving(false);
     }
-  }, [newSection]);
+  }, [newSection, isOperator, activeTeacherId]);
 
   // Toggle visibility
   const toggleVisibility = useCallback(async (section: TeacherSection) => {

@@ -46,6 +46,14 @@ model User {
   bosExpenditures   BosExpenditure[]
   teacherRatings    TeacherRating[]
   bosDocuments      BosDocument[]
+  createdEvents     SchoolEvent[]
+  eventRegistrations EventRegistration[]
+  eventReminders    EventReminder[]
+  createdAlbums     Album[]
+  uploadedPhotos    Photo[]
+  schoolDocuments   SchoolDocument[]
+  createdAnnouncements SchoolAnnouncement[]
+  readAnnouncements AnnouncementRead[]
 
   @@index([role])
   @@index([isActive])
@@ -262,6 +270,7 @@ model Student {
   guardianUsers User[] @relation("GuardianStudent") // akun User (role ORANG_TUA) yang memantau siswa ini
   account      User?   @relation("StudentAccount")   // akun portal siswa (role SISWA)
   achievements Achievement[]
+  studentAchievements StudentAchievement[]
 
   @@index([classId])
   @@index([nis])
@@ -510,4 +519,184 @@ model BosDocument {
   updatedAt    DateTime @updatedAt
 
   @@index([year])
+}
+
+// ---------- STUDENT ACHIEVEMENT SYSTEM ----------
+model StudentAchievement {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  title       String   // judul prestasi
+  description String?  // deskripsi prestasi
+  category    String   @default("Akademik") // Akademik | Non-Akademik | Olahraga | Seni | Teknologi
+  level       String   @default("Sekolah") // Sekolah | Kecamatan | Kabupaten | Provinsi | Nasional | Internasional
+  date        DateTime // tanggal prestasi diraih
+  certificate String?  // URL sertifikat/foto
+  issuedBy    String?  // pihak yang mengeluarkan
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([studentId, date])
+  @@index([category])
+  @@index([level])
+}
+
+// ---------- SCHOOL EVENTS CALENDAR ----------
+model SchoolEvent {
+  id          String   @id @default(cuid())
+  title       String   // judul event
+  description String?  // deskripsi event
+  startDate   DateTime // tanggal & waktu mulai
+  endDate     DateTime // tanggal & waktu selesai
+  location    String?  // lokasi event
+  category    String   @default("Akademik") // Akademik | Ekstrakurikuler | Upacara | Perlombaan | Kunjungan
+  type        String   @default("EVENT") // EVENT | HOLIDAY | EXAM | MEETING
+  isAllDay    Boolean  @default(false) // event sepanjang hari
+  color       String?  // warna kustom untuk kalender
+  imageUrl    String?  // gambar cover event
+  maxParticipants Int? // batas peserta (opsional)
+  requiresRegistration Boolean @default(false) // butuh pendaftaran
+  isPublished Boolean  @default(true)
+  createdById String?
+  createdBy   User?    @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  registrations EventRegistration[]
+  reminders     EventReminder[]
+
+  @@index([startDate])
+  @@index([category])
+}
+
+model EventRegistration {
+  id        String      @id @default(cuid())
+  eventId   String
+  event     SchoolEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?       @relation(fields: [userId], references: [id])
+  name      String      // nama peserta
+  email     String?     // email peserta
+  phone     String?     // HP peserta
+  notes     String?     // catatan
+  status    String      @default("PENDING") // PENDING | CONFIRMED | CANCELLED
+  createdAt DateTime    @default(now())
+
+  @@index([eventId, status])
+}
+
+model EventReminder {
+  id        String      @id @default(cuid())
+  eventId   String
+  event     SchoolEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?       @relation(fields: [userId], references: [id])
+  remindAt  DateTime    // kapan reminder dikirim
+  type      String      @default("EMAIL") // EMAIL | SMS | PUSH
+  status    String      @default("PENDING") // PENDING | SENT | FAILED
+  createdAt DateTime    @default(now())
+
+  @@index([remindAt, status])
+}
+
+// ---------- GALLERY MANAGEMENT ----------
+model Album {
+  id          String   @id @default(cuid())
+  name        String   // nama album
+  description String?  // deskripsi album
+  coverUrl    String?  // URL cover album
+  category    String   @default("Kegiatan") // Kegiatan | Prestasi | Fasilitas | Upacara | Kelas | Lainnya
+  isPublished Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdById String?
+  createdBy   User?    @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  photos      Photo[]
+
+  @@index([category, sortOrder])
+}
+
+model Photo {
+  id          String   @id @default(cuid())
+  albumId     String
+  album       Album    @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  title       String?  // judul foto
+  description String?  // deskripsi foto
+  url         String   // URL foto
+  thumbnailUrl String? // URL thumbnail
+  fileSize    Int?     // ukuran file dalam byte
+  mimeType    String?  // tipe file (image/jpeg, image/png)
+  uploadedById String?
+  uploadedBy   User?    @relation(fields: [uploadedById], references: [id])
+  likes       Int      @default(0) // jumlah like
+  views       Int      @default(0) // jumlah views
+  isFeatured  Boolean  @default(false) // foto unggulan
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([albumId, sortOrder])
+  @@index([isFeatured])
+}
+
+// ---------- DOCUMENT MANAGEMENT ----------
+model SchoolDocument {
+  id           String   @id @default(cuid())
+  title        String   // judul dokumen
+  description  String?  // deskripsi dokumen
+  category     String   @default("Administrasi") // Administrasi | Kurikulum | Kesiswaan | Keuangan | Lainnya
+  fileUrl      String   // URL file dokumen
+  fileName     String   // nama file asli
+  fileSize     Int      // ukuran file dalam byte
+  fileType     String   // tipe file (pdf, docx, xlsx)
+  version      String?  // versi dokumen (v1.0, v2.0)
+  accessLevel  String   @default("PUBLIC") // PUBLIC | STAFF | ADMIN
+  downloadCount Int     @default(0) // jumlah download
+  uploadedById String?
+  uploadedBy   User?    @relation(fields: [uploadedById], references: [id])
+  isPublished  Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([category])
+  @@index([accessLevel])
+}
+
+// ---------- ANNOUNCEMENT SYSTEM ----------
+model SchoolAnnouncement {
+  id          String   @id @default(cuid())
+  title       String   // judul pengumuman
+  content     String   // isi pengumuman (rich text)
+  summary     String?  // ringkasan singkat
+  category    String   @default("Info") // Info | Penting | Jadwal | Akademik | Keuangan
+  priority    String   @default("NORMAL") // LOW | NORMAL | HIGH | URGENT
+  imageUrl    String?  // gambar lampiran
+  isPinned    Boolean  @default(false) // sematkan di atas
+  isPublished Boolean  @default(true)
+  publishedAt DateTime? // waktu publish
+  expiresAt  DateTime? // waktu kedaluwarsa
+  viewCount   Int      @default(0) // jumlah dilihat
+  targetAudience String @default("ALL") // ALL | PARENTS | TEACHERS | STUDENTS | STAFF
+  createdById String?
+  createdBy   User?    @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  readBy      AnnouncementRead[]
+
+  @@index([category, priority])
+  @@index([isPinned, publishedAt])
+  @@index([targetAudience])
+}
+
+model AnnouncementRead {
+  id             String              @id @default(cuid())
+  announcementId String
+  announcement   SchoolAnnouncement  @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User                @relation(fields: [userId], references: [id])
+  readAt         DateTime            @default(now())
+
+  @@unique([announcementId, userId])
+  @@index([userId, readAt])
 }

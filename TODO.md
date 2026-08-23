@@ -44,6 +44,7 @@
 - src/components/dashboard/modules/users-manager.tsx
 
 #### 2.3 Database Index Optimization
+> Added in a prior session (not part of the Cache-Control diff).
 - [x] Tambahkan @@index([role]), @@index([isActive]) di model User ✅
 - [x] Tambahkan @@index([status, publishedAt]), @@index([category]) di model News ✅
 - [x] Tambahkan @@index([isActive]) di model Teacher, Announcement ✅

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
+import { withCache } from "@/lib/cache";
 import { rateLimitPublicGet } from "@/lib/rate-limit";
 import { logActivity } from "@/lib/log";
 import { createGallerySchema, validateBody } from "@/lib/validations";
@@ -28,15 +29,10 @@ export async function GET(req: NextRequest) {
       take: limit,
     }),
   ]);
-  const res = NextResponse.json({
-    items,
-    total,
-    page,
-    limit,
-    totalPages: Math.max(1, Math.ceil(total / limit)),
-  });
-  res.headers.set("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600");
-  return res;
+  return withCache(
+    NextResponse.json({ items, total, page, limit, totalPages: Math.max(1, Math.ceil(total / limit)) }),
+    "public, s-maxage=300, stale-while-revalidate=600"
+  );
 }
 
 export async function POST(req: NextRequest) {

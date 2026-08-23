@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { withCache } from "@/lib/cache";
 import { rateLimitPublicGet } from "@/lib/rate-limit";
 
 // Galeri siswa publik (beranda): hanya siswa aktif. NIS/NISN disertakan agar
@@ -37,18 +38,19 @@ export async function GET(req: NextRequest) {
     }),
   ]);
 
-  return NextResponse.json({
-    items: items.map((s) => ({
-      id: s.id,
-      name: s.name,
-      photoUrl: s.photoUrl,
-      className: s.class?.name ?? "—",
-      nis: s.nis,
-      nisn: s.nisn,
-    })),
-    total,
-    page,
-    limit,
-    totalPages: Math.max(1, Math.ceil(total / limit)),
-  });
+  return withCache(
+    NextResponse.json({
+      items: items.map((s) => ({
+        id: s.id,
+        name: s.name,
+        photoUrl: s.photoUrl,
+        className: s.class?.name ?? "—",
+        nis: s.nis,
+        nisn: s.nisn,
+      })),
+      total, page, limit,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    }),
+    "public, s-maxage=300, stale-while-revalidate=600"
+  );
 }

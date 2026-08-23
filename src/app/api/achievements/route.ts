@@ -4,6 +4,7 @@ import { requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
 import { parseDateInput } from "@/lib/format";
+import { withCache } from "@/lib/cache";
 import { rateLimitPublicGet } from "@/lib/rate-limit";
 
 export async function GET(req: NextRequest) {
@@ -31,15 +32,10 @@ export async function GET(req: NextRequest) {
     studentNis: student?.nis ?? null,
     studentNisn: student?.nisn ?? null,
   }));
-  const res = NextResponse.json({
-    items,
-    total,
-    page,
-    limit,
-    totalPages: Math.max(1, Math.ceil(total / limit)),
-  });
-  res.headers.set("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600");
-  return res;
+  return withCache(
+    NextResponse.json({ items, total, page, limit, totalPages: Math.max(1, Math.ceil(total / limit)) }),
+    "public, s-maxage=300, stale-while-revalidate=600"
+  );
 }
 
 export async function POST(req: NextRequest) {

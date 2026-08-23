@@ -44,6 +44,7 @@ model User {
   reviewedEnrollments Enrollment[]
   attendanceRecords Attendance[]
   bosExpenditures   BosExpenditure[]
+  teacherRatings    TeacherRating[]
   bosDocuments      BosDocument[]
 
   @@index([role])
@@ -131,6 +132,10 @@ model Teacher {
   githubUrl     String?  // URL profil GitHub
   websiteUrl    String?  // URL website personal
   socialLinks   String?  // JSON string: {"twitter":"...","instagram":"..."}
+  // ---- Ketersediaan & jam konsultasi ----
+  officeHours   String?  // Jam konsultasi: "Senin-Kamis 08:00-15:00"
+  consultationNote String? // Catatan konsultasi: "Konsultasi via WhatsApp"
+  languages     String?  // Bahasa yang dikuasai: "Indonesia, Inggris, Arab"
   order       Int      @default(0)
   isActive    Boolean  @default(true)
   archivedAt  DateTime? // null = aktif, DateTime = diarsipkan oleh sync Dapodik
@@ -140,6 +145,7 @@ model Teacher {
   homeroomClasses Class[]
   account        User?
   sections       TeacherSection[]
+  ratings        TeacherRating[]
 
   @@index([nuptk])
   @@index([isActive])
@@ -159,6 +165,23 @@ model TeacherSection {
   updatedAt DateTime @updatedAt
 
   @@index([teacherId, order])
+}
+
+// ---------- TEACHER RATINGS & FEEDBACK ----------
+model TeacherRating {
+  id        String   @id @default(cuid())
+  teacherId String
+  teacher   Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  userId    String?  // null = anonymous
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  rating    Int      // 1-5 stars
+  comment   String?  // feedback text
+  authorName String? // nama penulis (jika anonymous)
+  isApproved Boolean @default(false) // admin approval
+  createdAt DateTime @default(now())
+
+  @@index([teacherId, createdAt])
+  @@index([isApproved])
 }
 
 model GalleryItem {

@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { toast } from "sonner";
+import { useAppStore } from "@/store/app";
 import {
   Card,
   CardContent,

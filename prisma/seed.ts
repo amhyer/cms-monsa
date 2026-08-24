@@ -31,6 +31,7 @@ async function main() {
   await db.agenda.deleteMany();
   await db.teacher.deleteMany();
   await db.student.deleteMany();
+  await db.scheduleEntry.deleteMany();
   await db.class.deleteMany();
   await db.galleryItem.deleteMany();
   await db.achievement.deleteMany();
@@ -649,6 +650,62 @@ async function main() {
       createdAt: new Date(now - 1 * 3600000),
     },
   });
+
+  // ---------- JADWAL PELAJARAN ----------
+  const scheduleDays = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat"] as const;
+  const scheduleSlots = [
+    { slot: 1, label: "07.00–07.35" },
+    { slot: 2, label: "07.35–08.10" },
+    { slot: 3, label: "08.15–08.50" },
+    { slot: 4, label: "08.50–09.25" },
+    { slot: 5, label: "09.35–10.10" },
+    { slot: 6, label: "10.15–10.50" },
+    { slot: 7, label: "10.50–11.25" },
+  ];
+  const scheduleGrid: Record<string, string[]> = {
+    Senin: ["Pendidikan Agama", "PPKn", "Bahasa Indonesia", "Matematika", "IPA", "PJOK", "Seni Budaya"],
+    Selasa: ["Pendidikan Agama", "PPKn", "Bahasa Indonesia", "Matematika", "IPS", "PJOK", "Mulok"],
+    Rabu: ["Pendidikan Agama", "PPKn", "Bahasa Indonesia", "Matematika", "IPA", "PJOK", "Seni Budaya"],
+    Kamis: ["Pendidikan Agama", "PPKn", "Matematika", "Bahasa Indonesia", "IPS", "PJOK", "Mulok"],
+    Jumat: ["Pendidikan Agama", "PPKn", "Bahasa Indonesia", "Matematika", "PJOK", "Seni Budaya", "Mulok"],
+  };
+  const scheduleTeacherMap: Record<string, string> = {
+    "Pendidikan Agama": "Ustadz Ahmad Fauzi, S.Pd.I.",
+    "PPKn": "Drs. Abdul Rahman",
+    "Bahasa Indonesia": "Siti Aminah, S.Pd.",
+    "Matematika": "Andi Mappangara, S.Pd.",
+    "IPA": "Andi Mappangara, S.Pd.",
+    "IPS": "Hj. Rosmiati, S.Pd., M.Pd.",
+    "PJOK": "Dewi Anggraini, S.Pd.",
+    "Seni Budaya": "Rina Marlina, S.Pd.",
+    "Mulok": "Maya Sari, S.Pd.",
+  };
+  const allClasses = await db.class.findMany({ where: { isActive: true } });
+  const allTeachers = await db.teacher.findMany({ where: { isActive: true } });
+  const tIdByName = new Map<string, string>();
+  for (const t of allTeachers) tIdByName.set(t.name, t.id);
+  let scheduleCount = 0;
+  for (const cls of allClasses) {
+    const entries: {
+      day: string; timeSlot: number; timeLabel: string;
+      subject: string; teacherId: string | null; classId: string; academicYear: string;
+    }[] = [];
+    for (const day of scheduleDays) {
+      const subjects = scheduleGrid[day] ?? [];
+      subjects.forEach((subject, i) => {
+        if (subject && i < scheduleSlots.length) {
+          entries.push({
+            day, timeSlot: scheduleSlots[i].slot, timeLabel: scheduleSlots[i].label,
+            subject, teacherId: tIdByName.get(scheduleTeacherMap[subject]) ?? null,
+            classId: cls.id, academicYear: cls.academicYear,
+          });
+        }
+      });
+    }
+    await db.scheduleEntry.createMany({ data: entries });
+    scheduleCount += entries.length;
+  }
+  console.log(`   📅 Jadwal pelajaran: ${scheduleCount} jadwal (${allClasses.length} kelas × 7 jam × 5 hari)`);
 
   console.log("✅ Seed selesai!");
   console.log("   Login Admin   : admin@mongisidi1.sch.id / admin123");

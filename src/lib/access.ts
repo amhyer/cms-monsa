@@ -20,6 +20,7 @@ export function isGuruDeniedPath(pathname: string): boolean {
     pathname === "/dashboard" ||
     pathname === "/dashboard/attendance" ||
     pathname.startsWith("/dashboard/attendance/") ||
-    pathname === "/dashboard/profile"
+    pathname === "/dashboard/profile" ||
+    pathname === "/dashboard/schedule"
   );
 }

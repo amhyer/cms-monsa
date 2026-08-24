@@ -118,7 +118,8 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
         (!isGuru ||
           n.path === "/dashboard" ||
           n.path === "/dashboard/attendance" ||
-          n.path === "/dashboard/profile")
+          n.path === "/dashboard/profile" ||
+          n.path === "/dashboard/schedule")
     );
     const management: NavItem[] = [];
     const admin: NavItem[] = [];

@@ -107,6 +107,7 @@ export async function getSession(): Promise<SessionUser | null> {
     email: user.email,
     role: effectiveRole,
     isActive: user.isActive,
+    mustChangePassword: (user as Record<string, unknown>).mustChangePassword === true,
     guardianClassId: user.guardianClassId ?? null,
     guardianStudentId: user.guardianStudentId ?? null,
   };

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireCsrf } from "@/lib/csrf";
+import { requireRole } from "@/lib/auth";
+import { createSchoolDocumentSchema, validateBody } from "@/lib/validations";
 
 /**
  * GET /api/documents
@@ -74,8 +77,18 @@ export async function GET(req: NextRequest) {
  * Admin: upload document
  */
 export async function POST(req: NextRequest) {
+  const csrfError = await requireCsrf(req);
+  if (csrfError) return csrfError;
+
+  const auth = await requireRole("OPERATOR");
+  if (!auth.ok) return auth.response;
+
   try {
     const body = await req.json();
+    const validation = validateBody(createSchoolDocumentSchema, body);
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
+    }
     const {
       title,
       description,
@@ -86,22 +99,7 @@ export async function POST(req: NextRequest) {
       fileType,
       version,
       accessLevel,
-    } = body;
-
-    // Validate required fields
-    if (!title?.trim()) {
-      return NextResponse.json(
-        { error: "Judul dokumen wajib diisi." },
-        { status: 400 }
-      );
-    }
-
-    if (!fileUrl?.trim()) {
-      return NextResponse.json(
-        { error: "File dokumen wajib diunggah." },
-        { status: 400 }
-      );
-    }
+    } = validation.data;
 
     // Create document
     const document = await db.schoolDocument.create({

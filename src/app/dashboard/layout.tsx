@@ -278,6 +278,14 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     if (!user && !authLoading) router.replace("/login");
   }, [user, authLoading, router]);
 
+  // Forced password change — redirect to /dashboard/change-password if
+  // mustChangePassword is true, unless the user is already on that page.
+  useEffect(() => {
+    if (user?.mustChangePassword && pathname !== "/dashboard/change-password") {
+      router.replace("/dashboard/change-password");
+    }
+  }, [user, pathname, router]);
+
   if (authLoading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-muted/30">

@@ -27,6 +27,7 @@ model User {
   studentId String?  @unique // Untuk role SISWA: akun portal siswa
   student   Student? @relation("StudentAccount", fields: [studentId], references: [id])
   isActive  Boolean  @default(true)
+  mustChangePassword Boolean @default(false) // Wajib ganti password di login pertama
   // 2FA (TOTP)
   twoFactorSecret    String?  // Encrypted TOTP secret
   twoFactorEnabled   Boolean  @default(false)

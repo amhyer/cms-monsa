@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireCsrf } from "@/lib/csrf";
+import { requireRole } from "@/lib/auth";
+import { createStudentAchievementSchema, validateBody } from "@/lib/validations";
 
 /**
  * GET /api/students/[id]/achievements
@@ -72,25 +75,20 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const csrfError = await requireCsrf(req);
+  if (csrfError) return csrfError;
+
+  const auth = await requireRole("OPERATOR");
+  if (!auth.ok) return auth.response;
+
   try {
     const { id } = await params;
     const body = await req.json();
-    const { title, description, category, level, date, certificate, issuedBy } = body;
-
-    // Validate required fields
-    if (!title?.trim()) {
-      return NextResponse.json(
-        { error: "Judul prestasi wajib diisi." },
-        { status: 400 }
-      );
+    const validation = validateBody(createStudentAchievementSchema, body);
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
     }
-
-    if (!date) {
-      return NextResponse.json(
-        { error: "Tanggal prestasi wajib diisi." },
-        { status: 400 }
-      );
-    }
+    const { title, description, category, level, date, certificate, issuedBy } = validation.data;
 
     // Verify student exists
     const student = await db.student.findUnique({

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireCsrf } from "@/lib/csrf";
+import { requireRole } from "@/lib/auth";
+import { createStarOfMonthSchema, validateBody } from "@/lib/validations";
 
 /**
  * GET /api/star-of-month
@@ -64,21 +67,23 @@ export async function GET(req: NextRequest) {
  * Admin: create star of the month
  */
 export async function POST(req: NextRequest) {
+  const csrfError = await requireCsrf(req);
+  if (csrfError) return csrfError;
+
+  const auth = await requireRole("OPERATOR");
+  if (!auth.ok) return auth.response;
+
   try {
     const body = await req.json();
-    const { type, month, year, studentId, teacherId, reason, achievement, photoUrl } = body;
-
-    // Validate required fields
-    if (!type || !month || !year || !reason?.trim()) {
-      return NextResponse.json(
-        { error: "Tipe, bulan, tahun, dan alasan wajib diisi." },
-        { status: 400 }
-      );
+    const validation = validateBody(createStarOfMonthSchema, body);
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
     }
+    const { type, month, year, studentId, teacherId, reason, achievement, photoUrl } = validation.data;
 
     // Check if already exists
     const existing = await db.starOfMonth.findUnique({
-      where: { type_month_year: { type, month: parseInt(month), year: parseInt(year) } },
+      where: { type_month_year: { type, month, year } },
     });
 
     if (existing) {
@@ -92,8 +97,8 @@ export async function POST(req: NextRequest) {
     const star = await db.starOfMonth.create({
       data: {
         type,
-        month: parseInt(month),
-        year: parseInt(year),
+        month,
+        year,
         studentId: type === "STUDENT" ? studentId : null,
         teacherId: type === "TEACHER" ? teacherId : null,
         reason: reason.trim(),

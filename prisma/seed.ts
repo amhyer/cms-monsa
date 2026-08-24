@@ -49,6 +49,7 @@ async function main() {
       password: hashPassword("admin123"),
       role: "SUPER_ADMIN",
       isActive: true,
+      mustChangePassword: true,
     },
   });
 
@@ -59,6 +60,7 @@ async function main() {
       password: hashPassword("operator123"),
       role: "OPERATOR",
       isActive: true,
+      mustChangePassword: true,
     },
   });
 
@@ -69,6 +71,7 @@ async function main() {
       password: hashPassword("operator123"),
       role: "OPERATOR",
       isActive: true,
+      mustChangePassword: true,
     },
   });
 
@@ -82,6 +85,7 @@ async function main() {
       role: "GURU",
       guardianClassId: null,
       isActive: true,
+      mustChangePassword: true,
     },
   });
 
@@ -92,6 +96,7 @@ async function main() {
       password: hashPassword("operator123"),
       role: "OPERATOR",
       isActive: false,
+      mustChangePassword: true,
     },
   });
 

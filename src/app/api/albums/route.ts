@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireCsrf } from "@/lib/csrf";
+import { requireRole } from "@/lib/auth";
+import { createAlbumSchema, validateBody } from "@/lib/validations";
 
 /**
  * GET /api/albums
@@ -68,17 +71,19 @@ export async function GET(req: NextRequest) {
  * Admin: create album
  */
 export async function POST(req: NextRequest) {
+  const csrfError = await requireCsrf(req);
+  if (csrfError) return csrfError;
+
+  const auth = await requireRole("OPERATOR");
+  if (!auth.ok) return auth.response;
+
   try {
     const body = await req.json();
-    const { name, description, coverUrl, category, sortOrder } = body;
-
-    // Validate required fields
-    if (!name?.trim()) {
-      return NextResponse.json(
-        { error: "Nama album wajib diisi." },
-        { status: 400 }
-      );
+    const validation = validateBody(createAlbumSchema, body);
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
     }
+    const { name, description, coverUrl, category, sortOrder } = validation.data;
 
     // Create album
     const album = await db.album.create({

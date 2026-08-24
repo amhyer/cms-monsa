@@ -14,8 +14,9 @@ describe("auth utilities", () => {
       email: "admin@test.com",
       role: "SUPER_ADMIN",
       isActive: true,
+      mustChangePassword: false,
       guardianClassId: null,
-    guardianStudentId: null,
+      guardianStudentId: null,
     };
 
     const operatorUser: SessionUser = {
@@ -24,8 +25,9 @@ describe("auth utilities", () => {
       email: "operator@test.com",
       role: "OPERATOR",
       isActive: true,
+      mustChangePassword: false,
       guardianClassId: null,
-    guardianStudentId: null,
+      guardianStudentId: null,
     };
 
     const guruUser: SessionUser = {
@@ -34,8 +36,9 @@ describe("auth utilities", () => {
       email: "guru@test.com",
       role: "GURU",
       isActive: true,
+      mustChangePassword: false,
       guardianClassId: "c1",
-    guardianStudentId: null,
+      guardianStudentId: null,
     };
 
     it("returns false for null user", () => {

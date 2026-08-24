@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { rateLimitPublicForm } from "@/lib/rate-limit";
+import { createTestimonialSchema, validateBody } from "@/lib/validations";
 
 /**
  * GET /api/testimonials
@@ -55,24 +57,16 @@ export async function GET(req: NextRequest) {
  * Public: submit a testimonial
  */
 export async function POST(req: NextRequest) {
+  const rateLimited = await rateLimitPublicForm(req);
+  if (rateLimited) return rateLimited;
+
   try {
     const body = await req.json();
-    const { parentName, studentName, className, relation, content, rating, photoUrl } = body;
-
-    // Validate required fields
-    if (!parentName?.trim() || !content?.trim()) {
-      return NextResponse.json(
-        { error: "Nama dan testimoni wajib diisi." },
-        { status: 400 }
-      );
+    const validation = validateBody(createTestimonialSchema, body);
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
     }
-
-    if (!rating || rating < 1 || rating > 5) {
-      return NextResponse.json(
-        { error: "Rating harus antara 1-5." },
-        { status: 400 }
-      );
-    }
+    const { parentName, studentName, className, relation, content, rating, photoUrl } = validation.data;
 
     // Create testimonial
     const testimonial = await db.parentTestimonial.create({

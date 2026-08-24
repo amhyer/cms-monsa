@@ -155,6 +155,7 @@ model Teacher {
   sections       TeacherSection[]
   ratings        TeacherRating[]
   starOfMonth    StarOfMonth[]
+  scheduleEntries ScheduleEntry[]
 
   @@index([nuptk])
   @@index([isActive])
@@ -240,6 +241,7 @@ model Class {
   students    Student[]
   attendances Attendance[]
   guardianUsers User[] // akun User (role GURU) yang menjadi wali kelas ini
+  scheduleEntries ScheduleEntry[]
 
   @@index([grade, academicYear])
   @@index([dapodikId])
@@ -790,4 +792,25 @@ model NewsTicker {
 
   @@index([isActive, priority])
   @@index([startsAt, expiresAt])
+}
+
+// ---------- JADWAL PELAJARAN (CLASS SCHEDULE) ----------
+model ScheduleEntry {
+  id           String   @id @default(cuid())
+  day          String   // Senin | Selasa | Rabu | Kamis | Jumat | Sabtu
+  timeSlot     Int      // urutan jam ke- (1, 2, 3, …)
+  timeLabel    String?  // label jam (misal: "07.00–07.35")
+  subject      String   // nama mata pelajaran
+  teacherId    String?
+  teacher      Teacher? @relation(fields: [teacherId], references: [id])
+  roomId       String?  // ruang/kelas (misal: "Ruang 1")
+  classId      String?
+  class        Class?   @relation(fields: [classId], references: [id])
+  academicYear String   // e.g. "2025/2026"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([day, timeSlot])
+  @@index([classId, academicYear])
+  @@index([teacherId])
 }

@@ -23,6 +23,7 @@ import {
   BarChart3,
   Download,
   Network,
+  TableProperties,
   type LucideIcon,
 } from "lucide-react";
 
@@ -58,6 +59,7 @@ export const DASHBOARD_NAV: NavItem[] = [
   { label: "Struktur Organisasi", path: "/dashboard/org-structure", icon: Network, adminOnly: true },
   { label: "Transparansi Anggaran", path: "/dashboard/transparansi", icon: Wallet, adminOnly: true },
   { label: "Kelas", path: "/dashboard/classes", icon: LayoutGrid },
+  { label: "Jadwal Pelajaran", path: "/dashboard/schedule", icon: TableProperties },
   { label: "Kehadiran Siswa", path: "/dashboard/attendance", icon: ClipboardCheck },
   { label: "Laporan", path: "/dashboard/reports", icon: BarChart3 },
   { label: "Penarikan Dapodik", path: "/dashboard/dapodik", icon: Download },

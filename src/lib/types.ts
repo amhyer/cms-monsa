@@ -274,6 +274,19 @@ export type ClassItem = {
   isActive: boolean;
 };
 
+export type ScheduleEntryItem = {
+  id: string;
+  day: string;
+  timeSlot: number;
+  timeLabel: string | null;
+  subject: string;
+  teacherId: string | null;
+  teacherName?: string;
+  roomId: string | null;
+  classId: string | null;
+  academicYear: string;
+};
+
 export type AttendanceStatus = "HADIR" | "SAKIT" | "IZIN" | "ALFA";
 
 export type AttendanceRow = {

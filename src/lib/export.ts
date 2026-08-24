@@ -146,3 +146,130 @@ export async function exportAnnouncementsToPdf(
   // Save
   doc.save("pengumuman-sekolah.pdf");
 }
+
+/**
+ * Export schedule grid to PDF (landscape) — matches the visual grid layout.
+ * Rows = time slots, Columns = days.
+ */
+export async function exportScheduleToPdf(opts: {
+  entries: { day: string; timeSlot: number; timeLabel: string | null; subject: string; teacherName?: string | null; roomId?: string | null }[];
+  days: readonly string[];
+  className: string;
+  academicYear: string;
+}) {
+  const { jsPDF } = await import("jspdf");
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  const pw = doc.internal.pageSize.getWidth();
+  const ph = doc.internal.pageSize.getHeight();
+  const m = 12; // margin
+  const headerH = 8;
+  const rowH = 14;
+  const labelColW = 22;
+  const dayColW = (pw - m * 2 - labelColW) / opts.days.length;
+
+  // Header
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("Jadwal Pelajaran", pw / 2, m + 4, { align: "center" });
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(100);
+  doc.text(`${opts.className} — TA ${opts.academicYear}`, pw / 2, m + 10, { align: "center" });
+  doc.text(`Dicetak: ${new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}`, pw / 2, m + 15, { align: "center" });
+  doc.setTextColor(0);
+
+  const tableTop = m + 20;
+
+  // Build grid map
+  const grid = new Map<string, string>();
+  for (const e of opts.entries) {
+    const key = `${e.day}-${e.timeSlot}`;
+    const lines = [e.subject];
+    if (e.teacherName) lines.push(e.teacherName);
+    if (e.roomId) lines.push(e.roomId);
+    grid.set(key, lines.join("\n"));
+  }
+
+  // Column headers
+  let x = m;
+  doc.setFillColor(30, 64, 175);
+  doc.rect(m, tableTop, pw - m * 2, headerH, "F");
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(255);
+  doc.text("Jam", x + 1, tableTop + 5.5);
+  x += labelColW;
+  for (const day of opts.days) {
+    doc.text(day, x + dayColW / 2, tableTop + 5.5, { align: "center" });
+    x += dayColW;
+  }
+  doc.setTextColor(0);
+
+  // Determine max slot
+  const maxSlot = Math.max(7, ...opts.entries.map((e) => e.timeSlot));
+
+  // Rows
+  let y = tableTop + headerH;
+  for (let slot = 1; slot <= maxSlot; slot++) {
+    if (y + rowH > ph - m) {
+      doc.addPage();
+      y = m;
+    }
+    const fill = slot % 2 === 0;
+    if (fill) {
+      doc.setFillColor(243, 244, 246);
+      doc.rect(m, y, pw - m * 2, rowH, "F");
+    }
+
+    x = m;
+    // Slot label
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Jam ${slot}`, x + 1, y + 5.5);
+    // Time label from first matching entry
+    const firstEntry = opts.entries.find((e) => e.timeSlot === slot && e.timeLabel);
+    if (firstEntry?.timeLabel) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6);
+      doc.setTextColor(120);
+      doc.text(firstEntry.timeLabel, x + 1, y + 10);
+      doc.setTextColor(0);
+    }
+
+    x += labelColW;
+    for (const day of opts.days) {
+      const text = grid.get(`${day}-${slot}`);
+      if (text) {
+        doc.setFontSize(7);
+        doc.setFont("helvetica", "bold");
+        const lines = text.split("\n");
+        doc.text(lines[0], x + 1, y + 5.5, { maxWidth: dayColW - 2 });
+        if (lines.length > 1) {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(6);
+          doc.setTextColor(80);
+          doc.text(lines.slice(1).join(", "), x + 1, y + 10, { maxWidth: dayColW - 2 });
+          doc.setTextColor(0);
+        }
+      }
+      // Cell border
+      doc.setDrawColor(200);
+      doc.setLineWidth(0.2);
+      doc.rect(x, y, dayColW, rowH);
+      x += dayColW;
+    }
+    // Label column border
+    doc.setDrawColor(200);
+    doc.rect(m, y, labelColW, rowH);
+    y += rowH;
+  }
+
+  // Footer
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(156);
+  doc.text("CMS MONSA — UPT SPF SD Negeri Unggulan Mongisidi 1", pw / 2, ph - 6, { align: "center" });
+
+  const safe = opts.className.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
+  doc.save(`jadwal-${safe}-${opts.academicYear}.pdf`);
+}

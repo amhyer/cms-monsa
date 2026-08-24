@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { rateLimitPublicForm } from "@/lib/rate-limit";
+import { createTeacherMeetingSchema, validateBody } from "@/lib/validations";
 
 /**
  * POST /api/teachers/[id]/meetings
@@ -9,18 +11,17 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const rateLimited = await rateLimitPublicForm(req);
+  if (rateLimited) return rateLimited;
+
   try {
     const { id } = await params;
     const body = await req.json();
-    const { slotId, parentName, studentName, phone, purpose } = body;
-
-    // Validate required fields
-    if (!slotId || !parentName?.trim() || !studentName?.trim()) {
-      return NextResponse.json(
-        { error: "Slot, nama orang tua, dan nama siswa wajib diisi." },
-        { status: 400 }
-      );
+    const validation = validateBody(createTeacherMeetingSchema, body);
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
     }
+    const { slotId, parentName, studentName, phone, purpose } = validation.data;
 
     // Verify teacher exists
     const teacher = await db.teacher.findUnique({

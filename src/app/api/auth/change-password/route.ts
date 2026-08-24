@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
   await db.user.update({
     where: { id: auth.user.id },
-    data: { password: hashPassword(newPassword) },
+    data: { password: hashPassword(newPassword), mustChangePassword: false },
   });
 
   await logActivity(auth.user, "UPDATE", "Auth", "Mengubah password sendiri");

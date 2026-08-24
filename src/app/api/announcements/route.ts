@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireCsrf } from "@/lib/csrf";
+import { requireRole } from "@/lib/auth";
 
 /**
  * GET /api/announcements
@@ -79,6 +81,12 @@ export async function GET(req: NextRequest) {
  * Admin: create announcement
  */
 export async function POST(req: NextRequest) {
+  const csrfError = await requireCsrf(req);
+  if (csrfError) return csrfError;
+
+  const auth = await requireRole("OPERATOR");
+  if (!auth.ok) return auth.response;
+
   try {
     const body = await req.json();
     const {

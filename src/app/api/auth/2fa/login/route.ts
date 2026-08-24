@@ -109,6 +109,7 @@ export async function POST(req: NextRequest) {
         email: user.email,
         role: user.role as "SUPER_ADMIN" | "OPERATOR" | "GURU" | "ORANG_TUA" | "SISWA",
         isActive: user.isActive,
+        mustChangePassword: (user as Record<string, unknown>).mustChangePassword === true,
         guardianClassId: user.guardianClassId ?? null,
         guardianStudentId: user.guardianStudentId ?? null,
       },

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireCsrf } from "@/lib/csrf";
+import { requireRole } from "@/lib/auth";
+import { createSchoolEventSchema, validateBody } from "@/lib/validations";
 
 /**
  * GET /api/events
@@ -88,8 +91,18 @@ export async function GET(req: NextRequest) {
  * Admin: create school event
  */
 export async function POST(req: NextRequest) {
+  const csrfError = await requireCsrf(req);
+  if (csrfError) return csrfError;
+
+  const auth = await requireRole("OPERATOR");
+  if (!auth.ok) return auth.response;
+
   try {
     const body = await req.json();
+    const validation = validateBody(createSchoolEventSchema, body);
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
+    }
     const {
       title,
       description,
@@ -103,22 +116,7 @@ export async function POST(req: NextRequest) {
       imageUrl,
       maxParticipants,
       requiresRegistration,
-    } = body;
-
-    // Validate required fields
-    if (!title?.trim()) {
-      return NextResponse.json(
-        { error: "Judul event wajib diisi." },
-        { status: 400 }
-      );
-    }
-
-    if (!startDate) {
-      return NextResponse.json(
-        { error: "Tanggal mulai wajib diisi." },
-        { status: 400 }
-      );
-    }
+    } = validation.data;
 
     // Create event
     const event = await db.schoolEvent.create({

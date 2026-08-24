@@ -25,6 +25,7 @@ export type SessionUser = {
   email: string;
   role: Role;
   isActive: boolean;
+  mustChangePassword: boolean;
   guardianClassId: string | null;
   guardianStudentId: string | null;
 };

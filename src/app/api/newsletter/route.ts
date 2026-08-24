@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { randomBytes } from "crypto";
+import { rateLimitPublicForm } from "@/lib/rate-limit";
 
 /**
  * POST /api/newsletter
  * Public: subscribe to newsletter
  */
 export async function POST(req: NextRequest) {
+  const rateLimited = await rateLimitPublicForm(req);
+  if (rateLimited) return rateLimited;
+
   try {
     const body = await req.json();
     const { email, name } = body;

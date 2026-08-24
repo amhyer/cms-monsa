@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { rateLimitPublicForm } from "@/lib/rate-limit";
+import { createTeacherRatingSchema, validateBody } from "@/lib/validations";
 
 /**
  * GET /api/teachers/[id]/ratings
@@ -62,18 +64,17 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const rateLimited = await rateLimitPublicForm(req);
+  if (rateLimited) return rateLimited;
+
   try {
     const { id } = await params;
     const body = await req.json();
-    const { rating, comment, authorName } = body;
-
-    // Validate rating
-    if (!rating || rating < 1 || rating > 5) {
-      return NextResponse.json(
-        { error: "Rating harus antara 1-5." },
-        { status: 400 }
-      );
+    const validation = validateBody(createTeacherRatingSchema, body);
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
     }
+    const { rating, comment, authorName } = validation.data;
 
     // Validate teacher exists
     const teacher = await db.teacher.findUnique({

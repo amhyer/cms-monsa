@@ -458,3 +458,103 @@ export const createBosDocumentSchema = z.object({
     .optional()
     .nullable(),
 });
+
+// --- Albums (Gallery) ---
+export const createAlbumSchema = z.object({
+  name: z.string().trim().min(1, "Nama album wajib diisi.").max(200, "Nama album maksimal 200 karakter."),
+  description: z.string().max(2000, "Deskripsi maksimal 2.000 karakter.").optional(),
+  coverUrl: imageUrl.optional().nullable(),
+  category: z.string().max(100, "Kategori maksimal 100 karakter.").optional(),
+  sortOrder: z.number().int().min(0).optional(),
+});
+
+// --- School Documents ---
+export const createSchoolDocumentSchema = z.object({
+  title: z.string().trim().min(1, "Judul dokumen wajib diisi.").max(200, "Judul dokumen maksimal 200 karakter."),
+  description: z.string().max(2000, "Deskripsi maksimal 2.000 karakter.").optional(),
+  category: z.string().max(100, "Kategori maksimal 100 karakter.").optional(),
+  fileUrl: z.string().trim().min(1, "File dokumen wajib diunggah."),
+  fileName: z.string().max(200, "Nama file maksimal 200 karakter.").optional(),
+  fileSize: z.number().int().min(0).optional(),
+  fileType: z.string().max(50, "Tipe file maksimal 50 karakter.").optional(),
+  version: z.string().max(20, "Versi maksimal 20 karakter.").optional(),
+  accessLevel: z.enum(["PUBLIC", "STAFF", "ADMIN"]).optional(),
+});
+
+// --- School Events ---
+export const createSchoolEventSchema = z.object({
+  title: z.string().trim().min(1, "Judul event wajib diisi.").max(200, "Judul event maksimal 200 karakter."),
+  description: z.string().max(5000, "Deskripsi maksimal 5.000 karakter.").optional(),
+  startDate: z.string().min(1, "Tanggal mulai wajib diisi."),
+  endDate: z.string().optional(),
+  location: z.string().max(200, "Lokasi maksimal 200 karakter.").optional(),
+  category: z.string().max(100, "Kategori maksimal 100 karakter.").optional(),
+  type: z.enum(["EVENT", "HOLIDAY", "EXAM", "MEETING"]).optional(),
+  isAllDay: z.boolean().optional(),
+  color: z.string().max(20, "Warna maksimal 20 karakter.").optional(),
+  imageUrl: imageUrl.optional().nullable(),
+  maxParticipants: z.number().int().positive().optional().nullable(),
+  requiresRegistration: z.boolean().optional(),
+});
+
+// --- Schedule ---
+export const createScheduleEntrySchema = z.object({
+  day: z.string().min(1, "Hari wajib diisi."),
+  timeSlot: z.number().int().positive("Jam ke- harus positif."),
+  timeLabel: z.string().max(50, "Label jam maksimal 50 karakter.").optional(),
+  subject: z.string().trim().min(1, "Mata pelajaran wajib diisi.").max(200, "Mata pelajaran maksimal 200 karakter."),
+  teacherId: z.string().optional().nullable(),
+  roomId: z.string().max(50, "Ruang maksimal 50 karakter.").optional().nullable(),
+  classId: z.string().optional().nullable(),
+  academicYear: z.string().min(1, "Tahun ajaran wajib diisi."),
+});
+
+// --- Testimonials ---
+export const createTestimonialSchema = z.object({
+  parentName: z.string().trim().min(1, "Nama wajib diisi.").max(100, "Nama maksimal 100 karakter."),
+  studentName: z.string().max(100, "Nama siswa maksimal 100 karakter.").optional(),
+  className: z.string().max(50, "Kelas maksimal 50 karakter.").optional(),
+  relation: z.string().max(50, "Hubungan maksimal 50 karakter.").optional(),
+  content: z.string().trim().min(1, "Testimoni wajib diisi.").max(5000, "Testimoni maksimal 5.000 karakter."),
+  rating: z.number().int().min(1, "Rating minimal 1.").max(5, "Rating maksimal 5."),
+  photoUrl: imageUrl.optional().nullable(),
+});
+
+// --- Teacher Ratings ---
+export const createTeacherRatingSchema = z.object({
+  rating: z.number().int().min(1, "Rating minimal 1.").max(5, "Rating maksimal 5."),
+  comment: z.string().max(2000, "Komentar maksimal 2.000 karakter.").optional(),
+  authorName: z.string().max(100, "Nama penulis maksimal 100 karakter.").optional(),
+});
+
+// --- Teacher Meetings ---
+export const createTeacherMeetingSchema = z.object({
+  slotId: z.string().min(1, "Slot waktu wajib dipilih."),
+  parentName: z.string().trim().min(1, "Nama orang tua wajib diisi.").max(200, "Nama maksimal 200 karakter."),
+  studentName: z.string().trim().min(1, "Nama siswa wajib diisi.").max(200, "Nama siswa maksimal 200 karakter."),
+  phone: z.string().max(20, "Telepon maksimal 20 karakter.").optional(),
+  purpose: z.string().max(500, "Tujuan maksimal 500 karakter.").optional(),
+});
+
+// --- Student Achievements ---
+export const createStudentAchievementSchema = z.object({
+  title: z.string().trim().min(1, "Judul prestasi wajib diisi.").max(200, "Judul prestasi maksimal 200 karakter."),
+  description: z.string().max(2000, "Deskripsi maksimal 2.000 karakter.").optional(),
+  category: z.string().max(100, "Kategori maksimal 100 karakter.").optional(),
+  level: z.string().max(100, "Tingkat maksimal 100 karakter.").optional(),
+  date: z.string().min(1, "Tanggal prestasi wajib diisi."),
+  certificate: imageUrl.optional().nullable(),
+  issuedBy: z.string().max(200, "Pihak penerbit maksimal 200 karakter.").optional(),
+});
+
+// --- Star of Month ---
+export const createStarOfMonthSchema = z.object({
+  type: z.enum(["STUDENT", "TEACHER"]),
+  month: z.number().int().min(1, "Bulan minimal 1.").max(12, "Bulan maksimal 12."),
+  year: z.number().int().min(2000, "Tahun minimal 2000.").max(2100, "Tahun maksimal 2100."),
+  studentId: z.string().optional().nullable(),
+  teacherId: z.string().optional().nullable(),
+  reason: z.string().trim().min(1, "Alasan wajib diisi.").max(500, "Alasan maksimal 500 karakter."),
+  achievement: z.string().max(500, "Pencapaian maksimal 500 karakter.").optional(),
+  photoUrl: imageUrl.optional().nullable(),
+});

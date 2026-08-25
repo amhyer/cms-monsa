@@ -33,6 +33,14 @@ export const PUBLIC_TEACHER_FIELDS = [
   "sertifikasi",
   "prestasi",
   "badges",
+  "cvUrl",
+  "linkedinUrl",
+  "githubUrl",
+  "websiteUrl",
+  "socialLinks",
+  "officeHours",
+  "consultationNote",
+  "languages",
   "order",
   "isActive",
   "archivedAt",
@@ -42,7 +50,7 @@ export const PUBLIC_TEACHER_FIELDS = [
 ] as const;
 
 /** Kolom Teacher yang WAJIB disaring dari respons publik. */
-export const PUBLIC_TEACHER_OMIT = [...IDENTITY_FIELDS, "account"] as const;
+export const PUBLIC_TEACHER_OMIT = [...IDENTITY_FIELDS, "account", "sections", "ratings", "starOfMonth", "scheduleEntries"] as const;
 
 /** Kolom OrgStructure yang BOLEH tampil di respons API publik. */
 export const PUBLIC_ORG_STRUCTURE_FIELDS = [

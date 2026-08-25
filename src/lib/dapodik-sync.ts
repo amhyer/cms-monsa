@@ -539,7 +539,10 @@ export async function runSync(
       }
     }
 
-    for (const [, { id }] of existingByNis) {
+    // Arsipkan siswa yang tidak ada di Dapodik (tidak di-sync dari Dapodik manapun).
+    // Menggunakan allExistingIds supaya siswa yang matched via dapodikId saja
+    // (tanpa NIS di existingByNis) juga ikut diperiksa.
+    for (const id of allExistingIds) {
       if (syncedStudentIds.has(id)) continue;
       if (archiveUnlisted) {
         await tx.student.update({

@@ -27,6 +27,7 @@ model User {
   studentId String?  @unique // Untuk role SISWA: akun portal siswa
   student   Student? @relation("StudentAccount", fields: [studentId], references: [id])
   isActive  Boolean  @default(true)
+  mustChangePassword Boolean @default(false) // Wajib ganti password di login pertama
   // 2FA (TOTP)
   twoFactorSecret    String?  // Encrypted TOTP secret
   twoFactorEnabled   Boolean  @default(false)
@@ -44,7 +45,16 @@ model User {
   reviewedEnrollments Enrollment[]
   attendanceRecords Attendance[]
   bosExpenditures   BosExpenditure[]
+  teacherRatings    TeacherRating[]
   bosDocuments      BosDocument[]
+  createdEvents     SchoolEvent[]
+  eventRegistrations EventRegistration[]
+  eventReminders    EventReminder[]
+  createdAlbums     Album[]
+  uploadedPhotos    Photo[]
+  schoolDocuments   SchoolDocument[]
+  createdAnnouncements SchoolAnnouncement[]
+  readAnnouncements AnnouncementRead[]
 
   @@index([role])
   @@index([isActive])
@@ -125,6 +135,16 @@ model Teacher {
   sertifikasi String? // sertifikasi / diklat (teks bebas)
   prestasi  String?  // prestasi / penghargaan (teks bebas)
   badges    String?  // badge terpisah koma: "Sertifikasi,MRI,Inklusi"
+  // ---- Portofolio & media sosial ----
+  cvUrl         String?  // URL download CV/Resume (PDF)
+  linkedinUrl   String?  // URL profil LinkedIn
+  githubUrl     String?  // URL profil GitHub
+  websiteUrl    String?  // URL website personal
+  socialLinks   String?  // JSON string: {"twitter":"...","instagram":"..."}
+  // ---- Ketersediaan & jam konsultasi ----
+  officeHours   String?  // Jam konsultasi: "Senin-Kamis 08:00-15:00"
+  consultationNote String? // Catatan konsultasi: "Konsultasi via WhatsApp"
+  languages     String?  // Bahasa yang dikuasai: "Indonesia, Inggris, Arab"
   order       Int      @default(0)
   isActive    Boolean  @default(true)
   archivedAt  DateTime? // null = aktif, DateTime = diarsipkan oleh sync Dapodik
@@ -133,9 +153,46 @@ model Teacher {
 
   homeroomClasses Class[]
   account        User?
+  sections       TeacherSection[]
+  ratings        TeacherRating[]
+  starOfMonth    StarOfMonth[]
+  scheduleEntries ScheduleEntry[]
 
   @@index([nuptk])
   @@index([isActive])
+}
+
+// ---------- TEACHER CUSTOM SECTIONS ----------
+model TeacherSection {
+  id        String   @id @default(cuid())
+  teacherId String
+  teacher   Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  title     String   // judul bagian (mis: "Pengalaman Mengajar")
+  content   String   // isi konten (teks bebas, bisa markdown ringan)
+  icon      String?  // emoji/icon (mis: "📚", "🏆", "🎯")
+  order     Int      @default(0) // urutan tampil
+  isVisible Boolean  @default(true) // show/hide
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([teacherId, order])
+}
+
+// ---------- TEACHER RATINGS & FEEDBACK ----------
+model TeacherRating {
+  id        String   @id @default(cuid())
+  teacherId String
+  teacher   Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  userId    String?  // null = anonymous
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  rating    Int      // 1-5 stars
+  comment   String?  // feedback text
+  authorName String? // nama penulis (jika anonymous)
+  isApproved Boolean @default(false) // admin approval
+  createdAt DateTime @default(now())
+
+  @@index([teacherId, createdAt])
+  @@index([isApproved])
 }
 
 model GalleryItem {
@@ -185,6 +242,7 @@ model Class {
   students    Student[]
   attendances Attendance[]
   guardianUsers User[] // akun User (role GURU) yang menjadi wali kelas ini
+  scheduleEntries ScheduleEntry[]
 
   @@index([grade, academicYear])
   @@index([dapodikId])
@@ -216,6 +274,8 @@ model Student {
   guardianUsers User[] @relation("GuardianStudent") // akun User (role ORANG_TUA) yang memantau siswa ini
   account      User?   @relation("StudentAccount")   // akun portal siswa (role SISWA)
   achievements Achievement[]
+  studentAchievements StudentAchievement[]
+  starOfMonth    StarOfMonth[]
 
   @@index([classId])
   @@index([nis])
@@ -464,4 +524,294 @@ model BosDocument {
   updatedAt    DateTime @updatedAt
 
   @@index([year])
+}
+
+// ---------- STUDENT ACHIEVEMENT SYSTEM ----------
+model StudentAchievement {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  title       String   // judul prestasi
+  description String?  // deskripsi prestasi
+  category    String   @default("Akademik") // Akademik | Non-Akademik | Olahraga | Seni | Teknologi
+  level       String   @default("Sekolah") // Sekolah | Kecamatan | Kabupaten | Provinsi | Nasional | Internasional
+  date        DateTime // tanggal prestasi diraih
+  certificate String?  // URL sertifikat/foto
+  issuedBy    String?  // pihak yang mengeluarkan
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([studentId, date])
+  @@index([category])
+  @@index([level])
+}
+
+// ---------- SCHOOL EVENTS CALENDAR ----------
+model SchoolEvent {
+  id          String   @id @default(cuid())
+  title       String   // judul event
+  description String?  // deskripsi event
+  startDate   DateTime // tanggal & waktu mulai
+  endDate     DateTime // tanggal & waktu selesai
+  location    String?  // lokasi event
+  category    String   @default("Akademik") // Akademik | Ekstrakurikuler | Upacara | Perlombaan | Kunjungan
+  type        String   @default("EVENT") // EVENT | HOLIDAY | EXAM | MEETING
+  isAllDay    Boolean  @default(false) // event sepanjang hari
+  color       String?  // warna kustom untuk kalender
+  imageUrl    String?  // gambar cover event
+  maxParticipants Int? // batas peserta (opsional)
+  requiresRegistration Boolean @default(false) // butuh pendaftaran
+  isPublished Boolean  @default(true)
+  createdById String?
+  createdBy   User?    @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  registrations EventRegistration[]
+  reminders     EventReminder[]
+
+  @@index([startDate])
+  @@index([category])
+}
+
+model EventRegistration {
+  id        String      @id @default(cuid())
+  eventId   String
+  event     SchoolEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?       @relation(fields: [userId], references: [id])
+  name      String      // nama peserta
+  email     String?     // email peserta
+  phone     String?     // HP peserta
+  notes     String?     // catatan
+  status    String      @default("PENDING") // PENDING | CONFIRMED | CANCELLED
+  createdAt DateTime    @default(now())
+
+  @@index([eventId, status])
+}
+
+model EventReminder {
+  id        String      @id @default(cuid())
+  eventId   String
+  event     SchoolEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?       @relation(fields: [userId], references: [id])
+  remindAt  DateTime    // kapan reminder dikirim
+  type      String      @default("EMAIL") // EMAIL | SMS | PUSH
+  status    String      @default("PENDING") // PENDING | SENT | FAILED
+  createdAt DateTime    @default(now())
+
+  @@index([remindAt, status])
+}
+
+// ---------- GALLERY MANAGEMENT ----------
+model Album {
+  id          String   @id @default(cuid())
+  name        String   // nama album
+  description String?  // deskripsi album
+  coverUrl    String?  // URL cover album
+  category    String   @default("Kegiatan") // Kegiatan | Prestasi | Fasilitas | Upacara | Kelas | Lainnya
+  isPublished Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdById String?
+  createdBy   User?    @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  photos      Photo[]
+
+  @@index([category, sortOrder])
+}
+
+model Photo {
+  id          String   @id @default(cuid())
+  albumId     String
+  album       Album    @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  title       String?  // judul foto
+  description String?  // deskripsi foto
+  url         String   // URL foto
+  thumbnailUrl String? // URL thumbnail
+  fileSize    Int?     // ukuran file dalam byte
+  mimeType    String?  // tipe file (image/jpeg, image/png)
+  uploadedById String?
+  uploadedBy   User?    @relation(fields: [uploadedById], references: [id])
+  likes       Int      @default(0) // jumlah like
+  views       Int      @default(0) // jumlah views
+  isFeatured  Boolean  @default(false) // foto unggulan
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([albumId, sortOrder])
+  @@index([isFeatured])
+}
+
+// ---------- DOCUMENT MANAGEMENT ----------
+model SchoolDocument {
+  id           String   @id @default(cuid())
+  title        String   // judul dokumen
+  description  String?  // deskripsi dokumen
+  category     String   @default("Administrasi") // Administrasi | Kurikulum | Kesiswaan | Keuangan | Lainnya
+  fileUrl      String   // URL file dokumen
+  fileName     String   // nama file asli
+  fileSize     Int      // ukuran file dalam byte
+  fileType     String   // tipe file (pdf, docx, xlsx)
+  version      String?  // versi dokumen (v1.0, v2.0)
+  accessLevel  String   @default("PUBLIC") // PUBLIC | STAFF | ADMIN
+  downloadCount Int     @default(0) // jumlah download
+  uploadedById String?
+  uploadedBy   User?    @relation(fields: [uploadedById], references: [id])
+  isPublished  Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([category])
+  @@index([accessLevel])
+}
+
+// ---------- ANNOUNCEMENT SYSTEM ----------
+model SchoolAnnouncement {
+  id          String   @id @default(cuid())
+  title       String   // judul pengumuman
+  content     String   // isi pengumuman (rich text)
+  summary     String?  // ringkasan singkat
+  category    String   @default("Info") // Info | Penting | Jadwal | Akademik | Keuangan
+  priority    String   @default("NORMAL") // LOW | NORMAL | HIGH | URGENT
+  imageUrl    String?  // gambar lampiran
+  isPinned    Boolean  @default(false) // sematkan di atas
+  isPublished Boolean  @default(true)
+  publishedAt DateTime? // waktu publish
+  expiresAt  DateTime? // waktu kedaluwarsa
+  viewCount   Int      @default(0) // jumlah dilihat
+  targetAudience String @default("ALL") // ALL | PARENTS | TEACHERS | STUDENTS | STAFF
+  createdById String?
+  createdBy   User?    @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  readBy      AnnouncementRead[]
+
+  @@index([category, priority])
+  @@index([isPinned, publishedAt])
+  @@index([targetAudience])
+}
+
+model AnnouncementRead {
+  id             String              @id @default(cuid())
+  announcementId String
+  announcement   SchoolAnnouncement  @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User                @relation(fields: [userId], references: [id])
+  readAt         DateTime            @default(now())
+
+  @@unique([announcementId, userId])
+  @@index([userId, readAt])
+}
+
+// ---------- NEWSLETTER SUBSCRIPTION ----------
+model NewsletterSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  isActive  Boolean  @default(true)
+  token     String   @unique // token untuk unsubscribe
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([isActive])
+}
+
+// ---------- STUDENT/TEACHER OF THE MONTH ----------
+model StarOfMonth {
+  id          String   @id @default(cuid())
+  type        String   // STUDENT | TEACHER
+  month       Int      // 1-12
+  year        Int      // 2024, 2025, etc.
+  studentId   String?
+  student     Student? @relation(fields: [studentId], references: [id])
+  teacherId   String?
+  teacher     Teacher? @relation(fields: [teacherId], references: [id])
+  reason      String   // alasan dipilih
+  achievement String?  // pencapaian spesifik
+  photoUrl    String?  // foto profil
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([type, month, year])
+  @@index([type, month, year])
+}
+
+// ---------- PARENT TESTIMONIALS ----------
+model ParentTestimonial {
+  id          String   @id @default(cuid())
+  parentName  String   // nama orang tua
+  studentName String?  // nama siswa
+  className   String?  // kelas siswa
+  relation    String?  // Hubungan: Ayah/Ibu/Wali
+  content     String   // isi testimoni
+  rating      Int?     // 1-5 bintang
+  photoUrl    String?  // foto orang tua
+  isApproved  Boolean  @default(false) // admin approval
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isPublished, createdAt])
+  @@index([rating])
+}
+
+// ---------- SCHOOL HISTORY TIMELINE ----------
+model SchoolTimeline {
+  id          String   @id @default(cuid())
+  year        Int      // tahun kejadian
+  month       Int?     // bulan (opsional)
+  title       String   // judul kejadian
+  description String?  // deskripsi kejadian
+  imageUrl    String?  // gambar pendukung
+  category    String   @default("Pencapaian") // Pencapaian | Pembangunan | Penghargaan | Peristiwa
+  isPublished Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([year, sortOrder])
+  @@index([category])
+}
+
+// ---------- SCHOOL NEWS TICKER ----------
+model NewsTicker {
+  id          String   @id @default(cuid())
+  content     String   // isi berita ticker
+  category    String   @default("Info") // Info | Prestasi | Jadwal | Penting
+  link        String?  // link tujuan
+  isActive    Boolean  @default(true)
+  priority    Int      @default(0) // urutan prioritas
+  startsAt    DateTime? // waktu mulai tampil
+  expiresAt   DateTime? // waktu berhenti tampil
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive, priority])
+  @@index([startsAt, expiresAt])
+}
+
+// ---------- JADWAL PELAJARAN (CLASS SCHEDULE) ----------
+model ScheduleEntry {
+  id           String   @id @default(cuid())
+  day          String   // Senin | Selasa | Rabu | Kamis | Jumat | Sabtu
+  timeSlot     Int      // urutan jam ke- (1, 2, 3, …)
+  timeLabel    String?  // label jam (misal: "07.00–07.35")
+  subject      String   // nama mata pelajaran
+  teacherId    String?
+  teacher      Teacher? @relation(fields: [teacherId], references: [id])
+  roomId       String?  // ruang/kelas (misal: "Ruang 1")
+  classId      String?
+  class        Class?   @relation(fields: [classId], references: [id])
+  academicYear String   // e.g. "2025/2026"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([day, timeSlot])
+  @@index([classId, academicYear])
+  @@index([teacherId])
 }

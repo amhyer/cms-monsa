@@ -18,7 +18,7 @@ const disableSchema = z.object({
 export async function POST(req: NextRequest) {
   try {
     const auth = await requireAuth();
-    if (!auth.ok) return auth;
+    if (!auth.ok) return auth.response;
 
     if (auth.user.role !== "SUPER_ADMIN") {
       return NextResponse.json(

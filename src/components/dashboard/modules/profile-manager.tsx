@@ -18,7 +18,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ImageUpload } from "@/components/shared/image-upload";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppStore } from "@/store/app";
-import { ExternalLink, KeyRound, Save, UserCircle2 } from "lucide-react";
+import { ExternalLink, KeyRound, Save, UserCircle2, LayoutList } from "lucide-react";
+import { SectionManager } from "./section-manager";
 
 type TeacherProfile = {
   id: string;
@@ -204,6 +205,9 @@ export function ProfileManager() {
             Profil di Website ({teacher.position || "Guru"})
           </TabsTrigger>
         )}
+        <TabsTrigger value="sections">
+          <LayoutList className="size-4" /> Bagian Profil
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="account" className="mt-4 space-y-4">
@@ -422,6 +426,10 @@ export function ProfileManager() {
           </Card>
         </TabsContent>
       )}
+
+      <TabsContent value="sections" className="mt-4">
+        <SectionManager teacherId={teacher?.id} />
+      </TabsContent>
 
       {teacherMissing && !loading && (
         <p className="mt-4 text-sm text-muted-foreground">

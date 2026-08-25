@@ -6,6 +6,7 @@ import { logActivity } from "@/lib/log";
 import { logger } from "@/lib/logger";
 import { omitFields } from "@/lib/utils";
 import { PUBLIC_ORG_STRUCTURE_OMIT } from "@/lib/public-scope";
+import { withCache } from "@/lib/cache";
 import { createOrgStructureSchema, validateBody } from "@/lib/validations";
 
 export async function GET(req: NextRequest) {
@@ -49,11 +50,10 @@ export async function GET(req: NextRequest) {
       where: { isActive: true },
       orderBy: [{ order: "asc" }, { name: "asc" }],
     });
-    const res = NextResponse.json({
-      items: items.map((item) => omitFields(item, PUBLIC_ORG_STRUCTURE_OMIT)),
-    });
-    res.headers.set("Cache-Control", "public, s-maxage=600, stale-while-revalidate=3600");
-    return res;
+    return withCache(
+      NextResponse.json({ items: items.map((item) => omitFields(item, PUBLIC_ORG_STRUCTURE_OMIT)) }),
+      "public, s-maxage=600, stale-while-revalidate=3600"
+    );
   } catch (error) {
     logger.error({ err: error }, "[org-structure] GET error");
     return NextResponse.json(

@@ -1,61 +1,81 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireAuth, requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
-import { logActivity } from "@/lib/log";
+import { requireRole } from "@/lib/auth";
+import { createSchoolDocumentSchema, validateBody } from "@/lib/validations";
 
+/**
+ * GET /api/documents
+ * Public: get school documents
+ */
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const scope = searchParams.get("scope") || "public";
-  const category = searchParams.get("category");
-  const page = Math.max(1, Number(searchParams.get("page") || "1"));
-  const limit = Math.min(50, Math.max(1, Number(searchParams.get("limit") || "20")));
+  try {
+    const { searchParams } = new URL(req.url);
+    const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
+    const category = searchParams.get("category");
+    const search = searchParams.get("q");
 
-  if (scope === "admin") {
-    const auth = await requireAuth();
-    if (!auth.ok) return auth.response;
+    const where: Record<string, unknown> = {
+      isPublished: true,
+    };
 
-    const where: Record<string, unknown> = {};
-    if (category && category !== "all") where.category = category;
+    if (category) {
+      where.category = category;
+    }
 
-    const [total, items] = await Promise.all([
-      db.document.count({ where }),
-      db.document.findMany({
-        where,
-        include: { uploadedBy: { select: { name: true } } },
-        orderBy: { createdAt: "desc" },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-    ]);
+    if (search) {
+      where.OR = [
+        { title: { contains: search } },
+        { description: { contains: search } },
+      ];
+    }
 
-    return NextResponse.json({
-      items: items.map((d) => ({
-        ...d,
-        uploadedByName: d.uploadedBy?.name ?? "—",
-      })),
-      total,
-      page,
-      limit,
-      totalPages: Math.max(1, Math.ceil(total / limit)),
-    });
-  }
-
-  // Public: only public documents
-  const where = { isPublic: true, ...(category && category !== "all" ? { category } : {}) };
-  const [total, items] = await Promise.all([
-    db.document.count({ where }),
-    db.document.findMany({
+    const documents = await db.schoolDocument.findMany({
       where,
       orderBy: { createdAt: "desc" },
-      skip: (page - 1) * limit,
       take: limit,
-    }),
-  ]);
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        category: true,
+        fileName: true,
+        fileSize: true,
+        fileType: true,
+        version: true,
+        accessLevel: true,
+        downloadCount: true,
+        createdAt: true,
+      },
+    });
 
-  return NextResponse.json({ items, total, page, limit, totalPages: Math.max(1, Math.ceil(total / limit)) });
+    // Get categories with counts
+    const categories = await db.schoolDocument.groupBy({
+      by: ["category"],
+      where: { isPublished: true },
+      _count: { id: true },
+    });
+
+    return NextResponse.json({
+      documents,
+      categories: categories.map((c) => ({
+        name: c.category,
+        count: c._count.id,
+      })),
+    });
+  } catch (e) {
+    console.error("[documents] GET error:", e);
+    return NextResponse.json(
+      { error: "Gagal memuat dokumen." },
+      { status: 500 }
+    );
+  }
 }
 
+/**
+ * POST /api/documents
+ * Admin: upload document
+ */
 export async function POST(req: NextRequest) {
   const csrfError = await requireCsrf(req);
   if (csrfError) return csrfError;
@@ -63,34 +83,45 @@ export async function POST(req: NextRequest) {
   const auth = await requireRole("OPERATOR");
   if (!auth.ok) return auth.response;
 
-  const body = await req.json();
-  const title = String(body.title ?? "").trim();
-  const fileUrl = String(body.fileUrl ?? "").trim();
-  const fileName = String(body.fileName ?? "").trim();
-  const fileSize = Number(body.fileSize ?? 0);
-  const mimeType = String(body.mimeType ?? "application/octet-stream");
-
-  if (!title || !fileUrl || !fileName) {
-    return NextResponse.json(
-      { error: "Judul, URL file, dan nama file wajib diisi." },
-      { status: 400 }
-    );
-  }
-
-  const item = await db.document.create({
-    data: {
+  try {
+    const body = await req.json();
+    const validation = validateBody(createSchoolDocumentSchema, body);
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
+    }
+    const {
       title,
-      description: body.description || null,
+      description,
+      category,
       fileUrl,
       fileName,
       fileSize,
-      mimeType,
-      category: String(body.category || "Umum"),
-      uploadedById: auth.user.id,
-      isPublic: body.isPublic !== false,
-    },
-  });
+      fileType,
+      version,
+      accessLevel,
+    } = validation.data;
 
-  await logActivity(auth.user, "CREATE", "Document", `Mengunggah dokumen: ${title}`, item.id);
-  return NextResponse.json(item);
+    // Create document
+    const document = await db.schoolDocument.create({
+      data: {
+        title: title.trim(),
+        description: description?.trim() || null,
+        category: category || "Administrasi",
+        fileUrl: fileUrl.trim(),
+        fileName: fileName?.trim() || title.trim(),
+        fileSize: fileSize || 0,
+        fileType: fileType || "pdf",
+        version: version?.trim() || null,
+        accessLevel: accessLevel || "PUBLIC",
+      },
+    });
+
+    return NextResponse.json(document, { status: 201 });
+  } catch (e) {
+    console.error("[documents] POST error:", e);
+    return NextResponse.json(
+      { error: "Gagal mengunggah dokumen." },
+      { status: 500 }
+    );
+  }
 }

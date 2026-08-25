@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
+import { withCache } from "@/lib/cache";
 import { parseDateInput } from "@/lib/format";
 
 export async function GET(req: NextRequest) {
@@ -19,9 +20,7 @@ export async function GET(req: NextRequest) {
     orderBy: { date: "asc" },
     take: upcoming === "true" ? 10 : undefined,
   });
-  const res = NextResponse.json({ items });
-  res.headers.set("Cache-Control", "public, s-maxage=120, stale-while-revalidate=300");
-  return res;
+  return withCache(NextResponse.json({ items }), "public, s-maxage=120, stale-while-revalidate=300");
 }
 
 export async function POST(req: NextRequest) {

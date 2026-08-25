@@ -170,6 +170,16 @@ const mockPrisma = {
     count: vi.fn(),
     groupBy: vi.fn().mockResolvedValue([]),
   },
+  schoolAnnouncement: {
+    findUnique: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    deleteMany: vi.fn(),
+    count: vi.fn(),
+    groupBy: vi.fn(),
+  },
   $transaction: vi.fn((calls: unknown[]) => Promise.resolve(calls)),
 };
 
@@ -236,6 +246,7 @@ export function createMockUser(overrides: Partial<SessionUser> = {}): SessionUse
     email: "test@example.com",
     role: "SUPER_ADMIN",
     isActive: true,
+    mustChangePassword: false,
     guardianClassId: null,
     guardianStudentId: null,
     ...overrides,

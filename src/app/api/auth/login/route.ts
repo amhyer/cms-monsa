@@ -102,6 +102,7 @@ export async function POST(req: NextRequest) {
         email: user.email,
         role: user.role as Role,
         isActive: user.isActive,
+        mustChangePassword: (user as Record<string, unknown>).mustChangePassword === true,
         guardianClassId: user.guardianClassId ?? null,
         guardianStudentId: user.guardianStudentId ?? null,
       },
@@ -117,6 +118,7 @@ export async function POST(req: NextRequest) {
         email: user.email,
         role: user.role,
         isActive: user.isActive,
+        mustChangePassword: (user as Record<string, unknown>).mustChangePassword === true,
         guardianClassId: user.guardianClassId ?? null,
       },
     });

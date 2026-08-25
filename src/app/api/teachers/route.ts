@@ -6,6 +6,7 @@ import { logActivity } from "@/lib/log";
 import { logger } from "@/lib/logger";
 import { omitFields } from "@/lib/utils";
 import { PUBLIC_TEACHER_OMIT } from "@/lib/public-scope";
+import { withCache } from "@/lib/cache";
 import { createTeacherSchema, validateBody, teacherProfileData } from "@/lib/validations";
 
 export async function GET(req: NextRequest) {
@@ -55,11 +56,10 @@ export async function GET(req: NextRequest) {
       include: { homeroomClasses: { select: { id: true, name: true } } },
       orderBy: [{ order: "asc" }, { name: "asc" }],
     });
-    const res = NextResponse.json({
-      items: items.map((t) => omitFields(t, PUBLIC_TEACHER_OMIT)),
-    });
-    res.headers.set("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600");
-    return res;
+    return withCache(
+      NextResponse.json({ items: items.map((t) => omitFields(t, PUBLIC_TEACHER_OMIT)) }),
+      "public, s-maxage=300, stale-while-revalidate=600"
+    );
   } catch (error) {
     logger.error({ err: error }, "[teachers] GET error");
     return NextResponse.json(

@@ -25,6 +25,7 @@ export type SessionUser = {
   email: string;
   role: Role;
   isActive: boolean;
+  mustChangePassword: boolean;
   guardianClassId: string | null;
   guardianStudentId: string | null;
 };
@@ -96,6 +97,15 @@ export type TeacherItem = {
   sertifikasi: string | null;
   prestasi: string | null;
   badges: string | null;
+  cvUrl: string | null;
+  linkedinUrl: string | null;
+  githubUrl: string | null;
+  websiteUrl: string | null;
+  officeHours: string | null;
+  consultationNote: string | null;
+  languages: string | null;
+  averageRating?: number;
+  totalRatings?: number;
   order: number;
   isActive: boolean;
   homeroomClasses?: Array<{ id: string; name: string }>;
@@ -263,6 +273,19 @@ export type ClassItem = {
   homeroomTeacherName?: string;
   studentCount?: number;
   isActive: boolean;
+};
+
+export type ScheduleEntryItem = {
+  id: string;
+  day: string;
+  timeSlot: number;
+  timeLabel: string | null;
+  subject: string;
+  teacherId: string | null;
+  teacherName?: string;
+  roomId: string | null;
+  classId: string | null;
+  academicYear: string;
 };
 
 export type AttendanceStatus = "HADIR" | "SAKIT" | "IZIN" | "ALFA";

@@ -210,6 +210,8 @@ export async function POST(req: NextRequest) {
       password: hashPassword(password),
       role,
       isActive: true,
+      // Password diinput admin → wajib diganti saat login pertama.
+      mustChangePassword: true,
       guardianClassId: role === "GURU" ? guardianClassId || null : null,
       guardianStudentId: role === "ORANG_TUA" ? guardianStudentId || null : null,
       studentId: role === "SISWA" ? studentId || null : null,

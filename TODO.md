@@ -44,6 +44,7 @@
 - src/components/dashboard/modules/users-manager.tsx
 
 #### 2.3 Database Index Optimization
+> Added in a prior session (not part of the Cache-Control diff).
 - [x] Tambahkan @@index([role]), @@index([isActive]) di model User ✅
 - [x] Tambahkan @@index([status, publishedAt]), @@index([category]) di model News ✅
 - [x] Tambahkan @@index([isActive]) di model Teacher, Announcement ✅
@@ -118,7 +119,7 @@
 - [x] Spec: footer-dark-mode (2 tests) ✅
 - [x] Spec: dark-mode-bands (2 tests) ✅
 - [x] Spec: header-desktop (2 tests) ✅
-- [ ] Spec: contact-validation-mobile — NEEDS FIX (name field missing `error={errors.name}` prop)
+- [x] Spec: contact-validation-mobile ✅
 - [x] Refactor org-structure.spec.ts — scale-independent ✅
 
 **Total e2e specs: 29 files, 87+ test cases**
@@ -247,62 +248,4 @@
 
 ---
 
-## 📋 Session Changelog (This Session)
 
-### New Unit Tests (126 tests across 8 files)
-| File | Tests | Status |
-|------|-------|--------|
-| `src/lib/__tests__/export.test.ts` | 10 | ✅ All pass |
-| `src/lib/__tests__/validations.test.ts` | 35 | ✅ All pass |
-| `src/lib/__tests__/api/activity-logs.test.ts` | 7 | ✅ All pass |
-| `src/lib/__tests__/api/bulk.test.ts` | 10 | ✅ All pass |
-| `src/lib/__tests__/clipboard.test.ts` | 11 | ✅ All pass |
-| `src/lib/__tests__/nav.test.ts` | 23 | ✅ All pass |
-| `src/components/public/__tests__/site-footer.test.tsx` | 16 | ✅ All pass |
-| `src/components/public/__tests__/site-header.test.tsx` | 14 | ✅ All pass |
-
-### New E2E Specs (4 files)
-| File | Tests | Status |
-|------|-------|--------|
-| `e2e/mobile-layout.spec.ts` | 14 | ✅ All pass |
-| `e2e/tablet-layout.spec.ts` | 12 | ✅ Not yet run |
-| `e2e/dark-mode-mobile.spec.ts` | 13 | ✅ Not yet run |
-| `e2e/contact-validation-mobile.spec.ts` | 20 | 🔴 Needs name error fix |
-
-### Bug Fixes (This Session)
-- `contact-view.tsx`: Added `noValidate` to `<form>` — custom validation now fires
-- `complaint-view.tsx`: Same `noValidate` fix applied
-- `test-utils.ts`: Added `deleteMany` mock + `document`/`enrollment` models + `user.groupBy` mock
-- `users.test.ts`: Fixed 6 tests to mock `db.user.groupBy` instead of second `findMany` call
-
-### Performance: Cursor-based Pagination (Backend + Frontend)
-- `src/lib/pagination.ts`: encodeCursor, decodeCursor, parsePaginationParams, buildPaginatedResponse
-- `src/app/api/users/route.ts`: Cursor-based pagination + groupBy for role counts
-- `src/app/api/students/route.ts`: Cursor-based pagination
-- `src/app/api/bos-expenditures/route.ts`: Cursor-based pagination
-- `src/app/api/bos-documents/route.ts`: Cursor-based pagination
-- `src/app/api/stats/route.ts`: groupBy for role counts (replaces findMany + filter)
-- `src/components/dashboard/_shared.tsx`: useCursorPagination hook + CursorPagination component
-- `src/components/dashboard/modules/users-manager.tsx`: Migrated to cursor-based
-- `src/components/dashboard/modules/students-manager.tsx`: Migrated to cursor-based
-- `src/components/dashboard/modules/bos-expenditures-manager.tsx`: Migrated to cursor-based
-- `prisma/schema.prisma` + `prisma/schema.postgres.prisma`: Added @@index for [role], [isActive], [date], [category] on User, Announcement, Agenda, Teacher, GalleryItem, Complaint
-
-### Mobile Responsive Improvements (4 changes)
-1. Dashboard stat cards — compact spacing on mobile
-2. Dashboard pills & quick actions — tighter gaps
-3. Students Manager — full-width search, stacked filters
-4. Footer & SPMB — compact padding, responsive headings
-
-### Full Test Suite: 522/522 pass across 44 files
-
----
-
-## 📝 Next Steps
-
-1. **Fix name field error display**: Add `error={errors.name}` to `<Field>` in contact-view.tsx so "Nama wajib diisi." shows as alert
-2. **Fix contact-validation-mobile.spec.ts**: Update first test to match actual error rendering (3 errors, not 4)
-3. **Run tablet-layout and dark-mode-mobile e2e specs** to confirm they pass
-4. **Mobile card layouts**: Transparansi, org-structure, student showcase, achievement cards
-5. **DB Schema**: Run `prisma migrate dev` to apply new indexes
-6. **Benchmark**: Compare response times for /api/users with 500+ users before vs after cursor-based pagination

@@ -8,7 +8,13 @@ import {
   BookOpen,
   Briefcase,
   Crown,
+  Download,
+  ExternalLink,
+  FileText,
   GraduationCap,
+  Github,
+  Globe,
+  Linkedin,
   Mail,
   MessageCircle,
   Phone,
@@ -19,6 +25,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageBanner } from "./_shared";
+import { SectionRenderer } from "./section-renderer";
+import { TeacherContactCard } from "@/components/shared/teacher-contact-card";
+import { TeacherRating } from "./teacher-rating";
+import { TeacherTimeline } from "./teacher-timeline";
+import { TeacherPDFExport } from "@/components/shared/teacher-pdf-export";
+import { MeetingScheduler } from "./meeting-scheduler";
 import type { TeacherItem } from "@/lib/types";
 
 function isKepalaSekolah(t: TeacherItem): boolean {
@@ -177,7 +189,7 @@ export function TeacherPortfolioView({ guruId }: { guruId?: string }) {
               {/* Kolom utama */}
               <div className="space-y-4">
                 {t.riwayat && (
-                  <section className="rounded-xl border bg-card p-5">
+                  <section className="rounded-xl border bg-card p-5 transition-all hover:border-primary/50 hover:shadow-md">
                     <h2 className="mb-2 flex items-center gap-2 font-sans text-base font-bold">
                       <Briefcase className="size-4 text-primary" /> Tentang Saya
                     </h2>
@@ -188,7 +200,7 @@ export function TeacherPortfolioView({ guruId }: { guruId?: string }) {
                 )}
 
                 {t.prestasi && (
-                  <section className="rounded-xl border bg-card p-5">
+                  <section className="rounded-xl border bg-card p-5 transition-all hover:border-primary/50 hover:shadow-md">
                     <h2 className="mb-2 flex items-center gap-2 font-sans text-base font-bold">
                       <Award className="size-4 text-primary" /> Prestasi &
                       Penghargaan
@@ -213,6 +225,9 @@ export function TeacherPortfolioView({ guruId }: { guruId?: string }) {
                     </div>
                   </section>
                 )}
+
+                {/* Custom sections added by teacher */}
+                <SectionRenderer teacherId={t.id} />
               </div>
 
               {/* Kolom kanan */}
@@ -312,8 +327,89 @@ export function TeacherPortfolioView({ guruId }: { guruId?: string }) {
                     </div>
                   </section>
                 )}
+
+                {/* Portofolio & Media Sosial */}
+                {(t.cvUrl || t.linkedinUrl || t.githubUrl || t.websiteUrl) && (
+                  <section className="rounded-xl border bg-card p-5">
+                    <h2 className="mb-3 flex items-center gap-2 font-sans text-base font-bold">
+                      <Globe className="size-4 text-primary" /> Portofolio & Media Sosial
+                    </h2>
+                    <div className="flex flex-col gap-2">
+                      {t.cvUrl && (
+                        <a href={t.cvUrl} target="_blank" rel="noreferrer" className="w-full">
+                          <Button variant="outline" className="w-full gap-2 transition-all hover:bg-primary hover:text-primary-foreground">
+                            <Download className="size-4" /> Download CV/Resume
+                          </Button>
+                        </a>
+                      )}
+                      {t.linkedinUrl && (
+                        <a href={t.linkedinUrl} target="_blank" rel="noreferrer" className="w-full">
+                          <Button variant="outline" className="w-full gap-2 transition-all hover:bg-blue-600 hover:text-white">
+                            <Linkedin className="size-4" /> LinkedIn
+                          </Button>
+                        </a>
+                      )}
+                      {t.githubUrl && (
+                        <a href={t.githubUrl} target="_blank" rel="noreferrer" className="w-full">
+                          <Button variant="outline" className="w-full gap-2 transition-all hover:bg-gray-800 hover:text-white">
+                            <Github className="size-4" /> GitHub
+                          </Button>
+                        </a>
+                      )}
+                      {t.websiteUrl && (
+                        <a href={t.websiteUrl} target="_blank" rel="noreferrer" className="w-full">
+                          <Button variant="outline" className="w-full gap-2 transition-all hover:bg-emerald-600 hover:text-white">
+                            <ExternalLink className="size-4" /> Website Personal
+                          </Button>
+                        </a>
+                      )}
+                    </div>
+                  </section>
+                )}
+
+                {/* Ketersediaan & Jam Konsultasi */}
+                {(t.officeHours || t.languages) && (
+                  <section className="rounded-xl border bg-card p-5">
+                    <h2 className="mb-3 flex items-center gap-2 font-sans text-base font-bold">
+                      <Globe className="size-4 text-primary" /> Ketersediaan
+                    </h2>
+                    <dl className="space-y-2">
+                      {t.officeHours && (
+                        <InfoRow label="Jam Konsultasi" value={t.officeHours} />
+                      )}
+                      {t.languages && (
+                        <InfoRow label="Bahasa" value={t.languages} />
+                      )}
+                    </dl>
+                  </section>
+                )}
+
+                {/* Linimasa Prestasi */}
+                <TeacherTimeline teacherId={t.id} />
+
+                {/* Rating & Review */}
+                <TeacherRating teacherId={t.id} />
               </div>
             </div>
+
+            {/* Contact Card Actions */}
+            <div className="rounded-xl border bg-card p-5">
+              <h2 className="mb-3 font-sans text-base font-bold">
+                Hubungi & Bagikan
+              </h2>
+              <TeacherContactCard teacher={t} />
+            </div>
+
+            {/* Print & Export */}
+            <div className="rounded-xl border bg-card p-5">
+              <h2 className="mb-3 font-sans text-base font-bold">
+                Cetak & Unduh
+              </h2>
+              <TeacherPDFExport teacher={t} />
+            </div>
+
+            {/* Meeting Scheduler */}
+            <MeetingScheduler teacherId={t.id} teacherName={t.name} />
 
             <div className="flex justify-center">
               <Link href="/academic">

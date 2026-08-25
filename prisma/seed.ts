@@ -31,6 +31,7 @@ async function main() {
   await db.agenda.deleteMany();
   await db.teacher.deleteMany();
   await db.student.deleteMany();
+  await db.scheduleEntry.deleteMany();
   await db.class.deleteMany();
   await db.galleryItem.deleteMany();
   await db.achievement.deleteMany();
@@ -41,6 +42,10 @@ async function main() {
   await db.siteSetting.deleteMany();
 
   // ---------- USERS ----------
+  // mustChangePassword: false untuk akun E2E agar login helper tidak perlu
+  // mengubah password secara permanen (yang akan membatalkan kredensial seed
+  // pada run berikutnya). Fitur forced change tetap diuji lewat unit test
+  // dan seed akun lain (fatimah).
   const admin = await db.user.create({
     data: {
       name: "Nawawi Hamzah, S.Pd., M.Pd.",
@@ -48,6 +53,7 @@ async function main() {
       password: hashPassword("admin123"),
       role: "SUPER_ADMIN",
       isActive: true,
+      mustChangePassword: false,
     },
   });
 
@@ -58,6 +64,7 @@ async function main() {
       password: hashPassword("operator123"),
       role: "OPERATOR",
       isActive: true,
+      mustChangePassword: false,
     },
   });
 
@@ -68,6 +75,7 @@ async function main() {
       password: hashPassword("operator123"),
       role: "OPERATOR",
       isActive: true,
+      mustChangePassword: false,
     },
   });
 
@@ -81,6 +89,7 @@ async function main() {
       role: "GURU",
       guardianClassId: null,
       isActive: true,
+      mustChangePassword: false,
     },
   });
 
@@ -91,6 +100,7 @@ async function main() {
       password: hashPassword("operator123"),
       role: "OPERATOR",
       isActive: false,
+      mustChangePassword: true,
     },
   });
 
@@ -116,7 +126,7 @@ async function main() {
       principalName: "Nawawi Hamzah, S.Pd., M.Pd.",
       principalPhoto: avatar(60),
       principalWelcome:
-        "Selamat datang di website resmi UPT SPF SD Negeri Unggulan Mongisidi 1 Makassar. Kami berkomitmen menyelenggarakan pendidikan dasar berkualitas yang memadukan iman, taqwa, dan budaya unggul berwawasan lingkungan. Sebagai sekolah inklusi, kami merangkul setiap anak untuk tumbuh sesuai potensinya. Mari bersama membangun generasi cerdas, berkarakter, dan berakhlak mulia.",
+        "Selamat datang di website resmi UPT SPF SD Negeri Unggulan Mongisidi 1 Makassar. Kami berkomitmen menyelenggarakan pendidikan dasar berkualitas yang memadukan iman, taqwa, dan budaya unggul berwawasan lingkungan. Sebagai sekolah inklusi, kami merangkul setiap anak untuk tumbuh sesuai potensinya.\n\nKami memiliki berbagai fasilitas dan program unggulan, termasuk website perpustakaan untuk mendukung literasi siswa, aplikasi Pandai untuk pembelajaran digital, serta sistem pengaduan yang terbuka untuk masukan demi kemajuan sekolah kita bersama. Kami juga bekerja sama aktif dengan komite sekolah dalam menjalankan program-program pendidikan.\n\nUntuk mengembangkan bakat dan minat siswa, kami menyediakan berbagai ekstrakurikuler seperti Futsal, Tari, Pencak Silat, dan Pramuka. Kedepan, kami berencana membangkitkan kembali ekstrakurikuler Drumband yang pernah berjaya di masanya.\n\nMari bersama membangun generasi cerdas, berkarakter, dan berakhlak mulia.",
       facebook: "https://facebook.com/mongisidisatu",
       instagram: "https://instagram.com/monsajaya_",
       youtube: null,
@@ -649,6 +659,62 @@ async function main() {
       createdAt: new Date(now - 1 * 3600000),
     },
   });
+
+  // ---------- JADWAL PELAJARAN ----------
+  const scheduleDays = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat"] as const;
+  const scheduleSlots = [
+    { slot: 1, label: "07.00–07.35" },
+    { slot: 2, label: "07.35–08.10" },
+    { slot: 3, label: "08.15–08.50" },
+    { slot: 4, label: "08.50–09.25" },
+    { slot: 5, label: "09.35–10.10" },
+    { slot: 6, label: "10.15–10.50" },
+    { slot: 7, label: "10.50–11.25" },
+  ];
+  const scheduleGrid: Record<string, string[]> = {
+    Senin: ["Pendidikan Agama", "PPKn", "Bahasa Indonesia", "Matematika", "IPA", "PJOK", "Seni Budaya"],
+    Selasa: ["Pendidikan Agama", "PPKn", "Bahasa Indonesia", "Matematika", "IPS", "PJOK", "Mulok"],
+    Rabu: ["Pendidikan Agama", "PPKn", "Bahasa Indonesia", "Matematika", "IPA", "PJOK", "Seni Budaya"],
+    Kamis: ["Pendidikan Agama", "PPKn", "Matematika", "Bahasa Indonesia", "IPS", "PJOK", "Mulok"],
+    Jumat: ["Pendidikan Agama", "PPKn", "Bahasa Indonesia", "Matematika", "PJOK", "Seni Budaya", "Mulok"],
+  };
+  const scheduleTeacherMap: Record<string, string> = {
+    "Pendidikan Agama": "Ustadz Ahmad Fauzi, S.Pd.I.",
+    "PPKn": "Drs. Abdul Rahman",
+    "Bahasa Indonesia": "Siti Aminah, S.Pd.",
+    "Matematika": "Andi Mappangara, S.Pd.",
+    "IPA": "Andi Mappangara, S.Pd.",
+    "IPS": "Hj. Rosmiati, S.Pd., M.Pd.",
+    "PJOK": "Dewi Anggraini, S.Pd.",
+    "Seni Budaya": "Rina Marlina, S.Pd.",
+    "Mulok": "Maya Sari, S.Pd.",
+  };
+  const allClasses = await db.class.findMany({ where: { isActive: true } });
+  const allTeachers = await db.teacher.findMany({ where: { isActive: true } });
+  const tIdByName = new Map<string, string>();
+  for (const t of allTeachers) tIdByName.set(t.name, t.id);
+  let scheduleCount = 0;
+  for (const cls of allClasses) {
+    const entries: {
+      day: string; timeSlot: number; timeLabel: string;
+      subject: string; teacherId: string | null; classId: string; academicYear: string;
+    }[] = [];
+    for (const day of scheduleDays) {
+      const subjects = scheduleGrid[day] ?? [];
+      subjects.forEach((subject, i) => {
+        if (subject && i < scheduleSlots.length) {
+          entries.push({
+            day, timeSlot: scheduleSlots[i].slot, timeLabel: scheduleSlots[i].label,
+            subject, teacherId: tIdByName.get(scheduleTeacherMap[subject]) ?? null,
+            classId: cls.id, academicYear: cls.academicYear,
+          });
+        }
+      });
+    }
+    await db.scheduleEntry.createMany({ data: entries });
+    scheduleCount += entries.length;
+  }
+  console.log(`   📅 Jadwal pelajaran: ${scheduleCount} jadwal (${allClasses.length} kelas × 7 jam × 5 hari)`);
 
   console.log("✅ Seed selesai!");
   console.log("   Login Admin   : admin@mongisidi1.sch.id / admin123");

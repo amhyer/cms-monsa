@@ -36,25 +36,27 @@ describe("/api/announcements", () => {
         },
       ];
 
-      mockPrisma.announcement.findMany.mockResolvedValue(mockData);
+      mockPrisma.schoolAnnouncement.findMany.mockResolvedValue(mockData);
+      mockPrisma.schoolAnnouncement.groupBy.mockResolvedValue([]);
 
-      const req = createMockRequest("http://localhost/api/announcements?scope=public");
+      const req = createMockRequest("http://localhost/api/announcements");
       const res = await GET(asNextRequest(req));
       const data = await res.json();
 
       expect(res.status).toBe(200);
-      expect(data.items).toHaveLength(1);
+      expect(data.announcements).toHaveLength(1);
     });
 
-    it("requires auth for admin scope", async () => {
-      mockRequireAuth.mockResolvedValue({
-        ok: false,
-        response: new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 }),
-      });
+    it("returns empty list when no announcements exist", async () => {
+      mockPrisma.schoolAnnouncement.findMany.mockResolvedValue([]);
+      mockPrisma.schoolAnnouncement.groupBy.mockResolvedValue([]);
 
-      const req = createMockRequest("http://localhost/api/announcements?scope=admin");
+      const req = createMockRequest("http://localhost/api/announcements");
       const res = await GET(asNextRequest(req));
-      expect(res.status).toBe(401);
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data.announcements).toHaveLength(0);
     });
   });
 
@@ -88,7 +90,7 @@ describe("/api/announcements", () => {
         updatedAt: new Date(),
       };
 
-      mockPrisma.announcement.create.mockResolvedValue(created);
+      mockPrisma.schoolAnnouncement.create.mockResolvedValue(created);
 
       const req = createMockRequest("http://localhost/api/announcements", {
         method: "POST",
@@ -97,7 +99,7 @@ describe("/api/announcements", () => {
       const res = await POST(asNextRequest(req));
       const data = await res.json();
 
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(201);
       expect(data.title).toBe("New Announcement");
     });
   });

@@ -12,8 +12,12 @@
 #   ./scripts/deploy-vercel.sh --pull-env      # tarik env dari Vercel dulu
 #
 # Prasyarat:
-#   - DATABASE_URL mengarah ke Neon PostgreSQL (atau di-set
-#     lewat `vercel env pull` / file .env)
+#   - DATABASE_URL mengarah ke Neon PostgreSQL (koneksi POOLED, untuk
+#     runtime) — atau di-set via `vercel env pull` / file .env
+#   - DATABASE_URL_DIRECT (opsional) — koneksi DIRECT (non-pooler) ke Neon.
+#     Operasi skema (migrate deploy / db push / seed) memakainya bila ada;
+#     fallback ke DATABASE_URL bila tidak di-set. Set juga di Vercel env
+#     bila ingin `--pull-env` menariknya otomatis.
 #   - Prisma CLI tersedia (sudah jadi dependency project)
 # ============================================================
 set -euo pipefail
@@ -66,20 +70,38 @@ esac
 
 echo ">> DATABASE_URL OK (${DATABASE_URL%%:*})"
 
+# 2b) Pilih koneksi untuk operasi skema: DATABASE_URL_DIRECT (direct,
+# non-pooler) bila tersedia — pooled connection (DATABASE_URL) tidak ideal
+# untuk DDL/migrasi. Fallback ke DATABASE_URL bila tidak di-set.
+MIGRATION_URL="${DATABASE_URL_DIRECT:-$DATABASE_URL}"
+case "$MIGRATION_URL" in
+    postgresql://*|postgres://*) ;;
+    *)
+        echo "ERROR: DATABASE_URL_DIRECT (fallback: DATABASE_URL) harus PostgreSQL (Neon)." >&2
+        echo "  Ditemukan: ${MIGRATION_URL%%:*}" >&2
+        exit 1
+        ;;
+esac
+if [ -n "${DATABASE_URL_DIRECT:-}" ]; then
+    echo ">> Koneksi skema: DATABASE_URL_DIRECT (direct, non-pooler)"
+else
+    echo ">> Koneksi skema: DATABASE_URL_DIRECT tidak di-set — fallback ke DATABASE_URL"
+fi
+
 # 3) Generate Prisma client dari skema PostgreSQL
 echo ">> prisma generate (schema.postgres.prisma) ..."
 bunx prisma generate --schema "$SCHEMA"
 
-# 4) Migrasi skema ke Neon
+# 4) Migrasi skema ke Neon (pakai koneksi DIRECT bila tersedia)
 echo ">> prisma migrate deploy (schema.postgres.prisma) ..."
-bunx prisma migrate deploy --schema "$SCHEMA"
+DATABASE_URL="$MIGRATION_URL" bunx prisma migrate deploy --schema "$SCHEMA"
 
 # 5) Seed data awal (idempotent — aman dijalankan berulang)
 if [ "$SKIP_SEED" = "1" ]; then
     echo ">> Seed dilewati (--skip-seed)."
 else
     echo ">> Seed data awal ..."
-    bunx tsx prisma/seed.ts
+    DATABASE_URL="$MIGRATION_URL" bunx tsx prisma/seed.ts
 fi
 
 echo ""
@@ -88,4 +110,5 @@ echo "✅ Deploy database selesai."
 echo "   - Migrasi : prisma/schema.postgres.prisma"
 echo "   - Seed    : $([ "$SKIP_SEED" = "1" ] && echo 'dilewati' || echo 'dijalankan')"
 echo "   - DB      : ${DATABASE_URL%%:*}"
+echo "   - Skema   : ${DATABASE_URL_DIRECT:+DATABASE_URL_DIRECT}${DATABASE_URL_DIRECT:-DATABASE_URL (fallback)}"
 echo "============================================================"

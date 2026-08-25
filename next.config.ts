@@ -3,6 +3,10 @@ import createNextIntlPlugin from "next-intl/plugin";
 import { withSentryConfig } from "@sentry/nextjs";
 
 const isProd = process.env.NODE_ENV === "production";
+// Vercel menandai env VERCEL=1. Di Vercel output "standalone" tidak perlu
+// (Vercel memakai build system sendiri) dan malah menambah ukuran artefak;
+// standalone hanya dipakai untuk self-host (Docker / Node standalone).
+const isVercel = process.env.VERCEL === "1";
 // Production domain — frame-ancestors only allows embedding from the school site itself.
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://sdn-mongisidi1.sch.id";
 
@@ -59,12 +63,26 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // Standalone hanya untuk self-host; nonaktif saat di Vercel.
+  output: isVercel ? undefined : "standalone",
   // distDir dapat diganti lewat env (mis. preview paralel di port lain tanpa
   // bentrok dengan dev server utama yang memegang lock .next). Default .next.
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
   poweredByHeader: false,
   reactStrictMode: true,
+  images: {
+    // Optimasi gambar lewat next/image (dipakai bertahap di komponen).
+    formats: ["image/avif", "image/webp"],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    // Izinkan gambar dari domain publik yang dipakai di konten (picsum,
+    // pravatar, uploads) + Google Fonts. Tambahkan domain lain bila perlu.
+    remotePatterns: [
+      { protocol: "https", hostname: "picsum.photos" },
+      { protocol: "https", hostname: "i.pravatar.cc" },
+      { protocol: "https", hostname: "avatars.githubusercontent.com" },
+    ],
+  },
   experimental: {
     // Proxy (Next 16) meng-clone & mem-buffer request body; default 10MB
     // memotong FormData sebelum route handler menerimanya → upload besar gagal

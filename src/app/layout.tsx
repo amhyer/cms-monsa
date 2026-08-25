@@ -8,6 +8,7 @@ import { ErrorBoundary } from "@/components/shared/error-boundary";
 import { ClientHooks } from "@/components/client-hooks";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale } from "next-intl/server";
+import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -67,6 +68,7 @@ export default async function RootLayout({
             <SonnerToaster richColors position="top-right" />
           </NextIntlClientProvider>
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );

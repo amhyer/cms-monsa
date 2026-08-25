@@ -1,0 +1,50 @@
+# ============================================================
+# Deploy database (Vercel + Neon)
+#
+# Menjalankan scripts/deploy-vercel.sh SETELAH push ke main —
+# langkah post-deploy yang TIDAK bisa dilakukan Vercel sendiri:
+# migrasi skema Prisma + seed data awal ke database Neon.
+#
+# Trigger:
+#   - push ke main: setiap push menjalankan migrate deploy (idempotent —
+#     hanya menerapkan migrasi baru) + seed (idempotent — dilewati bila DB
+#     sudah berisi akun).
+#   - workflow_dispatch: jalankan manual dari Actions sidebar kapan saja
+#     (mis. setelah setup awal database Neon).
+#
+# Prasyarat — SET SATU repository secret di GitHub:
+#   Settings → Secrets and variables → Actions → New repository secret
+#     Name : DATABASE_URL
+#     Value: connection string Neon PostgreSQL (lengkap, dengan ?sslmode=require)
+#   Tanpa secret ini workflow GAGAL dengan pesan jelas dari script
+#   ("ERROR: DATABASE_URL tidak di-set."). Jangan commit nilai asli di sini.
+# ============================================================
+name: Deploy database (Vercel + Neon)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-db:
+    name: Migrate & seed Neon
+    runs-on: ubuntu-latest
+    env:
+      # Wajib: secret DATABASE_URL di GitHub. Script memvalidasi bahwa ini
+      # PostgreSQL (Neon). Bila secret kosong/belum diset, script keluar
+      # dengan error yang jelas.
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - name: Setup repo (checkout + Node + Bun + install)
+        uses: ./.github/actions/setup-repo
+
+      # `bash scripts/...` (bukan ./scripts/...) agar tidak bergantung pada
+      # executable bit di git — aman dari repo yang di-commit di Windows.
+      # Script menjalankan: prisma generate → migrate deploy → seed (semua
+      # memakai schema.postgres.prisma). Seed idempotent (skip bila DB terisi).
+      - name: Run deploy script (migrate + seed)
+        run: bash scripts/deploy-vercel.sh

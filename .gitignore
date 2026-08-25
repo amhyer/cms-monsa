@@ -94,6 +94,8 @@ local-*
 .z-ai-config
 test
 prompt
+# arsip project lokal (CMS MONSA.zip — zip source, bukan bagian dari repo)
+/CMS MONSA.zip
 # artefak audit satu kali (seed avatar) — bukan bagian dari app & jangan di-serve
 /public/avatar-audit.html
 .zscripts/dev.pid

@@ -90,13 +90,18 @@ fi
 # sha (local remote) disimpan untuk diff scope push.
 PUSH_SHA_PAIRS=()
 run_for_branch=0
+# Baca baris ref dari stdin (fd 0) LANGSUNG — tanpa redirect < /dev/stdin.
+# Git mengirim data ref lewat stdin hook; `/dev/stdin` tidak selalu tersedia
+# di Git Bash Windows (error "No such file or directory") dan redirect itu
+# tidak perlu karena `read` sudah membaca fd 0 secara default. Pendekatan ini
+# portabel di Linux, macOS, dan Windows.
 while read -r local_ref local_sha remote_ref remote_sha; do
   case "$remote_ref" in
     refs/tags/*) continue ;;
   esac
   run_for_branch=1
   PUSH_SHA_PAIRS+=("$local_sha $remote_sha")
-done < /dev/stdin
+done
 
 if [[ "$run_for_branch" -eq 0 ]]; then
   say "ℹ️  [pre-push] Hanya push tag — sanity check dilewati."

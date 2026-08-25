@@ -1,5 +1,5 @@
 import { test, expect } from "./mutation-log";
-import { ADMIN, submitLogin } from "./helpers";
+import { ADMIN, login, submitLogin } from "./helpers";
 
 // warmup: POST /api/auth/login POST /api/auth/logout
 
@@ -30,16 +30,14 @@ test.describe("Login Flow", () => {
   });
 
   test("should navigate to dashboard after successful login", async ({ page }) => {
-    await submitLogin(page, ADMIN.email, ADMIN.password);
-    await page.waitForURL("**/dashboard");
+    await login(page, ADMIN.email, ADMIN.password);
     await expect(
       page.getByRole("heading", { name: /Selamat datang kembali/ })
     ).toBeVisible();
   });
 
   test("should logout successfully", async ({ page }) => {
-    await submitLogin(page, ADMIN.email, ADMIN.password);
-    await page.waitForURL("**/dashboard");
+    await login(page, ADMIN.email, ADMIN.password);
 
     // Open the user dropdown and choose Logout.
     await page.getByRole("button", { name: "Menu pengguna" }).click();

@@ -30,9 +30,10 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     return NextResponse.json({ error: "User tidak ditemukan." }, { status: 404 });
   }
 
+  // Password di-reset admin → wajib diganti saat login berikutnya.
   await db.user.update({
     where: { id },
-    data: { password: hashPassword(newPassword) },
+    data: { password: hashPassword(newPassword), mustChangePassword: true },
   });
 
   await logActivity(

@@ -529,4 +529,30 @@ describe("POST /api/users", () => {
     expect(res.status).toBe(409);
     expect(mockPrisma.user.create).not.toHaveBeenCalled();
   });
+
+  it("men-set mustChangePassword: true saat admin membuat akun baru", async () => {
+    mockRequireRole.mockResolvedValue({ ok: true, user: createMockUser() });
+    mockPrisma.user.findUnique.mockResolvedValue(null); // email belum terdaftar
+    mockPrisma.user.create.mockResolvedValue(
+      createdUser({ id: "u-guru-baru", role: "GURU" })
+    );
+
+    const req = createMockRequest("http://localhost:3000/api/users", {
+      method: "POST",
+      body: {
+        name: "Guru Baru",
+        email: "guru.baru@example.com",
+        password: "rahasia123",
+        role: "GURU",
+      },
+    });
+    const res = await POST(asNextRequest(req));
+
+    expect(res.status).toBe(200);
+    expect(mockPrisma.user.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ mustChangePassword: true }),
+      })
+    );
+  });
 });

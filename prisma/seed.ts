@@ -42,6 +42,10 @@ async function main() {
   await db.siteSetting.deleteMany();
 
   // ---------- USERS ----------
+  // mustChangePassword: false untuk akun E2E agar login helper tidak perlu
+  // mengubah password secara permanen (yang akan membatalkan kredensial seed
+  // pada run berikutnya). Fitur forced change tetap diuji lewat unit test
+  // dan seed akun lain (fatimah).
   const admin = await db.user.create({
     data: {
       name: "Nawawi Hamzah, S.Pd., M.Pd.",
@@ -49,7 +53,7 @@ async function main() {
       password: hashPassword("admin123"),
       role: "SUPER_ADMIN",
       isActive: true,
-      mustChangePassword: true,
+      mustChangePassword: false,
     },
   });
 
@@ -60,7 +64,7 @@ async function main() {
       password: hashPassword("operator123"),
       role: "OPERATOR",
       isActive: true,
-      mustChangePassword: true,
+      mustChangePassword: false,
     },
   });
 
@@ -71,7 +75,7 @@ async function main() {
       password: hashPassword("operator123"),
       role: "OPERATOR",
       isActive: true,
-      mustChangePassword: true,
+      mustChangePassword: false,
     },
   });
 
@@ -85,7 +89,7 @@ async function main() {
       role: "GURU",
       guardianClassId: null,
       isActive: true,
-      mustChangePassword: true,
+      mustChangePassword: false,
     },
   });
 

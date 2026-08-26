@@ -158,6 +158,9 @@ export function UsersManager({
   const [total, setTotal] = useState(0);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const cp = useCursorPagination({ limit: pageSize, total, nextCursor });
+  // reset stabil (useCallback [] di _shared.tsx) — didestructure agar bisa masuk
+  // deps useEffect tanpa memicu re-run tiap render (objek cp dibuat ulang).
+  const { reset: resetCp } = cp;
   const [counts, setCounts] = useState({
     all: 0,
     STAFF: 0,
@@ -290,8 +293,8 @@ export function UsersManager({
 
   // Kembali ke halaman 1 saat filter/pencarian/ukuran halaman berubah.
   useEffect(() => {
-    cp.reset();
-  }, [debounced, roleFilter, pageSize]);
+    resetCp();
+  }, [resetCp, debounced, roleFilter, pageSize]);
 
   function openCreate() {
     setEditing(null);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Calendar, Award, Star, Trophy, GraduationCap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -47,11 +47,7 @@ export function TeacherTimeline({ teacherId }: TeacherTimelineProps) {
   const [items, setItems] = useState<TimelineItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchTimeline();
-  }, [teacherId]);
-
-  async function fetchTimeline() {
+  const fetchTimeline = useCallback(async () => {
     try {
       const res = await fetch(`/api/teachers/${teacherId}/timeline`);
       if (res.ok) {
@@ -63,7 +59,11 @@ export function TeacherTimeline({ teacherId }: TeacherTimelineProps) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [teacherId]);
+
+  useEffect(() => {
+    fetchTimeline();
+  }, [fetchTimeline]);
 
   if (loading) {
     return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Calendar, Clock, User, Send, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,11 +34,7 @@ export function MeetingScheduler({ teacherId, teacherName }: MeetingSchedulerPro
   const [phone, setPhone] = useState("");
   const [purpose, setPurpose] = useState("");
 
-  useEffect(() => {
-    fetchSlots();
-  }, [teacherId]);
-
-  async function fetchSlots() {
+  const fetchSlots = useCallback(async () => {
     try {
       const res = await fetch(`/api/teachers/${teacherId}/meeting-slots`);
       if (res.ok) {
@@ -50,7 +46,11 @@ export function MeetingScheduler({ teacherId, teacherName }: MeetingSchedulerPro
     } finally {
       setLoading(false);
     }
-  }
+  }, [teacherId]);
+
+  useEffect(() => {
+    fetchSlots();
+  }, [fetchSlots]);
 
   async function handleBooking() {
     if (!selectedSlot || !parentName.trim() || !studentName.trim()) {

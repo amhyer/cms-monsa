@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Star, Quote, User, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,11 +40,7 @@ export function ParentTestimonials({ limit = 6, showForm = true }: ParentTestimo
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
 
-  useEffect(() => {
-    fetchTestimonials();
-  }, []);
-
-  async function fetchTestimonials() {
+  const fetchTestimonials = useCallback(async () => {
     try {
       const res = await fetch(`/api/testimonials?limit=${limit}`);
       if (res.ok) {
@@ -56,7 +52,11 @@ export function ParentTestimonials({ limit = 6, showForm = true }: ParentTestimo
     } finally {
       setLoading(false);
     }
-  }
+  }, [limit]);
+
+  useEffect(() => {
+    fetchTestimonials();
+  }, [fetchTestimonials]);
 
   async function handleSubmit() {
     if (!parentName.trim() || !content.trim()) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Trophy, Medal, Award, Star, Calendar, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,11 +48,7 @@ export function StudentAchievements({ studentId }: StudentAchievementsProps) {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
 
-  useEffect(() => {
-    fetchAchievements();
-  }, [studentId]);
-
-  async function fetchAchievements() {
+  const fetchAchievements = useCallback(async () => {
     try {
       const res = await fetch(`/api/students/${studentId}/achievements`);
       if (res.ok) {
@@ -65,7 +61,11 @@ export function StudentAchievements({ studentId }: StudentAchievementsProps) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [studentId]);
+
+  useEffect(() => {
+    fetchAchievements();
+  }, [fetchAchievements]);
 
   const filteredAchievements = filter === "all"
     ? achievements

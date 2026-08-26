@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Calendar, Clock, MapPin, Users, ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -40,11 +40,7 @@ export function SchoolEventsCalendar({ limit = 10, showCalendar = true }: School
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
-  useEffect(() => {
-    fetchEvents();
-  }, [currentMonth]);
-
-  async function fetchEvents() {
+  const fetchEvents = useCallback(async () => {
     try {
       const month = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, "0")}`;
       const res = await fetch(`/api/events?limit=${limit}&month=${month}`);
@@ -57,7 +53,11 @@ export function SchoolEventsCalendar({ limit = 10, showCalendar = true }: School
     } finally {
       setLoading(false);
     }
-  }
+  }, [currentMonth, limit]);
+
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
 
   function prevMonth() {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));

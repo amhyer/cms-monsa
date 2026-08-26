@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Image, Video, Eye, Heart, Download, ExternalLink, Grid, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,11 +35,7 @@ export function GalleryManager({ limit = 12, showGrid = true }: GalleryManagerPr
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
 
-  useEffect(() => {
-    fetchAlbums();
-  }, []);
-
-  async function fetchAlbums() {
+  const fetchAlbums = useCallback(async () => {
     try {
       const res = await fetch(`/api/albums?limit=${limit}`);
       if (res.ok) {
@@ -51,7 +47,11 @@ export function GalleryManager({ limit = 12, showGrid = true }: GalleryManagerPr
     } finally {
       setLoading(false);
     }
-  }
+  }, [limit]);
+
+  useEffect(() => {
+    fetchAlbums();
+  }, [fetchAlbums]);
 
   if (loading) {
     return (

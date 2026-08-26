@@ -92,6 +92,9 @@ export function BosExpendituresManager() {
   const [expTotal, setExpTotal] = useState(0);
   const [expNextCursor, setExpNextCursor] = useState<string | null>(null);
   const expCp = useCursorPagination({ limit: expPageSize, total: expTotal, nextCursor: expNextCursor });
+  // reset stabil (useCallback [] di _shared.tsx) — didestructure agar bisa masuk
+  // deps useEffect tanpa memicu re-run tiap render (objek hook dibuat ulang).
+  const { reset: resetExpCp } = expCp;
   const [expTotalAmount, setExpTotalAmount] = useState(0);
 
   const [open, setOpen] = useState(false);
@@ -105,6 +108,7 @@ export function BosExpendituresManager() {
   const [docTotal, setDocTotal] = useState(0);
   const [docNextCursor, setDocNextCursor] = useState<string | null>(null);
   const docCp = useCursorPagination({ limit: docPageSize, total: docTotal, nextCursor: docNextCursor });
+  const { reset: resetDocCp } = docCp;
   const [uploading, setUploading] = useState(false);
   const [docForm, setDocForm] = useState(EMPTY_DOC);
   const [docFile, setDocFile] = useState<File | null>(null);
@@ -168,12 +172,12 @@ export function BosExpendituresManager() {
 
   // Ganti tahun / ukuran halaman → kembali ke halaman 1.
   useEffect(() => {
-    expCp.reset();
-  }, [yearFilter, expPageSize]);
+    resetExpCp();
+  }, [resetExpCp, yearFilter, expPageSize]);
 
   useEffect(() => {
-    docCp.reset();
-  }, [docPageSize]);
+    resetDocCp();
+  }, [resetDocCp, docPageSize]);
 
   function openCreate() {
     setEditing(null);

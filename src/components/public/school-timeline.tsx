@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Calendar, Award, Building, Star, GraduationCap } from "lucide-react";
 
 interface TimelineItem {
@@ -29,11 +29,7 @@ export function SchoolTimeline({ limit = 20 }: SchoolTimelineProps) {
   const [loading, setLoading] = useState(true);
   const [groupedTimeline, setGroupedTimeline] = useState<Record<number, TimelineItem[]>>({});
 
-  useEffect(() => {
-    fetchTimeline();
-  }, []);
-
-  async function fetchTimeline() {
+  const fetchTimeline = useCallback(async () => {
     try {
       const res = await fetch(`/api/timeline?limit=${limit}`);
       if (res.ok) {
@@ -46,7 +42,11 @@ export function SchoolTimeline({ limit = 20 }: SchoolTimelineProps) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [limit]);
+
+  useEffect(() => {
+    fetchTimeline();
+  }, [fetchTimeline]);
 
   if (loading) {
     return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Star, Award, GraduationCap, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -34,11 +34,7 @@ export function StarOfMonth({ type }: StarOfMonthProps) {
   const [stars, setStars] = useState<StarOfMonth[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchStars();
-  }, [type]);
-
-  async function fetchStars() {
+  const fetchStars = useCallback(async () => {
     try {
       const url = type ? `/api/star-of-month?type=${type}` : "/api/star-of-month";
       const res = await fetch(url);
@@ -51,7 +47,11 @@ export function StarOfMonth({ type }: StarOfMonthProps) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [type]);
+
+  useEffect(() => {
+    fetchStars();
+  }, [fetchStars]);
 
   if (loading) {
     return (

@@ -89,6 +89,9 @@ export function StudentsManager() {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [pageSize, setPageSize] = usePersistedPageSize("students", 10, [10, 20, 50, 100]);
   const cp = useCursorPagination({ limit: pageSize, total, nextCursor });
+  // reset stabil (useCallback [] di _shared.tsx) — didestructure agar bisa masuk
+  // deps useEffect tanpa memicu re-run tiap render (objek cp dibuat ulang).
+  const { reset: resetCp } = cp;
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<StudentItem | null>(null);
@@ -131,8 +134,8 @@ export function StudentsManager() {
 
   // Kembali ke halaman 1 saat pencarian/filter/ukuran halaman berubah.
   useEffect(() => {
-    cp.reset();
-  }, [debounced, classFilter, pageSize]);
+    resetCp();
+  }, [resetCp, debounced, classFilter, pageSize]);
 
   const fetchClasses = useCallback(async () => {
     try {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Bell, AlertTriangle, Info, Calendar, Clock, Eye, Pin, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -47,11 +47,7 @@ export function AnnouncementSystem({ limit = 10, showAll = false }: Announcement
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filter, setFilter] = useState("all");
 
-  useEffect(() => {
-    fetchAnnouncements();
-  }, []);
-
-  async function fetchAnnouncements() {
+  const fetchAnnouncements = useCallback(async () => {
     try {
       const res = await fetch(`/api/announcements?limit=${limit}`);
       if (res.ok) {
@@ -63,7 +59,11 @@ export function AnnouncementSystem({ limit = 10, showAll = false }: Announcement
     } finally {
       setLoading(false);
     }
-  }
+  }, [limit]);
+
+  useEffect(() => {
+    fetchAnnouncements();
+  }, [fetchAnnouncements]);
 
   const filteredAnnouncements = filter === "all"
     ? announcements

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Star, Send, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,11 +34,7 @@ export function TeacherRating({ teacherId }: TeacherRatingProps) {
   const [comment, setComment] = useState("");
   const [authorName, setAuthorName] = useState("");
 
-  useEffect(() => {
-    fetchRatings();
-  }, [teacherId]);
-
-  async function fetchRatings() {
+  const fetchRatings = useCallback(async () => {
     try {
       const res = await fetch(`/api/teachers/${teacherId}/ratings?limit=5`);
       if (res.ok) {
@@ -52,7 +48,11 @@ export function TeacherRating({ teacherId }: TeacherRatingProps) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [teacherId]);
+
+  useEffect(() => {
+    fetchRatings();
+  }, [fetchRatings]);
 
   async function handleSubmit() {
     if (rating === 0) {

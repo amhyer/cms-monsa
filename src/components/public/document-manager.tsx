@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { FileText, Download, Search, Filter, Calendar, HardDrive } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,11 +56,7 @@ export function DocumentManager({ limit = 20, showSearch = true }: DocumentManag
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
 
-  useEffect(() => {
-    fetchDocuments();
-  }, []);
-
-  async function fetchDocuments() {
+  const fetchDocuments = useCallback(async () => {
     try {
       const res = await fetch(`/api/documents?limit=${limit}`);
       if (res.ok) {
@@ -72,7 +68,11 @@ export function DocumentManager({ limit = 20, showSearch = true }: DocumentManag
     } finally {
       setLoading(false);
     }
-  }
+  }, [limit]);
+
+  useEffect(() => {
+    fetchDocuments();
+  }, [fetchDocuments]);
 
   const filteredDocuments = documents.filter((doc) => {
     const matchesSearch =

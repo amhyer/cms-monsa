@@ -9,6 +9,11 @@ const transporter = nodemailer.createTransport({
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
+  // Timeout agar POST pengaduan/kontak tidak menggantung saat SMTP lambat
+  // atau tidak merespons (sendEmail di-await oleh route handler).
+  connectionTimeout: 10_000,
+  greetingTimeout: 10_000,
+  socketTimeout: 15_000,
 });
 
 interface SendEmailOptions {
@@ -73,23 +78,44 @@ export const emailTemplates = {
     `,
   }),
 
-  complaintNotification: (name: string, subject: string, message: string, category: string) => ({
-    subject: `[CMS] Pengaduan Baru: ${escapeHtml(subject)}`,
-    html: `
+  complaintNotification: (data: {
+    name: string;
+    subject: string;
+    message: string;
+    category: string;
+    /** Kontak pelapor untuk tindak lanjut — null saat anonim */
+    email?: string | null;
+    phone?: string | null;
+    priority?: string;
+  }) => {
+    const priorityLabel = data.priority === "TINGGI" ? "🔴 TINGGI" : "🟡 NORMAL";
+    const contactRows = [
+      data.email ? `<p><strong>Email:</strong> ${escapeHtml(data.email)}</p>` : "",
+      data.phone ? `<p><strong>Telepon:</strong> ${escapeHtml(data.phone)}</p>` : "",
+    ]
+      .filter(Boolean)
+      .join("\n        ");
+
+    return {
+      subject: `[CMS] Pengaduan Baru: ${escapeHtml(data.subject)}`,
+      html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #dc2626;">Pengaduan Baru</h2>
-        <p><strong>Dari:</strong> ${escapeHtml(name)}</p>
-        <p><strong>Kategori:</strong> ${escapeHtml(category)}</p>
-        <p><strong>Subjek:</strong> ${escapeHtml(subject)}</p>
+        <p><strong>Dari:</strong> ${escapeHtml(data.name)}</p>
+        <p><strong>Kategori:</strong> ${escapeHtml(data.category)}</p>
+        <p><strong>Prioritas:</strong> ${priorityLabel}</p>
+        <p><strong>Subjek:</strong> ${escapeHtml(data.subject)}</p>
+        ${contactRows}
         <hr style="border: 1px solid #e5e7eb;" />
-        <p>${escapeHtml(message)}</p>
+        <p>${escapeHtml(data.message)}</p>
         <hr style="border: 1px solid #e5e7eb;" />
         <p style="color: #6b7280; font-size: 12px;">
           Email ini dikirim otomatis dari CMS UPT SPF SD Negeri Unggulan Mongisidi 1
         </p>
       </div>
     `,
-  }),
+    };
+  },
 
   passwordReset: (userName: string, newPassword: string) => ({
     subject: `[CMS] Password Telah Direset`,

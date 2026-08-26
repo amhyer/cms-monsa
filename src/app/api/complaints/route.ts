@@ -59,12 +59,16 @@ export async function POST(req: NextRequest) {
     // Send email notification to admin
     const adminEmail = process.env.ADMIN_EMAIL;
     if (adminEmail) {
-      const template = emailTemplates.complaintNotification(
-        isAnonymous ? "Anonim" : name,
+      const template = emailTemplates.complaintNotification({
+        name: isAnonymous ? "Anonim" : name || "Anonim",
         subject,
         message,
-        category || "Akademik"
-      );
+        category: category || "Akademik",
+        // Kontak pelapor untuk tindak lanjut — tidak dikirim saat anonim
+        email: isAnonymous ? null : email || null,
+        phone: isAnonymous ? null : phone || null,
+        priority: item.priority,
+      });
       await sendEmail({
         to: adminEmail,
         subject: template.subject,

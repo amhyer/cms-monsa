@@ -15,6 +15,7 @@
 
 import { sendWhatsApp } from "@/lib/whatsapp";
 import { logger } from "@/lib/logger";
+import { getSiteBaseUrl } from "@/lib/site-url";
 
 // ---------------------------------------------------------------------------
 // Telegram
@@ -113,6 +114,8 @@ function buildComplaintMessage(data: ComplaintNotificationData): string {
     data.message.length > 500
       ? `${data.message.slice(0, 500)}…`
       : data.message,
+    "",
+    `*Balas di dashboard:* ${getSiteBaseUrl()}/dashboard/complaints`,
     "",
     "— CMS MONSA",
   ].join("\n");

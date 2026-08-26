@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import { logger } from "@/lib/logger";
+import { getSiteBaseUrl } from "@/lib/site-url";
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "smtp.gmail.com",
@@ -109,6 +110,19 @@ export const emailTemplates = {
         <hr style="border: 1px solid #e5e7eb;" />
         <p>${escapeHtml(data.message)}</p>
         <hr style="border: 1px solid #e5e7eb;" />
+        <p style="text-align: center; margin: 16px 0;">
+          <a
+            href="${getSiteBaseUrl()}/dashboard/complaints"
+            style="display: inline-block; background: #1e40af; color: #ffffff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: bold;"
+          >
+            Balas di Dashboard
+          </a>
+        </p>
+        <p style="text-align: center; color: #6b7280; font-size: 12px;">
+          <a href="${getSiteBaseUrl()}/dashboard/complaints">
+            ${getSiteBaseUrl()}/dashboard/complaints
+          </a>
+        </p>
         <p style="color: #6b7280; font-size: 12px;">
           Email ini dikirim otomatis dari CMS UPT SPF SD Negeri Unggulan Mongisidi 1
         </p>

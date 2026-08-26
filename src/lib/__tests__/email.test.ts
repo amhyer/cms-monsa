@@ -70,6 +70,14 @@ describe("emailTemplates.complaintNotification", () => {
     const t = emailTemplates.complaintNotification({ ...base, subject: "<b>Urgen&t</b>" });
     expect(t.subject).toContain("&lt;b&gt;Urgen&amp;t&lt;/b&gt;");
   });
+
+  it("memandu admin membalas lewat dashboard (link /dashboard/complaints)", () => {
+    const t = emailTemplates.complaintNotification(base);
+    expect(t.html).toContain("/dashboard/complaints");
+    expect(t.html).toContain("Balas di Dashboard");
+    // Link harus mengarah ke base URL publik, bukan relative semata
+    expect(t.html).toMatch(/https?:\/\/[^"']+\/dashboard\/complaints/);
+  });
 });
 
 describe("emailTemplates.contactNotification", () => {

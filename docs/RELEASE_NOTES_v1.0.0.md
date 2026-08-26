@@ -186,7 +186,7 @@ See `.env.example` for full configuration.
 
 ## 📝 Changelog
 
-See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
+See [CHANGELOG.md](../CHANGELOG.md) for detailed version history.
 
 ---
 

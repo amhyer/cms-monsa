@@ -1,7 +1,7 @@
 /**
  * Image type detection from file content (magic bytes) for the upload
  * endpoint. The server must NOT trust `file.type` from the client or the
- * file name extension — both are attacker-controlled. See SECURITY_AUDIT.md
+ * file name extension — both are attacker-controlled. See docs/SECURITY_AUDIT.md
  * finding C2 (stored XSS via spoofed MIME / .html uploads).
  *
  * Only the four types the CMS accepts are whitelisted:

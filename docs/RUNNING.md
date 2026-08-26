@@ -6,7 +6,7 @@ deploy & backup.
 
 > Selengkapnya: [README.md](../README.md) (arsitektur & fitur),
 > [docs/ARCHITECTURE.md](ARCHITECTURE.md) (arsitektur internal),
-> [DEPLOYMENT.md](../DEPLOYMENT.md) (deploy produksi).
+> [DEPLOYMENT.md](DEPLOYMENT.md) (deploy produksi).
 
 ---
 
@@ -174,7 +174,7 @@ CMS bisa menarik data guru/staf & siswa langsung dari server Dapodik sekolah:
 7. Kepala Sekolah & jabatan lainnya langsung terbaca dari
    `jabatan_ptk_id_str` — termasuk pada kartu **Data Guru**.
 
-Detail pemetaan field: [DAPODIK_SYNC_MAPPING.md](../DAPODIK_SYNC_MAPPING.md).
+Detail pemetaan field: [DAPODIK_SYNC_MAPPING.md](DAPODIK_SYNC_MAPPING.md).
 
 Catatan masalah: bila sinkronisasi gagal padahal server Dapodik online,
 pastikan migrasi DB sudah jalan — kolom baru seperti `dapodikId` dan
@@ -284,8 +284,8 @@ docker compose down -v     # stop + hapus volume DB (HATI-HATI)
 ```
 
 Dengan Docker, migrasi PostgreSQL dijalankan otomatis oleh container
-(`prisma migrate deploy`) sebelum aplikasi start. Detail: [DEPLOYMENT.md](../DEPLOYMENT.md),
-[DEPLOYMENT_SSL.md](../DEPLOYMENT_SSL.md), [VERCEL_DEPLOYMENT.md](../VERCEL_DEPLOYMENT.md).
+(`prisma migrate deploy`) sebelum aplikasi start. Detail: [DEPLOYMENT.md](DEPLOYMENT.md),
+[DEPLOYMENT_SSL.md](DEPLOYMENT_SSL.md), [VERCEL_DEPLOYMENT.md](VERCEL_DEPLOYMENT.md).
 
 ---
 

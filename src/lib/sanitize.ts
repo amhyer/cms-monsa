@@ -9,7 +9,7 @@
  * This replaces the previous homemade sanitizer whose regex fallback could
  * be bypassed (nested/obfuscated tags, entity-encoded `javascript:`, SVG,
  * etc.). The weak regex path has been removed entirely. See
- * SECURITY_AUDIT.md finding C1.
+ * docs/SECURITY_AUDIT.md finding C1.
  *
  * Security model (kept from the previous implementation):
  * - Conservative allow-list of tags; strip everything else.

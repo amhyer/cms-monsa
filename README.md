@@ -100,7 +100,7 @@ bisa di-index, di-deep-link, dan didukung penuh oleh back/forward browser.
 
 Guard akses diterapkan **satu kali** di `src/app/dashboard/layout.tsx` untuk
 semua route dashboard: GURU hanya dapat membuka `/dashboard` (exact-match,
-bukan prefix — lihat [REFACTOR_PLAN.md](REFACTOR_PLAN.md) bagian #1) dan area
+bukan prefix — lihat [REFACTOR_PLAN.md](docs/REFACTOR_PLAN.md) bagian #1) dan area
 `/dashboard/attendance` (termasuk sub-halamannya), sedangkan route admin
 (`users` / `settings` / `logs`) khusus Super Admin.
 
@@ -274,7 +274,7 @@ Gate berjalan berurutan dalam tiga lapis:
 1. **Guard repository** (gagal seketika, sebelum validasi kode):
    - **File `.db` / `.db-journal` / `.env*` ter-stage** (kecuali
      [.env.example](.env.example)) — mencegah database/secret ter-commit secara
-     tidak sengaja (lihat [REPO_HEALTH_AUDIT.md](REPO_HEALTH_AUDIT.md) C.9).
+     tidak sengaja (lihat [REPO_HEALTH_AUDIT.md](docs/REPO_HEALTH_AUDIT.md) C.9).
    - **Penghapusan [src/app/api/upload/route.ts](src/app/api/upload/route.ts) /
      [src/proxy.ts](src/proxy.ts)** — file kritikal yang wajib selalu ada.
 2. **Warm-up rute dev server** (non-blocking) — bila dev server sedang

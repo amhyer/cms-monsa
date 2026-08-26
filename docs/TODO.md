@@ -188,10 +188,10 @@
 - [x] QR code setup flow ✅
 - [x] Backup codes generation ✅
 
-#### 7.5 Webhook Notifications
-- [ ] Push ke WhatsApp saat pengaduan baru
-- [ ] Push ke Telegram
-- [ ] Email notification untuk admin
+#### 7.5 Webhook Notifications — ✅ SELESAI
+- [x] Push ke WhatsApp saat pengaduan baru (Fonnte) ✅
+- [x] Push ke Telegram ✅
+- [x] Email notification untuk admin ✅
 
 ---
 

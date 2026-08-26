@@ -211,7 +211,7 @@ Konsekuensi refactor:
   seluruh 17 route):
   - Belum login → redirect `/login`.
   - GURU hanya boleh `/dashboard` (exact-match, bukan prefix — mencegah
-    `/dashboard/news` dll. bocor; lihat [REFACTOR_PLAN.md](../REFACTOR_PLAN.md)
+    `/dashboard/news` dll. bocor; lihat [REFACTOR_PLAN.md](REFACTOR_PLAN.md)
     bagian #1) dan area `/dashboard/attendance/...`.
   - `ADMIN_PATHS` (`/dashboard/users`, `/dashboard/settings`,
     `/dashboard/logs`) khusus SUPER_ADMIN; selainnya `AccessDenied`.
@@ -462,7 +462,7 @@ erDiagram
 
 - **Routing dashboard kini App Router murni** — hash router (`navigate()`,
   `initHashRouter`, `isAppPageRoute`, `RouteSync`) sudah dihapus pada
-  2026-08-02 (lihat [REFACTOR_PLAN.md](../REFACTOR_PLAN.md) bagian #1 dan
+  2026-08-02 (lihat [REFACTOR_PLAN.md](REFACTOR_PLAN.md) bagian #1 dan
   PROGRESS_LOG.md FASE 26). Guard akses dashboard terpusat di
   `src/app/dashboard/layout.tsx`; guard GURU dipindah ke modul murni
   `src/lib/access.ts` (di-unit-test).

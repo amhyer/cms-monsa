@@ -3,26 +3,26 @@
 > Log perkembangan proyek (kronologis). Untuk dokumentasi developer aktif —
 > termasuk **gate validasi & pre-commit hook** (`hooks:check`, guard repo,
 > `--staged`/`--quick`, `--no-verify`) dan **E2E troubleshooting** (warm-up,
-> `--if-up`, artifact log, `triage:e2e`) — baca [README.md](README.md);
+> `--if-up`, artifact log, `triage:e2e`) — baca [README.md](../README.md);
 > panduan menjalankan project dari nol (instalasi, env, database, dev,
-> deploy, backup) ada di [docs/RUNNING.md](docs/RUNNING.md). Ringkasan
+> deploy, backup) ada di [docs/RUNNING.md](RUNNING.md). Ringkasan
 > konsolidasi gate + E2E untuk kontributor:
-> [CONTRIBUTING.md](CONTRIBUTING.md).
+> [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## Indeks Dokumen Referensi
 
 | Dokumen | Isi / Kapan dibaca |
 |---------|--------------------|
-| [README.md](README.md) | Dokumentasi kanonik: fitur, routing, gate (Pre-commit Hook), E2E troubleshooting, deploy ringkas — mulai di sini. |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Konsolidasi gate validasi + alur E2E untuk kontributor (alur PR). |
-| [docs/RUNNING.md](docs/RUNNING.md) | Panduan menjalankan project dari nol: instalasi, env, database, dev, deploy, backup, troubleshooting umum & E2E. |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Arsitektur internal: struktur direktori, alur data, modul. |
+| [README.md](../README.md) | Dokumentasi kanonik: fitur, routing, gate (Pre-commit Hook), E2E troubleshooting, deploy ringkas — mulai di sini. |
+| [CONTRIBUTING.md](../CONTRIBUTING.md) | Konsolidasi gate validasi + alur E2E untuk kontributor (alur PR). |
+| [docs/RUNNING.md](RUNNING.md) | Panduan menjalankan project dari nol: instalasi, env, database, dev, deploy, backup, troubleshooting umum & E2E. |
+| [docs/ARCHITECTURE.md](ARCHITECTURE.md) | Arsitektur internal: struktur direktori, alur data, modul. |
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Deploy produksi (standalone, Docker Compose, PostgreSQL). |
 | [DEPLOYMENT_SSL.md](DEPLOYMENT_SSL.md) | SSL/TLS + reverse proxy Caddy + troubleshooting SSL. |
 | [VERCEL_DEPLOYMENT.md](VERCEL_DEPLOYMENT.md) | Deploy ke Vercel. |
 | [DAPODIK_SYNC_MAPPING.md](DAPODIK_SYNC_MAPPING.md) | Pemetaan field sinkronisasi Dapodik. |
-| [scripts/BACKUP.md](scripts/BACKUP.md) | Backup & restore database (rotasi 14 hari). |
-| [dapodik-client/README.md](dapodik-client/README.md) | Klien Web Service Dapodik (PHP/TS) — sub-paket terpisah. |
+| [scripts/BACKUP.md](../scripts/BACKUP.md) | Backup & restore database (rotasi 14 hari). |
+| [dapodik-client/README.md](../dapodik-client/README.md) | Klien Web Service Dapodik (PHP/TS) — sub-paket terpisah. |
 | [SECURITY_AUDIT.md](SECURITY_AUDIT.md) | Audit keamanan & rekomendasi (referensi). |
 | [SECURITY_AUDIT_FIX_PLAN.md](SECURITY_AUDIT_FIX_PLAN.md) | Rencana perbaikan hasil audit keamanan. |
 | [REFACTOR_PLAN.md](REFACTOR_PLAN.md) | Rencana refactor (referensi historis). |

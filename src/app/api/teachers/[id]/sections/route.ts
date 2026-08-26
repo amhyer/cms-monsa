@@ -33,7 +33,7 @@ export async function GET(
       NextResponse.json(sections),
       "public, s-maxage=300, stale-while-revalidate=600"
     );
-  } catch (e) {
+  } catch {
     return NextResponse.json(
       { error: "Gagal memuat bagian profil." },
       { status: 500 }

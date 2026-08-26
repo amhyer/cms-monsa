@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Image, Video, Eye, Heart, Download, ExternalLink, Grid, List } from "lucide-react";
+// Ikon "Image" lucide di-alias ImageIcon agar jsx-a11y/alt-text tidak
+// menganggapnya komponen gambar yang wajib punya prop alt.
+import { Image as ImageIcon, Grid, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -29,11 +31,10 @@ const categoryConfig: Record<string, { color: string; bgColor: string }> = {
   "Lainnya": { color: "text-gray-600", bgColor: "bg-gray-100" },
 };
 
-export function GalleryManager({ limit = 12, showGrid = true }: GalleryManagerProps) {
+export function GalleryManager({ limit = 12 }: GalleryManagerProps) {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
 
   const fetchAlbums = useCallback(async () => {
     try {
@@ -70,7 +71,7 @@ export function GalleryManager({ limit = 12, showGrid = true }: GalleryManagerPr
     <section className="rounded-xl border bg-card p-5">
       <div className="flex items-center justify-between">
         <h2 className="flex items-center gap-2 font-sans text-base font-bold">
-          <Image className="size-4 text-primary" /> Galeri Foto
+          <ImageIcon className="size-4 text-primary" /> Galeri Foto
         </h2>
         <div className="flex items-center gap-2">
           <Button
@@ -105,7 +106,6 @@ export function GalleryManager({ limit = 12, showGrid = true }: GalleryManagerPr
                 className={`overflow-hidden rounded-lg border bg-background transition-all hover:shadow-md ${
                   viewMode === "grid" ? "aspect-square" : "flex items-center gap-4 p-3"
                 }`}
-                onClick={() => setSelectedAlbum(album)}
               >
                 {album.coverUrl ? (
                   <img
@@ -121,7 +121,7 @@ export function GalleryManager({ limit = 12, showGrid = true }: GalleryManagerPr
                       viewMode === "grid" ? "size-full" : "size-16 shrink-0 rounded"
                     }`}
                   >
-                    <Image className={`size-8 ${config.color}`} />
+                    <ImageIcon className={`size-8 ${config.color}`} />
                   </div>
                 )}
                 <div className={viewMode === "grid" ? "p-3" : "flex-1"}>

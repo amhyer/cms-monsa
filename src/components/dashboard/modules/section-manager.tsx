@@ -15,15 +15,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import {
   GripVertical,
   Plus,
   Trash2,
-  Save,
   Eye,
   EyeOff,
-  Pencil,
   X,
   Check,
 } from "lucide-react";
@@ -65,7 +62,6 @@ export function SectionManager({ teacherId: propTeacherId }: { teacherId?: strin
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>(propTeacherId || "");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newSection, setNewSection] = useState({
     title: "",

@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
 /**
  * GET /api/ticker
  * Public: get active news ticker items
  */
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const now = new Date();
 

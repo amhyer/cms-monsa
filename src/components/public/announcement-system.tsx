@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Bell, AlertTriangle, Info, Calendar, Clock, Eye, Pin, ChevronDown, ChevronUp } from "lucide-react";
+import { Bell, AlertTriangle, Info, Calendar, Eye, Pin, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -41,7 +41,7 @@ const categoryConfig: Record<string, { color: string; bgColor: string }> = {
   "Keuangan": { color: "text-yellow-600", bgColor: "bg-yellow-100" },
 };
 
-export function AnnouncementSystem({ limit = 10, showAll = false }: AnnouncementSystemProps) {
+export function AnnouncementSystem({ limit = 10 }: AnnouncementSystemProps) {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);

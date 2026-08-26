@@ -25,15 +25,9 @@ export async function GET(
       );
     }
 
-    // Get teacher's office hours to generate slots
-    const teacherDetails = await db.teacher.findUnique({
-      where: { id },
-      select: { officeHours: true },
-    });
-
-    // For now, return mock slots based on office hours
-    // In production, you'd have a MeetingSlot model
-    const slots = generateMockSlots(teacherDetails?.officeHours ?? null);
+    // Mock slots belum memakai officeHours — query detail guru di-skip
+    // sampai generator slot-nya benar-benar mengonsumsi jam operasional.
+    const slots = generateMockSlots();
 
     return NextResponse.json({ slots });
   } catch (e) {
@@ -49,7 +43,7 @@ export async function GET(
  * Generate mock meeting slots based on office hours
  * In production, replace with database queries
  */
-function generateMockSlots(officeHours: string | null): Array<{id: string; date: string; startTime: string; endTime: string; isAvailable: boolean}> {
+function generateMockSlots(): Array<{id: string; date: string; startTime: string; endTime: string; isAvailable: boolean}> {
   const slots: Array<{id: string; date: string; startTime: string; endTime: string; isAvailable: boolean}> = [];
   const today = new Date();
   

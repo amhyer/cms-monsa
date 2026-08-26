@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Calendar, Award, Building, Star, GraduationCap } from "lucide-react";
+import { Calendar, Award, Building, Star } from "lucide-react";
 
 interface TimelineItem {
   id: string;
@@ -25,7 +25,6 @@ const categoryConfig: Record<string, { icon: typeof Star; color: string; bgColor
 };
 
 export function SchoolTimeline({ limit = 20 }: SchoolTimelineProps) {
-  const [timeline, setTimeline] = useState<TimelineItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [groupedTimeline, setGroupedTimeline] = useState<Record<number, TimelineItem[]>>({});
 
@@ -34,7 +33,6 @@ export function SchoolTimeline({ limit = 20 }: SchoolTimelineProps) {
       const res = await fetch(`/api/timeline?limit=${limit}`);
       if (res.ok) {
         const data = await res.json();
-        setTimeline(data.timeline || []);
         setGroupedTimeline(data.groupedByYear || {});
       }
     } catch {

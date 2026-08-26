@@ -10,7 +10,6 @@ import {
   Crown,
   Download,
   ExternalLink,
-  FileText,
   GraduationCap,
   Github,
   Globe,

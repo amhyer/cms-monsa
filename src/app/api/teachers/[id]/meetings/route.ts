@@ -21,7 +21,7 @@ export async function POST(
     if (!validation.ok) {
       return NextResponse.json({ error: validation.error }, { status: 400 });
     }
-    const { slotId, parentName, studentName, phone, purpose } = validation.data;
+    const { slotId, parentName, studentName } = validation.data;
 
     // Verify teacher exists
     const teacher = await db.teacher.findUnique({

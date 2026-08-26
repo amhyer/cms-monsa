@@ -18,7 +18,6 @@ import { useAppStore } from "@/store/app";
 
 export default function ForceChangePasswordPage() {
   const router = useRouter();
-  const user = useAppStore((s) => s.user);
   const fetchMe = useAppStore((s) => s.fetchMe);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");

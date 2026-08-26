@@ -13,6 +13,8 @@ import {
   BookOpen,
   BarChart3,
   Megaphone,
+  Mail,
+  Send,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -64,6 +66,10 @@ export function SettingsManager() {
   const [form, setForm] = useState<FormState>(EMPTY);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testingEmail, setTestingEmail] = useState(false);
+  const [testResult, setTestResult] = useState<string | null>(null);
+  const [testError, setTestError] = useState<string | null>(null);
+  const [testRecipient, setTestRecipient] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -137,6 +143,34 @@ export function SettingsManager() {
       toast.error(e instanceof Error ? e.message : "Gagal menyimpan.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleEmailTest() {
+    setTestingEmail(true);
+    setTestResult(null);
+    setTestError(null);
+    try {
+      const res = await fetch("/api/notifications/test-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipient: testRecipient.trim() || undefined,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Gagal mengirim email uji");
+      }
+      setTestResult(json.message);
+      toast.success(json.message);
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "Gagal mengirim email uji";
+      setTestError(msg);
+      toast.error(msg);
+    } finally {
+      setTestingEmail(false);
     }
   }
 
@@ -441,6 +475,60 @@ export function SettingsManager() {
               onChange={(e) => set("spmbInfo", e.target.value)}
               placeholder="Jadwal, syarat, jalur, dan tata cara SPMB…"
             />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Notifikasi Email — uji kirim SMTP tanpa membuat pengaduan */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Mail className="size-4 text-gold-foreground" /> Notifikasi Email
+          </CardTitle>
+          <CardDescription>
+            Verifikasi konfigurasi SMTP dengan mengirim email uji — tidak perlu
+            membuat pengaduan sungguhan.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-2">
+            <Label htmlFor="s-test-recipient">Email Penerima (opsional)</Label>
+            <Input
+              id="s-test-recipient"
+              type="email"
+              value={testRecipient}
+              onChange={(e) => setTestRecipient(e.target.value)}
+              placeholder="Kosongkan untuk memakai ADMIN_EMAIL"
+            />
+            <p className="text-xs text-muted-foreground">
+              Jika dikosongkan, email dikirim ke{" "}
+              <code>ADMIN_EMAIL</code> (fallback: email akun Anda).
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleEmailTest}
+              disabled={testingEmail}
+            >
+              {testingEmail ? (
+                <Loader2 className="mr-1 size-3 animate-spin" />
+              ) : (
+                <Send className="mr-1 size-3" />
+              )}
+              Uji Kirim Email
+            </Button>
+            {testResult && (
+              <span className="text-xs font-medium text-emerald-600">
+                {testResult}
+              </span>
+            )}
+            {testError && (
+              <span className="text-xs font-medium text-destructive">
+                {testError}
+              </span>
+            )}
           </div>
         </CardContent>
       </Card>

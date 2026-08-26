@@ -133,4 +133,28 @@ export const emailTemplates = {
       </div>
     `,
   }),
+
+  /**
+   * Email uji SMTP — dikirim lewat dashboard (Settings → Uji Kirim Email)
+   * agar admin bisa memverifikasi konfigurasi SMTP tanpa membuat pengaduan.
+   */
+  testNotification: (recipientName: string) => ({
+    subject: `[CMS] Uji Kirim Email Berhasil`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #16a34a;">✅ Uji Kirim Email Berhasil</h2>
+        <p>Halo ${escapeHtml(recipientName)},</p>
+        <p>
+          Email ini dikirim dari dashboard CMS untuk memverifikasi konfigurasi
+          SMTP. Jika Anda menerimanya, berarti pengaturan <code>SMTP_HOST</code>,
+          <code>SMTP_USER</code>, dan <code>SMTP_PASS</code> sudah benar.
+        </p>
+        <p><strong>Waktu kirim:</strong> ${new Date().toLocaleString("id-ID")}</p>
+        <hr style="border: 1px solid #e5e7eb;" />
+        <p style="color: #6b7280; font-size: 12px;">
+          Email ini dikirim otomatis dari CMS UPT SPF SD Negeri Unggulan Mongisidi 1
+        </p>
+      </div>
+    `,
+  }),
 };

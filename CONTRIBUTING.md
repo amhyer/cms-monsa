@@ -34,8 +34,20 @@ bun run hooks:check -- --staged-push    # (internal pre-push; butuh HOOKS_PUSH_F
 
 ### Guard repository
 
-Gagal seketika sebelum validasi kode: file `.db*` / `.env*` ter-stage
-(kecuali [.env.example](.env.example)) — mencegah database/secret ter-commit.
+Gagal seketika sebelum validasi kode:
+
+- File `.db*` / `.env*` ter-stage (kecuali [.env.example](.env.example)) —
+  mencegah database/secret ter-commit.
+- Artefak cookie sesi ter-stage (mis. `cookies.txt` hasil curl/e2e) —
+  dideteksi dari nama file khas cookie jar **dan** sniff isi untuk baris
+  data jar sungguhan (baris `#HttpOnly_` atau baris 7-kolom
+  tab-separated khas Netscape jar), karena isinya `monsa_session`/
+  `monsa_csrf` yang masih valid.
+- Lockfile selain `bun.lock` ter-stage (`package-lock.json`, `yarn.lock`,
+  `pnpm-lock.yaml`, `bun.lockb`, `npm-shrinkwrap.json`) — lockfile kanonik
+  hanya `bun.lock` agar tidak ada dua sumber kebenaran dependency.
+- `src/app/api/upload/route.ts` / `src/proxy.ts` dihapus.
+
 Blokir = commit ditolak dengan pesan jelas.
 
 ### Pre-push
@@ -143,4 +155,4 @@ Verdict: `warmup-failed` (section wrapper terlalu kecil — warm-up gagal
 - [docs/RUNNING.md](docs/RUNNING.md) — panduan menjalankan project dari nol
   (termasuk §12 E2E Troubleshooting).
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — arsitektur internal.
-- [PROGRESS_LOG.md](PROGRESS_LOG.md) — log perkembangan proyek.
+- [PROGRESS_LOG.md](docs/PROGRESS_LOG.md) — log perkembangan proyek.

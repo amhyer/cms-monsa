@@ -14,6 +14,12 @@
 #      - Tolak commit yang menghapus src/app/api/upload/route.ts /
 #        src/proxy.ts → mencegah "restore: upload route"
 #        (REPO_HEALTH_AUDIT 1.2).
+#      - Tolak commit yang meng-stage artefak cookie sesi (cookies.txt
+#        dsb., by-name & sniff isi Netscape cookie jar) — isinya
+#        monsa_session/monsa_csrf yang masih valid.
+#      - Tolak commit yang meng-stage lockfile selain bun.lock
+#        (package-lock.json / yarn.lock / pnpm-lock.yaml / bun.lockb /
+#        npm-shrinkwrap.json) — lockfile kanonik hanya bun.lock.
 #   2. Warm-up rute dev server (non-blocking, --if-up).
 #   3. Gate penuh: bun run check (typecheck · lint · markdownlint ·
 #      schema-sync · vitest).

@@ -9,7 +9,8 @@
 #   - CI job `hooks-gate`   → gate penuh di setiap PR
 #
 # Isi:
-#   1. Guard cepat (gagal seketika) — file .db/.env ter-stage atau
+#   1. Guard cepat (gagal seketika) — file .db/.env ter-stage, artefak
+#      cookie sesi ter-stage, lockfile selain bun.lock ter-stage, atau
 #      file kritikal (upload route / CORS proxy) dihapus dari index.
 #   2. Warm-up rute dev server (non-blocking, --if-up) — port dibaca
 #      otomatis dari .zscripts/dev.pid/.port (lihat e2e/warmup.ts).
@@ -212,6 +213,78 @@ for f in src/app/api/upload/route.ts src/proxy.ts; do
     GUARD_VIOLATIONS+=("$f")
   fi
 done
+
+# --- Guard 3: artefak cookie sesi ter-stage? -----------------------------
+# File cookie-jar (mis. cookies.txt hasil curl/e2e) berisi monsa_session &
+# monsa_csrf yang VALID — sekali ter-commit, secret harus dirotasi.
+# Dua deteksi:
+#   (a) nama file khas cookie jar (cookies*.txt / *.cookies, dsb.)
+#   (b) sniff isi file ter-stage untuk baris DATA jar sungguhan: baris
+#       #HttpOnly_ atau baris 7-kolom tab-separated khas Netscape jar
+#       (domain\tflag\tpath\tsecure\texpiry\tname\tvalue). Header teks
+#       "Netscape HTTP Cookie File" SAJA tidak dihitung — dokumen/kode
+#       legitimate bisa menyebutnya (contoh nyata: file ini sendiri).
+COOKIE_JARS="$(git diff --cached --name-only | awk '
+{
+  n = $0
+  sub(/^.*\//, "", n)
+  low = tolower(n)
+  if (low ~ /^cookie/ && low ~ /\.(txt|json|cookies?)$/) print
+  else if (low ~ /\.cookies?$/) print
+}' || true)"
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  [ -f "$f" ] || continue            # file terhapus tidak bisa di-sniff
+  [ "$(wc -c <"$f")" -le 1048576 ] || continue   # skip file > 1 MB
+  if awk '
+    /^#HttpOnly_/ { found = 1; exit }
+    /^[^\t]*\t(TRUE|FALSE)\t[^\t]*\t(TRUE|FALSE)\t[0-9]+\t[^\t]*\t[^\t]*$/ { found = 1; exit }
+    END { exit !found }
+  ' "$f" 2>/dev/null; then
+    COOKIE_JARS+="$(printf '\n%s' "$f")"
+  fi
+done < <(git diff --cached --name-only --diff-filter=ACMR)
+# Dedup: file bisa kena deteksi nama SEKALIGUS sniff isi.
+COOKIE_JARS="$(printf '%s\n' "$COOKIE_JARS" | sed '/^$/d' | awk '!seen[$0]++')"
+
+if [[ -n "$COOKIE_JARS" ]]; then
+  if [[ "$JSON" -eq 0 ]]; then
+    echo "❌ [hooks] Perubahan DITOLAK — file cookie sesi ter-stage:"
+    echo "$COOKIE_JARS" | sed '/^$/d; s/^/   - /'
+    echo "   Cookie jar berisi monsa_session/monsa_csrf yang masih valid."
+    echo "   Hapus dari index:  git reset HEAD <file>"
+    echo "   Lalu tambahkan pola filenya ke .gitignore."
+  fi
+  while IFS= read -r f; do
+    [ -n "$f" ] && GUARD_VIOLATIONS+=("$f")
+  done <<< "$COOKIE_JARS"
+fi
+
+# --- Guard 4: lockfile selain bun.lock ter-stage? ------------------------
+# Lockfile kanonik project adalah bun.lock. Lockfile manager lain yang
+# masuk staging = dua sumber kebenaran dependency yang bisa saling beda
+# (package-lock.json pernah tertinggal di disk sementara isinya tidak
+# sinkron dengan bun.lock).
+FOREIGN_LOCKS="$(git diff --cached --name-only | awk '
+{
+  n = $0
+  sub(/^.*\//, "", n)
+  if (n == "package-lock.json" || n == "npm-shrinkwrap.json" ||
+      n == "yarn.lock" || n == "pnpm-lock.yaml" || n == "bun.lockb") print
+}' || true)"
+
+if [[ -n "$FOREIGN_LOCKS" ]]; then
+  if [[ "$JSON" -eq 0 ]]; then
+    echo "❌ [hooks] Perubahan DITOLAK — lockfile non-kanonik ter-stage:"
+    echo "$FOREIGN_LOCKS" | sed 's/^/   - /'
+    echo "   Satu-satunya lockfile yang sah adalah bun.lock."
+    echo "   Hapus dari index:  git rm --cached <file>"
+    echo "   Lalu tambahkan pola filenya ke .gitignore."
+  fi
+  while IFS= read -r f; do
+    [ -n "$f" ] && GUARD_VIOLATIONS+=("$f")
+  done <<< "$FOREIGN_LOCKS"
+fi
 
 emit_result() {
   # $1 = ok (0=lulus, 1=gagal) · $2 = pesan error (opsional)

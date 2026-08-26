@@ -33,6 +33,9 @@ pnpm-lock.yaml
 *.tsbuildinfo
 next-env.d.ts
 
+# artefak sesi/e2e lokal (berisi cookie session — jangan pernah commit)
+cookies.txt
+
 # logs
 *.log
 dev.log

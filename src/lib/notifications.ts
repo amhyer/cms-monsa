@@ -88,6 +88,7 @@ export async function sendTelegram(
 // ---------------------------------------------------------------------------
 
 interface ComplaintNotificationData {
+  id: string;
   name: string;
   subject: string;
   message: string;
@@ -118,7 +119,7 @@ function buildComplaintMessage(data: ComplaintNotificationData): string {
       ? `${data.message.slice(0, 500)}…`
       : data.message,
     "",
-    `*Balas di dashboard:* ${getSiteBaseUrl()}/dashboard/complaints`,
+    `*Balas di dashboard:* ${getSiteBaseUrl()}/dashboard/complaints?highlight=${data.id}`,
     "",
     "— CMS MONSA",
   ].join("\n");
@@ -154,7 +155,7 @@ export function buildPriorityComplaintMessage(
     `*Subjek:* ${mdEscape(data.subject)}`,
     ...contactLines,
     "",
-    `*Balas di dashboard:* ${getSiteBaseUrl()}/dashboard/complaints`,
+    `*Balas di dashboard:* ${getSiteBaseUrl()}/dashboard/complaints?highlight=${data.id}`,
   ].join("\n");
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ShieldAlert,
   Mail,
@@ -88,6 +88,12 @@ export function ComplaintsManager() {
   const { search, setSearch, filtered } = useSearch(items, (c) =>
     `${c.subject} ${c.message} ${c.name} ${c.category} ${c.status}`.toLowerCase()
   );
+
+  // Auto-expand accordion dari URL ?highlight=<id>
+  const highlightId = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    return new URLSearchParams(window.location.search).get("highlight");
+  }, []);
 
   const fetchList = useCallback(async () => {
     setLoading(true);
@@ -246,7 +252,7 @@ export function ComplaintsManager() {
             />
           ) : (
             <div className="max-h-[65vh] space-y-2 overflow-y-auto custom-scroll">
-              <Accordion type="single" collapsible className="space-y-2">
+              <Accordion type="single" collapsible defaultValue={highlightId ?? undefined} className="space-y-2">
                 {filtered.map((c) => {
                   const sc = STATUS_CONFIG[c.status] || STATUS_CONFIG.BARU;
                   const SIcon = sc.icon;

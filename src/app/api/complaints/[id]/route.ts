@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
+import { sendEmail, emailTemplates } from "@/lib/email";
+import { logger } from "@/lib/logger";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -27,6 +29,24 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   }
   const updated = await db.complaint.update({ where: { id }, data });
   await logActivity(auth.user, "UPDATE", "Complaint", `Menanggapi pengaduan: ${existing.subject}`, id);
+
+  // Kirim email balasan otomatis ke pelapor (non-anonim) — fire-and-forget
+  if (typeof body.response === "string" && body.response.trim() && !existing.isAnonymous && existing.email) {
+    const replyData = {
+      name: existing.name,
+      subject: existing.subject,
+      response: body.response,
+      status: (body.status || updated.status) as string,
+    };
+    const template = emailTemplates.complaintReply(replyData);
+    sendEmail({ to: existing.email, subject: template.subject, html: template.html })
+      .then((ok) => {
+        if (ok) logger.info({ complaintId: id, to: existing.email }, "[complaint] Reply email sent");
+        else logger.warn({ complaintId: id, to: existing.email }, "[complaint] Reply email failed");
+      })
+      .catch((e) => logger.warn({ err: e }, "[complaint] Reply email error"));
+  }
+
   return NextResponse.json(updated);
 }
 

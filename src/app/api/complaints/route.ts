@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
     const adminEmail = process.env.ADMIN_EMAIL;
     if (adminEmail) {
       const template = emailTemplates.complaintNotification({
+        id: item.id,
         name: isAnonymous ? "Anonim" : name || "Anonim",
         subject,
         message,
@@ -78,6 +79,7 @@ export async function POST(req: NextRequest) {
 
     // Send WhatsApp/Telegram notification to admin (fire-and-forget)
     notifyComplaintToAdmin({
+      id: item.id,
       name: isAnonymous ? "Anonim" : name || "Anonim",
       subject,
       message,

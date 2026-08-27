@@ -19,7 +19,21 @@ vi.mock("@/lib/notifications", () => ({
     Promise.resolve(mockNotifyComplaintToAdmin(...args)),
 }));
 
+const { mockSendEmail } = vi.hoisted(() => ({
+  mockSendEmail: vi.fn().mockResolvedValue(true),
+}));
+vi.mock("@/lib/email", () => ({
+  sendEmail: (...args: unknown[]) => mockSendEmail(...args),
+  emailTemplates: {
+    complaintReply: vi.fn((d: { subject: string }) => ({
+      subject: `Re: ${d.subject}`,
+      html: "<p>reply</p>",
+    })),
+  },
+}));
+
 import { GET, POST } from "@/app/api/complaints/route";
+import { PUT } from "@/app/api/complaints/[id]/route";
 
 describe("/api/complaints", () => {
   beforeEach(() => {
@@ -208,6 +222,105 @@ describe("/api/complaints", () => {
       expect(mockNotifyComplaintToAdmin).toHaveBeenCalledWith(
         expect.objectContaining({ isAnonymous: true, email: null, phone: null })
       );
+    });
+  });
+
+  describe("PUT /api/complaints/[id]", () => {
+    const mockUpdate = vi.fn();
+    const mockFindUnique = vi.fn();
+
+    beforeEach(() => {
+      mockPrisma.complaint.update = mockUpdate;
+      mockPrisma.complaint.findUnique = mockFindUnique;
+    });
+
+    it("mengirim email balasan otomatis ke pelapor non-anonim", async () => {
+      mockFindUnique.mockResolvedValueOnce({
+        id: "c1",
+        subject: "Keluhan Kantin",
+        name: "Budi",
+        email: "budi@test.com",
+        isAnonymous: false,
+      });
+      mockUpdate.mockResolvedValueOnce({ id: "c1", response: "Tanggapan" });
+
+      mockRequireRole.mockResolvedValueOnce({
+        ok: true,
+        user: createMockUser(),
+      });
+
+      mockSendEmail.mockResolvedValueOnce(true);
+
+      const req = createMockRequest("http://localhost/api/complaints/c1", {
+        method: "PUT",
+        body: { response: "Kami sudah menindaklanjuti.", status: "DIPROSES" },
+      });
+      const res = await PUT(asNextRequest(req), { params: Promise.resolve({ id: "c1" }) });
+      expect(res.status).toBe(200);
+
+      // Tunggu microtask (fire-and-forget)
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(mockSendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: "budi@test.com",
+          subject: expect.stringContaining("Keluhan Kantin"),
+        })
+      );
+    });
+
+    it("tidak mengirim email saat pengaduan anonim", async () => {
+      mockFindUnique.mockResolvedValueOnce({
+        id: "c2",
+        subject: "Keluhan Anonim",
+        name: "Anonim",
+        email: "anon@test.com",
+        isAnonymous: true,
+      });
+      mockUpdate.mockResolvedValueOnce({ id: "c2" });
+
+      mockRequireRole.mockResolvedValueOnce({
+        ok: true,
+        user: createMockUser(),
+      });
+
+      mockSendEmail.mockClear();
+
+      const req = createMockRequest("http://localhost/api/complaints/c2", {
+        method: "PUT",
+        body: { response: "Tanggapan" },
+      });
+      await PUT(asNextRequest(req), { params: Promise.resolve({ id: "c2" }) });
+
+      await new Promise((r) => setTimeout(r, 10));
+      expect(mockSendEmail).not.toHaveBeenCalled();
+    });
+
+    it("tidak mengirim email saat pelapor tidak punya email", async () => {
+      mockFindUnique.mockResolvedValueOnce({
+        id: "c3",
+        subject: "Tanpa Email",
+        name: "Siswa",
+        email: "",
+        isAnonymous: false,
+      });
+      mockUpdate.mockResolvedValueOnce({ id: "c3" });
+
+      mockRequireRole.mockResolvedValueOnce({
+        ok: true,
+        user: createMockUser(),
+      });
+
+      mockSendEmail.mockClear();
+
+      const req = createMockRequest("http://localhost/api/complaints/c3", {
+        method: "PUT",
+        body: { response: "Tanggapan" },
+      });
+      await PUT(asNextRequest(req), { params: Promise.resolve({ id: "c3" }) });
+
+      await new Promise((r) => setTimeout(r, 10));
+      expect(mockSendEmail).not.toHaveBeenCalled();
     });
   });
 });

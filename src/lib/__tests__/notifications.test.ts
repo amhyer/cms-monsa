@@ -17,6 +17,7 @@ function telegramOk() {
 }
 
 const base = {
+  id: "c-abc-123",
   name: "Budi Santoso",
   subject: "Kantin sekolah",
   message: "Harga jajan naik.",
@@ -34,7 +35,7 @@ describe("buildPriorityComplaintMessage", () => {
     expect(m).toContain("Kantin sekolah");
     expect(m).toContain("budi@contoh.id");
     expect(m).toContain("081234567890");
-    expect(m).toContain("/dashboard/complaints");
+    expect(m).toContain("/dashboard/complaints?highlight=c-abc-123");
   });
 
   it("menyembunyikan kontak saat anonim", () => {

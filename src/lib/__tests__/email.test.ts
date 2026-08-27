@@ -78,6 +78,17 @@ describe("emailTemplates.complaintNotification", () => {
     // Link harus mengarah ke base URL publik, bukan relative semata
     expect(t.html).toMatch(/https?:\/\/[^"']+\/dashboard\/complaints/);
   });
+
+  it("menyertakan link detail ?highlight=<id> saat id tersedia", () => {
+    const t = emailTemplates.complaintNotification({ ...base, id: "abc123" });
+    expect(t.html).toContain("/dashboard/complaints?highlight=abc123");
+  });
+
+  it("fallback ke /dashboard/complaints tanpa ?highlight saat id kosong", () => {
+    const t = emailTemplates.complaintNotification(base);
+    // Tidak boleh ada "?highlight=" saat id tidak disediakan
+    expect(t.html).not.toContain("?highlight=");
+  });
 });
 
 describe("emailTemplates.contactNotification", () => {

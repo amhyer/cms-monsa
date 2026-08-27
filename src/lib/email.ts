@@ -80,6 +80,7 @@ export const emailTemplates = {
   }),
 
   complaintNotification: (data: {
+    id?: string;
     name: string;
     subject: string;
     message: string;
@@ -89,6 +90,9 @@ export const emailTemplates = {
     phone?: string | null;
     priority?: string;
   }) => {
+    const detailUrl = data.id
+      ? `${getSiteBaseUrl()}/dashboard/complaints?highlight=${data.id}`
+      : `${getSiteBaseUrl()}/dashboard/complaints`;
     const priorityLabel = data.priority === "TINGGI" ? "🔴 TINGGI" : "🟡 NORMAL";
     const contactRows = [
       data.email ? `<p><strong>Email:</strong> ${escapeHtml(data.email)}</p>` : "",
@@ -112,15 +116,15 @@ export const emailTemplates = {
         <hr style="border: 1px solid #e5e7eb;" />
         <p style="text-align: center; margin: 16px 0;">
           <a
-            href="${getSiteBaseUrl()}/dashboard/complaints"
+            href="${detailUrl}"
             style="display: inline-block; background: #1e40af; color: #ffffff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: bold;"
           >
             Balas di Dashboard
           </a>
         </p>
         <p style="text-align: center; color: #6b7280; font-size: 12px;">
-          <a href="${getSiteBaseUrl()}/dashboard/complaints">
-            ${getSiteBaseUrl()}/dashboard/complaints
+          <a href="${detailUrl}">
+            ${detailUrl}
           </a>
         </p>
         <p style="color: #6b7280; font-size: 12px;">
@@ -143,6 +147,44 @@ export const emailTemplates = {
         <hr style="border: 1px solid #e5e7eb;" />
         <p style="color: #6b7280; font-size: 12px;">
           Email ini dikirim otomatis dari CMS UPT SPF SD Negeri Unggulan Mongisidi 1
+        </p>
+      </div>
+    `,
+  }),
+
+  /**
+   * Email balasan otomatis ke pelapor saat admin menanggapi pengaduan
+   * dari dashboard. Hanya dikirim untuk pengaduan non-anonim.
+   */
+  complaintReply: (data: {
+    name: string;
+    subject: string;
+    response: string;
+    /** Status terkini pengaduan */
+    status?: string;
+  }) => ({
+    subject: `Re: Pengaduan — ${escapeHtml(data.subject)}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1e40af;">Tanggapan atas Pengaduan Anda</h2>
+        <p>Yth. ${escapeHtml(data.name)},</p>
+        <p>
+          Terima kasih telah menyampaikan pengaduan kepada kami.
+          Berikut adalah tanggapan dari sekolah:
+        </p>
+        <div style="background: #f0fdf4; border-left: 4px solid #16a34a; padding: 12px 16px; margin: 16px 0; border-radius: 0 6px 6px 0;">
+          <p style="margin: 0; white-space: pre-wrap;">${escapeHtml(data.response)}</p>
+        </div>
+        ${data.status ? `<p><strong>Status:</strong> ${escapeHtml(data.status)}</p>` : ""}
+        <p>
+          Jika Anda memiliki pertanyaan lebih lanjut, silakan hubungi kami
+          melalui formulir kontak di website atau email ini.
+        </p>
+        <hr style="border: 1px solid #e5e7eb;" />
+        <p style="color: #6b7280; font-size: 12px;">
+          UPT SPF SD Negeri Unggulan Mongisidi 1<br />
+          Jln. Wr. Monginsidi No.13, Maricaya Baru, Makassar<br />
+          Telp: 0411-8918116
         </p>
       </div>
     `,

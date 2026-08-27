@@ -24,6 +24,10 @@
 #   3. Gate penuh: bun run check (typecheck · lint · markdownlint ·
 #      schema-sync · vitest).
 #
+# Di CI (GITHUB_ACTIONS=true) guard 1/3/4 memindai working tree ter-track
+# (git ls-files) alih-alih index — menangkap file terlarang yang lolos
+# lewat `git commit --no-verify` lalu di-push (lihat hooks-gate.yml).
+#
 # Pemasangan (sekali per clone):
 #   bun run hooks:install   # atau: git config core.hooksPath .githooks
 #

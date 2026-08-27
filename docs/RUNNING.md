@@ -237,8 +237,11 @@ step menampilkan mode gate yang dipakai (`gate: full` / `gate: quick`).
    `gate_mode: quick` menjadi `-- --quick --json`) — gate identik dengan
    pre-commit lokal (guard repo + warm-up non-blocking + `bun run check`:
    typecheck · lint · markdownlint · schema-sync · vitest; mode `quick`
-   hanya guard + lint). Di CI, guard 1 & 2 lewat (tidak ada staging di
-   index git) dan warm-up dilewati (`--if-up`, tanpa server).
+   hanya guard + lint). Di CI, guard env/cookie/lockfile memindai working
+   tree ter-track (`git ls-files`) alih-alih index git — menangkap file
+   terlarang yang lolos lewat `git commit --no-verify` lalu di-push;
+   guard penghapusan file kritikal tetap index-only; warm-up dilewati
+   (`--if-up`, tanpa server).
 3. **Step summary** dirender dari JSON (`hooks-check.json`): heading ✅/❌,
    `mode`/`ok`/`blocked`, guard violations, hasil check — tetap tertulis
    walau gate GAGAL (summary tampil juga untuk step merah). Exit code asli

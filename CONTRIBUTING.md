@@ -50,6 +50,12 @@ Gagal seketika sebelum validasi kode:
 
 Blokir = commit ditolak dengan pesan jelas.
 
+Di **CI** (`GITHUB_ACTIONS=true`, job `hooks-gate`), guard env/cookie/
+lockfile beralih memindai **working tree ter-track** (`git ls-files`)
+alih-alih index git — jadi file terlarang yang lolos lewat
+`git commit --no-verify` lokal tetap tertangkap saat di-push (PR/push ke
+main). Guard 2 (file kritikal dihapus) tetap index-only.
+
 ### Pre-push
 
 Default: `--quick` (guard + lint seluruh repo); push tag dilewati. Mode via

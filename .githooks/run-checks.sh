@@ -21,6 +21,12 @@
 # ter-commit. Di dry-run (`bun run hooks:check`) index adalah "yang akan
 # ter-commit bila commit sekarang", jadi hasilnya sama persis.
 #
+# Di CI (GITHUB_ACTIONS=true) tidak ada staging — checkout fresh. Guard
+# 1/3/4 (env/cookie/lockfile) beralih memindai WORKING TREE ter-track
+# (git ls-files) agar bypass lokal `git commit --no-verify` yang lolos
+# tetap tertangkap saat push/PR (lihat hooks-gate.yml). Guard 2 tetap
+# index-only: file kritikal dihapus dari index = file terhapus di commit.
+#
 # Mode ringan (lewati gate penuh yang lambat — tsc/vitest/dll):
 #   bun run hooks:check -- --staged   → guard + lint HANYA file ter-stage
 #   bun run hooks:check -- --quick    → guard + lint seluruh repo
@@ -173,9 +179,20 @@ print_file_list() {
 GUARD_VIOLATIONS=()
 LINT_FILES=()
 
+# --- Sumber daftar file yang diperiksa guard 1/3/4 ---
+# Lokal: INDEX (git diff --cached) — isi yang akan ter-commit.
+# CI (GITHUB_ACTIONS=true): WORKING TREE ter-track (git ls-files) —
+# menangkap file yang lolos lewat git commit --no-verify lalu di-push.
+if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
+  GUARD_SCOPE_FILES="$(git ls-files || true)"
+else
+  GUARD_SCOPE_FILES="$(git diff --cached --name-only || true)"
+fi
+
 # --- Guard 1: file .db / .env ter-stage? --------------------------------
 # .env.example adalah satu-satunya file .env* yang sah untuk di-commit.
-FORBIDDEN="$(git diff --cached --name-only | awk '
+FORBIDDEN="$(printf '%s\n' "$GUARD_SCOPE_FILES" | awk '
+  /\.env\.example$/ { next }
   /\.db(-journal)?$/ { print; next }
   {
     base = $0
@@ -224,7 +241,7 @@ done
 #       (domain\tflag\tpath\tsecure\texpiry\tname\tvalue). Header teks
 #       "Netscape HTTP Cookie File" SAJA tidak dihitung — dokumen/kode
 #       legitimate bisa menyebutnya (contoh nyata: file ini sendiri).
-COOKIE_JARS="$(git diff --cached --name-only | awk '
+COOKIE_JARS="$(printf '%s\n' "$GUARD_SCOPE_FILES" | awk '
 {
   n = $0
   sub(/^.*\//, "", n)
@@ -243,8 +260,8 @@ while IFS= read -r f; do
   ' "$f" 2>/dev/null; then
     COOKIE_JARS+="$(printf '\n%s' "$f")"
   fi
-done < <(git diff --cached --name-only --diff-filter=ACMR)
-# Dedup: file bisa kena deteksi nama SEKALIGUS sniff isi.
+done < <(printf '%s\n' "$GUARD_SCOPE_FILES" | sed '/^$/d')
+# Dedup: file bisa kena deteksi nama SEKALIGUS sniffing isi.
 COOKIE_JARS="$(printf '%s\n' "$COOKIE_JARS" | sed '/^$/d' | awk '!seen[$0]++')"
 
 if [[ -n "$COOKIE_JARS" ]]; then
@@ -265,7 +282,7 @@ fi
 # masuk staging = dua sumber kebenaran dependency yang bisa saling beda
 # (package-lock.json pernah tertinggal di disk sementara isinya tidak
 # sinkron dengan bun.lock).
-FOREIGN_LOCKS="$(git diff --cached --name-only | awk '
+FOREIGN_LOCKS="$(printf '%s\n' "$GUARD_SCOPE_FILES" | awk '
 {
   n = $0
   sub(/^.*\//, "", n)

@@ -277,7 +277,15 @@ Gate berjalan berurutan dalam tiga lapis:
      tidak sengaja (lihat [REPO_HEALTH_AUDIT.md](docs/REPO_HEALTH_AUDIT.md) C.9).
    - **Penghapusan [src/app/api/upload/route.ts](src/app/api/upload/route.ts) /
      [src/proxy.ts](src/proxy.ts)** — file kritikal yang wajib selalu ada.
+
+   Di **CI** (`GITHUB_ACTIONS=true`, job `hooks-gate`), guard
+   env/cookie/lockfile beralih memindai **working tree ter-track**
+   (`git ls-files`) alih-alih index git — file terlarang yang lolos lewat
+   `git commit --no-verify` lokal tetap tertangkap saat di-push (PR/push
+   ke main). Guard penghapusan file kritikal tetap index-only.
 2. **Warm-up rute dev server** (non-blocking) — bila dev server sedang
+   berjalan, rute utama di-panaskan agar test:e2e setelahnya tidak kena stall
+   cold-compile Turbopack; server mati → dilewati (`--if-up`).
    berjalan, rute utama di-panaskan agar test:e2e setelahnya tidak kena stall
    cold-compile Turbopack; server mati → dilewati (`--if-up`).
 3. **`bun run check`** — typecheck + lint + lint:md + check:schema + test.

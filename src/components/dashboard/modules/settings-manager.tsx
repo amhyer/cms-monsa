@@ -15,6 +15,10 @@ import {
   Megaphone,
   Mail,
   Send,
+  MessageCircle,
+  Smartphone,
+  CircleCheck,
+  CircleX,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -70,6 +74,20 @@ export function SettingsManager() {
   const [testResult, setTestResult] = useState<string | null>(null);
   const [testError, setTestError] = useState<string | null>(null);
   const [testRecipient, setTestRecipient] = useState("");
+  const [testingWhatsApp, setTestingWhatsApp] = useState(false);
+  const [waResult, setWaResult] = useState<string | null>(null);
+  const [waError, setWaError] = useState<string | null>(null);
+  const [waPhone, setWaPhone] = useState("");
+  const [testingTelegram, setTestingTelegram] = useState(false);
+  const [tgResult, setTgResult] = useState<string | null>(null);
+  const [tgError, setTgError] = useState<string | null>(null);
+  const [tgChatId, setTgChatId] = useState("");
+  const [smtpStatus, setSmtpStatus] = useState<{
+    configured: boolean;
+    host: string;
+    port: number;
+    userPreview: string | null;
+  } | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -108,6 +126,29 @@ export function SettingsManager() {
         toast.error("Gagal memuat pengaturan.");
       } finally {
         if (alive) setLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // Fetch SMTP status (independent dari site-settings)
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/notifications/smtp-status");
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          configured: boolean;
+          host: string;
+          port: number;
+          userPreview: string | null;
+        };
+        if (alive) setSmtpStatus(data);
+      } catch {
+        // silent — status bersifat informatif
       }
     })();
     return () => {
@@ -171,6 +212,62 @@ export function SettingsManager() {
       toast.error(msg);
     } finally {
       setTestingEmail(false);
+    }
+  }
+
+  async function handleWhatsAppTest() {
+    setTestingWhatsApp(true);
+    setWaResult(null);
+    setWaError(null);
+    try {
+      const res = await fetch("/api/notifications/test-whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: waPhone.trim() || undefined,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Gagal mengirim WhatsApp uji");
+      }
+      setWaResult(json.message);
+      toast.success(json.message);
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "Gagal mengirim WhatsApp uji";
+      setWaError(msg);
+      toast.error(msg);
+    } finally {
+      setTestingWhatsApp(false);
+    }
+  }
+
+  async function handleTelegramTest() {
+    setTestingTelegram(true);
+    setTgResult(null);
+    setTgError(null);
+    try {
+      const res = await fetch("/api/notifications/test-telegram", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chatId: tgChatId.trim() || undefined,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Gagal mengirim Telegram uji");
+      }
+      setTgResult(json.message);
+      toast.success(json.message);
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "Gagal mengirim Telegram uji";
+      setTgError(msg);
+      toast.error(msg);
+    } finally {
+      setTestingTelegram(false);
     }
   }
 
@@ -479,6 +576,116 @@ export function SettingsManager() {
         </CardContent>
       </Card>
 
+      {/* Notifikasi WhatsApp — uji kirim Fonnte tanpa membuat pengaduan */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Smartphone className="size-4 text-gold-foreground" /> Notifikasi
+            WhatsApp
+          </CardTitle>
+          <CardDescription>
+            Verifikasi konfigurasi Fonnte dengan mengirim WhatsApp uji — tidak
+            perlu membuat pengaduan sungguhan.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-2">
+            <Label htmlFor="s-test-wa-phone">Nomor HP Penerima (opsional)</Label>
+            <Input
+              id="s-test-wa-phone"
+              type="tel"
+              value={waPhone}
+              onChange={(e) => setWaPhone(e.target.value)}
+              placeholder="08xxxxxxxxxx atau 628xxxxxxxxxx"
+            />
+            <p className="text-xs text-muted-foreground">
+              Jika dikosongkan, WhatsApp dikirim ke{}
+              <code>ADMIN_PHONE</code>.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleWhatsAppTest}
+              disabled={testingWhatsApp}
+            >
+              {testingWhatsApp ? (
+                <Loader2 className="mr-1 size-3 animate-spin" />
+              ) : (
+                <Send className="mr-1 size-3" />
+              )}
+              Uji Kirim WhatsApp
+            </Button>
+            {waResult && (
+              <span className="text-xs font-medium text-emerald-600">
+                {waResult}
+              </span>
+            )}
+            {waError && (
+              <span className="text-xs font-medium text-destructive">
+                {waError}
+              </span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Notifikasi Telegram — uji kirim Bot API tanpa membuat pengaduan */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <MessageCircle className="size-4 text-gold-foreground" /> Notifikasi
+            Telegram
+          </CardTitle>
+          <CardDescription>
+            Verifikasi konfigurasi Telegram Bot API dengan mengirim pesan uji —
+            tidak perlu membuat pengaduan sungguhan.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-2">
+            <Label htmlFor="s-test-tg-chat">Chat ID (opsional)</Label>
+            <Input
+              id="s-test-tg-chat"
+              type="text"
+              value={tgChatId}
+              onChange={(e) => setTgChatId(e.target.value)}
+              placeholder="-100xxxxxxxxxx atau 123456789"
+            />
+            <p className="text-xs text-muted-foreground">
+              Jika dikosongkan, pesan dikirim ke{}
+              <code>TELEGRAM_CHAT_ID</code>.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleTelegramTest}
+              disabled={testingTelegram}
+            >
+              {testingTelegram ? (
+                <Loader2 className="mr-1 size-3 animate-spin" />
+              ) : (
+                <Send className="mr-1 size-3" />
+              )}
+              Uji Kirim Telegram
+            </Button>
+            {tgResult && (
+              <span className="text-xs font-medium text-emerald-600">
+                {tgResult}
+              </span>
+            )}
+            {tgError && (
+              <span className="text-xs font-medium text-destructive">
+                {tgError}
+              </span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Notifikasi Email — uji kirim SMTP tanpa membuat pengaduan */}
       <Card>
         <CardHeader>
@@ -491,6 +698,35 @@ export function SettingsManager() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
+          {/* Status konfigurasi SMTP */}
+          {smtpStatus && (
+            <div
+              className={`flex items-center gap-2 rounded-md border px-3 py-2 text-xs ${
+                smtpStatus.configured
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                  : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
+              }`}
+            >
+              {smtpStatus.configured ? (
+                <CircleCheck className="size-3.5 shrink-0" />
+              ) : (
+                <CircleX className="size-3.5 shrink-0" />
+              )}
+              <span className="font-medium">
+                {smtpStatus.configured ? "Terkonfigurasi" : "Belum dikonfigurasi"}
+              </span>
+              <span className="text-muted-foreground">·</span>
+              <span>
+                <code>{smtpStatus.host}</code>:{smtpStatus.port}
+              </span>
+              {smtpStatus.userPreview && (
+                <>
+                  <span className="text-muted-foreground">·</span>
+                  <span>{smtpStatus.userPreview}</span>
+                </>
+              )}
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="s-test-recipient">Email Penerima (opsional)</Label>
             <Input

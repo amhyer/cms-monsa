@@ -110,3 +110,5 @@ prompt
 # .freebuff/ dari scan watcher sehingga DB terkunci & log yang terus bertambah tidak
 # lagi memicu rescan yang mengkorupsi kompilasi CSS (lihat .freebuff/run.md "Gotcha").
 /.freebuff/
+
+.vercel

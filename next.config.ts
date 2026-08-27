@@ -65,6 +65,10 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   // Standalone hanya untuk self-host; nonaktif saat di Vercel.
   output: isVercel ? undefined : "standalone",
+  // jsdom (dependency isomorphic-dompurify) uses ESM-only sub-dependencies
+  // that Turbopack cannot bundle via require(). Mark as server-external so
+  // Node.js loads them natively at runtime instead of bundling.
+  serverExternalPackages: ["jsdom", "isomorphic-dompurify"],
   // distDir dapat diganti lewat env (mis. preview paralel di port lain tanpa
   // bentrok dengan dev server utama yang memegang lock .next). Default .next.
   distDir: process.env.NEXT_DIST_DIR ?? ".next",

@@ -199,18 +199,29 @@ export async function notifyComplaintToAdmin(
     );
   }
 
-  // Notifikasi khusus prioritas TINGGI: pesan ringkas ke chat Telegram
+  // Notifikasi khusus prioritas TINGGI: pesan ringkas ke Telegram DAN WhatsApp
   // admin dengan kontak pelapor, agar bisa ditindaklanjuti segera (real-time).
   if (data.priority === "TINGGI") {
+    const priorityMsg = buildPriorityComplaintMessage(data);
+    // Telegram (format Markdown)
     try {
-      await sendTelegram(buildPriorityComplaintMessage(data), {
-        timeoutMs: 10_000,
-      });
+      await sendTelegram(priorityMsg, { timeoutMs: 10_000 });
     } catch (e) {
       logger.warn(
         { err: e },
         "[notifications] Telegram priority complaint alert error"
       );
+    }
+    // WhatsApp (pesan yang sama — bold *text* juga didukung WhatsApp)
+    if (adminPhone) {
+      try {
+        await sendWhatsApp(adminPhone, priorityMsg, { timeoutMs: 10_000 });
+      } catch (e) {
+        logger.warn(
+          { err: e },
+          "[notifications] WhatsApp priority complaint alert error"
+        );
+      }
     }
   }
 }

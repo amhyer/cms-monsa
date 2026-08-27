@@ -14,6 +14,14 @@ function avatar(n: number) {
 async function main() {
   console.log("🌱 Seeding UPT SPF SD Negeri Unggulan Mongisidi 1...");
 
+  // Password dari env var — fallback ke nilai default HANYA untuk dev.
+  // Di production, set variabel ini via env Vercel/Docker.
+  const SEED_ADMIN_PASS = process.env.SEED_ADMIN_PASSWORD || "admin123";
+  const SEED_OPERATOR_PASS = process.env.SEED_OPERATOR_PASSWORD || "operator123";
+  const SEED_GURU_PASS = process.env.SEED_GURU_PASSWORD || "guru123";
+  const SEED_ORTU_PASS = process.env.SEED_ORTU_PASSWORD || "ortu123";
+  const SEED_SISWA_PASS = process.env.SEED_SISWA_PASSWORD || "siswa123";
+
   // Guard: jangan pernah menimpa database yang sudah berisi data.
   // Seed hanya boleh dijalankan sekali di database kosong (fresh install).
   const existingUsers = await db.user.count();
@@ -50,7 +58,7 @@ async function main() {
     data: {
       name: "Nawawi Hamzah, S.Pd., M.Pd.",
       email: "admin@mongisidi1.sch.id",
-      password: hashPassword("admin123"),
+      password: hashPassword(SEED_ADMIN_PASS),
       role: "SUPER_ADMIN",
       isActive: true,
       mustChangePassword: false,
@@ -61,7 +69,7 @@ async function main() {
     data: {
       name: "Siti Aminah, S.Pd.",
       email: "operator@mongisidi1.sch.id",
-      password: hashPassword("operator123"),
+      password: hashPassword(SEED_OPERATOR_PASS),
       role: "OPERATOR",
       isActive: true,
       mustChangePassword: false,
@@ -72,7 +80,7 @@ async function main() {
     data: {
       name: "Muhammad Yusuf, S.Pd.",
       email: "yusuf@mongisidi1.sch.id",
-      password: hashPassword("operator123"),
+      password: hashPassword(SEED_OPERATOR_PASS),
       role: "OPERATOR",
       isActive: true,
       mustChangePassword: false,
@@ -85,7 +93,7 @@ async function main() {
     data: {
       name: "Andi Mappangara, S.Pd.",
       email: "guru@mongisidi1.sch.id",
-      password: hashPassword("guru123"),
+      password: hashPassword(SEED_GURU_PASS),
       role: "GURU",
       guardianClassId: null,
       isActive: true,
@@ -97,7 +105,7 @@ async function main() {
     data: {
       name: "Fatimah Zahra, S.Pd.",
       email: "fatimah@mongisidi1.sch.id",
-      password: hashPassword("operator123"),
+      password: hashPassword(SEED_OPERATOR_PASS),
       role: "OPERATOR",
       isActive: false,
       mustChangePassword: true,
@@ -435,7 +443,7 @@ async function main() {
     data: {
       name: "Orang tua Aisyah Putri Ramadhani",
       email: "ortu.aisyah@mongisidi1.sch.id",
-      password: hashPassword("ortu123"),
+      password: hashPassword(SEED_ORTU_PASS),
       role: "ORANG_TUA",
       isActive: true,
       guardianStudentId: studentIds["2627078144"] ?? null,
@@ -445,7 +453,7 @@ async function main() {
     data: {
       name: "Bima Arya Saputra",
       email: "bima.siswa@mongisidi1.sch.id",
-      password: hashPassword("siswa123"),
+      password: hashPassword(SEED_SISWA_PASS),
       role: "SISWA",
       isActive: true,
       studentId: studentIds["2627076274"] ?? null,
@@ -717,9 +725,9 @@ async function main() {
   console.log(`   📅 Jadwal pelajaran: ${scheduleCount} jadwal (${allClasses.length} kelas × 7 jam × 5 hari)`);
 
   console.log("✅ Seed selesai!");
-  console.log("   Login Admin   : admin@mongisidi1.sch.id / admin123");
-  console.log("   Login Operator: operator@mongisidi1.sch.id / operator123");
-  console.log("   Login Guru    : guru@mongisidi1.sch.id / guru123 (isi wali kelas via dashboard)");
+  console.log("   Login Admin   : admin@mongisidi1.sch.id / <SEED_ADMIN_PASSWORD>");
+  console.log("   Login Operator: operator@mongisidi1.sch.id / <SEED_OPERATOR_PASSWORD>");
+  console.log("   Login Guru    : guru@mongisidi1.sch.id / <SEED_GURU_PASSWORD> (isi wali kelas via dashboard)");
 }
 
 main()

@@ -91,6 +91,26 @@ describe("notifyComplaintToAdmin — prioritas TINGGI", () => {
     expect(alert).toContain("081234567890");
   });
 
+  it("mengirim alert TINGGI juga ke WhatsApp jika ADMIN_PHONE di-set", async () => {
+    fetchMock.mockResolvedValue(telegramOk());
+    process.env.ADMIN_PHONE = "6281234567890";
+
+    const { sendWhatsApp } = await import("@/lib/whatsapp");
+    vi.mocked(sendWhatsApp).mockClear();
+    vi.mocked(sendWhatsApp).mockResolvedValue({ ok: true });
+
+    await notifyComplaintToAdmin(base);
+
+    // WhatsApp: 1 pesan standar + 1 alert TINGGI
+    expect(sendWhatsApp).toHaveBeenCalledTimes(2);
+    const waCalls = vi.mocked(sendWhatsApp).mock.calls;
+    const alertWa = waCalls.find((c) =>
+      typeof c[1] === "string" && c[1].includes("PRIORITAS TINGGI")
+    );
+    expect(alertWa).toBeDefined();
+    expect(alertWa![1]).toContain("budi@contoh.id");
+  });
+
   it("prioritas NORMAL hanya mengirim satu pesan Telegram (tanpa alert)", async () => {
     fetchMock.mockResolvedValue(telegramOk());
 

@@ -36,7 +36,11 @@ function getSessionSecret(): string {
   return secret;
 }
 
-const SESSION_SECRET = getSessionSecret();
+let _sessionSecret: string | null = null;
+function getSessionSecretLazy(): string {
+  if (!_sessionSecret) _sessionSecret = getSessionSecret();
+  return _sessionSecret;
+}
 
 type SessionPayload = {
   userId: string;
@@ -54,7 +58,7 @@ function b64decode(s: string): string {
 }
 
 function sign(data: string): string {
-  return createHmac("sha256", SESSION_SECRET).update(data).digest("hex");
+  return createHmac("sha256", getSessionSecretLazy()).update(data).digest("hex");
 }
 
 /** Encode payload to a signed token: "base64(payload).hmac". */

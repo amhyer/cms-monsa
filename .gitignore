@@ -112,3 +112,4 @@ prompt
 /.freebuff/
 
 .vercel
+.env*

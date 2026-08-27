@@ -1,38 +1,24 @@
 /**
  * HTML sanitizer for user-supplied rich-text content (news articles).
  *
- * Uses DOMPurify via isomorphic-dompurify — the industry-standard XSS
- * sanitizer — which runs the same trusted DOM-parsing logic on the server
- * (jsdom) and in the browser (the package's "browser" export keeps jsdom
- * out of client bundles).
+ * Uses sanitize-html — a pure-CommonJS sanitizer that does NOT depend on
+ * jsdom. Previous implementation used isomorphic-dompurify (DOMPurify +
+ * jsdom) but jsdom's dependency chain (html-encoding-sniffer →
+ * @exodus/bytes/encoding-lite) uses require() to load an ESM-only module,
+ * breaking on Vercel's Node.js 24 runtime.
  *
- * This replaces the previous homemade sanitizer whose regex fallback could
- * be bypassed (nested/obfuscated tags, entity-encoded `javascript:`, SVG,
- * etc.). The weak regex path has been removed entirely. See
- * docs/SECURITY_AUDIT.md finding C1.
- *
- * Security model (kept from the previous implementation):
+ * Security model:
  * - Conservative allow-list of tags; strip everything else.
- * - Per-tag attribute allow-list (enforced via DOMPurify hook, since
- *   DOMPurify's ALLOWED_ATTR is global).
- * - Drop event handlers and unsafe URLs (javascript:, data:, vbscript:, …).
- * - Only safe inline CSS declarations survive on `style`.
- * - Force `rel="noopener noreferrer"` on `target="_blank"` links.
+ * - Per-tag attribute allow-list.
+ * - Drop event handlers and unsafe URLs (javascript:, data:, vbscript:).
+ * - Force rel="noopener noreferrer" on target="_blank" links.
+ *
+ * See docs/SECURITY_AUDIT.md finding C1 for history.
  */
 
-import type { Config, UponSanitizeAttributeHook } from "isomorphic-dompurify";
+import sanitize from "sanitize-html";
 
-// Lazy-load DOMPurify to avoid jsdom ESM incompatibility with Turbopack.
-// The module is only loaded on first call to sanitizeHtml(), never at import time.
-let _dompurify: typeof import("isomorphic-dompurify")["default"] | null = null;
-function getDOMPurify(): NonNullable<typeof _dompurify> {
-  if (!_dompurify) {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    _dompurify = require("isomorphic-dompurify").default;
-  }
-  return _dompurify!;
-}
-
+/** Tags allowed in sanitized content. */
 const ALLOWED_TAGS = [
   "p", "br", "hr", "strong", "b", "em", "i", "u", "s", "strike",
   "h2", "h3", "h4", "h5", "h6",
@@ -43,81 +29,15 @@ const ALLOWED_TAGS = [
   "table", "thead", "tbody", "tr", "th", "td",
 ];
 
-/** Per-tag attribute allow-list — an attribute is only kept on its own tag. */
-const ALLOWED_ATTRS: Record<string, ReadonlySet<string>> = {
-  a: new Set(["href", "title", "target"]),
-  img: new Set(["src", "alt", "title", "width", "height"]),
-  span: new Set(["style"]),
-  div: new Set(["style"]),
-  td: new Set(["colspan", "rowspan"]),
-  th: new Set(["colspan", "rowspan"]),
+/** Per-tag attribute allow-list. */
+const ALLOWED_ATTRIBUTES: Record<string, string[]> = {
+  a: ["href", "title", "target", "rel"],
+  img: ["src", "alt", "title", "width", "height"],
+  span: ["style"],
+  div: ["style"],
+  td: ["colspan", "rowspan"],
+  th: ["colspan", "rowspan"],
 };
-
-const ALL_ALLOWED_ATTRS = [
-  ...new Set(Object.values(ALLOWED_ATTRS).flatMap((s) => [...s])),
-];
-
-// Allow only safe inline styles (text alignment, basic spacing).
-const SAFE_STYLE =
-  /^(text-align|padding|margin|font-weight|font-style|color|background-color)\s*:/i;
-
-// Block javascript:/data:/vbscript: etc.; allow http(s), mailto, tel, ftp,
-// file, sms, relative URLs, and values without a scheme separator.
-const SAFE_URI_REGEXP =
-  /^(?:(?:https?|mailto|ftp|tel|file|sms):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i;
-
-const SANITIZE_CONFIG: Config = {
-  ALLOWED_TAGS,
-  ALLOWED_ATTR: ALL_ALLOWED_ATTRS,
-  ALLOW_DATA_ATTR: false,
-  ALLOW_ARIA_ATTR: false,
-  ALLOWED_URI_REGEXP: SAFE_URI_REGEXP,
-};
-
-/**
- * Enforce the per-tag attribute allow-list and filter inline styles to the
- * safe CSS allow-list. DOMPurify removes event handlers and unsafe URLs
- * itself; this hook additionally enforces our per-tag policy.
- */
-const uponSanitizeAttribute: UponSanitizeAttributeHook = (node, data) => {
-  const tag = (node.tagName ?? "").toLowerCase();
-  const allowed = ALLOWED_ATTRS[tag];
-  if (!allowed || !allowed.has(data.attrName)) {
-    data.keepAttr = false;
-    return;
-  }
-  if (data.attrName === "style") {
-    const safe = data.attrValue
-      .split(";")
-      .map((d) => d.trim())
-      .filter((d) => d && SAFE_STYLE.test(d))
-      .join("; ");
-    if (safe) data.attrValue = safe;
-    else data.keepAttr = false;
-    return;
-  }
-  if (data.attrName === "target" && data.attrValue !== "_blank") {
-    data.keepAttr = false;
-  }
-};
-
-/** Force rel="noopener noreferrer" on any link that opens in a new tab. */
-const afterSanitizeAttributes = (node: Element) => {
-  if (
-    (node.tagName ?? "").toLowerCase() === "a" &&
-    node.getAttribute("target") === "_blank"
-  ) {
-    node.setAttribute("rel", "noopener noreferrer");
-  }
-};
-
-let _hooksRegistered = false;
-function ensureHooks() {
-  if (_hooksRegistered) return;
-  _hooksRegistered = true;
-  getDOMPurify().addHook("uponSanitizeAttribute", uponSanitizeAttribute);
-  getDOMPurify().addHook("afterSanitizeAttributes", afterSanitizeAttributes);
-}
 
 /**
  * Sanitize an HTML string, stripping disallowed tags, attributes, event
@@ -125,6 +45,37 @@ function ensureHooks() {
  */
 export function sanitizeHtml(html: string): string {
   if (!html) return "";
-  ensureHooks();
-  return getDOMPurify().sanitize(html, SANITIZE_CONFIG);
+  return sanitize(html, {
+    allowedTags: ALLOWED_TAGS,
+    allowedAttributes: ALLOWED_ATTRIBUTES,
+    allowedSchemes: ["http", "https", "mailto", "ftp", "tel", "file", "sms"],
+    // Force rel="noopener noreferrer" on all links with target="_blank"
+    transformTags: {
+      a: (tagName, attribs) => {
+        const attrs = { ...attribs };
+        // Only allow target="_blank"; strip all other target values
+        if (attrs.target && attrs.target !== "_blank") {
+          delete attrs.target;
+        }
+        if (attrs.target === "_blank") {
+          attrs.rel = "noopener noreferrer";
+        }
+        return { tagName, attribs: attrs };
+      },
+    },
+    // Strip style values that aren't in our safe list
+    allowedStyles: {
+      "*": {
+        "text-align": [/^(left|right|center|justify)$/],
+        "padding": [/.*/],
+        "margin": [/.*/],
+        "font-weight": [/.*/],
+        "font-style": [/.*/],
+        "color": [/.*/],
+        "background-color": [/.*/],
+      },
+    },
+    // Disallow all classes and IDs
+    allowedClasses: {},
+  });
 }

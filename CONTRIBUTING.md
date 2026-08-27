@@ -46,12 +46,14 @@ Gagal seketika sebelum validasi kode:
 - Lockfile selain `bun.lock` ter-stage (`package-lock.json`, `yarn.lock`,
   `pnpm-lock.yaml`, `bun.lockb`, `npm-shrinkwrap.json`) — lockfile kanonik
   hanya `bun.lock` agar tidak ada dua sumber kebenaran dependency.
+- File berukuran raksasa (>100 MB) ter-stage — mencegah arsip/backup/biner
+  memperbesar repo secara permanen. Gunakan Git LFS atau `.gitignore`.
 - `src/app/api/upload/route.ts` / `src/proxy.ts` dihapus.
 
 Blokir = commit ditolak dengan pesan jelas.
 
 Di **CI** (`GITHUB_ACTIONS=true`, job `hooks-gate`), guard env/cookie/
-lockfile beralih memindai **working tree ter-track** (`git ls-files`)
+lockfile/oversize beralih memindai **working tree ter-track** (`git ls-files`)
 alih-alih index git — jadi file terlarang yang lolos lewat
 `git commit --no-verify` lokal tetap tertangkap saat di-push (PR/push ke
 main). Guard 2 (file kritikal dihapus) tetap index-only.

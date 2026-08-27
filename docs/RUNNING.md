@@ -237,7 +237,7 @@ step menampilkan mode gate yang dipakai (`gate: full` / `gate: quick`).
    `gate_mode: quick` menjadi `-- --quick --json`) — gate identik dengan
    pre-commit lokal (guard repo + warm-up non-blocking + `bun run check`:
    typecheck · lint · markdownlint · schema-sync · vitest; mode `quick`
-   hanya guard + lint). Di CI, guard env/cookie/lockfile memindai working
+   hanya guard + lint). Di CI, guard env/cookie/lockfile/oversize memindai working
    tree ter-track (`git ls-files`) alih-alih index git — menangkap file
    terlarang yang lolos lewat `git commit --no-verify` lalu di-push;
    guard penghapusan file kritikal tetap index-only; warm-up dilewati

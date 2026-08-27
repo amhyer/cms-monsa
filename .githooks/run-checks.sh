@@ -303,6 +303,39 @@ if [[ -n "$FOREIGN_LOCKS" ]]; then
   done <<< "$FOREIGN_LOCKS"
 fi
 
+# --- Guard 5: file berukuran raksasa (>100 MB)? -------------------------
+# Mencegah arsip/backup/biner tak sengaja masuk commit. ukuran threshold
+# 100 MB (104857600 byte) — cukup besar untuk menangkap arsip, video, ISO,
+# database dump, dsb., tapi tidak memblokir aset SVG/PNG/PDF yang wajar.
+MAX_BYTES=104857600
+OVERSIZED=""
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  [ -f "$f" ] || continue            # file terhapus tidak perlu dicek
+  size=$(wc -c < "$f" 2>/dev/null || echo 0)
+  if [ "$size" -gt "$MAX_BYTES" ]; then
+    # Format ukuran untuk pesan: byte → MB
+    mb=$((size / 1048576))
+    OVERSIZED+="$(printf '\n%s (%d MB)' "$f" "$mb")"
+  fi
+done < <(printf '%s\n' "$GUARD_SCOPE_FILES" | sed '/^$/d')
+
+if [[ -n "$OVERSIZED" ]]; then
+  if [[ "$JSON" -eq 0 ]]; then
+    echo "❌ [hooks] Perubahan DITOLAK — file berukuran raksasa (>100 MB):"
+    echo "$OVERSIZED" | sed '/^$/d; s/^/   - /'
+    echo "   File >100 MB memperbesar repo secara permanen."
+    echo "   Gunakan Git LFS:  git lfs track '<pattern>'"
+    echo "   Atau hapus dari index:  git reset HEAD <file>"
+  fi
+  while IFS= read -r line; do
+    [ -z "$line" ] && continue
+    # Ekstrak hanya path (sebelum tanda kurung ukuran)
+    fpath="${line%% (*}"
+    GUARD_VIOLATIONS+=("$fpath")
+  done <<< "$OVERSIZED"
+fi
+
 emit_result() {
   # $1 = ok (0=lulus, 1=gagal) · $2 = pesan error (opsional)
   local ok="$1"

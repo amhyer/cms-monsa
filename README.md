@@ -277,9 +277,11 @@ Gate berjalan berurutan dalam tiga lapis:
      tidak sengaja (lihat [REPO_HEALTH_AUDIT.md](docs/REPO_HEALTH_AUDIT.md) C.9).
    - **Penghapusan [src/app/api/upload/route.ts](src/app/api/upload/route.ts) /
      [src/proxy.ts](src/proxy.ts)** — file kritikal yang wajib selalu ada.
+   - **File berukuran raksasa (>100 MB) ter-stage** — mencegah arsip/
+     backup/biner memperbesar repo secara permanen. Gunakan Git LFS.
 
    Di **CI** (`GITHUB_ACTIONS=true`, job `hooks-gate`), guard
-   env/cookie/lockfile beralih memindai **working tree ter-track**
+   env/cookie/lockfile/oversize beralih memindai **working tree ter-track**
    (`git ls-files`) alih-alih index git — file terlarang yang lolos lewat
    `git commit --no-verify` lokal tetap tertangkap saat di-push (PR/push
    ke main). Guard penghapusan file kritikal tetap index-only.

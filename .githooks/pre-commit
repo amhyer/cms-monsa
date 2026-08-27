@@ -20,11 +20,14 @@
 #      - Tolak commit yang meng-stage lockfile selain bun.lock
 #        (package-lock.json / yarn.lock / pnpm-lock.yaml / bun.lockb /
 #        npm-shrinkwrap.json) — lockfile kanonik hanya bun.lock.
+#      - Tolak commit yang meng-stage file berukuran raksasa (>100 MB)
+#        — mencegah arsip/backup/biner memperbesar repo secara permanen.
+#        Rekomendasi: gunakan Git LFS atau .gitignore.
 #   2. Warm-up rute dev server (non-blocking, --if-up).
 #   3. Gate penuh: bun run check (typecheck · lint · markdownlint ·
 #      schema-sync · vitest).
 #
-# Di CI (GITHUB_ACTIONS=true) guard 1/3/4 memindai working tree ter-track
+# Di CI (GITHUB_ACTIONS=true) guard 1/3/4/5 memindai working tree ter-track
 # (git ls-files) alih-alih index — menangkap file terlarang yang lolos
 # lewat `git commit --no-verify` lalu di-push (lihat hooks-gate.yml).
 #

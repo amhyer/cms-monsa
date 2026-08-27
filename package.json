@@ -35,7 +35,7 @@
     "clean:orphans": "bunx tsx scripts/cleanup-orphan-files.ts",
     "backup:db": "powershell -ExecutionPolicy Bypass -File scripts/backup-db.ps1",
     "health:check": "bunx tsx scripts/health-check.ts",
-    "postinstall": "prisma generate"
+    "postinstall": "node -e \"const v=process.env.VERCEL==='1';process.stdout.write('prisma generate'+(v?' --schema prisma/schema.postgres.prisma':''))\" | sh"
   },
   "prisma": {
     "seed": "bunx tsx prisma/seed.ts"

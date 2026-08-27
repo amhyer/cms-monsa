@@ -20,10 +20,18 @@
  * - Force `rel="noopener noreferrer"` on `target="_blank"` links.
  */
 
-import DOMPurify, {
-  type Config,
-  type UponSanitizeAttributeHook,
-} from "isomorphic-dompurify";
+import type { Config, UponSanitizeAttributeHook } from "isomorphic-dompurify";
+
+// Lazy-load DOMPurify to avoid jsdom ESM incompatibility with Turbopack.
+// The module is only loaded on first call to sanitizeHtml(), never at import time.
+let _dompurify: typeof import("isomorphic-dompurify")["default"] | null = null;
+function getDOMPurify(): NonNullable<typeof _dompurify> {
+  if (!_dompurify) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    _dompurify = require("isomorphic-dompurify").default;
+  }
+  return _dompurify!;
+}
 
 const ALLOWED_TAGS = [
   "p", "br", "hr", "strong", "b", "em", "i", "u", "s", "strike",
@@ -103,12 +111,13 @@ const afterSanitizeAttributes = (node: Element) => {
   }
 };
 
-// Hooks are global on the DOMPurify instance. Registering them here at
-// module scope runs once per bundle (server & client have separate
-// instances). Both hooks are idempotent — even if a dev-only re-evaluation
-// stacked them, the output would be identical.
-DOMPurify.addHook("uponSanitizeAttribute", uponSanitizeAttribute);
-DOMPurify.addHook("afterSanitizeAttributes", afterSanitizeAttributes);
+let _hooksRegistered = false;
+function ensureHooks() {
+  if (_hooksRegistered) return;
+  _hooksRegistered = true;
+  getDOMPurify().addHook("uponSanitizeAttribute", uponSanitizeAttribute);
+  getDOMPurify().addHook("afterSanitizeAttributes", afterSanitizeAttributes);
+}
 
 /**
  * Sanitize an HTML string, stripping disallowed tags, attributes, event
@@ -116,5 +125,6 @@ DOMPurify.addHook("afterSanitizeAttributes", afterSanitizeAttributes);
  */
 export function sanitizeHtml(html: string): string {
   if (!html) return "";
-  return DOMPurify.sanitize(html, SANITIZE_CONFIG);
+  ensureHooks();
+  return getDOMPurify().sanitize(html, SANITIZE_CONFIG);
 }

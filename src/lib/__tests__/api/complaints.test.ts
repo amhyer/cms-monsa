@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mockPrisma, mockCookies, createMockRequest, createMockUser, asNextRequest } from "../test-utils";
 
-const mockRequireRole = vi.fn();
+const { mockRequireRole, mockNotifyComplaintToAdmin } = vi.hoisted(() => ({
+  mockRequireRole: vi.fn(),
+  mockNotifyComplaintToAdmin: vi.fn(),
+}));
 vi.mock("@/lib/auth", () => ({
   getSession: vi.fn(),
   setSession: vi.fn(),
@@ -10,6 +13,10 @@ vi.mock("@/lib/auth", () => ({
   requireRole: (...args: unknown[]) => mockRequireRole(...args),
   hasRole: vi.fn(),
   SESSION_COOKIE: "monsa_session",
+}));
+vi.mock("@/lib/notifications", () => ({
+  notifyComplaintToAdmin: (...args: unknown[]) =>
+    Promise.resolve(mockNotifyComplaintToAdmin(...args)),
 }));
 
 import { GET, POST } from "@/app/api/complaints/route";
@@ -118,6 +125,89 @@ describe("/api/complaints", () => {
       });
       const res = await POST(asNextRequest(req));
       expect(res.status).toBe(400);
+    });
+
+    it("mengirim kontak pelapor ke notifikasi (untuk alert TINGGI)", async () => {
+      mockPrisma.complaint.create.mockResolvedValue({
+        id: "new-id",
+        name: "Pelapor",
+        email: "reporter@test.com",
+        phone: "08123456789",
+        role: "Orang Tua",
+        category: "Akademik",
+        subject: "Keluhan Saya",
+        message: "Isi keluhan",
+        isAnonymous: false,
+        status: "BARU",
+        priority: "TINGGI",
+        response: null,
+        responseBy: null,
+        respondedAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const req = createMockRequest("http://localhost/api/complaints", {
+        method: "POST",
+        body: {
+          name: "Pelapor",
+          email: "reporter@test.com",
+          phone: "08123456789",
+          category: "Akademik",
+          subject: "Keluhan Saya",
+          message: "Isi keluhan",
+          priority: "TINGGI",
+        },
+      });
+      const res = await POST(asNextRequest(req));
+      expect(res.status).toBe(200);
+
+      expect(mockNotifyComplaintToAdmin).toHaveBeenCalledWith(
+        expect.objectContaining({
+          priority: "TINGGI",
+          email: "reporter@test.com",
+          phone: "08123456789",
+        })
+      );
+    });
+
+    it("tidak mengirim kontak pelapor saat anonim", async () => {
+      mockPrisma.complaint.create.mockResolvedValue({
+        id: "new-id",
+        name: "Anonim",
+        email: "-",
+        phone: "-",
+        role: "Orang Tua",
+        category: "Akademik",
+        subject: "Keluhan",
+        message: "Isi",
+        isAnonymous: true,
+        status: "BARU",
+        priority: "NORMAL",
+        response: null,
+        responseBy: null,
+        respondedAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const req = createMockRequest("http://localhost/api/complaints", {
+        method: "POST",
+        body: {
+          name: "Pelapor",
+          email: "reporter@test.com",
+          phone: "08123456789",
+          isAnonymous: true,
+          subject: "Keluhan",
+          message: "Isi",
+        },
+      });
+      const res = await POST(asNextRequest(req));
+      expect(res.status).toBe(200);
+
+      expect(mockNotifyComplaintToAdmin).toHaveBeenCalledWith(
+        expect.objectContaining({ isAnonymous: true, email: null, phone: null })
+      );
     });
   });
 });

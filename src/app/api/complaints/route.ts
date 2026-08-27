@@ -84,6 +84,9 @@ export async function POST(req: NextRequest) {
       category: category || "Akademik",
       isAnonymous,
       priority: body.priority === "TINGGI" ? "TINGGI" : "NORMAL",
+      // Kontak pelapor untuk tindak lanjut — tidak dikirim saat anonim
+      email: isAnonymous ? null : email || null,
+      phone: isAnonymous ? null : phone || null,
     }).catch(() => {}); // Never block the request
 
     return NextResponse.json({ ok: true, id: item.id });

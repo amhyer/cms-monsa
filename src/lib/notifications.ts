@@ -94,6 +94,9 @@ interface ComplaintNotificationData {
   category: string;
   isAnonymous: boolean;
   priority: string;
+  /** Kontak pelapor untuk tindak lanjut — null saat anonim */
+  email?: string | null;
+  phone?: string | null;
 }
 
 /**
@@ -118,6 +121,40 @@ function buildComplaintMessage(data: ComplaintNotificationData): string {
     `*Balas di dashboard:* ${getSiteBaseUrl()}/dashboard/complaints`,
     "",
     "— CMS MONSA",
+  ].join("\n");
+}
+
+/**
+ * Escape karakter khusus Markdown Telegram (_ * [ ] `) pada nilai dinamis
+ * (nama/kontak/subjek) agar format pesan tidak rusak — mis. underscore di
+ * email yang dibaca Telegram sebagai penanda italic.
+ */
+function mdEscape(s: string): string {
+  return s.replace(/[_*[\]`]/g, "\\$&");
+}
+
+/**
+ * Pesan ringkas khusus prioritas TINGGI untuk Telegram — memuat kontak
+ * pelapor agar admin bisa langsung menindaklanjuti tanpa membuka dashboard.
+ */
+export function buildPriorityComplaintMessage(
+  data: ComplaintNotificationData
+): string {
+  const sender = data.isAnonymous ? "Anonim" : data.name;
+  const contactLines = [
+    data.email ? `*Email:* ${mdEscape(data.email)}` : "",
+    data.phone ? `*Telepon:* ${mdEscape(data.phone)}` : "",
+  ].filter(Boolean);
+
+  return [
+    "🚨 *PENGADUAN PRIORITAS TINGGI*",
+    "",
+    `*Dari:* ${mdEscape(sender)}`,
+    `*Kategori:* ${mdEscape(data.category)}`,
+    `*Subjek:* ${mdEscape(data.subject)}`,
+    ...contactLines,
+    "",
+    `*Balas di dashboard:* ${getSiteBaseUrl()}/dashboard/complaints`,
   ].join("\n");
 }
 
@@ -159,6 +196,21 @@ export async function notifyComplaintToAdmin(
       { err: e },
       "[notifications] Telegram complaint notification error"
     );
+  }
+
+  // Notifikasi khusus prioritas TINGGI: pesan ringkas ke chat Telegram
+  // admin dengan kontak pelapor, agar bisa ditindaklanjuti segera (real-time).
+  if (data.priority === "TINGGI") {
+    try {
+      await sendTelegram(buildPriorityComplaintMessage(data), {
+        timeoutMs: 10_000,
+      });
+    } catch (e) {
+      logger.warn(
+        { err: e },
+        "[notifications] Telegram priority complaint alert error"
+      );
+    }
   }
 }
 

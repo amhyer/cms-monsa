@@ -813,3 +813,21 @@ model ScheduleEntry {
   @@index([classId, academicYear])
   @@index([teacherId])
 }
+
+// ---------- FILE UPLOAD (DB-BACKED STORAGE) ----------
+// Penyimpanan upload untuk platform dengan filesystem ephemeral (Vercel).
+// Backend aktif dipilih di src/lib/file-storage.ts:
+//   - disk (default self-host): file di public/uploads, serve sebagai static
+//   - db   (default Vercel)    : file di tabel ini, serve via /uploads/[...path]
+// Filename unik (timestamp-random) dibuat oleh route upload — sama di kedua
+// backend, sehingga URL /uploads/<filename> tidak berubah saat pindah backend.
+model UploadedFile {
+  id        String   @id @default(cuid())
+  filename  String   @unique // e.g. 1758900000000-abc123.jpg
+  mimeType  String   // image/jpeg | image/png | image/gif | image/webp | application/pdf
+  size      Int // bytes
+  data      Bytes // isi file (bytea di PostgreSQL, BLOB di SQLite)
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}

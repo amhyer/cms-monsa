@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
 import { requireAuth } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logger } from "@/lib/logger";
-import { detectImageType, IMAGE_TYPE_EXT } from "@/lib/upload";
-
-const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+import { detectImageType, IMAGE_TYPE_EXT, IMAGE_TYPE_MIME } from "@/lib/upload";
+import { saveUpload, maxUploadMb } from "@/lib/file-storage";
 
 export async function POST(req: NextRequest) {
   const csrfError = await requireCsrf(req);
@@ -26,10 +23,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate file size
+    // Validate file size — sadar-platform: di Vercel request body dibatasi
+    // 4.5 MB di level platform, jadi batas route diturunkan ke 4 MB agar
+    // penolakan terjadi dengan pesan 400 yang jelas (bukan 413 platform).
+    const maxMb = maxUploadMb(5);
+    const MAX_SIZE = maxMb * 1024 * 1024;
     if (file.size > MAX_SIZE) {
       return NextResponse.json(
-        { error: "Ukuran file maksimal 5 MB." },
+        { error: `Ukuran file maksimal ${maxMb} MB.` },
         { status: 400 }
       );
     }
@@ -54,12 +55,11 @@ export async function POST(req: NextRequest) {
     const ext = IMAGE_TYPE_EXT[detected];
     const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
-    // Save to public/uploads
-    const uploadDir = join(process.cwd(), "public", "uploads");
-    await mkdir(uploadDir, { recursive: true });
-    await writeFile(join(uploadDir, filename), Buffer.from(bytes));
+    // Simpan ke backend aktif (disk self-host / tabel UploadedFile di
+    // Vercel) — lihat src/lib/file-storage.ts.
+    const saved = await saveUpload(bytes, filename, IMAGE_TYPE_MIME[detected]);
 
-    return NextResponse.json({ url: `/uploads/${filename}` });
+    return NextResponse.json({ url: saved.url });
   } catch (e) {
     logger.error({ err: e }, "[upload] failed");
     return NextResponse.json(

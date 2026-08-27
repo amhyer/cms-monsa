@@ -39,14 +39,31 @@ download/
 *.md
 !README.md
 
-# Scripts (not needed in production)
-scripts/
+# Scripts (dev-only). KECUALI dua script yang DIPERLUKAN runtime container:
+#   - backup-db.sh      → dipakai service cron backup (docker-compose.cron.yml)
+#   - docker-entrypoint.sh → menjalankan migrasi Prisma sebelum app start
+# PENTING: pakai pola `scripts/*` + pengecualian `!`, BUKAN `scripts/`, agar
+# file yang dikecualikan tetap bisa masuk build context. Dockerfile melakukan
+# `COPY --from=builder /app/scripts ./scripts` — mengecualikan folder
+# `scripts/` seluruhnya membuat COPY itu gagal (docker build error).
+scripts/*
+!scripts/backup-db.sh
+!scripts/docker-entrypoint.sh
 e2e/
 skills/
 examples/
 mini-services/
 .zscripts
 .freebuff
+
+# Library referensi Dapodik (PHP+TS) — tidak di-import oleh aplikasi
+# (app memakai src/lib/dapodik-client.ts), tidak perlu masuk image.
+dapodik-client/
+
+# Upload user (runtime data) — jangan pernah terbawa ke dalam image hasil
+# build dari mesin developer. Di produksi uploads hidup di volume
+# (uploads_data:/app/public/uploads), bukan di layer image.
+public/uploads/
 
 # Logs
 logs/

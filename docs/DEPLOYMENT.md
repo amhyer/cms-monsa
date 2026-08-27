@@ -62,7 +62,10 @@ Migrasi kolom `allowInsecureInProduction` (tabel `DapodikConfig`):
 
 - PostgreSQL (Docker / standalone): `bun run db:migrate:prod` — migrasi
   `prisma/migrations/*_add_dapodik_allow_insecure/` ikut diterapkan. Pada
-  jalur Docker, migrasi dijalankan otomatis oleh container sebelum app start.
+  jalur Docker, migrasi dijalankan otomatis oleh entrypoint container
+  (`scripts/docker-entrypoint.sh` → `prisma migrate deploy`) sebelum app
+  start; set `RUN_MIGRATIONS=false` untuk melewatkannya (mis. bila ada
+  lebih dari satu instance app).
 - SQLite (fallback dev): `bun run db:push`.
 
 Verifikasi kolom sudah ada di DB (bukan error "kolom tidak ditemukan"):

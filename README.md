@@ -893,19 +893,52 @@ berlapis otomatis:
 
 ## Deployment
 
+> Panduan lengkap: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) ·
+> Checklist produksi: [docs/DEPLOYMENT_CHECKLIST.md](docs/DEPLOYMENT_CHECKLIST.md) ·
+> Vercel + Neon: [docs/VERCEL_DEPLOYMENT.md](docs/VERCEL_DEPLOYMENT.md)
+
 ### Development
 ```bash
 bun run dev
 ```
 
-### Production (Standalone)
+### Production — Vercel + Neon (PostgreSQL)
+
+1. Import repo ke Vercel (`vercel.json` sudah mengatur build & cron backup).
+2. Set env minimal di Vercel: `DATABASE_URL` (Neon, pooled),
+   `AUTH_SECRET`, `NEXT_PUBLIC_SITE_URL`.
+3. Push ke `main` — GitHub Action `deploy-vercel.yml` menjalankan
+   `prisma migrate deploy` + seed ke Neon otomatis (butuh repository secret
+   `DATABASE_URL`).
+
+Upload file (gambar berita/galeri + PDF transparansi BOS) otomatis disimpan
+di database (tabel `UploadedFile`) saat berjalan di Vercel — filesystem
+serverless bersifat ephemeral. Lihat `src/lib/file-storage.ts`. Catatan:
+Vercel membatasi request body 4,5 MB di level platform, sehingga batas
+upload di sana otomatis 4 MB (`MAX_UPLOAD_MB` untuk override).
+
+### Production — Docker (self-host, direkomendasikan untuk upload besar)
 
 ```bash
-# Build
-bun run build
+cp .env.example .env    # isi POSTGRES_PASSWORD & AUTH_SECRET (wajib!)
+docker compose up -d    # app + postgres; migrasi DB otomatis via entrypoint
+```
 
-# Start
-bun run start
+Upload file disimpan di named volume `uploads-data` (persist saat container
+di-recreate). Add-on:
+- SSL otomatis (Caddy/Let's Encrypt): `docker compose -f docker-compose.yml -f docker-compose.ssl.yml up -d`
+- Backup harian 02.00 WITA (pg_dump + uploads): `docker compose -f docker-compose.yml -f docker-compose.cron.yml up -d`
+- Logging (Loki/Grafana): `docker compose -f docker-compose.yml -f docker-compose.logging.yml up -d`
+
+### Production (Standalone tanpa Docker)
+
+```bash
+bun install --frozen-lockfile
+bunx prisma generate
+bun run db:migrate:prod   # prisma migrate deploy (schema.postgres.prisma)
+bun run db:seed           # sekali di DB kosong (idempotent)
+bun run build
+bun run start             # atau: node .next/standalone/server.js
 ```
 
 ### Production dengan Caddy (Reverse Proxy)

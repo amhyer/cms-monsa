@@ -133,6 +133,34 @@ Migration: the `allowInsecureInProduction` column (table `DapodikConfig`) is
 added by the migrations in **Step 1** above (`prisma migrate deploy`); no extra
 step needed. For a SQLite fallback (local dev), run `bun run db:push`.
 
+### 4. File Uploads (IMPORTANT — works out of the box on Vercel)
+
+Vercel's serverless filesystem is **ephemeral** — files written to
+`public/uploads` at runtime disappear immediately and are never served. The
+CMS handles this automatically via `src/lib/file-storage.ts`:
+
+- **On Vercel** (detected via `VERCEL=1`), uploads are stored in the
+  **database** (table `UploadedFile`, bytea on Neon PostgreSQL) and served
+  through the `/uploads/<filename>` route handler with immutable caching.
+  No extra configuration needed.
+- **Self-hosted** (Docker/VM), uploads go to disk (`public/uploads`) — on
+  Docker, make sure the `uploads-data` volume is mounted
+  (already configured in `docker-compose.yml`).
+
+Override with env `UPLOAD_STORAGE=db|disk` if needed.
+
+**Size limit caveat**: Vercel caps Serverless Function request bodies at
+**4.5 MB at the platform level** (not configurable). Upload routes
+automatically use a **4 MB limit on Vercel** (15 MB for PDFs / 5 MB for
+images on self-host) so oversized files get a clear 400 error instead of a
+platform 413. Override with env `MAX_UPLOAD_MB` (single value for all
+upload kinds). For larger PDFs, deploy self-hosted (Docker) or implement
+direct-to-storage uploads.
+
+Migration: the `UploadedFile` table is created by migration
+`20260828120000_add_uploaded_file` (applied by `prisma migrate deploy`).
+For a SQLite dev database, run `bun run db:push`.
+
 ---
 
 ## Environment Variables Reference

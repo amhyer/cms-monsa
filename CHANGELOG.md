@@ -5,6 +5,67 @@
 
 ---
 
+## [Unreleased] - 2026-08-28
+
+### 🔧 Fixed — Kesiapan Deployment (audit `docs/DEPLOYMENT_GAP_AUDIT.md`)
+
+#### Jalur Docker (self-host)
+- **`docker build` gagal** — `.dockerignore` mengecualikan `scripts/` seluruhnya
+  padahal Dockerfile men-COPY-nya; kini pola `scripts/*` + pengecualian untuk
+  `backup-db.sh` & `docker-entrypoint.sh`.
+- **`docker build` gagal (kedua)** — stage builder menjalankan `bun run build`
+  tanpa bun ter-install (bun hanya di-activate di stage deps); kini corepack
+  bun di-install juga di stage builder.
+- **Migrasi DB otomatis** — entrypoint baru `scripts/docker-entrypoint.sh`
+  menjalankan `prisma migrate deploy` sebelum server start (env `RUN_MIGRATIONS`,
+  default true). Sebelumnya klaim "migrasi otomatis oleh container" di
+  dokumentasi tidak sesuai kode.
+- **`docker-compose.ssl.yml`** — `depends_on: db` tidak ada service-nya (benar:
+  `postgres`), dependensi sirkular app↔caddy dihapus, network tak terdefinisi
+  dihapus.
+- **`docker-compose.cron.yml`** — ditulis ulang: service `db`→`postgres`,
+  volume `postgres_data`/`uploads_data` (tak terdefinisi) diganti benar,
+  mount data-dir Postgres ke container cron (risiko korupsi) dihapus, image
+  kini `postgres:16-alpine` sehingga `pg_dump` + `crond` tersedia (sebelumnya
+  backup selalu gagal), jadwal 02.00 Asia/Makassar via `TZ`.
+- **Upload persist** — named volume `uploads-data:/app/public/uploads` di
+  service app (sebelumnya semua upload hilang saat container di-recreate).
+- **Keamanan compose** — `POSTGRES_PASSWORD`/`AUTH_SECRET` wajib (compose gagal
+  dengan pesan jelas bila `.env` lupa diisi; sebelumnya fallback password
+  `"postgres"`), port Postgres/Redis hanya bind `127.0.0.1`.
+- **Dockerfile builder** — men-set `DATABASE_URL`/`AUTH_SECRET` dummy saat
+  build agar konsisten dengan CI (prerender sitemap mengonstruksi PrismaClient).
+
+#### Jalur Vercel + Neon
+- **Upload file berfungsi di Vercel** — storage abstraction baru
+  `src/lib/file-storage.ts`: di Vercel (filesystem ephemeral) upload otomatis
+  disimpan ke tabel baru `UploadedFile` (bytea Neon) dan diserve lewat route
+  `/uploads/[...path]` dengan cache immutable; di self-host tetap ke disk.
+  Route upload gambar, upload PDF BOS, unduhan & hapus dokumen BOS diadaptasi.
+- **Batas ukuran sadar-platform** — Vercel membatasi request body 4,5 MB di
+  level platform: batas route otomatis 4 MB di Vercel (pesan 400 jelas),
+  5 MB gambar / 15 MB PDF di self-host; override via `MAX_UPLOAD_MB`.
+- **`vercel.json`** — header `X-Frame-Options: DENY` (kontradiktif dengan CSP
+  frame-ancestors di next.config.ts) & `X-XSS-Protection` (deprecated) dan
+  rewrite no-op dihapus; cron backup dipindah ke `0 18 * * *` (02.00 WITA,
+  sebelumnya 02.00 UTC = 09.00 WITA).
+
+#### Lainnya
+- `scripts/backup-db.sh` mengenali env `BACKUP_DIR`/`UPLOADS_DIR`/`RETENTION`
+  (dipakai container cron) + perbaikan path fallback SQLite.
+- `scripts/cleanup-orphan-files.ts` mendukung kedua backend storage
+  (disk + `UploadedFile`).
+- `.env.example`: var baru `UPLOAD_STORAGE`/`MAX_UPLOAD_MB`, password seed
+  tidak lagi ber-default lemah, catatan jadwal cron WITA.
+- README (bagian Deployment) & docs deploy diperbarui sesuai mekanisme baru.
+
+### ✨ Added
+- Model Prisma `UploadedFile` + migrasi `20260828120000_add_uploaded_file`.
+- `src/lib/file-storage.ts` + route serve `/uploads/[...path]`.
+- 19 unit test baru: `src/lib/__tests__/file-storage.test.ts`.
+
+---
+
 ## [1.0.0] - 2026-08-22
 
 ### 🎉 Release Highlights

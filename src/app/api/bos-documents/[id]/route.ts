@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { unlink, readFile } from "fs/promises";
-import { join, basename } from "path";
+import { basename } from "path";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
+import { loadUpload, deleteUpload } from "@/lib/file-storage";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -13,6 +13,9 @@ type Ctx = { params: Promise<{ id: string }> };
  * transparansi anggaran memang untuk dilihat semua orang. File disajikan
  * dengan header Content-Disposition: attachment agar browser mengunduh
  * (nama file asli), bukan membuka inline di tab baru.
+ *
+ * Sumber file: backend aktif (disk self-host / tabel UploadedFile di Vercel)
+ * via loadUpload — lihat src/lib/file-storage.ts.
  */
 export async function GET(_req: NextRequest, { params }: Ctx) {
   const { id } = await params;
@@ -22,24 +25,24 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   }
 
   const filename = basename(doc.fileUrl);
-  try {
-    const bytes = await readFile(join(process.cwd(), "public", "uploads", filename));
-    const safeName = doc.fileName.replace(/["\\\r\n]/g, "_");
-    return new NextResponse(bytes, {
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${safeName}"; filename*=UTF-8''${encodeURIComponent(safeName)}`,
-        "Content-Length": String(bytes.byteLength),
-        "Cache-Control": "no-store",
-      },
-    });
-  } catch {
-    // File di disk hilang (row ada) — 404 agar konsisten dengan DELETE yatim.
+  const file = await loadUpload(filename);
+  if (!file) {
+    // File tidak ada di disk maupun DB (row ada) — 404 agar konsisten
+    // dengan DELETE yatim.
     return NextResponse.json(
       { error: "File dokumen tidak ditemukan di server." },
       { status: 404 }
     );
   }
+  const safeName = doc.fileName.replace(/["\\\r\n]/g, "_");
+  return new NextResponse(new Uint8Array(file.data), {
+    headers: {
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="${safeName}"; filename*=UTF-8''${encodeURIComponent(safeName)}`,
+      "Content-Length": String(file.size),
+      "Cache-Control": "no-store",
+    },
+  });
 }
 
 export async function DELETE(req: NextRequest, { params }: Ctx) {
@@ -56,10 +59,11 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
 
   await db.bosDocument.delete({ where: { id } });
 
-  // Hapus file dari disk (best-effort — file yatim tidak memblokir hapus data).
+  // Hapus file dari backend aktif (disk + DB, best-effort — file yatim
+  // tidak memblokir hapus data). Lihat src/lib/file-storage.ts.
   try {
     const filename = basename(existing.fileUrl);
-    await unlink(join(process.cwd(), "public", "uploads", filename));
+    await deleteUpload(filename);
   } catch {
     // file sudah tidak ada — abaikan
   }

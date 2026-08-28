@@ -6,6 +6,13 @@
 >
 > **✅ STATUS PERBAIKAN (28 Agustus 2026): SEMUA temuan KRITIKAL (K1–K6) dan
 > SEDANG (S1–S5) telah diperbaiki**, plus sebagian besar item minor:
+> - **C0 ✅ (ditemukan saat pembuatan PR — CI rusak sejak commit c92ca77 di
+>   main, semua workflow gagal instan)**: composite action lokal
+>   `.github/actions/setup-repo` dipakai sebagai step pertama job tanpa
+>   checkout — runner me-resolve action lokal dari workspace yang masih
+>   kosong → "Can't find 'action.yml' under setup-repo". Fix: checkout
+>   eksplisit `actions/checkout@v4` sebelum setiap pemakaian action lokal
+>   (7 titik di 5 workflow), checkout internal composite dihapus.
 > - K1 ✅ `.dockerignore`/Dockerfile tidak lagi kontradiktif (pola `scripts/*` + pengecualian)
 >   **+ bug tambahan ditemukan saat perbaikan: bun tidak ter-install di stage
 >   builder** (hanya di stage deps) sehingga `bun run build` gagal — telah diperbaiki.

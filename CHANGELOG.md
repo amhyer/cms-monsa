@@ -9,6 +9,14 @@
 
 ### 🔧 Fixed — Kesiapan Deployment (audit `docs/DEPLOYMENT_GAP_AUDIT.md`)
 
+#### CI (rusak sejak c92ca77 di main — blokir semua deploy)
+- **Semua workflow gagal instan** — composite action lokal
+  `.github/actions/setup-repo` dipakai sebagai step pertama job tanpa
+  checkout; runner me-resolve action lokal dari workspace kosong
+  ("Can't find 'action.yml' under setup-repo"). Fix: `actions/checkout@v4`
+  eksplisit sebelum tiap pemakaian action lokal (7 titik di 5 workflow),
+  checkout internal composite dihapus.
+
 #### Jalur Docker (self-host)
 - **`docker build` gagal** — `.dockerignore` mengecualikan `scripts/` seluruhnya
   padahal Dockerfile men-COPY-nya; kini pola `scripts/*` + pengecualian untuk

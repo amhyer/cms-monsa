@@ -52,6 +52,7 @@ jobs:
       # `bash scripts/...` (bukan ./scripts/...) agar tidak bergantung pada
       # executable bit di git — aman dari repo yang di-commit di Windows.
       # Script menjalankan: prisma generate → migrate deploy → seed (semua
-      # memakai schema.postgres.prisma). Seed idempotent (skip bila DB terisi).
+      # memakai skema tunggal prisma/schema.prisma — PostgreSQL). Seed
+      # idempotent (skip bila DB terisi).
       - name: Run deploy script (migrate + seed)
         run: bash scripts/deploy-vercel.sh

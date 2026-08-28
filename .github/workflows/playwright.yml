@@ -43,17 +43,43 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+    # PostgreSQL service container — skema tunggal PostgreSQL; e2e butuh DB
+    # nyata berisi seed, dan build membaca DB saat prerender sitemap.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ci_e2e_prod
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
-      # E2E butuh database SQLite berisi seed (admin/operator/guru, berita,
-      # pengumuman, agenda), dan build juga membaca DB saat prerender
-      # sitemap — jadi db:push + db:seed harus selesai sebelum build.
-      DATABASE_URL: "file:./ci-e2e-prod.db"
+      # DB e2e: service container postgres di atas (bukan secret — data CI
+      # sekali pakai). db:push + db:seed harus selesai sebelum build.
+      # 127.0.0.1 (bukan localhost) — Node 17+ resolve localhost ke ::1
+      # dulu; service container Postgres hanya listen IPv4 → Prisma di
+      # proses Next.js 500 "Can't reach database server".
+      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/ci_e2e_prod?schema=public"
       # Bukan secret asli — cukup untuk build & test. Ganti dengan secret
       # asli di production (jangan pernah commit secret di sini).
       AUTH_SECRET: "ci-insecure-build-secret"
       NEXT_PUBLIC_SITE_URL: "https://sdn-mongisidi1.sch.id"
+      NODE_OPTIONS: "--dns-result-order=ipv4first"
     steps:
-      - name: Setup repo (checkout + Node + Bun + install)
+      # Checkout WAJIB sebagai step pertama sebelum action lokal —
+      # runner me-resolve path ./.github/actions/* dari workspace yang
+      # masih kosong tanpa checkout (bug refactor c92ca77: job gagal
+      # instan "Can't find 'action.yml' under setup-repo").
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup repo (Node + Bun + install)
         uses: ./.github/actions/setup-repo
 
       - name: Setup database (schema + seed)

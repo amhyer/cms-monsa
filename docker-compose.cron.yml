@@ -4,50 +4,57 @@
 # Usage:
 #   docker compose -f docker-compose.yml -f docker-compose.cron.yml up -d
 #
-# This adds a cron service that runs backup every day at 02:00
+# Menambahkan service `cron` yang menjalankan backup otomatis tiap hari
+# 02.00 (zona waktu Asia/Makassar) via busybox crond di dalam container.
 #
+# PERBAIKAN (audit deployment 2026-08-28):
+#   - Sebelumnya service ini membangun image dari Dockerfile aplikasi
+#     (node:20-alpine) yang TIDAK punya `pg_dump` → backup selalu gagal.
+#     Kini memakai image postgres:16-alpine (pg_dump + crond + bash tersedia;
+#     versi pg_dump 16 cocok dengan server postgres:16 di compose utama).
+#   - Referensi service `db` → `postgres` (nama di docker-compose.yml),
+#     volume `postgres_data`/`uploads_data` → tidak dipakai lagi,
+#     network `cms-network` (tak pernah didefinisikan) → dihapus.
+#   - Mount data-dir Postgres ke container cron DIHAPUS — dua proses di
+#     data dir yang sama berisiko korupsi; pg_dump mengakses lewat jaringan.
+# ============================================
 
 services:
-  # ============================================
-  # Cron Service for Automated Backups
-  # ============================================
   cron:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: postgres:16-alpine
     container_name: cms-monsa-cron
     restart: unless-stopped
     depends_on:
-      db:
+      postgres:
         condition: service_healthy
     environment:
-      # Database
-      DATABASE_URL: postgresql://postgres:${DB_PASSWORD:-postgres}@db:5432/cms_mongisidi?schema=public
-      
-      # Backup settings
-      BACKUP_RETENTION: "14"
+      # pg_dump terhubung ke service `postgres` lewat network internal.
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD wajib diisi di .env}@postgres:5432/cms_mongisidi?schema=public
+      # Lokasi output backup (volume) & sumber uploads (volume app, read-only)
       BACKUP_DIR: /backups
+      UPLOADS_DIR: /uploads
+      RETENTION: "14"
+      # crond (busybox) mengikuti TZ env → jadwal 02.00 = 02.00 Asia/Makassar.
+      TZ: ${TZ:-Asia/Makassar}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - backups_data:/backups
-      - uploads_data:/app/public/uploads
+      - ./scripts/backup-db.sh:/app/scripts/backup-db.sh:ro
+      # Volume yang sama dengan service `app` (read-only) agar backup
+      # ikut mengarsipkan upload gambar/PDF.
+      - uploads-data:/uploads:ro
+      - backups-data:/backups
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        # Install cron job
-        echo "0 2 * * * /app/scripts/backup-db.sh >> /var/log/backup.log 2>&1" > /etc/crontabs/root
-        
-        # Create log file
-        touch /var/log/backup.log
-        
-        # Start cron daemon in foreground
+        cat > /etc/crontabs/root <<'EOF'
+        0 2 * * * bash /app/scripts/backup-db.sh >> /backups/backup.log 2>&1
+        EOF
+        touch /backups/backup.log
+        echo "[cron] backup database + uploads tiap 02.00 ($${TZ:-Asia/Makassar})"
         crond -f -l 2
-    networks:
-      - cms-network
 
 # ============================================
 # Volumes
 # ============================================
 volumes:
-  backups_data:
+  backups-data:
     driver: local

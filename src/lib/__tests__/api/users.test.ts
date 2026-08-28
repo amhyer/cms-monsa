@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mockPrisma, mockCookies, createMockRequest, createMockUser, asNextRequest } from "../test-utils";
 
 const mockRequireRole = vi.fn();
@@ -312,10 +312,20 @@ describe("PUT /api/users/[id] — adaptasi tautan saat role diganti", () => {
 });
 
 describe("POST /api/users", () => {
+  // Route memakai NEXT_PUBLIC_SITE_URL sebagai base URL portal WhatsApp
+  // (fallback localhost:3000). CI men-set env ini di level job — hapus
+  // selama test agar assertion URL portal deterministik (test hermetic).
+  const ORIGINAL_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL;
   beforeEach(() => {
     vi.clearAllMocks();
     mockCookies.store = {};
     mockNotifyParentWhatsApp.mockReset().mockResolvedValue(undefined);
+    delete process.env.NEXT_PUBLIC_SITE_URL;
+  });
+  afterEach(() => {
+    if (ORIGINAL_SITE_URL !== undefined) {
+      process.env.NEXT_PUBLIC_SITE_URL = ORIGINAL_SITE_URL;
+    }
   });
 
   it("mengirim WhatsApp selamat datang (email+password+link portal) saat akun ORANG_TUA dibuat", async () => {

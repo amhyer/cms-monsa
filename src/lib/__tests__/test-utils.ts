@@ -170,6 +170,15 @@ const mockPrisma = {
     count: vi.fn(),
     groupBy: vi.fn().mockResolvedValue([]),
   },
+  uploadedFile: {
+    findUnique: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    deleteMany: vi.fn(),
+    count: vi.fn(),
+  },
   schoolAnnouncement: {
     findUnique: vi.fn(),
     findMany: vi.fn(),

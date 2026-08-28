@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { logger } from "@/lib/logger";
@@ -9,13 +7,12 @@ import { rateLimitPublicGet } from "@/lib/rate-limit";
 import { logActivity } from "@/lib/log";
 import { createBosDocumentSchema, validateBody } from "@/lib/validations";
 import { detectPdf } from "@/lib/upload";
+import { saveUpload, maxUploadMb } from "@/lib/file-storage";
 import {
   parsePaginationParams,
   decodeCursor,
   buildPaginatedResponse,
 } from "@/lib/pagination";
-
-const MAX_SIZE = 15 * 1024 * 1024; // 15 MB — output ARKAS bisa berisi banyak halaman
 
 /**
  * Sumber permintaan untuk jejak audit: asal (Origin) + IP klien (bila
@@ -118,6 +115,12 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    // Batas ukuran — sadar-platform: Vercel membatasi request body 4.5 MB di
+    // level platform (tidak bisa dinaikkan), jadi batas route di sana 4 MB
+    // agar penolakan terjadi dengan pesan 400 yang jelas. Self-host (Docker)
+    // tetap 15 MB — output ARKAS bisa berisi banyak halaman.
+    const maxMb = maxUploadMb(15);
+    const MAX_SIZE = maxMb * 1024 * 1024;
     if (file.size > MAX_SIZE) {
       logger.warn({
         reason: "terlalu-besar",
@@ -126,7 +129,7 @@ export async function POST(req: NextRequest) {
         source,
       });
       return NextResponse.json(
-        { error: "Ukuran file maksimal 15 MB." },
+        { error: `Ukuran file maksimal ${maxMb} MB.` },
         { status: 400 }
       );
     }
@@ -172,9 +175,9 @@ export async function POST(req: NextRequest) {
     const { year, title, description } = validation.data;
 
     const filename = `bos-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.pdf`;
-    const uploadDir = join(process.cwd(), "public", "uploads");
-    await mkdir(uploadDir, { recursive: true });
-    await writeFile(join(uploadDir, filename), Buffer.from(bytes));
+    // Simpan ke backend aktif (disk self-host / tabel UploadedFile di Vercel)
+    // — lihat src/lib/file-storage.ts.
+    await saveUpload(bytes, filename, "application/pdf");
 
     const doc = await db.bosDocument.create({
       data: {
@@ -202,12 +205,15 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json(doc);
   } catch (e) {
-    logger.error({
-      filename: attemptedName,
-      size: attemptedSize,
-      source,
-      error: e instanceof Error ? e.message : String(e),
-    });
+    logger.error(
+      {
+        filename: attemptedName,
+        size: attemptedSize,
+        source,
+        error: e instanceof Error ? e.message : String(e),
+      },
+      "[bos-documents] upload failed"
+    );
     return NextResponse.json(
       { error: "Gagal mengunggah dokumen. Silakan coba lagi." },
       { status: 500 }

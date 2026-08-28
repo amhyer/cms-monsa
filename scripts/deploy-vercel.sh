@@ -6,6 +6,9 @@
 # dilakukan Vercel sendiri: migrasi skema + seed ke database
 # Neon. Jalankan SETELAH Vercel selesai build & deploy.
 #
+# Skema: prisma/schema.prisma — SATU skema PostgreSQL untuk semua
+# environment (konsolidasi 2026-08-28; dulu schema.postgres.prisma terpisah).
+#
 # Pemakaian:
 #   ./scripts/deploy-vercel.sh                 # migrate + seed
 #   ./scripts/deploy-vercel.sh --skip-seed     # migrate saja
@@ -23,7 +26,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SCHEMA="$ROOT/prisma/schema.postgres.prisma"
+# Skema tunggal PostgreSQL (prisma/schema.prisma) — tidak perlu flag --schema.
 SKIP_SEED=0
 PULL_ENV=0
 
@@ -89,12 +92,12 @@ else
 fi
 
 # 3) Generate Prisma client dari skema PostgreSQL
-echo ">> prisma generate (schema.postgres.prisma) ..."
-bunx prisma generate --schema "$SCHEMA"
+echo ">> prisma generate ..."
+bunx prisma generate
 
 # 4) Migrasi skema ke Neon (pakai koneksi DIRECT bila tersedia)
-echo ">> prisma migrate deploy (schema.postgres.prisma) ..."
-DATABASE_URL="$MIGRATION_URL" bunx prisma migrate deploy --schema "$SCHEMA"
+echo ">> prisma migrate deploy ..."
+DATABASE_URL="$MIGRATION_URL" bunx prisma migrate deploy
 
 # 5) Seed data awal (idempotent — aman dijalankan berulang)
 if [ "$SKIP_SEED" = "1" ]; then
@@ -107,7 +110,7 @@ fi
 echo ""
 echo "============================================================"
 echo "✅ Deploy database selesai."
-echo "   - Migrasi : prisma/schema.postgres.prisma"
+echo "   - Migrasi : prisma/schema.prisma (PostgreSQL tunggal)"
 echo "   - Seed    : $([ "$SKIP_SEED" = "1" ] && echo 'dilewati' || echo 'dijalankan')"
 echo "   - DB      : ${DATABASE_URL%%:*}"
 echo "   - Skema   : ${DATABASE_URL_DIRECT:+DATABASE_URL_DIRECT}${DATABASE_URL_DIRECT:-DATABASE_URL (fallback)}"

@@ -55,7 +55,14 @@ jobs:
     name: Triage past run
     runs-on: ubuntu-latest
     steps:
-      - name: Setup repo (checkout + Node + Bun + install)
+      # Checkout WAJIB sebagai step pertama sebelum action lokal —
+      # runner me-resolve path ./.github/actions/* dari workspace yang
+      # masih kosong tanpa checkout (bug refactor c92ca77: job gagal
+      # instan "Can't find 'action.yml' under setup-repo").
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup repo (Node + Bun + install)
         uses: ./.github/actions/setup-repo
 
       - name: Validate run_id

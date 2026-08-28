@@ -139,8 +139,10 @@ DEV_PORT="${DEV_PORT:-3000}"
 
 # .env jangan pernah ditulis/di-overwrite dari script (REFACTOR_PLAN #3).
 # .env yang hilang/salah → error Prisma yang jelas, bukan korup diam-diam.
-# DB kanonik: prisma/db/custom.db (Prisma resolve file: relatif ke lokasi schema)
-export DATABASE_URL="file:../db/custom.db"
+# Database: SATU skema PostgreSQL (prisma/schema.prisma) — DATABASE_URL
+# dibaca dari .env (Neon dev branch, atau PostgreSQL lokal via
+# `docker compose -f docker-compose.dev.yml up -d`). Jangan hardcode di sini.
+# Prisma CLI & Next.js dev server sama-sama auto-load .env dari root repo.
 
 if ! command -v bun >/dev/null 2>&1; then
         echo "ERROR: bun is not installed or not in PATH"

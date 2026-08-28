@@ -1,42 +1,14 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "buildCommand": "npx prisma generate --schema prisma/schema.postgres.prisma && npx next build",
+  "buildCommand": "npx prisma generate && npx next build",
   "installCommand": "bun install",
   "outputDirectory": ".next",
   "regions": ["sin1"],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "DENY"
-        },
-        {
-          "key": "X-XSS-Protection",
-          "value": "1; mode=block"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "strict-origin-when-cross-origin"
-        }
-      ]
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "/api/:path*"
-    }
-  ],
   "crons": [
     {
       "path": "/api/cron/backup",
-      "schedule": "0 2 * * *"
+      "schedule": "0 18 * * *"
     }
-  ]}
+  ]
+}

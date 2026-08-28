@@ -28,8 +28,7 @@ flowchart TD
     ROOT --> DOCS3["PROGRESS_LOG.md"]
     ROOT --> ENV1[".env.example"]
 
-    PRISMA --> P1["schema.prisma (SQLite dev)"]
-    PRISMA --> P2["schema.postgres.prisma (PostgreSQL prod)"]
+    PRISMA --> P1["schema.prisma (PostgreSQL — dev & prod)"]
     PRISMA --> P3["seed.ts"]
     PRISMA --> P4["migrations/"]
 
@@ -90,7 +89,7 @@ sequenceDiagram
     participant Auth as requireCsrf +<br/>requireRole
     participant Valid as Zod validateBody
     participant Prisma as Prisma ORM
-    participant DB as SQLite (dev)<br/>PostgreSQL (prod)
+    participant DB as PostgreSQL (dev = prod)
 
     Browser->>Proxy: Request ke /api/*
     alt Origin silang tidak dikenal
@@ -471,4 +470,5 @@ erDiagram
 - Konfigurasi next-intl ada di **`src/i18n/request.ts`** (pola next-intl v4),
   bukan `src/i18n/config.ts`.
 - Folder `docs/` sebelumnya hilang dari repo — file ini dibuat ulang.
-- SQLite dev menyimpan data di `db/custom.db` (`DATABASE_URL="file:./db/custom.db"`).
+- (Historis) SQLite dev pernah dipakai sebelum konsolidasi skema tunggal
+  PostgreSQL (2026-08-28); kini dev & produksi sama-sama PostgreSQL.

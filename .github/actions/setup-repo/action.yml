@@ -1,6 +1,15 @@
-# Setup repository standar untuk job CI: checkout + Node + Bun + install
-# dependensi. Satu tempat untuk konfigurasi toolchain — jangan ulangi
-# empat langkah ini di setiap job (validate, hooks-gate, e2e, …).
+# Setup repository standar untuk job CI: Node + Bun + install dependensi.
+# Satu tempat untuk konfigurasi toolchain — jangan ulangi tiga langkah ini
+# di setiap job (validate, hooks-gate, e2e, …).
+#
+# ⚠️ PENTING: action LOKAL (./.github/actions/*) di-resolve runner dari
+# workspace yang harus SUDAH berisi repo. Job pemakai action ini WAJIB
+# menjalankan `actions/checkout` sebagai step PERTAMA, SEBELUM
+# `uses: ./.github/actions/setup-repo` — tanpa itu job gagal instan:
+#   "Can't find 'action.yml' under '.github/actions/setup-repo'.
+#    Did you forget to run actions/checkout before running your local
+#    action?" (bug pada refactor commit c92ca77; checkout kini eksplisit
+#    di setiap workflow pemakai).
 #
 # Versi toolchain bisa di-override per job lewat input node-version /
 # bun-version; default = versi yang berlaku di seluruh repo saat ini
@@ -9,17 +18,20 @@
 #
 # Dipakai dari workflow:
 #   steps:
-#     - name: Setup repo
+#     - name: Checkout
+#       uses: actions/checkout@v4
+#     - name: Setup repo (Node + Bun + install)
 #       uses: ./.github/actions/setup-repo
 #       with:
 #         node-version: "22"   # opsional (default "22")
 #         bun-version: "1.2.x" # opsional (default "1.2.x")
-name: Setup repository (checkout + Node + Bun + install)
+name: Setup repository (Node + Bun + install)
 description: >-
-  Checkout the repository, set up Node.js and Bun, and install
-  dependencies with `bun install --frozen-lockfile`. Versions are
-  configurable via node-version / bun-version inputs (defaults: Node 22,
-  Bun 1.2.x).
+  Set up Node.js and Bun, and install dependencies with
+  `bun install --frozen-lockfile`. Versions are configurable via
+  node-version / bun-version inputs (defaults: Node 22, Bun 1.2.x).
+  NOTE: the calling job MUST run actions/checkout first — local actions
+  are resolved from the workspace, which is empty before checkout.
 
 inputs:
   node-version:
@@ -34,8 +46,10 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+    # NOTE: checkout TIDAK dilakukan di sini — action lokal di-resolve dari
+    # workspace, jadi job pemakai harus checkout SEBELUM memanggil action
+    # ini (lihat catatan di header). Checkout di dalam action lokal tidak
+    # bisa menolong karena action.yml-nya sendiri belum ditemukan runner.
 
     - name: Setup Node.js
       uses: actions/setup-node@v4

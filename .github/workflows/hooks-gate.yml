@@ -80,13 +80,21 @@ jobs:
       GATE_MODE: ${{ inputs.gate_mode || 'full' }}
       # PrismaClient membaca DATABASE_URL saat konstruksi (sitemap.ts
       # di-prerender saat build). Test unit memakai mock penuh, jadi DB
-      # dummy cukup — tidak ada koneksi nyata yang dibutuhkan.
-      DATABASE_URL: "file:./hooks.db"
+      # dummy cukup — tidak ada koneksi nyata yang dibutuhkan. Skema
+      # tunggal PostgreSQL — dummy URL harus berprotokol postgresql://.
+      DATABASE_URL: "postgresql://ci:ci@127.0.0.1:5432/ci_dummy"
       # Bukan secret asli — cukup untuk build & test (sama seperti job lain).
       AUTH_SECRET: "ci-insecure-build-secret"
       NEXT_PUBLIC_SITE_URL: "https://sdn-mongisidi1.sch.id"
     steps:
-      - name: Setup repo (checkout + Node + Bun + install)
+      # Checkout WAJIB sebagai step pertama sebelum action lokal —
+      # runner me-resolve path ./.github/actions/* dari workspace yang
+      # masih kosong tanpa checkout (bug refactor c92ca77: job gagal
+      # instan "Can't find 'action.yml' under setup-repo").
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup repo (Node + Bun + install)
         uses: ./.github/actions/setup-repo
 
       # Jalankan gate yang sama dengan `git commit` lokal. Gagal → PR diblokir

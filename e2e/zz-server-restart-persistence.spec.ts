@@ -36,7 +36,18 @@ const isWin = process.platform === "win32";
 
 /** PID yang sedang mendengarkan di port server e2e (bisa lebih dari satu). */
 function portPids(): number[] {
-  if (!isWin) return [];
+  if (!isWin) {
+    // CI (ubuntu) — `ss` selalu ada; lsof tidak dijamin. Output seperti
+    // `users:(("node",pid=1234,fd=23))`.
+    const res = spawnSync("ss", ["-ltnp", `sport = :${port}`], {
+      encoding: "utf8",
+      timeout: 10_000,
+    });
+    const text = `${res.stdout ?? ""}\n${res.stderr ?? ""}`;
+    const pids = new Set<number>();
+    for (const m of text.matchAll(/pid=(\d+)/g)) pids.add(Number(m[1]));
+    return [...pids];
+  }
   const res = spawnSync(
     "powershell",
     [
@@ -72,10 +83,14 @@ function portPids(): number[] {
  */
 function killServerTree(portOwnerPid: number): void {
   if (!isWin) {
-    try {
-      process.kill(-portOwnerPid, "SIGTERM");
-    } catch {
-      // proses sudah tidak ada
+    // PID dari `ss` belum tentu group leader — coba pid dulu, lalu process
+    // group (negatif) sebagai fallback. Keduanya diabaikan bila sudah mati.
+    for (const target of [portOwnerPid, -portOwnerPid]) {
+      try {
+        process.kill(target, "SIGTERM");
+      } catch {
+        // proses sudah tidak ada / bukan group leader
+      }
     }
     return;
   }
@@ -177,7 +192,7 @@ function startServer(): void {
     ps.unref();
     return;
   }
-  spawn("npm", ["run", "dev", "--", "-p", port], {
+  spawn("bun", ["x", "next", "dev", "-p", port], {
     detached: true,
     stdio: "ignore",
     env: process.env,

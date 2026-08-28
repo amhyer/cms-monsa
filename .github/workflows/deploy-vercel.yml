@@ -39,12 +39,20 @@ jobs:
       # dengan error yang jelas.
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
     steps:
-      - name: Setup repo (checkout + Node + Bun + install)
+      # Checkout WAJIB sebagai step pertama sebelum action lokal —
+      # runner me-resolve path ./.github/actions/* dari workspace yang
+      # masih kosong tanpa checkout (bug refactor c92ca77: job gagal
+      # instan "Can't find 'action.yml' under setup-repo").
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup repo (Node + Bun + install)
         uses: ./.github/actions/setup-repo
 
       # `bash scripts/...` (bukan ./scripts/...) agar tidak bergantung pada
       # executable bit di git — aman dari repo yang di-commit di Windows.
       # Script menjalankan: prisma generate → migrate deploy → seed (semua
-      # memakai schema.postgres.prisma). Seed idempotent (skip bila DB terisi).
+      # memakai skema tunggal prisma/schema.prisma — PostgreSQL). Seed
+      # idempotent (skip bila DB terisi).
       - name: Run deploy script (migrate + seed)
         run: bash scripts/deploy-vercel.sh

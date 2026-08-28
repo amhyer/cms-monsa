@@ -39,15 +39,24 @@ jobs:
     env:
       # PrismaClient membaca DATABASE_URL saat konstruksi (sitemap.ts
       # di-prerender saat build). Test unit memakai mock penuh, jadi DB
-      # dummy cukup — tidak ada koneksi nyata yang dibutuhkan.
-      DATABASE_URL: "file:./ci.db"
+      # dummy cukup — tidak ada koneksi nyata yang dibutuhkan (query
+      # prerender gagal tertangani try/catch di sitemap). Skema tunggal
+      # PostgreSQL — dummy URL harus berprotokol postgresql://.
+      DATABASE_URL: "postgresql://ci:ci@127.0.0.1:5432/ci_dummy"
       # AUTH_SECRET tidak wajib saat build, tapi diset untuk menghindari
       # peringatan dari src/lib/auth.ts. Ganti dengan secret asli di
       # production (jangan pernah commit secret di sini).
       AUTH_SECRET: "ci-insecure-build-secret"
       NEXT_PUBLIC_SITE_URL: "https://sdn-mongisidi1.sch.id"
     steps:
-      - name: Setup repo (checkout + Node + Bun + install)
+      # Checkout WAJIB sebagai step pertama sebelum action lokal —
+      # runner me-resolve path ./.github/actions/* dari workspace yang
+      # masih kosong tanpa checkout (bug refactor c92ca77: job gagal
+      # instan "Can't find 'action.yml' under setup-repo").
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup repo (Node + Bun + install)
         uses: ./.github/actions/setup-repo
 
       - name: Typecheck
@@ -59,8 +68,9 @@ jobs:
       - name: Lint (Markdown)
         run: bun run lint:md
 
-      - name: Check schema sync
-        run: bun run check:schema
+      # (Check schema sync DIHAPUS 2026-08-28 — skema tunggal PostgreSQL,
+      # tidak ada lagi pasangan schema.prisma/schema.postgres.prisma yang
+      # perlu dijaga sinkron.)
 
       # Guard klasifikasi scope publik (public-scope.test.ts): setiap kolom
       # model Teacher/OrgStructure harus terklasifikasi sadar (daftar PUTIH
@@ -91,15 +101,41 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+    # PostgreSQL service container — skema tunggal PostgreSQL; e2e butuh DB
+    # nyata berisi seed (admin/operator/guru, berita, pengumuman, agenda).
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ci_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
-      # E2E butuh database SQLite berisi seed (admin/operator/guru, berita,
-      # pengumuman, agenda) — seed dilewati bila DB sudah terisi, jadi
-      # db:push lalu db:seed cukup untuk database baru per run.
-      DATABASE_URL: "file:./ci-e2e.db"
+      # DB e2e: service container postgres di atas (bukan secret — data CI
+      # sekali pakai). db:push + db:seed cukup untuk database baru per run.
+      # 127.0.0.1 (bukan localhost) — Node 17+ resolve localhost ke ::1
+      # dulu; service container Postgres hanya listen IPv4 → Prisma di
+      # proses Next.js 500 "Can't reach database server".
+      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/ci_e2e?schema=public"
       AUTH_SECRET: "ci-insecure-build-secret"
       NEXT_PUBLIC_SITE_URL: "https://sdn-mongisidi1.sch.id"
+      NODE_OPTIONS: "--dns-result-order=ipv4first"
     steps:
-      - name: Setup repo (checkout + Node + Bun + install)
+      # Checkout WAJIB sebagai step pertama sebelum action lokal —
+      # runner me-resolve path ./.github/actions/* dari workspace yang
+      # masih kosong tanpa checkout (bug refactor c92ca77: job gagal
+      # instan "Can't find 'action.yml' under setup-repo").
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup repo (Node + Bun + install)
         uses: ./.github/actions/setup-repo
 
       - name: Setup database (schema + seed)
@@ -305,17 +341,22 @@ jobs:
       - name: Check test data leak
         run: bun run check:data-leak
 
-      # Stage state untuk job orphan-check: DB SQLite e2e + file upload BOS.
-      # Hanya file bos-*.pdf yang disalin (bukan seluruh public/uploads)
-      # agar artifact kecil — check hanya peduli file BOS. Di-upload di
-      # SEMUA run (if: always()) konsisten dengan server log; job
-      # orphan-check sendiri hanya berjalan bila suite HIJAU (needs: e2e),
-      # jadi kegagalan suite tidak menambah noise "yatim" di atas merah.
+      # Stage state untuk job orphan-check: dump PostgreSQL e2e + file
+      # upload BOS. Hanya file bos-*.pdf yang disalin (bukan seluruh
+      # public/uploads) agar artifact kecil — check hanya peduli file BOS.
+      # Dump memakai container postgres:16-alpine (pg_dump versi cocok,
+      # terpasang via docker runner — bukan pg_dump bawaan runner).
+      # Di-upload di SEMUA run (if: always()) konsisten dengan server log;
+      # job orphan-check sendiri hanya berjalan bila suite HIJAU
+      # (needs: e2e), jadi kegagalan suite tidak menambah noise "yatim".
       - name: Stage e2e state for orphan check
         if: always()
         run: |
-          mkdir -p orphan-state/prisma orphan-state/uploads
-          cp prisma/ci-e2e.db* orphan-state/prisma/ 2>/dev/null || true
+          mkdir -p orphan-state/uploads
+          docker run --rm --network host -e PGPASSWORD=postgres postgres:16-alpine \
+            pg_dump -h 127.0.0.1 -U postgres -d ci_e2e --no-owner --no-privileges \
+            > orphan-state/db.sql \
+            || echo "pg_dump gagal — orphan-check akan melihat DB kosong"
           cp public/uploads/bos-*.pdf orphan-state/uploads/ 2>/dev/null || true
 
       - name: Upload e2e orphan state
@@ -374,14 +415,38 @@ jobs:
     name: Check orphaned BOS files
     needs: e2e
     runs-on: ubuntu-latest
+    # PostgreSQL service container — DB di-restore dari dump artifact e2e
+    # (berisi baris BosDocument hasil suite) via psql di dalam container.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ci_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
-      # PrismaClient membaca DATABASE_URL saat konstruksi; DB SQLite yang
-      # di-restore dari artifact e2e (berisi baris BosDocument hasil suite).
-      DATABASE_URL: "file:./ci-e2e.db"
+      # PrismaClient membaca DATABASE_URL saat konstruksi; DB yang
+      # di-restore dari dump artifact e2e ke service container di atas.
+      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/ci_e2e?schema=public"
       AUTH_SECRET: "ci-insecure-build-secret"
       NEXT_PUBLIC_SITE_URL: "https://sdn-mongisidi1.sch.id"
+      NODE_OPTIONS: "--dns-result-order=ipv4first"
     steps:
-      - name: Setup repo (checkout + Node + Bun + install)
+      # Checkout WAJIB sebagai step pertama sebelum action lokal —
+      # runner me-resolve path ./.github/actions/* dari workspace yang
+      # masih kosong tanpa checkout (bug refactor c92ca77: job gagal
+      # instan "Can't find 'action.yml' under setup-repo").
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup repo (Node + Bun + install)
         uses: ./.github/actions/setup-repo
 
       - name: Download e2e orphan state
@@ -390,15 +455,17 @@ jobs:
           name: e2e-orphan-state
           path: orphan-state
 
-      # Pulihkan DB + uploads ke lokasi yang diharapkan skrip
-      # (prisma/ci-e2e.db relatif ke schema; public/uploads), lalu jalankan
+      # Pulihkan DB (dump artifact → service container postgres) + uploads
+      # ke lokasi yang diharapkan skrip (public/uploads), lalu jalankan
       # check. Skrip juga melaporkan BARIS BosDocument yang file-nya hilang
       # (data-integrity) — exit 1 bila jumlah baris gantung melebihi
       # ROWS_WITHOUT_FILE_EXPECT. Kedua knob bisa di-override via
       # workflow_dispatch bila suatu saat ada baseline yang disengaja.
       - name: Run orphan check
         run: |
-          mkdir -p prisma public/uploads
-          cp orphan-state/prisma/ci-e2e.db* prisma/ 2>/dev/null || true
+          mkdir -p public/uploads
           cp orphan-state/uploads/* public/uploads/ 2>/dev/null || true
+          docker run --rm -i --network host -e PGPASSWORD=postgres postgres:16-alpine \
+            psql -h 127.0.0.1 -U postgres -d ci_e2e -v ON_ERROR_STOP=0 \
+            < orphan-state/db.sql
           bun run clean:orphans -- --check

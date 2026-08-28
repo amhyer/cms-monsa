@@ -1,15 +1,21 @@
 // Prisma schema for UPT SPF SD Negeri Unggulan Mongisidi 1 — School CMS
-// learn more: https://pris.ly/d/prisma-schema
 //
-// Untuk PostgreSQL: ubah provider menjadi "postgresql" di bawah ini
-// Untuk SQLite (development): gunakan "sqlite" seperti saat ini
+// SATU skema PostgreSQL untuk SEMUA environment (dev lokal, CI, produksi).
+// Dulu ada dua file (schema.prisma SQLite untuk dev + schema.postgres.prisma
+// untuk produksi) — dikonsolidasi 2026-08-28 agar dev = produksi (tidak ada
+// dual-schema drift). Riwayat migrasi SQLite lama tersimpan di
+// prisma/migrations_sqlite_backup/.
+//
+// Setup database dev: lihat .env.example (Neon dev branch — cara termudah)
+// atau `docker compose -f docker-compose.dev.yml up -d` (PostgreSQL lokal).
+// Migrasi: `bun run db:migrate:deploy` (prisma migrate deploy).
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -814,4 +820,22 @@ model ScheduleEntry {
   @@index([day, timeSlot])
   @@index([classId, academicYear])
   @@index([teacherId])
+}
+
+// ---------- FILE UPLOAD (DB-BACKED STORAGE) ----------
+// Penyimpanan upload untuk platform dengan filesystem ephemeral (Vercel).
+// Backend aktif dipilih di src/lib/file-storage.ts:
+//   - disk (default self-host): file di public/uploads, serve sebagai static
+//   - db   (default Vercel)    : file di tabel ini, serve via /uploads/[...path]
+// Filename unik (timestamp-random) dibuat oleh route upload — sama di kedua
+// backend, sehingga URL /uploads/<filename> tidak berubah saat pindah backend.
+model UploadedFile {
+  id        String   @id @default(cuid())
+  filename  String   @unique // e.g. 1758900000000-abc123.jpg
+  mimeType  String   // image/jpeg | image/png | image/gif | image/webp | application/pdf
+  size      Int // bytes
+  data      Bytes // isi file (bytea di PostgreSQL)
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }

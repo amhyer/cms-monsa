@@ -3,11 +3,20 @@
 # Pasang di crontab (tiap hari 02.00):
 #   0 2 * * * cd /srv/cms-monsa && ./scripts/backup-db.sh >/dev/null 2>&1
 # Menyimpan 14 backup terakhir (rotasi otomatis).
+#
+# Database: PostgreSQL (skema tunggal — SQLite dev dihapus 2026-08-28).
+# pg_dump harus tersedia di PATH.
+#
+# Env yang dikenali (opsional — dipakai service cron di Docker):
+#   BACKUP_DIR  — lokasi output backup   (default: <repo>/backups)
+#   UPLOADS_DIR — sumber folder uploads  (default: <repo>/public/uploads)
+#   RETENTION   — jumlah backup disimpan (default: 14)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BACKUP_DIR="$ROOT/backups"
-RETENTION=14
+BACKUP_DIR="${BACKUP_DIR:-$ROOT/backups}"
+UPLOADS_DIR="${UPLOADS_DIR:-$ROOT/public/uploads}"
+RETENTION="${RETENTION:-14}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
 mkdir -p "$BACKUP_DIR"
@@ -24,18 +33,15 @@ if [[ "$DB_URL" == postgresql://* || "$DB_URL" == postgres://* ]]; then
     PGPASSWORD="$DB_PASS" pg_dump -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" \
         -F c -f "$BACKUP_DIR/db-$STAMP.sql"
     echo "Backup PostgreSQL -> $BACKUP_DIR/db-$STAMP.sql"
-elif [[ "$DB_URL" == file:* || -f "$ROOT/prisma/db/custom.db" ]]; then
-    DB_FILE="$ROOT/prisma/db/custom.db"
-    cp "$DB_FILE" "$BACKUP_DIR/db-$STAMP.db"
-    echo "Backup SQLite -> $BACKUP_DIR/db-$STAMP.db"
 else
-    echo "WARNING: DATABASE_URL tidak dikenali, lewati backup database" >&2
+    echo "ERROR: DATABASE_URL harus PostgreSQL (postgresql://...). SQLite dev sudah dihapus." >&2
+    exit 1
 fi
 
 # 2) Uploads
-if [ -d "$ROOT/public/uploads" ]; then
-    tar -czf "$BACKUP_DIR/uploads-$STAMP.tar.gz" -C "$ROOT/public" uploads
-    echo "Backup uploads -> $BACKUP_DIR/uploads-$STAMP.tar.gz"
+if [ -d "$UPLOADS_DIR" ]; then
+    tar -czf "$BACKUP_DIR/uploads-$STAMP.tar.gz" -C "$UPLOADS_DIR" .
+    echo "Backup uploads ($UPLOADS_DIR) -> $BACKUP_DIR/uploads-$STAMP.tar.gz"
 fi
 
 # 3) Rotasi: pertahankan $RETENTION backup terakhir per jenis

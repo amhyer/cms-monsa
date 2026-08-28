@@ -48,7 +48,7 @@ LOKI_URL=""
 createdb cms_mongisidi
 
 # 2. Run migrations
-npx prisma migrate deploy --schema prisma/schema.postgres.prisma
+npx prisma migrate deploy
 
 # 3. Seed data (opsional)
 bunx tsx prisma/seed.ts
@@ -78,12 +78,14 @@ ls -la .next/
 ## 🔒 Security Checklist
 
 - [ ] `AUTH_SECRET` sudah di-set (bukan default value)
-- [ ] `DATABASE_URL` menggunakan PostgreSQL (bukan SQLite)
+- [ ] `DATABASE_URL` menggunakan PostgreSQL (skema tunggal — dev juga PostgreSQL)
 - [ ] `NEXT_PUBLIC_SITE_URL` sudah benar
+- [ ] `POSTGRES_PASSWORD` diisi kuat di `.env` (docker-compose MENOLAK jalan tanpa ini)
 - [ ] `SMTP_PASS` sudah di-set (App Password untuk Gmail)
 - [ ] `FONNTE_TOKEN` sudah di-set (jika pakai WhatsApp)
 - [ ] `TELEGRAM_BOT_TOKEN` sudah di-set (jika pakai Telegram)
 - [ ] `SENTRY_DSN` sudah di-set (jika pakai Sentry)
+- [ ] `SEED_*_PASSWORD` diganti dari nilai default sebelum seed produksi
 - [ ] Tidak ada `.env` atau `.env.local` yang ter-commit
 - [ ] `.gitignore` sudah benar (node_modules, .env*, .next, db/*.db)
 - [ ] Pre-commit hook sudah aktif (`bun run hooks:install`)
@@ -94,9 +96,25 @@ ls -la .next/
 
 - [ ] PostgreSQL database sudah dibuat
 - [ ] `prisma migrate deploy` sudah dijalankan
+  (jalur Docker: otomatis via entrypoint container — `RUN_MIGRATIONS`)
 - [ ] Seed data sudah di-import (jika diperlukan)
 - [ ] Database backup schedule sudah diatur
 - [ ] `DATABASE_URL` menggunakan connection pooling (jika high traffic)
+
+---
+
+## 📎 Upload Storage Checklist
+
+- [ ] Vercel: tanpa konfigurasi — upload otomatis disimpan di tabel
+  `UploadedFile` (filesystem serverless ephemeral; lihat
+  `src/lib/file-storage.ts` & docs/VERCEL_DEPLOYMENT.md)
+- [ ] Vercel: sadar batas 4 MB per upload (limit platform Vercel 4,5 MB)
+- [ ] Docker/self-host: volume uploads terpasang
+  (`uploads-data:/app/public/uploads` — sudah default di docker-compose.yml)
+- [ ] Docker/self-host: backup ikut mengarsipkan uploads
+  (`docker-compose.cron.yml` atau `scripts/backup-db.sh` dari crontab)
+- [ ] Setelah migrasi skema baru: jalankan `bun run db:push` untuk DB dev
+  agar tabel `UploadedFile` tersedia lokal
 
 ---
 

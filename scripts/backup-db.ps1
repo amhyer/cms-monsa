@@ -32,15 +32,8 @@ if ($dbUrl -like "postgresql://*" -or $dbUrl -like "postgres://*") {
         throw "DATABASE_URL postgres tidak dapat di-parse"
     }
 } else {
-    # 2) SQLite (dev/testing)
-    $dbFile = Join-Path $Root "prisma\db\custom.db"
-    if (Test-Path $dbFile) {
-        $dump = Join-Path $BackupDir "db-$Stamp.db"
-        Copy-Item $dbFile $dump
-        Write-Host "Backup SQLite -> $dump"
-    } else {
-        throw "File database tidak ditemukan: $dbFile"
-    }
+    # SQLite dev dihapus (skema tunggal PostgreSQL sejak 2026-08-28)
+    throw "DATABASE_URL harus PostgreSQL (postgresql://...). SQLite dev sudah dihapus."
 }
 
 # 3) Uploads (user-generated content)

@@ -1,12 +1,13 @@
 # Docker Compose for CMS MONSA — Production Deployment
 #
 # Usage:
+#   cp .env.example .env   # lalu isi POSTGRES_PASSWORD & AUTH_SECRET!
 #   docker compose up -d
 #
 # Services:
-#   - app: Next.js application (port 3000)
-#   - postgres: PostgreSQL database (port 5432)
-#   - redis: Redis cache (port 6379, optional)
+#   - app: Next.js application (port 3000) + migrasi otomatis via entrypoint
+#   - postgres: PostgreSQL database
+#   - redis: Redis cache (optional, profile "with-redis")
 #
 # Environment:
 #   Copy .env.example to .env and fill in the values
@@ -17,12 +18,20 @@ services:
     image: postgres:16-alpine
     container_name: monsa-postgres
     restart: unless-stopped
+    # Port HANYA di-bind ke localhost (bukan 0.0.0.0) — database tidak boleh
+    # terekspos ke jaringan luar. Akses antar-service lewat network internal
+    # Compose. Butuh akses dari host (pgAdmin, psql)? tetap bisa via
+    # 127.0.0.1:5432. Jangan pernah bind tanpa prefix 127.0.0.1 di server
+    # produksi publik.
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_DB: cms_mongisidi
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      # TANPA default — compose GAGAL dengan pesan jelas bila .env lupa
+      # diisi (sebelumnya fallback "postgres" = database produksi berjalan
+      # dengan password default).
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD wajib diisi di .env}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -36,8 +45,9 @@ services:
     image: redis:7-alpine
     container_name: monsa-redis
     restart: unless-stopped
+    # Bind localhost saja (alasan sama dengan postgres).
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis-data:/data
     healthcheck:
@@ -59,10 +69,20 @@ services:
       - "${APP_PORT:-3000}:3000"
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/cms_mongisidi?schema=public
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD wajib diisi di .env}@postgres:5432/cms_mongisidi?schema=public
+      # Entrypoint container menjalankan `prisma migrate deploy` sebelum
+      # start (idempotent). Set "false" bila ada >1 instance app agar hanya
+      # satu yang bermigrasi.
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
       REDIS_URL: ${REDIS_URL:-}
-      AUTH_SECRET: ${AUTH_SECRET}
+      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET wajib diisi di .env}
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://sdn-mongisidi1.sch.id}
+      # Backend penyimpanan upload: "disk" (default self-host — file di
+      # public/uploads volume) atau "db" (tabel UploadedFile — untuk
+      # platform dengan filesystem ephemeral seperti Vercel). Default diambil
+      # otomatis oleh src/lib/file-storage.ts (VERCEL=1 → db).
+      UPLOAD_STORAGE: ${UPLOAD_STORAGE:-}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-}
       NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
       SENTRY_DSN: ${SENTRY_DSN:-}
       SENTRY_AUTH_TOKEN: ${SENTRY_AUTH_TOKEN:-}
@@ -79,6 +99,10 @@ services:
       LOKI_URL: ${LOKI_URL:-}
     volumes:
       - ./logs:/app/logs
+      # Upload user (gambar berita/galeri + PDF transparansi BOS) WAJIB
+      # persist di named volume — tanpa ini semua upload hilang setiap kali
+      # container di-recreate (deploy ulang / crash / update image).
+      - uploads-data:/app/public/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -86,7 +110,7 @@ services:
       test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/api/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))\""]
       interval: 30s
       timeout: 10s
-      start_period: 30s
+      start_period: 60s
       retries: 3
 
   # ── Nginx Reverse Proxy (Optional) ─────────────────────────────
@@ -109,3 +133,4 @@ services:
 volumes:
   postgres-data:
   redis-data:
+  uploads-data:

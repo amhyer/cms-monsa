@@ -80,8 +80,9 @@ jobs:
       GATE_MODE: ${{ inputs.gate_mode || 'full' }}
       # PrismaClient membaca DATABASE_URL saat konstruksi (sitemap.ts
       # di-prerender saat build). Test unit memakai mock penuh, jadi DB
-      # dummy cukup — tidak ada koneksi nyata yang dibutuhkan.
-      DATABASE_URL: "file:./hooks.db"
+      # dummy cukup — tidak ada koneksi nyata yang dibutuhkan. Skema
+      # tunggal PostgreSQL — dummy URL harus berprotokol postgresql://.
+      DATABASE_URL: "postgresql://ci:ci@127.0.0.1:5432/ci_dummy"
       # Bukan secret asli — cukup untuk build & test (sama seperti job lain).
       AUTH_SECRET: "ci-insecure-build-secret"
       NEXT_PUBLIC_SITE_URL: "https://sdn-mongisidi1.sch.id"

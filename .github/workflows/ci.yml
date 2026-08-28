@@ -42,7 +42,7 @@ jobs:
       # dummy cukup — tidak ada koneksi nyata yang dibutuhkan (query
       # prerender gagal tertangani try/catch di sitemap). Skema tunggal
       # PostgreSQL — dummy URL harus berprotokol postgresql://.
-      DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci_dummy"
+      DATABASE_URL: "postgresql://ci:ci@127.0.0.1:5432/ci_dummy"
       # AUTH_SECRET tidak wajib saat build, tapi diset untuk menghindari
       # peringatan dari src/lib/auth.ts. Ganti dengan secret asli di
       # production (jangan pernah commit secret di sini).
@@ -120,9 +120,13 @@ jobs:
     env:
       # DB e2e: service container postgres di atas (bukan secret — data CI
       # sekali pakai). db:push + db:seed cukup untuk database baru per run.
-      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/ci_e2e?schema=public"
+      # 127.0.0.1 (bukan localhost) — Node 17+ resolve localhost ke ::1
+      # dulu; service container Postgres hanya listen IPv4 → Prisma di
+      # proses Next.js 500 "Can't reach database server".
+      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/ci_e2e?schema=public"
       AUTH_SECRET: "ci-insecure-build-secret"
       NEXT_PUBLIC_SITE_URL: "https://sdn-mongisidi1.sch.id"
+      NODE_OPTIONS: "--dns-result-order=ipv4first"
     steps:
       # Checkout WAJIB sebagai step pertama sebelum action lokal —
       # runner me-resolve path ./.github/actions/* dari workspace yang
@@ -430,9 +434,10 @@ jobs:
     env:
       # PrismaClient membaca DATABASE_URL saat konstruksi; DB yang
       # di-restore dari dump artifact e2e ke service container di atas.
-      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/ci_e2e?schema=public"
+      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/ci_e2e?schema=public"
       AUTH_SECRET: "ci-insecure-build-secret"
       NEXT_PUBLIC_SITE_URL: "https://sdn-mongisidi1.sch.id"
+      NODE_OPTIONS: "--dns-result-order=ipv4first"
     steps:
       # Checkout WAJIB sebagai step pertama sebelum action lokal —
       # runner me-resolve path ./.github/actions/* dari workspace yang

@@ -66,6 +66,12 @@ const nextConfig: NextConfig = {
   // Standalone hanya untuk self-host; nonaktif saat di Vercel.
   output: isVercel ? undefined : "standalone",
 
+  // Prisma (native query engine) jangan di-bundle webpack/turbopack —
+  // tanpa ini `next start` di CI sering 500 "Query engine library not found"
+  // / "Can't reach database server" padahal `prisma db push` + seed lulus
+  // (CLI memuat engine dari node_modules, Next yang mem-bundle tidak).
+  serverExternalPackages: ["@prisma/client", "prisma"],
+
   // distDir dapat diganti lewat env (mis. preview paralel di port lain tanpa
   // bentrok dengan dev server utama yang memegang lock .next). Default .next.
   distDir: process.env.NEXT_DIST_DIR ?? ".next",

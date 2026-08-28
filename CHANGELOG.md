@@ -28,6 +28,15 @@ lagi dual-schema drift / "miskomunikasi" dev vs prod.
 - CI: job e2e memakai service container `postgres:16-alpine` (bukan file
   SQLite sekali pakai); job orphan-check me-restore dump `pg_dump` dari
   artifact. Validasi: 565+19 test lulus tanpa perubahan perilaku.
+- Follow-up CI setelah patch postgres (E2E 9e20ade masih merah, 5xx):
+  `DATABASE_URL` memakai `127.0.0.1` + `NODE_OPTIONS=--dns-result-order=ipv4first`
+  (hindari resolve `localhost` → `::1` yang tidak di-listen Postgres);
+  `serverExternalPackages` untuk `@prisma/client` agar engine tidak di-bundle
+  Next; leftover `file:./hooks.db` di hooks-gate diganti dummy postgresql;
+  composite action `comment-e2e-failure` tidak lagi memuat ekspresi
+  `job.check_run_id` di *description* (konteks `job` tidak ada saat action
+  di-load → step komentar PR gagal). Spec restart BOS kini bisa baca PID
+  listener di Linux (`ss`).
 - Backup (`backup-db.sh`/`.ps1`): PostgreSQL saja.
 - Fix test bawaan: `users.test.ts` kini hermetic — menghapus
   `NEXT_PUBLIC_SITE_URL` selama test (CI men-set env itu, assertion link

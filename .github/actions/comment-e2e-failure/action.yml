@@ -42,8 +42,11 @@ inputs:
     required: true
   check_run_id:
     description: >-
-      Job check run id (pass ${{ job.check_run_id }}) — deep-link ke section
-      step summary run di halaman run (#summary-<id>). Kosong -> tanpa link.
+      Job check run id (caller should pass github.job check_run_id via the
+      workflow `with:` block). Deep-link ke section step summary run di
+      halaman run (#summary-<id>). Kosong -> tanpa link. Do not put GitHub
+      Actions expressions in this description: composite actions evaluate
+      them at load time, and the `job` context is not available here.
     required: false
     default: ""
   marker:

@@ -205,12 +205,15 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json(doc);
   } catch (e) {
-    logger.error({
-      filename: attemptedName,
-      size: attemptedSize,
-      source,
-      error: e instanceof Error ? e.message : String(e),
-    });
+    logger.error(
+      {
+        filename: attemptedName,
+        size: attemptedSize,
+        source,
+        error: e instanceof Error ? e.message : String(e),
+      },
+      "[bos-documents] upload failed"
+    );
     return NextResponse.json(
       { error: "Gagal mengunggah dokumen. Silakan coba lagi." },
       { status: 500 }

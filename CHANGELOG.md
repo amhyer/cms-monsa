@@ -29,6 +29,9 @@ lagi dual-schema drift / "miskomunikasi" dev vs prod.
   SQLite sekali pakai); job orphan-check me-restore dump `pg_dump` dari
   artifact. Validasi: 565+19 test lulus tanpa perubahan perilaku.
 - Backup (`backup-db.sh`/`.ps1`): PostgreSQL saja.
+- Fix test bawaan: `users.test.ts` kini hermetic — menghapus
+  `NEXT_PUBLIC_SITE_URL` selama test (CI men-set env itu, assertion link
+  portal WhatsApp gagal di CI meski lulus lokal).
 - `.env.example` ditulis ulang (panduan Neon dev branch vs produksi).
 
 ### 🔧 Fixed — Kesiapan Deployment (audit `docs/DEPLOYMENT_GAP_AUDIT.md`)

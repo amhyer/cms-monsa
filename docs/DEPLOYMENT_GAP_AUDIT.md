@@ -39,7 +39,10 @@
 >   (Prisma 7), staging/preview env formal.
 >
 > Verifikasi: 565 unit test lulus + 19 test baru (`file-storage.test.ts`),
-> `check:schema` sinkron, typecheck bersih (tanpa error baru), YAML/skrip tervalidasi.
+> typecheck bersih (tanpa error baru), YAML/skrip tervalidasi, gate CI
+> `hooks-gate` HIJAU di GitHub Actions (dengan env CI + Prisma client
+> ter-generate). Fix tambahan: test `users.test.ts` dibuat hermetic
+> (sensitif `NEXT_PUBLIC_SITE_URL` — gagal di CI, lulus lokal).
 
 ## Ringkasan
 

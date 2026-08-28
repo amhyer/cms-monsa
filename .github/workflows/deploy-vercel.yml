@@ -39,7 +39,14 @@ jobs:
       # dengan error yang jelas.
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
     steps:
-      - name: Setup repo (checkout + Node + Bun + install)
+      # Checkout WAJIB sebagai step pertama sebelum action lokal —
+      # runner me-resolve path ./.github/actions/* dari workspace yang
+      # masih kosong tanpa checkout (bug refactor c92ca77: job gagal
+      # instan "Can't find 'action.yml' under setup-repo").
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup repo (Node + Bun + install)
         uses: ./.github/actions/setup-repo
 
       # `bash scripts/...` (bukan ./scripts/...) agar tidak bergantung pada

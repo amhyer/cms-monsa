@@ -15,7 +15,7 @@
 #   2. Warm-up rute dev server (non-blocking, --if-up) — port dibaca
 #      otomatis dari .zscripts/dev.pid/.port (lihat e2e/warmup.ts).
 #   3. Gate penuh: bun run check — typecheck · eslint · markdownlint ·
-#      schema-sync · vitest.
+#      vitest. (schema-sync dihapus 2026-08-28 — skema tunggal PostgreSQL.)
 #
 # Guard 1 & 2 memeriksa INDEX (git diff --cached) — isi yang akan
 # ter-commit. Di dry-run (`bun run hooks:check`) index adalah "yang akan
@@ -363,7 +363,7 @@ emit_result() {
     out+=",\"pushScope\":{\"total\":${PUSH_SCOPE_TOTAL},\"js\":${#LINT_FILES[@]}}"
   fi
   if [[ "$MODE" != "full" ]]; then
-    out+=",\"skippedSteps\":$(json_str_list typecheck vitest markdownlint schema-sync warmup)"
+    out+=",\"skippedSteps\":$(json_str_list typecheck vitest markdownlint warmup)"
   fi
   if [[ -n "$err" ]]; then
     out+=",\"error\":\"$(json_escape "$err")\""
@@ -469,7 +469,7 @@ elif [[ "$MODE" == "staged-push" ]]; then
   fi
 elif [[ "$MODE" == "quick" ]]; then
   if [[ "$JSON" -eq 0 ]]; then
-    echo "🔍 [hooks] (--quick) lint seluruh repo (tanpa tsc/vitest/schema-sync)..."
+    echo "🔍 [hooks] (--quick) lint seluruh repo (tanpa tsc/vitest)..."
   fi
   # LINT_COLOR menyamakan keputusan warna dengan mode lain (TTY-aware):
   # eslint . --color hanya bila stdout TTY & NO_COLOR kosong.

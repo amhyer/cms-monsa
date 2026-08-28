@@ -9,7 +9,7 @@ konfigurasinya benar saat deploy.
 | No | Item | Status di kode | Langkah di server |
 |----|------|----------------|-------------------|
 | 1 | Debug / stack trace | Sudah aman. Kode tidak punya `APP_DEBUG`; Next.js produksi tidak menampilkan stack trace. | Set `APP_DEBUG="false"` di `.env.production` sebagai penanda. |
-| 2 | Database PostgreSQL | `prisma/schema.postgres.prisma` siap. | Buat DB, isi `DATABASE_URL` di `.env.production`, jalankan `bun run db:migrate:prod`. |
+| 2 | Database PostgreSQL | `prisma/schema.prisma` siap (skema tunggal). | Buat DB, isi `DATABASE_URL` di `.env.production`, jalankan `bun run db:migrate:prod`. |
 | 3 | Session secret kuat | Sudah: `auth.ts` melempar error di produksi jika `AUTH_SECRET` kosong/default. | Set `AUTH_SECRET` random 64-hex (generate: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`). |
 | 4 | HTTPS | HSTS `max-age=63072000; includeSubDomains; preload` sudah di `next.config.ts`; `Caddyfile` tersedia. | Pastikan Caddy/nginx dengan sertifikat valid; situs hanya bisa diakses via `https://`. |
 | 5 | Backup database | Script: `bun run backup:db` (`scripts/backup-db.ps1` untuk Windows, `scripts/backup-db.sh` untuk Linux). | Pasang cron setiap 02.00 (contoh di bawah). |
@@ -66,7 +66,7 @@ Migrasi kolom `allowInsecureInProduction` (tabel `DapodikConfig`):
   (`scripts/docker-entrypoint.sh` → `prisma migrate deploy`) sebelum app
   start; set `RUN_MIGRATIONS=false` untuk melewatkannya (mis. bila ada
   lebih dari satu instance app).
-- SQLite (fallback dev): `bun run db:push`.
+- Dev: `bun run db:push` (PostgreSQL — dev = produksi, satu skema).
 
 Verifikasi kolom sudah ada di DB (bukan error "kolom tidak ditemukan"):
 
@@ -84,8 +84,8 @@ SELECT "allowInsecureInProduction" FROM "DapodikConfig";
 #   powershell.exe -File C:\srv\cms-monsa\scripts\backup-db.ps1
 ```
 
-Backup menyimpan `custom.db` (SQLite) atau dump `pg_dump` (PostgreSQL) +
-`public/uploads/`, dengan rotasi otomatis menyimpan 14 backup terakhir.
+Backup menyimpan dump `pg_dump` (PostgreSQL) + `public/uploads/`, dengan
+rotasi otomatis menyimpan 14 backup terakhir.
 
 ## 🟡 Minggu pertama setelah deploy
 

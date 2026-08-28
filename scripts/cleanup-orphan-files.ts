@@ -33,7 +33,8 @@
  *     CI untuk memastikan suite e2e tidak meninggalkan file BOS di disk/DB
  *     maupun baris tanpa file — "fails on unexpected orphan counts".
  *
- * Pakai DATABASE_URL lingkungan (dev default = db/custom.db).
+ * Pakai DATABASE_URL lingkungan (PostgreSQL — dev = branch Neon dev /
+ * docker-compose.dev.yml, produksi = Neon main / container postgres).
  */
 import { PrismaClient } from "@prisma/client";
 import { readdir, unlink } from "node:fs/promises";

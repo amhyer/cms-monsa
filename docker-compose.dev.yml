@@ -1,0 +1,44 @@
+# ============================================
+# CMS MONSA - Docker Compose untuk DEV LOKAL (hanya PostgreSQL)
+# ============================================
+# Database development lokal — opsional. Alternatif termudah adalah memakai
+# branch `dev` di akun Neon Anda (lihat .env.example), sehingga tidak perlu
+# menjalankan apa pun secara lokal. Compose ini untuk dev offline / tanpa
+# koneksi internet.
+#
+# Usage:
+#   docker compose -f docker-compose.dev.yml up -d
+#
+# Lalu di .env (root repo):
+#   DATABASE_URL="postgresql://mons:mons@localhost:5432/cms_mongisidi_dev?schema=public"
+#
+# Setup awal (sekali):
+#   bun run db:push     # buat skema
+#   bun run db:seed     # data awal (idempotent)
+#
+# Hentikan & hapus data dev:
+#   docker compose -f docker-compose.dev.yml down -v
+# ============================================
+
+services:
+  postgres-dev:
+    image: postgres:16-alpine
+    container_name: monsa-postgres-dev
+    restart: unless-stopped
+    # Bind localhost saja — database dev tidak perlu terekspos keluar.
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_DB: cms_mongisidi_dev
+      POSTGRES_USER: mons
+      POSTGRES_PASSWORD: mons
+    volumes:
+      - postgres-dev-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mons -d cms_mongisidi_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-dev-data:

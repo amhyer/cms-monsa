@@ -48,7 +48,7 @@ LOKI_URL=""
 createdb cms_mongisidi
 
 # 2. Run migrations
-npx prisma migrate deploy --schema prisma/schema.postgres.prisma
+npx prisma migrate deploy
 
 # 3. Seed data (opsional)
 bunx tsx prisma/seed.ts
@@ -78,7 +78,7 @@ ls -la .next/
 ## 🔒 Security Checklist
 
 - [ ] `AUTH_SECRET` sudah di-set (bukan default value)
-- [ ] `DATABASE_URL` menggunakan PostgreSQL (bukan SQLite)
+- [ ] `DATABASE_URL` menggunakan PostgreSQL (skema tunggal — dev juga PostgreSQL)
 - [ ] `NEXT_PUBLIC_SITE_URL` sudah benar
 - [ ] `POSTGRES_PASSWORD` diisi kuat di `.env` (docker-compose MENOLAK jalan tanpa ini)
 - [ ] `SMTP_PASS` sudah di-set (App Password untuk Gmail)
@@ -114,7 +114,7 @@ ls -la .next/
 - [ ] Docker/self-host: backup ikut mengarsipkan uploads
   (`docker-compose.cron.yml` atau `scripts/backup-db.sh` dari crontab)
 - [ ] Setelah migrasi skema baru: jalankan `bun run db:push` untuk DB dev
-  SQLite agar tabel `UploadedFile` tersedia lokal
+  agar tabel `UploadedFile` tersedia lokal
 
 ---
 

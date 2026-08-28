@@ -25,7 +25,7 @@ Sistem Manajemen Konten (CMS) untuk website sekolah UPT SPF SD Negeri Unggulan M
 | Styling | Tailwind CSS v4 |
 | State | Zustand |
 | Animation | Framer Motion |
-| Database | Prisma ORM + SQLite (dev) / PostgreSQL (produksi via [schema.postgres.prisma](prisma/schema.postgres.prisma)) |
+| Database | Prisma ORM + PostgreSQL — **satu skema** ([schema.prisma](prisma/schema.prisma)) untuk dev, CI, dan produksi (Neon) |
 | Auth | Custom HMAC-signed cookie sessions |
 | Package Manager | bun (lockfile: `bun.lock`) |
 
@@ -162,8 +162,10 @@ Untuk detail implementasi, lihat [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 Buat file `.env` di root project (template: [.env.example](.env.example)):
 
 ```env
-# Database
-DATABASE_URL="file:./db/custom.db"
+# Database — PostgreSQL (satu skema untuk dev & produksi).
+# Dev: branch `dev` di Neon (termudah) ATAU PostgreSQL lokal via
+# `docker compose -f docker-compose.dev.yml up -d`.
+DATABASE_URL="postgresql://mons:mons@localhost:5432/cms_mongisidi_dev?schema=public"
 
 # Authentication (WAJIB untuk production)
 # Generate secret: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
@@ -203,8 +205,7 @@ bun run start         # Production server
 bun run lint          # ESLint
 bun run lint:md       # Markdown lint (fence seimbang, tautan tidak rusak)
 bun run typecheck     # TypeScript type checking (tsc --noEmit)
-bun run check:schema  # Cek sinkronisasi schema.prisma ↔ schema.postgres.prisma
-bun run check         # Gerbang validasi: typecheck + lint + lint:md + check:schema + test
+bun run check         # Gerbang validasi: typecheck + lint + lint:md + test
 bun run test          # Unit & integration tests (Vitest)
 bun run test:watch    # Tests dalam mode watch
 bun run test:coverage # Tests dengan coverage report
@@ -231,15 +232,14 @@ Sebelum commit, jalankan gerbang validasi untuk memastikan kode sehat:
 bun run typecheck   # TypeScript: tsc --noEmit (0 error)
 bun run lint        # ESLint (0 error)
 bun run lint:md     # Markdown lint (markdownlint-cli2 + custom rules)
-bun run check:schema # Cek sinkronisasi skema Prisma (dev ↔ postgres)
 bun run test        # Vitest — unit & integration tests
-bun run check       # Semua di atas sekaligus (typecheck && lint && lint:md && check:schema && test)
+bun run check       # Semua di atas sekaligus (typecheck && lint && lint:md && test)
 ```
 
 `bun run check` adalah gerbang tunggal yang dipakai oleh pre-commit hook.
 Perintah ini berhenti (short-circuit) di kegagalan pertama dan mengembalikan
 exit code non-zero — cocok untuk pipeline CI maupun pre-commit. CI
-([.github/workflows/ci.yml](.github/workflows/ci.yml)) menjalankan typecheck, lint, lint:md, check:schema, dan test
+([.github/workflows/ci.yml](.github/workflows/ci.yml)) menjalankan typecheck, lint, lint:md, dan test
 sebagai step terpisah agar setiap kegagalan terlihat jelas di laporan GitHub
 Actions.
 
@@ -290,7 +290,7 @@ Gate berjalan berurutan dalam tiga lapis:
    cold-compile Turbopack; server mati → dilewati (`--if-up`).
    berjalan, rute utama di-panaskan agar test:e2e setelahnya tidak kena stall
    cold-compile Turbopack; server mati → dilewati (`--if-up`).
-3. **`bun run check`** — typecheck + lint + lint:md + check:schema + test.
+3. **`bun run check`** — typecheck + lint + lint:md + test.
 
 Aktifkan hook sekali per clone:
 
@@ -304,7 +304,7 @@ bun run hooks:install  # set git config core.hooksPath .githooks
 |----------|--------|--------------|
 | `bun run hooks:install` | Aktifkan hooks sekali per clone (`git config core.hooksPath .githooks`) | manual |
 | `git commit` | Jalankan gate penuh otomatis | pre-commit |
-| `bun run hooks:check` | Dry-run gate **PENUH** (typecheck + lint + lint:md + check:schema + vitest) tanpa commit | manual, CI `hooks-gate` |
+| `bun run hooks:check` | Dry-run gate **PENUH** (typecheck + lint + lint:md + vitest) tanpa commit | manual, CI `hooks-gate` |
 | `bun run hooks:check -- --quick` | Ringan: guard + lint seluruh repo (tanpa tsc/vitest/schema-sync) | pre-push **default** |
 | `bun run hooks:check -- --staged` | Guard + lint HANYA file JS/TS ter-stage (non-JS dicantumkan, tidak di-lint) | manual |
 | `bun run hooks:check -- --staged-push` | Guard + lint HANYA file pada commit yang di-push (daftar via `HOOKS_PUSH_FILES`) | pre-push `PUSH_GATE=staged` |
@@ -443,7 +443,7 @@ Opsi `PUSH_GATE` per push (env) atau `git config pre-push.gate` (per-clone,
 persisten):
 
 ```bash
-PUSH_GATE=full   git push  # gate PENUH: seluruh bun run check (typecheck + lint + lint:md + check:schema + vitest)
+PUSH_GATE=full   git push  # gate PENUH: seluruh bun run check (typecheck + lint + lint:md + vitest)
 PUSH_GATE=staged git push  # lint HANYA file yang disentuh commit yang di-push (diff remote..local; branch baru = semua file)
 PUSH_JSON=1      git push  # output machine-readable: stdout = SATU baris JSON (lihat di bawah)
 
@@ -510,20 +510,17 @@ E2E_PORT=3200 E2E_SERVER_CMD="bunx next dev -p 3200" bun run test:e2e
 ```
 
 **DB e2e terpisah (disarankan agar suite tidak mengotori DB dev):**
-`DATABASE_URL` harus **path absolut** — Prisma meresolve path relatif
-terhadap direktori schema, jadi `file:./prisma/e2e-gate.db` membuat file di
-`prisma/prisma/e2e-gate.db` (bukan `prisma/e2e-gate.db`) dan DB lama di sana
-tidak pernah di-wipe → seed terlewati padahal seharusnya kosong:
+buat database PostgreSQL terpisah (mis. `cms_e2e` — di Neon buat branch
+`e2e`, atau `createdb cms_e2e` untuk lokal), lalu:
 
 ```bash
-# reseed DB e2e (path absolut — ganti dengan path worktree Anda)
-rm -f <worktree>/prisma/e2e-gate.db*
-DATABASE_URL="file:<worktree>/prisma/e2e-gate.db" bunx prisma db push
-DATABASE_URL="file:<worktree>/prisma/e2e-gate.db" bun run db:seed
+# reseed DB e2e (ganti connection string dengan milik Anda)
+DATABASE_URL="postgresql://mons:mons@localhost:5432/cms_e2e?schema=public" bunx prisma db push
+DATABASE_URL="postgresql://mons:mons@localhost:5432/cms_e2e?schema=public" bun run db:seed
 
 # jalankan suite dengan DB e2e
 E2E_PORT=3200 E2E_SERVER_CMD="bunx next dev -p 3200" \
-  DATABASE_URL="file:<worktree>/prisma/e2e-gate.db" bun run test:e2e
+  DATABASE_URL="postgresql://mons:mons@localhost:5432/cms_e2e?schema=public" bun run test:e2e
 ```
 
 #### Server target (urutan prioritas)
@@ -935,7 +932,7 @@ di-recreate). Add-on:
 ```bash
 bun install --frozen-lockfile
 bunx prisma generate
-bun run db:migrate:prod   # prisma migrate deploy (schema.postgres.prisma)
+bun run db:migrate:prod   # prisma migrate deploy (PostgreSQL)
 bun run db:seed           # sekali di DB kosong (idempotent)
 bun run build
 bun run start             # atau: node .next/standalone/server.js
@@ -965,8 +962,7 @@ CMS MONSA/
 ├── .env.example              # Environment template (copy to .env)
 ├── .markdownlint-cli2.cjs    # Markdownlint config (lint:md)
 ├── prisma/
-│   ├── schema.prisma          # Database schema (SQLite)
-│   ├── schema.postgres.prisma # PostgreSQL variant
+│   ├── schema.prisma          # Database schema (PostgreSQL — dev & produksi)
 │   └── seed.ts                # Seed data
 ├── public/
 │   ├── uploads/               # User-uploaded files

@@ -86,7 +86,7 @@ Minimal isi di `.env`:
 
 | Variable | Contoh (dev) | Keterangan |
 |----------|--------------|------------|
-| `DATABASE_URL` | `file:./db/custom.db` | SQLite lokal (mudah untuk dev) |
+| `DATABASE_URL` | `postgresql://mons:mons@localhost:5432/cms_mongisidi_dev?schema=public` | PostgreSQL (dev = produksi, satu skema) |
 | `AUTH_SECRET` | *random 64 hex* | wajib — logout/sesi tidak aman tanpa ini |
 | `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` | SEO & email |
 
@@ -96,11 +96,14 @@ Generate secret aman:
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-Untuk **produksi** pakai PostgreSQL, contoh:
+Database dev — dua pilihan:
 
-```env
-DATABASE_URL="postgresql://postgres:PASSWORD@localhost:5432/cms_mongisidi?schema=public"
-```
+1. **Neon branch `dev` (termudah, tanpa instalasi lokal):** di Console Neon
+   → project → *Branches* → buat branch `dev` → salin connection string
+   (DIRECT) ke `.env`.
+2. **PostgreSQL lokal via Docker (offline):**
+   `docker compose -f docker-compose.dev.yml up -d` lalu pakai contoh URL
+   di tabel atas.
 
 Jangan pernah commit `.env` — sudah diblokir oleh pre-commit hook.
 
@@ -108,24 +111,25 @@ Jangan pernah commit `.env` — sudah diblokir oleh pre-commit hook.
 
 ## 4. Siapkan Database
 
-### Development (SQLite — paling mudah)
+**SATU skema PostgreSQL** (`prisma/schema.prisma`) untuk semua environment —
+dulu ada varian SQLite untuk dev, dikonsolidasi agar dev = produksi.
 
 ```bash
-bun run db:push      # push schema.prisma ke db/kustom.db
-bun run db:generate  # generate Prisma client (biasanya otomatis)
+bun run db:push      # push schema ke DATABASE_URL (dev/DB kosong)
+bun run db:generate  # generate Prisma client (biasanya otomatis via postinstall)
 bun run db:seed      # seed contoh (dilewati bila DB sudah terisi)
 ```
 
-### Produksi (PostgreSQL)
+### Produksi (Vercel + Neon)
 
 ```bash
 bun run db:generate
-bun run db:migrate:deploy   # prisma migrate deploy -schema postgres
+bun run db:migrate:deploy   # prisma migrate deploy
 ```
 
-> Ada **dua** file schema: `prisma/schema.prisma` (SQLite/dev) dan
-> `prisma/schema.postgres.prisma` (PostgreSQL). Keduanya harus tetap
-> sinkron — dicek otomatis dengan `bun run check:schema`.
+> Migrasi produksi berjalan otomatis lewat workflow GitHub
+> *Deploy database (Vercel + Neon)* (migrate + seed idempotent) saat push
+> ke `main` — lihat `scripts/deploy-vercel.sh`.
 
 ---
 
@@ -180,8 +184,8 @@ Catatan masalah: bila sinkronisasi gagal padahal server Dapodik online,
 pastikan migrasi DB sudah jalan — kolom baru seperti `dapodikId` dan
 `allowInsecureInProduction` (tabel `DapodikConfig`) harus ada di database:
 
-- SQLite (development): `bun run db:push`
-- PostgreSQL (produksi): `bun run db:migrate:deploy`
+- Dev: `bun run db:push`
+- Produksi: `bun run db:migrate:deploy`
   (migrasi `prisma/migrations/*_add_dapodik_allow_insecure/` menambahkan
   kolom `allowInsecureInProduction` dengan default `false`)
 
@@ -199,14 +203,13 @@ Gerbang tunggal:
 bun run check
 ```
 
-Menjalankan berurutan: `typecheck` → `lint` → `lint:md` → `check:schema` → `test`.
+Menjalankan berurutan: `typecheck` → `lint` → `lint:md` → `test`.
 Perintah terpisah bila ingin langkah spesifik:
 
 ```bash
 bun run typecheck    # tsc --noEmit
 bun run lint         # ESLint
 bun run lint:md      # markdownlint (fence & tautan relatif)
-bun run check:schema # schema.prisma vs schema.postgres.prisma
 bun run test         # Vitest (unit/integration)
 bun run test:e2e     # Playwright (bila diinginkan)
 bun run test:e2e:local # test:e2e untuk dev server lokal — E2E_SERVER_LOG otomatis ke .zscripts/dev.log
@@ -782,7 +785,7 @@ bun run dev 2>&1 | jq 'select(.level == "error")'
 | Dev server | `bun run dev` |
 | Build produksi | `bun run build` |
 | Generate Prisma | `bun run db:generate` |
-| Migrasi dev (SQLite) | `bun run db:push` |
+| Migrasi/push skema (PostgreSQL) | `bun run db:push` |
 | Jalankan produksi | `bun run start` |
 | Validasi lengkap | `bun run check` |
 | Test unit | `bun run test` |

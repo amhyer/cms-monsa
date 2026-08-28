@@ -19,9 +19,8 @@
 set -e
 
 if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
-  echo ">> [entrypoint] prisma migrate deploy (schema.postgres.prisma) ..."
-  node node_modules/prisma/build/index.js migrate deploy \
-    --schema prisma/schema.postgres.prisma
+  echo ">> [entrypoint] prisma migrate deploy ..."
+  node node_modules/prisma/build/index.js migrate deploy
   echo ">> [entrypoint] migrasi selesai."
 else
   echo ">> [entrypoint] RUN_MIGRATIONS != true — migrasi dilewati."

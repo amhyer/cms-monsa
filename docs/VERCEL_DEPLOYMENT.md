@@ -97,7 +97,7 @@ vercel link
 
 # Run migrations
 vercel env pull .env.local
-npx prisma migrate deploy --schema prisma/schema.postgres.prisma
+npx prisma migrate deploy
 #   ^ also applies prisma/migrations/*_add_dapodik_allow_insecure/
 #     (adds the allowInsecureInProduction column to DapodikConfig)
 
@@ -131,7 +131,8 @@ Notes for Vercel:
 
 Migration: the `allowInsecureInProduction` column (table `DapodikConfig`) is
 added by the migrations in **Step 1** above (`prisma migrate deploy`); no extra
-step needed. For a SQLite fallback (local dev), run `bun run db:push`.
+step needed. For a local dev database (Neon `dev` branch or Docker Postgres),
+run `bun run db:push`.
 
 ### 4. File Uploads (IMPORTANT — works out of the box on Vercel)
 
@@ -159,7 +160,8 @@ direct-to-storage uploads.
 
 Migration: the `UploadedFile` table is created by migration
 `20260828120000_add_uploaded_file` (applied by `prisma migrate deploy`).
-For a SQLite dev database, run `bun run db:push`.
+For your dev database (Neon `dev` branch or local Docker Postgres), run
+`bun run db:push`.
 
 ---
 

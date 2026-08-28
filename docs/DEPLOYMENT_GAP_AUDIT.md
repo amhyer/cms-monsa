@@ -6,6 +6,12 @@
 >
 > **✅ STATUS PERBAIKAN (28 Agustus 2026): SEMUA temuan KRITIKAL (K1–K6) dan
 > SEDANG (S1–S5) telah diperbaiki**, plus sebagian besar item minor:
+> - **P0 ✅ (permintaan pemilik repo): konsolidasi ke SATU skema PostgreSQL.**
+>   SQLite dev dihapus — `prisma/schema.prisma` kini PostgreSQL untuk semua
+>   environment (dev lokal via branch Neon `dev` / docker-compose.dev.yml,
+>   CI via service container, produksi via Neon main). Dev = produksi,
+>   tidak ada lagi dual-schema drift. `schema.postgres.prisma` & guard
+>   `check:schema` dihapus.
 > - **C0 ✅ (ditemukan saat pembuatan PR — CI rusak sejak commit c92ca77 di
 >   main, semua workflow gagal instan)**: composite action lokal
 >   `.github/actions/setup-repo` dipakai sebagai step pertama job tanpa

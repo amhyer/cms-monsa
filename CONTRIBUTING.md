@@ -25,7 +25,7 @@ jalur tidak bisa drift.
 
 ```bash
 bun run hooks:install         # aktifkan hook (sekali per clone)
-bun run hooks:check           # gate PENUH: guard → typecheck → lint → lint:md → check:schema → vitest
+bun run hooks:check           # gate PENUH: guard → typecheck → lint → lint:md → vitest
 bun run hooks:check -- --quick          # ringan: guard + lint seluruh repo (tanpa typecheck/vitest)
 bun run hooks:check -- --staged         # hanya file JS/TS ter-stage (+ daftar non-JS transparan)
 bun run hooks:check -- --json           # SATU baris JSON untuk CI/bot (schema: README → Output JSON)
@@ -66,7 +66,7 @@ env:
 | Perintah | Efek |
 |----------|------|
 | `git push` | sanity check ringan (`--quick`) |
-| `PUSH_GATE=full git push` | gate PENUH (typecheck + lint + lint:md + check:schema + vitest) |
+| `PUSH_GATE=full git push` | gate PENUH (typecheck + lint + lint:md + vitest) |
 | `PUSH_GATE=staged git push` | lint hanya file yang disentuh commit yang di-push |
 | `git config pre-push.gate full\|staged` | default persisten per clone (env `PUSH_GATE` tetap menang) |
 | `PUSH_JSON=1 git push` | stdout = SATU baris JSON gate (detail manusia ke stderr) |

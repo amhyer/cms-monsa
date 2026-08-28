@@ -26,8 +26,8 @@ RUN corepack enable && corepack prepare bun@latest --activate
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Generate Prisma client
-RUN npx prisma generate --schema=prisma/schema.postgres.prisma
+# Generate Prisma client (skema tunggal PostgreSQL)
+RUN npx prisma generate
 
 # Build Next.js application
 ENV NEXT_TELEMETRY_DISABLED=1

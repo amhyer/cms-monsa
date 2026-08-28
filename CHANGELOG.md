@@ -7,6 +7,30 @@
 
 ## [Unreleased] - 2026-08-28
 
+### 💥 Changed — Konsolidasi ke SATU skema PostgreSQL (dev = produksi)
+
+SQLite dev **dihapus**; `prisma/schema.prisma` kini ber-provider
+`postgresql` dan menjadi satu-satunya skema (file
+`schema.postgres.prisma` dihapus; riwayat migrasi SQLite lama tetap di
+`prisma/migrations_sqlite_backup/`). Motivasi: dev = produksi — tidak ada
+lagi dual-schema drift / "miskomunikasi" dev vs prod.
+
+- **Dev lokal** (pilih satu):
+  - Branch `dev` di akun Neon (termudah — salin connection string ke `.env`);
+  - atau `docker compose -f docker-compose.dev.yml up -d` (PostgreSQL lokal).
+  - Setup awal: `bun run db:push && bun run db:seed`.
+- `package.json`: `postinstall`/`db:migrate:*` tanpa flag `--schema`;
+  `check:schema` dihapus (guard sinkronisasi dua skema tidak relevan lagi;
+  script `scripts/check-schema-sync.mjs` dihapus).
+- `Dockerfile`/`docker-entrypoint.sh`/`vercel.json`/`scripts/deploy-vercel.sh`:
+  tanpa flag `--schema` (skema tunggal).
+- `.zscripts/dev.sh` tidak lagi memaksa `DATABASE_URL` SQLite (kini dari `.env`).
+- CI: job e2e memakai service container `postgres:16-alpine` (bukan file
+  SQLite sekali pakai); job orphan-check me-restore dump `pg_dump` dari
+  artifact. Validasi: 565+19 test lulus tanpa perubahan perilaku.
+- Backup (`backup-db.sh`/`.ps1`): PostgreSQL saja.
+- `.env.example` ditulis ulang (panduan Neon dev branch vs produksi).
+
 ### 🔧 Fixed — Kesiapan Deployment (audit `docs/DEPLOYMENT_GAP_AUDIT.md`)
 
 #### CI (rusak sejak c92ca77 di main — blokir semua deploy)

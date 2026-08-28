@@ -9,8 +9,7 @@
     "lint": "eslint .",
     "lint:md": "markdownlint-cli2",
     "typecheck": "tsc --noEmit",
-    "check": "tsc --noEmit && eslint . && markdownlint-cli2 && node scripts/check-schema-sync.mjs && vitest run",
-    "check:schema": "node scripts/check-schema-sync.mjs",
+    "check": "tsc --noEmit && eslint . && markdownlint-cli2 && vitest run",
     "check:public-scope": "vitest run src/lib/__tests__/public-scope.test.ts",
     "hooks:install": "git config core.hooksPath .githooks",
     "hooks:check": "bash .githooks/run-checks.sh",
@@ -28,14 +27,14 @@
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "db:migrate": "prisma db push",
-    "db:migrate:deploy": "prisma migrate deploy --schema prisma/schema.postgres.prisma",
-    "db:migrate:prod": "prisma migrate deploy --schema prisma/schema.postgres.prisma",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate:prod": "prisma migrate deploy",
     "db:seed": "bunx tsx prisma/seed.ts",
     "deploy:vercel": "bash scripts/deploy-vercel.sh",
     "clean:orphans": "bunx tsx scripts/cleanup-orphan-files.ts",
     "backup:db": "powershell -ExecutionPolicy Bypass -File scripts/backup-db.ps1",
     "health:check": "bunx tsx scripts/health-check.ts",
-    "postinstall": "prisma generate --schema prisma/schema.postgres.prisma"
+    "postinstall": "prisma generate"
   },
   "prisma": {
     "seed": "bunx tsx prisma/seed.ts"

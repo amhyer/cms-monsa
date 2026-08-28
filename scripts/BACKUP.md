@@ -75,7 +75,7 @@ taskschd.msc
 
 | Type | Description | Retention |
 |------|-------------|-----------|
-| Database | PostgreSQL dump (`.sql`) or SQLite copy (`.db`) | 14 backups |
+| Database | PostgreSQL dump (`.sql`) | 14 backups |
 | Uploads | Tarball of `public/uploads/` directory | 14 backups |
 
 ## Backup Location
@@ -97,19 +97,6 @@ docker compose stop app
 
 # Restore database
 PGPASSWORD=your_password pg_restore -h localhost -p 5432 -U postgres -d cms_mongisidi -c backups/db-YYYYMMDD-HHMMSS.sql
-
-# Start the application
-docker compose start app
-```
-
-### SQLite
-
-```bash
-# Stop the application
-docker compose stop app
-
-# Restore database
-cp backups/db-YYYYMMDD-HHMMSS.db prisma/db/custom.db
 
 # Start the application
 docker compose start app

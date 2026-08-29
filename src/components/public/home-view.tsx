@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight,
@@ -69,11 +70,14 @@ function HeroCarousel({ items }: { items: NewsItem[] }) {
                 className="absolute inset-0"
               >
                 {n.coverImage ? (
-                  <img
+                  <Image
                     src={n.coverImage}
                     alt={n.title}
-                    className="size-full object-cover"
+                    fill
+                    className="object-cover"
                     loading={i === 0 ? "eager" : "lazy"}
+                    sizes="100vw"
+                    priority={i === 0}
                   />
                 ) : (
                   <div className="flex size-full items-center justify-center bg-muted text-muted-foreground">
@@ -163,11 +167,13 @@ function NewsCard({ item }: { item: NewsItem }) {
     >
       <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted">
         {item.coverImage ? (
-          <img
+          <Image
             src={item.coverImage}
             alt={item.title}
+            fill
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
-            className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           />
         ) : (
           <div className="flex size-full items-center justify-center bg-muted text-muted-foreground">
@@ -397,10 +403,13 @@ export function HomeView() {
             <div className="relative">
               <div className="absolute -inset-1 rounded-full bg-gold/30 blur-sm" />
               {settings?.principalPhoto ? (
-                <img
+                <Image
                   src={settings.principalPhoto}
                   alt={settings.principalName ?? "Kepala Sekolah"}
-                  className="relative w-full max-w-[420px] aspect-square rounded-full border-4 border-gold object-cover shadow-lg"
+                  width={420}
+                  height={420}
+                  className="relative rounded-full border-4 border-gold object-cover shadow-lg"
+                  loading="lazy"
                 />
               ) : (
                 <div className="relative flex w-full max-w-[420px] aspect-square items-center justify-center rounded-full border-4 border-gold bg-muted shadow-lg">

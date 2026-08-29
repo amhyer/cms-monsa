@@ -66,6 +66,9 @@ const nextConfig: NextConfig = {
   // Standalone hanya untuk self-host; nonaktif saat di Vercel.
   output: isVercel ? undefined : "standalone",
 
+  // Source maps di production untuk debugging (Lighthouse advisory).
+  productionBrowserSourceMaps: true,
+
   // Prisma (native query engine) jangan di-bundle webpack/turbopack —
   // tanpa ini `next start` di CI sering 500 "Query engine library not found"
   // / "Can't reach database server" padahal `prisma db push` + seed lulus

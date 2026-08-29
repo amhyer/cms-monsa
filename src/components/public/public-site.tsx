@@ -3,19 +3,30 @@
 import { GraduationCap } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useAppStore } from "@/store/app";
+import dynamic from "next/dynamic";
 import { SiteHeader } from "./site-header";
 import { SiteFooter } from "./site-footer";
-import { HomeView } from "./home-view";
-import { ProfileView } from "./profile-view";
-import { AcademicView } from "./academic-view";
-import { NewsView } from "./news-view";
-import { NewsDetailView } from "./news-detail-view";
-import { GalleryView } from "./gallery-view";
-import { ContactView } from "./contact-view";
-import { ComplaintView } from "./complaint-view";
-import { TeacherPortfolioView } from "./teacher-portfolio-view";
-import { StrukturOrganisasiView } from "./struktur-organisasi-view";
-import { TransparansiView } from "./transparansi-view";
+
+// Dynamic imports for code splitting — each view is only loaded when needed
+const HomeView = dynamic(() => import("./home-view").then((m) => ({ default: m.HomeView })), { loading: () => <ViewSkeleton /> });
+const ProfileView = dynamic(() => import("./profile-view").then((m) => ({ default: m.ProfileView })), { loading: () => <ViewSkeleton /> });
+const AcademicView = dynamic(() => import("./academic-view").then((m) => ({ default: m.AcademicView })), { loading: () => <ViewSkeleton /> });
+const NewsView = dynamic(() => import("./news-view").then((m) => ({ default: m.NewsView })), { loading: () => <ViewSkeleton /> });
+const NewsDetailView = dynamic(() => import("./news-detail-view").then((m) => ({ default: m.NewsDetailView })), { loading: () => <ViewSkeleton /> });
+const GalleryView = dynamic(() => import("./gallery-view").then((m) => ({ default: m.GalleryView })), { loading: () => <ViewSkeleton /> });
+const ContactView = dynamic(() => import("./contact-view").then((m) => ({ default: m.ContactView })), { loading: () => <ViewSkeleton /> });
+const ComplaintView = dynamic(() => import("./complaint-view").then((m) => ({ default: m.ComplaintView })), { loading: () => <ViewSkeleton /> });
+const TeacherPortfolioView = dynamic(() => import("./teacher-portfolio-view").then((m) => ({ default: m.TeacherPortfolioView })), { loading: () => <ViewSkeleton /> });
+const StrukturOrganisasiView = dynamic(() => import("./struktur-organisasi-view").then((m) => ({ default: m.StrukturOrganisasiView })), { loading: () => <ViewSkeleton /> });
+const TransparansiView = dynamic(() => import("./transparansi-view").then((m) => ({ default: m.TransparansiView })), { loading: () => <ViewSkeleton /> });
+
+function ViewSkeleton() {
+  return (
+    <div className="flex min-h-[50vh] items-center justify-center">
+      <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+    </div>
+  );
+}
 
 interface PublicSiteProps {
   initialView?: string;

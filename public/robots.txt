@@ -12,3 +12,5 @@ Allow: /
 
 User-agent: *
 Allow: /
+
+Sitemap: https://cms-monsa-l7qg.vercel.app/sitemap.xml

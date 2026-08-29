@@ -66,6 +66,7 @@ type SeoConfig = {
   canonicalPath: string;
   ogType?: string;
   ogImage?: string;
+  robots?: string;
   jsonLd?: { id: string; data: object }[];
 };
 
@@ -299,7 +300,7 @@ function getPageSeo(pathname: string, settings: SiteSettingItem | null): SeoConf
     };
   }
 
-  // Login / admin (noindex implied, minimal SEO)
+  // Login / admin (noindex, minimal SEO)
   if (
     pathname === "/login" ||
     pathname === "/admin-login" ||
@@ -314,6 +315,7 @@ function getPageSeo(pathname: string, settings: SiteSettingItem | null): SeoConf
       description: "Portal manajemen konten sekolah.",
       canonicalPath: "/login",
       ogType: "website",
+      robots: "noindex, nofollow",
     };
   }
 
@@ -396,6 +398,11 @@ export function SeoManager() {
     upsertMeta("name", "twitter:description", seo.description);
     if (seo.ogImage) {
       upsertMeta("name", "twitter:image", seo.ogImage);
+    }
+
+    // Robots directive
+    if (seo.robots) {
+      upsertMeta("name", "robots", seo.robots);
     }
 
     // JSON-LD structured data

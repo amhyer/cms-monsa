@@ -1,0 +1,21 @@
+{
+  "name": "UPT SPF SD Negeri Unggulan Mongisidi 1",
+  "short_name": "SDN Mongisidi 1",
+  "description": "Website resmi UPT SPF SD Negeri Unggulan Mongisidi 1 Makassar",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1e40af",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "government"],
+  "lang": "id",
+  "dir": "ltr"
+}

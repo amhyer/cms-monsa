@@ -197,12 +197,7 @@ export async function POST(req: NextRequest) {
       `Mengunggah dokumen transparansi ${year}: ${title} (file: ${doc.fileName})`,
       doc.id
     );
-    console.info("[bos-documents] unggahan diterima", {
-      filename: doc.fileName,
-      size: doc.fileSize,
-      source,
-      id: doc.id,
-    });
+    logger.info({ filename: doc.fileName, size: doc.fileSize, source, id: doc.id }, "[bos-documents] unggahan diterima");
     return NextResponse.json(doc);
   } catch (e) {
     logger.error(

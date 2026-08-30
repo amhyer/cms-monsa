@@ -1,8 +1,8 @@
 # CMS MONSA — UPT SPF SD Negeri Unggulan Mongisidi 1
 
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/username/cms-monsa/releases/tag/v1.0.0)
-[![Tests](https://img.shields.io/badge/tests-562%20passing-brightgreen.svg)](#testing)
-[![E2E](https://img.shields.io/badge/e2e-87%2B%20tests-brightgreen.svg)](#e2e-tests)
+[![Tests](https://img.shields.io/badge/tests-637%20passing-brightgreen.svg)](#testing)
+[![E2E](https://img.shields.io/badge/e2e-290%2B%20tests-brightgreen.svg)](#e2e-tests)
 [![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)](#testing)
 [![License](https://img.shields.io/badge/license-proprietary-red.svg)](#license)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black.svg)](https://nextjs.org/)

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { FileQuestion, Home, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,8 +12,10 @@ import {
 } from "@/components/ui/card";
 
 export default function NotFound() {
+  const router = useRouter();
+
   function handleGoHome() {
-    window.location.href = "/";
+    router.push("/");
   }
 
   function handleGoBack() {

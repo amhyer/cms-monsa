@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireCsrf } from "@/lib/csrf";
 import { requireRole } from "@/lib/auth";
+import { logger } from "@/lib/logger";
 
 /**
  * GET /api/announcements
@@ -68,7 +69,7 @@ export async function GET(req: NextRequest) {
       })),
     });
   } catch (e) {
-    console.error("[announcements] GET error:", e);
+    logger.error({ err: e }, "[announcements] GET error");
     return NextResponse.json(
       { error: "Gagal memuat pengumuman." },
       { status: 500 }
@@ -135,7 +136,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(announcement, { status: 201 });
   } catch (e) {
-    console.error("[announcements] POST error:", e);
+    logger.error({ err: e }, "[announcements] POST error");
     return NextResponse.json(
       { error: "Gagal membuat pengumuman." },
       { status: 500 }

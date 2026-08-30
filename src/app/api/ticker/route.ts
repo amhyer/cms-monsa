@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
 /**
  * GET /api/ticker
@@ -38,7 +39,7 @@ export async function GET() {
 
     return NextResponse.json({ tickers });
   } catch (e) {
-    console.error("[ticker] GET error:", e);
+    logger.error({ err: e }, "[ticker] GET error");
     return NextResponse.json(
       { error: "Gagal memuat ticker." },
       { status: 500 }

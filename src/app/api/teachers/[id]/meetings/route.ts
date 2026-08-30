@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { rateLimitPublicForm } from "@/lib/rate-limit";
 import { createTeacherMeetingSchema, validateBody } from "@/lib/validations";
+import { logger } from "@/lib/logger";
 
 /**
  * POST /api/teachers/[id]/meetings
@@ -58,7 +59,7 @@ export async function POST(
       { status: 201 }
     );
   } catch (e) {
-    console.error("[meetings] POST error:", e);
+    logger.error({ err: e }, "[meetings] POST error");
     return NextResponse.json(
       { error: "Gagal menjadwalkan pertemuan." },
       { status: 500 }

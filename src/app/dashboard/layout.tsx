@@ -382,7 +382,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             Login sebagai: {isAdmin ? "Admin" : isGuru ? "Guru" : "Operator"}
           </Badge>
 
-          <ThemeToggle className="hidden text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground sm:inline-flex" />
+          <ThemeToggle className="inline-flex text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground" />
 
           <Tooltip>
             <TooltipTrigger asChild>
@@ -467,7 +467,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               />
             </div>
           ) : (
-            <ErrorBoundary onReset={() => window.location.reload()}>
+            <ErrorBoundary>
               {children}
             </ErrorBoundary>
           )}

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
 /**
  * GET /api/teachers/[id]/meeting-slots
@@ -31,7 +32,7 @@ export async function GET(
 
     return NextResponse.json({ slots });
   } catch (e) {
-    console.error("[meeting-slots] GET error:", e);
+    logger.error({ err: e }, "[meeting-slots] GET error");
     return NextResponse.json(
       { error: "Gagal memuat slot pertemuan." },
       { status: 500 }

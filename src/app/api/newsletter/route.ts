@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { randomBytes } from "crypto";
 import { rateLimitPublicForm } from "@/lib/rate-limit";
+import { logger } from "@/lib/logger";
 
 /**
  * POST /api/newsletter
@@ -69,7 +70,7 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (e) {
-    console.error("[newsletter] POST error:", e);
+    logger.error({ err: e }, "[newsletter] POST error");
     return NextResponse.json(
       { error: "Gagal berlangganan newsletter." },
       { status: 500 }
@@ -114,7 +115,7 @@ export async function DELETE(req: NextRequest) {
       { status: 200 }
     );
   } catch (e) {
-    console.error("[newsletter] DELETE error:", e);
+    logger.error({ err: e }, "[newsletter] DELETE error");
     return NextResponse.json(
       { error: "Gagal berhenti berlangganan." },
       { status: 500 }

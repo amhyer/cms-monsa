@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import * as Sentry from "@sentry/nextjs";
 import { AlertTriangle, RefreshCw, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,8 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const router = useRouter();
+
   useEffect(() => {
     console.error("[GlobalError]", error);
     // Send error to Sentry for tracking
@@ -26,7 +29,7 @@ export default function GlobalError({
   }, [error]);
 
   function handleGoHome() {
-    window.location.href = "/";
+    router.push("/");
   }
 
   return (

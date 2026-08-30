@@ -73,6 +73,9 @@ e2e-stats.jsonl
 /test-results/
 /playwright-report/
 
+# lighthouse reports (regenerable, bukan source)
+lighthouse-report*.json
+
 # uploads (user-generated content)
 /public/uploads/
 

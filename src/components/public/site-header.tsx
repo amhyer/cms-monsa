@@ -148,7 +148,7 @@ export function SiteHeader() {
         {/* Actions — kanan */}
         <div className="flex shrink-0 items-center gap-2">
           <LanguageSwitcher className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground" />
-          <ThemeToggle className="hidden text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground sm:inline-flex" />
+          <ThemeToggle className="inline-flex text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground" />
           <Button
             type="button"
             size="sm"
@@ -225,6 +225,7 @@ export function SiteHeader() {
                 })}
               </nav>
               <div className="mt-auto flex flex-col gap-2 p-4">
+                <ThemeToggle className="inline-flex w-full justify-center text-foreground hover:bg-muted" />
                 <Button
                   type="button"
                   className="bg-gold text-gold-foreground hover:bg-gold/90"

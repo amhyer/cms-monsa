@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireCsrf } from "@/lib/csrf";
 import { requireRole } from "@/lib/auth";
 import { createSchoolEventSchema, validateBody } from "@/lib/validations";
+import { logger } from "@/lib/logger";
 
 /**
  * GET /api/events
@@ -78,7 +79,7 @@ export async function GET(req: NextRequest) {
       })),
     });
   } catch (e) {
-    console.error("[events] GET error:", e);
+    logger.error({ err: e }, "[events] GET error");
     return NextResponse.json(
       { error: "Gagal memuat event." },
       { status: 500 }
@@ -138,7 +139,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(event, { status: 201 });
   } catch (e) {
-    console.error("[events] POST error:", e);
+    logger.error({ err: e }, "[events] POST error");
     return NextResponse.json(
       { error: "Gagal membuat event." },
       { status: 500 }

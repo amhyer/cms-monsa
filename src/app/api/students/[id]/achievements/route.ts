@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireCsrf } from "@/lib/csrf";
 import { requireRole } from "@/lib/auth";
 import { createStudentAchievementSchema, validateBody } from "@/lib/validations";
+import { logger } from "@/lib/logger";
 
 /**
  * GET /api/students/[id]/achievements
@@ -59,7 +60,7 @@ export async function GET(
       total: achievements.length,
     });
   } catch (e) {
-    console.error("[student-achievements] GET error:", e);
+    logger.error({ err: e }, "[student-achievements] GET error");
     return NextResponse.json(
       { error: "Gagal memuat prestasi siswa." },
       { status: 500 }
@@ -119,7 +120,7 @@ export async function POST(
 
     return NextResponse.json(achievement, { status: 201 });
   } catch (e) {
-    console.error("[student-achievements] POST error:", e);
+    logger.error({ err: e }, "[student-achievements] POST error");
     return NextResponse.json(
       { error: "Gagal menambah prestasi." },
       { status: 500 }

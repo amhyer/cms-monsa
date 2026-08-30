@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireCsrf } from "@/lib/csrf";
 import { requireRole } from "@/lib/auth";
 import { createSchoolDocumentSchema, validateBody } from "@/lib/validations";
+import { logger } from "@/lib/logger";
 
 /**
  * GET /api/documents
@@ -64,7 +65,7 @@ export async function GET(req: NextRequest) {
       })),
     });
   } catch (e) {
-    console.error("[documents] GET error:", e);
+    logger.error({ err: e }, "[documents] GET error");
     return NextResponse.json(
       { error: "Gagal memuat dokumen." },
       { status: 500 }
@@ -118,7 +119,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(document, { status: 201 });
   } catch (e) {
-    console.error("[documents] POST error:", e);
+    logger.error({ err: e }, "[documents] POST error");
     return NextResponse.json(
       { error: "Gagal mengunggah dokumen." },
       { status: 500 }

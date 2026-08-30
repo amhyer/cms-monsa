@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
 /**
  * GET /api/timeline
@@ -64,7 +65,7 @@ export async function GET(req: NextRequest) {
       })),
     });
   } catch (e) {
-    console.error("[timeline] GET error:", e);
+    logger.error({ err: e }, "[timeline] GET error");
     return NextResponse.json(
       { error: "Gagal memuat timeline." },
       { status: 500 }

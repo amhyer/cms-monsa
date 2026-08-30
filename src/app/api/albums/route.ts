@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireCsrf } from "@/lib/csrf";
 import { requireRole } from "@/lib/auth";
 import { createAlbumSchema, validateBody } from "@/lib/validations";
+import { logger } from "@/lib/logger";
 
 /**
  * GET /api/albums
@@ -58,7 +59,7 @@ export async function GET(req: NextRequest) {
       })),
     });
   } catch (e) {
-    console.error("[albums] GET error:", e);
+    logger.error({ err: e }, "[albums] GET error");
     return NextResponse.json(
       { error: "Gagal memuat album." },
       { status: 500 }
@@ -98,7 +99,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(album, { status: 201 });
   } catch (e) {
-    console.error("[albums] POST error:", e);
+    logger.error({ err: e }, "[albums] POST error");
     return NextResponse.json(
       { error: "Gagal membuat album." },
       { status: 500 }

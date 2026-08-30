@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 // Branch Neon dibuat dalam hitungan detik; 60s memberi ruang aman untuk
@@ -33,7 +34,7 @@ const NEON_API_BASE = "https://console.neon.tech/api/v2";
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret) {
-    console.error("[cron:backup] CRON_SECRET belum di-set — backup nonaktif.");
+    logger.error("[cron:backup] CRON_SECRET belum di-set — backup nonaktif.");
     return NextResponse.json(
       { ok: false, error: "CRON_SECRET belum dikonfigurasi." },
       { status: 503 }
@@ -49,7 +50,7 @@ export async function GET(req: Request) {
   const apiKey = process.env.NEON_API_KEY;
   const projectId = process.env.NEON_PROJECT_ID;
   if (!apiKey || !projectId) {
-    console.error("[cron:backup] NEON_API_KEY / NEON_PROJECT_ID belum di-set.");
+    logger.error("[cron:backup] NEON_API_KEY / NEON_PROJECT_ID belum di-set.");
     return NextResponse.json(
       { ok: false, error: "Konfigurasi Neon belum lengkap." },
       { status: 503 }
@@ -83,7 +84,7 @@ export async function GET(req: Request) {
     );
     if (!createRes.ok) {
       const body = await createRes.text();
-      console.error(`[cron:backup] Gagal buat branch: ${createRes.status} ${body}`);
+      logger.error({ status: createRes.status, body }, "[cron:backup] Gagal buat branch");
       return NextResponse.json(
         { ok: false, error: `Gagal membuat branch (${createRes.status}).` },
         { status: 502 }
@@ -114,12 +115,10 @@ export async function GET(req: Request) {
         );
         if (delRes.ok) pruned.push(b.name);
         else
-          console.error(
-            `[cron:backup] Gagal hapus branch ${b.name}: ${delRes.status}`
-          );
+          logger.error({ branch: b.name, status: delRes.status }, "[cron:backup] Gagal hapus branch");
       }
     } else {
-      console.warn("[cron:backup] Pruning dilewati — gagal list branch.");
+      logger.warn("[cron:backup] Pruning dilewati — gagal list branch.");
     }
 
     return NextResponse.json({
@@ -130,7 +129,7 @@ export async function GET(req: Request) {
       timestamp: new Date().toISOString(),
     });
   } catch (e) {
-    console.error("[cron:backup] Error:", e);
+    logger.error({ err: e }, "[cron:backup] Error");
     return NextResponse.json(
       { ok: false, error: String(e) },
       { status: 502 }

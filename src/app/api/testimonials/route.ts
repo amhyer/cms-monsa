@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { rateLimitPublicForm } from "@/lib/rate-limit";
 import { createTestimonialSchema, validateBody } from "@/lib/validations";
+import { logger } from "@/lib/logger";
 
 /**
  * GET /api/testimonials
@@ -44,7 +45,7 @@ export async function GET(req: NextRequest) {
       total: stats._count.id || 0,
     });
   } catch (e) {
-    console.error("[testimonials] GET error:", e);
+    logger.error({ err: e }, "[testimonials] GET error");
     return NextResponse.json(
       { error: "Gagal memuat testimoni." },
       { status: 500 }
@@ -91,7 +92,7 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (e) {
-    console.error("[testimonials] POST error:", e);
+    logger.error({ err: e }, "[testimonials] POST error");
     return NextResponse.json(
       { error: "Gagal mengirim testimoni." },
       { status: 500 }

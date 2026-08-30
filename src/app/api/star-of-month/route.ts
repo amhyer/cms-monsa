@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireCsrf } from "@/lib/csrf";
 import { requireRole } from "@/lib/auth";
 import { createStarOfMonthSchema, validateBody } from "@/lib/validations";
+import { logger } from "@/lib/logger";
 
 /**
  * GET /api/star-of-month
@@ -54,7 +55,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ stars });
   } catch (e) {
-    console.error("[star-of-month] GET error:", e);
+    logger.error({ err: e }, "[star-of-month] GET error");
     return NextResponse.json(
       { error: "Gagal memuat bintang bulanan." },
       { status: 500 }
@@ -109,7 +110,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(star, { status: 201 });
   } catch (e) {
-    console.error("[star-of-month] POST error:", e);
+    logger.error({ err: e }, "[star-of-month] POST error");
     return NextResponse.json(
       { error: "Gagal menambah bintang bulanan." },
       { status: 500 }

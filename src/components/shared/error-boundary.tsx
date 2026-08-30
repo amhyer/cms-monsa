@@ -45,6 +45,7 @@ export class ErrorBoundary extends React.Component<
   };
 
   handleGoHome = () => {
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- class component cannot use useRouter hook
     window.location.href = "/";
   };
 

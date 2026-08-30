@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import * as Sentry from "@sentry/nextjs";
 import { AlertTriangle, RefreshCw, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,8 @@ export default function DashboardError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const router = useRouter();
+
   useEffect(() => {
     // Client component — console.error is appropriate here (pino is server-only)
     console.error("[DashboardError]", error);
@@ -27,7 +30,7 @@ export default function DashboardError({
   }, [error]);
 
   function handleGoHome() {
-    window.location.href = "/dashboard";
+    router.push("/dashboard");
   }
 
   return (

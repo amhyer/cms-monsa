@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { rateLimitPublicForm } from "@/lib/rate-limit";
 import { createTeacherRatingSchema, validateBody } from "@/lib/validations";
+import { logger } from "@/lib/logger";
 
 /**
  * GET /api/teachers/[id]/ratings
@@ -48,7 +49,7 @@ export async function GET(
       totalRatings: stats._count.rating || 0,
     });
   } catch (e) {
-    console.error("[teacher-ratings] GET error:", e);
+    logger.error({ err: e }, "[teacher-ratings] GET error");
     return NextResponse.json(
       { error: "Gagal memuat rating." },
       { status: 500 }
@@ -108,7 +109,7 @@ export async function POST(
       { status: 201 }
     );
   } catch (e) {
-    console.error("[teacher-ratings] POST error:", e);
+    logger.error({ err: e }, "[teacher-ratings] POST error");
     return NextResponse.json(
       { error: "Gagal mengirim rating." },
       { status: 500 }

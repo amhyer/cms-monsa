@@ -219,7 +219,9 @@ describe("SiteHeader", () => {
 
   it("renders theme toggle and language switcher", () => {
     render(<SiteHeader />);
-    expect(screen.getByTestId("theme-toggle")).toBeInTheDocument();
+    // ThemeToggle appears in desktop header + mobile Sheet
+    const toggles = screen.getAllByTestId("theme-toggle");
+    expect(toggles.length).toBeGreaterThanOrEqual(2);
     expect(screen.getByTestId("language-switcher")).toBeInTheDocument();
   });
 });

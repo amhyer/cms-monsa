@@ -210,6 +210,7 @@ export type SiteSettingItem = {
   schoolName: string;
   npsn: string;
   logo: string | null;
+  faviconUrl: string | null;
   address: string;
   phone: string;
   email: string;

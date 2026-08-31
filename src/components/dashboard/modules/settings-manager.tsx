@@ -44,6 +44,7 @@ const EMPTY: FormState = {
   schoolName: "",
   npsn: "",
   logo: "",
+  faviconUrl: "",
   address: "",
   phone: "",
   email: "",
@@ -101,6 +102,7 @@ export function SettingsManager() {
           schoolName: data.schoolName ?? "",
           npsn: data.npsn ?? "",
           logo: data.logo ?? "",
+          faviconUrl: data.faviconUrl ?? "",
           address: data.address ?? "",
           phone: data.phone ?? "",
           email: data.email ?? "",
@@ -310,13 +312,22 @@ export function SettingsManager() {
               />
             </div>
           </div>
-          <ImageUpload
-            label="Logo"
-            aspect="square"
-            value={form.logo}
-            onChange={(url) => set("logo", url)}
-            helperText="Logo sekolah, rasio kotak."
-          />
+          <div className="space-y-4">
+            <ImageUpload
+              label="Logo"
+              aspect="square"
+              value={form.logo}
+              onChange={(url) => set("logo", url)}
+              helperText="Logo sekolah, rasio kotak."
+            />
+            <ImageUpload
+              label="Favicon"
+              aspect="square"
+              value={form.faviconUrl}
+              onChange={(url) => set("faviconUrl", url)}
+              helperText="Ikon browser tab (favicon). Disarankan ukuran 32x32 atau 64x64 px."
+            />
+          </div>
         </CardContent>
       </Card>
 

@@ -373,6 +373,7 @@ model SiteSetting {
   schoolName        String   @default("UPT SPF SD Negeri Unggulan Mongisidi 1")
   npsn              String   @default("40313912")
   logo              String?
+  faviconUrl        String?
   address           String   @default("Jln. Wr. Monginsidi No.13, Maricaya Baru, Makassar, Sulawesi Selatan")
   phone             String   @default("04118918116")
   email             String   @default("sdn.unggulanmonginsidi@yahoo.co.id")

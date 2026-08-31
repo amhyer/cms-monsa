@@ -25,6 +25,7 @@ export async function PUT(req: NextRequest) {
     schoolName: String(body.schoolName ?? ""),
     npsn: String(body.npsn ?? ""),
     logo: body.logo ?? null,
+    faviconUrl: body.faviconUrl ?? null,
     address: String(body.address ?? ""),
     phone: String(body.phone ?? ""),
     email: String(body.email ?? ""),

@@ -35,7 +35,7 @@ export async function generateMetadata(): Promise<Metadata> {
     creator: "UPT SPF SD Negeri Unggulan Mongisidi 1",
     publisher: "UPT SPF SD Negeri Unggulan Mongisidi 1",
     icons: {
-      icon: "/logo.svg",
+      icon: "/api/favicon",
     },
     metadataBase: new URL(siteUrl),
     openGraph: {

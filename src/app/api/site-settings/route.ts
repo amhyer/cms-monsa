@@ -4,13 +4,22 @@ import { requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { withCache } from "@/lib/cache";
 import { logActivity } from "@/lib/log";
+import { logger } from "@/lib/logger";
 
 export async function GET() {
-  let settings = await db.siteSetting.findUnique({ where: { id: "singleton" } });
-  if (!settings) {
-    settings = await db.siteSetting.create({ data: { id: "singleton", vision: "", mission: "", history: "", principalWelcome: "", spmbInfo: "" } });
+  try {
+    let settings = await db.siteSetting.findUnique({ where: { id: "singleton" } });
+    if (!settings) {
+      settings = await db.siteSetting.create({ data: { id: "singleton", vision: "", mission: "", history: "", principalWelcome: "", spmbInfo: "" } });
+    }
+    return withCache(NextResponse.json(settings), "public, s-maxage=3600, stale-while-revalidate=7200");
+  } catch (e) {
+    logger.error({ err: e }, "[site-settings] GET error");
+    return NextResponse.json(
+      { error: "Gagal memuat pengaturan situs." },
+      { status: 500 }
+    );
   }
-  return withCache(NextResponse.json(settings), "public, s-maxage=3600, stale-while-revalidate=7200");
 }
 
 export async function PUT(req: NextRequest) {

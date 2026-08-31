@@ -60,9 +60,6 @@ docker compose -f docker-compose.yml -f docker-compose.ssl.yml up -d --build
 # Run database migrations
 docker compose exec app bun run db:migrate:prod
 
-# Seed initial admin account
-docker compose exec app bun run db:seed
-
 # Check status
 docker compose ps
 ```

@@ -14,7 +14,6 @@
 #
 # Setup awal (sekali):
 #   bun run db:push     # buat skema
-#   bun run db:seed     # data awal (idempotent)
 #
 # Hentikan & hapus data dev:
 #   docker compose -f docker-compose.dev.yml down -v

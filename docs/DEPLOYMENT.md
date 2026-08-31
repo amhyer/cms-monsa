@@ -34,10 +34,7 @@ bun run db:migrate:prod
 #    (migrasi prisma/migrations/*_add_dapodik_allow_insecure/ menambahkan
 #     kolom allowInsecureInProduction di tabel DapodikConfig)
 
-# 4. Seed akun awal (idempotent — hanya dijalankan sekali di DB kosong)
-bun run db:seed
-
-# 5. Build & start
+# 4. Build & start
 bun run build
 bun run start      # atau jalankan via pm2/systemd dengan output standalone: .next/standalone
 

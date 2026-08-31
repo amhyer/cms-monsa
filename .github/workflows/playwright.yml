@@ -61,7 +61,7 @@ jobs:
           --health-retries 5
     env:
       # DB e2e: service container postgres di atas (bukan secret — data CI
-      # sekali pakai). db:push + db:seed harus selesai sebelum build.
+      # sekali pakai). db:push harus selesai sebelum build.
       # 127.0.0.1 (bukan localhost) — Node 17+ resolve localhost ke ::1
       # dulu; service container Postgres hanya listen IPv4 → Prisma di
       # proses Next.js 500 "Can't reach database server".
@@ -82,10 +82,9 @@ jobs:
       - name: Setup repo (Node + Bun + install)
         uses: ./.github/actions/setup-repo
 
-      - name: Setup database (schema + seed)
+      - name: Setup database (schema)
         run: |
           bun run db:push
-          bun run db:seed
 
       - name: Install Playwright browsers
         run: bunx playwright install --with-deps chromium

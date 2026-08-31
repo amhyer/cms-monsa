@@ -95,9 +95,6 @@ docker compose up -d
 # Run migrations
 docker compose exec app npx prisma migrate deploy --schema=prisma/schema.postgres.prisma
 
-# Seed data (optional)
-docker compose exec app bunx tsx prisma/seed.ts
-
 # Verify
 curl http://localhost:3000/api/health
 ```

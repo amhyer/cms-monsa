@@ -117,7 +117,6 @@ dulu ada varian SQLite untuk dev, dikonsolidasi agar dev = produksi.
 ```bash
 bun run db:push      # push schema ke DATABASE_URL (dev/DB kosong)
 bun run db:generate  # generate Prisma client (biasanya otomatis via postinstall)
-bun run db:seed      # seed contoh (dilewati bila DB sudah terisi)
 ```
 
 ### Produksi (Vercel + Neon)
@@ -374,7 +373,6 @@ tidak pernah di-wipe → seed terlewati padahal seharusnya kosong:
 # reseed DB e2e (path absolut — ganti dengan path worktree Anda)
 rm -f <worktree>/prisma/e2e-gate.db*
 DATABASE_URL="file:<worktree>/prisma/e2e-gate.db" bunx prisma db push
-DATABASE_URL="file:<worktree>/prisma/e2e-gate.db" bun run db:seed
 
 # jalankan suite dengan DB e2e
 E2E_PORT=3200 E2E_SERVER_CMD="bunx next dev -p 3200" \

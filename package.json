@@ -29,15 +29,11 @@
     "db:migrate": "prisma db push",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:migrate:prod": "prisma migrate deploy",
-    "db:seed": "bunx tsx prisma/seed.ts",
     "deploy:vercel": "bash scripts/deploy-vercel.sh",
     "clean:orphans": "bunx tsx scripts/cleanup-orphan-files.ts",
     "backup:db": "powershell -ExecutionPolicy Bypass -File scripts/backup-db.ps1",
     "health:check": "bunx tsx scripts/health-check.ts",
     "postinstall": "prisma generate"
-  },
-  "prisma": {
-    "seed": "bunx tsx prisma/seed.ts"
   },
   "engines": {
     "node": ">=20.9.0"

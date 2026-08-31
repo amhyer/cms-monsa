@@ -126,9 +126,6 @@ bun install
 # Setup database
 bun run db:push
 
-# Seed data (opsional)
-bunx tsx prisma/seed.ts
-
 # Jalankan development server
 bun run dev
 ```
@@ -191,9 +188,6 @@ bun run db:push
 
 # Generate Prisma client
 bun run db:generate
-
-# Seed data contoh (database kosong saja — seed dilewati jika sudah berisi data)
-bun run db:seed
 ```
 
 ## Scripts
@@ -219,7 +213,6 @@ bun run hooks:install # Aktifkan pre-commit hook (core.hooksPath)
 bun run hooks:check  # Jalankan gate pre-commit tanpa commit (dry-run)
 bun run db:push       # Push schema ke database
 bun run db:generate   # Generate Prisma client
-bun run db:seed       # Seed data contoh (database kosong saja)
 ```
 
 ## Development
@@ -516,7 +509,6 @@ buat database PostgreSQL terpisah (mis. `cms_e2e` — di Neon buat branch
 ```bash
 # reseed DB e2e (ganti connection string dengan milik Anda)
 DATABASE_URL="postgresql://mons:mons@localhost:5432/cms_e2e?schema=public" bunx prisma db push
-DATABASE_URL="postgresql://mons:mons@localhost:5432/cms_e2e?schema=public" bun run db:seed
 
 # jalankan suite dengan DB e2e
 E2E_PORT=3200 E2E_SERVER_CMD="bunx next dev -p 3200" \
@@ -933,7 +925,6 @@ di-recreate). Add-on:
 bun install --frozen-lockfile
 bunx prisma generate
 bun run db:migrate:prod   # prisma migrate deploy (PostgreSQL)
-bun run db:seed           # sekali di DB kosong (idempotent)
 bun run build
 bun run start             # atau: node .next/standalone/server.js
 ```
@@ -963,7 +954,7 @@ CMS MONSA/
 ├── .markdownlint-cli2.cjs    # Markdownlint config (lint:md)
 ├── prisma/
 │   ├── schema.prisma          # Database schema (PostgreSQL — dev & produksi)
-│   └── seed.ts                # Seed data
+│   └── seed.ts                # Seed (no-op — tidak ada data dummy)
 ├── public/
 │   ├── uploads/               # User-uploaded files
 │   └── ...

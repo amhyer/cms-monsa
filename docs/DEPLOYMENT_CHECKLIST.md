@@ -50,10 +50,7 @@ createdb cms_mongisidi
 # 2. Run migrations
 npx prisma migrate deploy
 
-# 3. Seed data (opsional)
-bunx tsx prisma/seed.ts
-
-# 4. Verify connection
+# 3. Verify connection
 bun run db:generate
 ```
 
@@ -85,7 +82,6 @@ ls -la .next/
 - [ ] `FONNTE_TOKEN` sudah di-set (jika pakai WhatsApp)
 - [ ] `TELEGRAM_BOT_TOKEN` sudah di-set (jika pakai Telegram)
 - [ ] `SENTRY_DSN` sudah di-set (jika pakai Sentry)
-- [ ] `SEED_*_PASSWORD` diganti dari nilai default sebelum seed produksi
 - [ ] Tidak ada `.env` atau `.env.local` yang ter-commit
 - [ ] `.gitignore` sudah benar (node_modules, .env*, .next, db/*.db)
 - [ ] Pre-commit hook sudah aktif (`bun run hooks:install`)

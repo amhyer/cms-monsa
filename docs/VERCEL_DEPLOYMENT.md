@@ -101,8 +101,6 @@ npx prisma migrate deploy
 #   ^ also applies prisma/migrations/*_add_dapodik_allow_insecure/
 #     (adds the allowInsecureInProduction column to DapodikConfig)
 
-# Seed database
-npx tsx prisma/seed.ts
 ```
 
 ### 2. Custom Domain (Optional)

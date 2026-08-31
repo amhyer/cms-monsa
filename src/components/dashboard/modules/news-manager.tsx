@@ -278,7 +278,8 @@ export function NewsManager() {
       setTotalPages(data.totalPages || 1);
       // Clear selection when list refreshes (items may have changed).
       setSelected(new Set());
-    } catch {
+    } catch (e) {
+      console.error("[news] Failed to load news list:", e);
       toast.error("Gagal memuat daftar berita.");
     } finally {
       setLoading(false);

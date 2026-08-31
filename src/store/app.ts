@@ -26,7 +26,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       const user = data.user ?? null;
       set({ user, authLoading: false });
       return user;
-    } catch {
+    } catch (e) {
+      console.error("[store] fetchMe failed:", e);
       set({ user: null, authLoading: false });
       return null;
     }
@@ -73,7 +74,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       });
       const data = await res.json();
       set({ settings: data, settingsLoading: false });
-    } catch {
+    } catch (e) {
+      console.error("[store] fetchSettings failed:", e);
       set({ settingsLoading: false });
     }
   },

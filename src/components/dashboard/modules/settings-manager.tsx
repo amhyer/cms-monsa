@@ -144,8 +144,8 @@ export function SettingsManager() {
         if (!res.ok) return;
         const data = (await res.json()) as typeof healthStatus;
         if (alive) setHealthStatus(data);
-      } catch {
-        // silent — status bersifat informatif
+      } catch (e) {
+        console.error("[settings] Failed to load notification health:", e);
       }
     })();
     return () => {

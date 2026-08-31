@@ -125,7 +125,8 @@ export function StudentsManager() {
       setItems(data.items || []);
       setTotal(data.total || 0);
       setNextCursor(data.nextCursor ?? null);
-    } catch {
+    } catch (e) {
+      console.error("[students] Failed to load students:", e);
       toast.error("Gagal memuat data siswa.");
     } finally {
       setLoading(false);
@@ -143,8 +144,8 @@ export function StudentsManager() {
       if (!res.ok) return;
       const data = await res.json();
       setClasses(data.items || []);
-    } catch {
-      // non-critical — kelas hanya untuk filter/dropdown
+    } catch (e) {
+      console.error("[students] Failed to load classes:", e);
     }
   }, []);
 
@@ -343,8 +344,8 @@ export function StudentsManager() {
                   const data = await res.json();
                   if (Array.isArray(data.items)) all = data.items;
                 }
-              } catch {
-                // fallback ke halaman aktif bila fetch penuh gagal
+              } catch (e) {
+                console.error("[students] CSV export: failed to fetch all pages:", e);
               }
               exportToCsv(
                 `data-siswa-${new Date().toISOString().slice(0, 10)}`,

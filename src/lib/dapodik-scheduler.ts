@@ -209,8 +209,8 @@ async function tick() {
           where: { id: "singleton" },
           data: { autoSyncLastRunAt: new Date(), autoSyncLastStatus: "ERROR", autoSyncLastError: message },
         })
-        .catch(() => {
-          // jangan sampai error log mematikan tick berikutnya
+        .catch((e) => {
+          logger.error({ err: e }, "[dapodik-auto-sync] Failed to persist sync status");
         });
     }
   } finally {
@@ -228,9 +228,9 @@ export function startDapodikScheduler(): void {
   st.started = true;
 
   setTimeout(() => {
-    tick().catch(() => {});
+    tick().catch((e) => { logger.error({ err: e }, "[dapodik-scheduler] Initial tick failed"); });
     st.timer = setInterval(() => {
-      tick().catch(() => {});
+      tick().catch((e) => { logger.error({ err: e }, "[dapodik-scheduler] Scheduled tick failed"); });
     }, TICK_MS);
   }, FIRST_TICK_DELAY_MS);
 }

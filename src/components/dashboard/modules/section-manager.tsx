@@ -83,8 +83,8 @@ export function SectionManager({ teacherId: propTeacherId }: { teacherId?: strin
           const data = await res.json();
           setTeachers(data.items || []);
         }
-      } catch {
-        // Ignore error
+      } catch (e) {
+        console.error("[section-manager] Failed to load teachers:", e);
       }
     })();
   }, [isOperator]);
@@ -109,8 +109,8 @@ export function SectionManager({ teacherId: propTeacherId }: { teacherId?: strin
           const data = await res.json();
           setSections(data);
         }
-      } catch {
-        // Ignore error
+      } catch (e) {
+        console.error("[section-manager] Failed to load sections:", e);
       } finally {
         setLoading(false);
       }
@@ -209,7 +209,8 @@ export function SectionManager({ teacherId: propTeacherId }: { teacherId?: strin
           ],
         }),
       });
-    } catch {
+    } catch (e) {
+      console.error("[section-manager] Toggle visibility failed:", e);
       // Revert on error
       setSections((prev) =>
         prev.map((s) =>
@@ -279,7 +280,8 @@ export function SectionManager({ teacherId: propTeacherId }: { teacherId?: strin
             })),
           }),
         });
-      } catch {
+      } catch (e) {
+        console.error("[section-manager] Reorder failed:", e);
         // Revert on error
         setSections(sections);
         toast.error("Gagal mengubah urutan.");

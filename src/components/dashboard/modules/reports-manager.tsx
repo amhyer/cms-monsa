@@ -65,8 +65,8 @@ export function ReportsManager() {
       if (isGuru && waliClassId) items = items.filter((c) => c.id === waliClassId);
       setClasses(items);
       if (items.length > 0) setAttClassId((prev) => prev || items[0].id);
-    } catch {
-      // non-critical
+    } catch (e) {
+      console.error("[reports] Failed to load classes:", e);
     }
   }, [isGuru, waliClassId]);
 

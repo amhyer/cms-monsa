@@ -102,7 +102,8 @@ export function ScheduleManager() {
       setEntries(data.items || []);
       const maxSlot = Math.max(7, ...((data.items || []) as ScheduleEntryItem[]).map((e) => e.timeSlot));
       setSlotCount(Math.min(maxSlot, MAX_SLOTS));
-    } catch {
+    } catch (e) {
+      console.error("[schedule] Failed to load entries:", e);
       toast.error("Gagal memuat jadwal pelajaran.");
     } finally {
       setLoading(false);
@@ -115,7 +116,7 @@ export function ScheduleManager() {
       if (!res.ok) return;
       const data = await res.json();
       setClasses(data.items || []);
-    } catch { /* non-critical */ }
+    } catch (e) { console.error("[schedule] Failed to load classes:", e); }
   }, []);
 
   const fetchTeachers = useCallback(async () => {
@@ -124,7 +125,7 @@ export function ScheduleManager() {
       if (!res.ok) return;
       const data = await res.json();
       setTeachers(data.items || []);
-    } catch { /* non-critical */ }
+    } catch (e) { console.error("[schedule] Failed to load teachers:", e); }
   }, []);
 
   useEffect(() => { fetchEntries(); }, [fetchEntries]);

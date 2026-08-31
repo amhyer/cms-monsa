@@ -152,7 +152,8 @@ export function TeachersManager() {
       setItems(data.items || []);
       setTotal(data.total ?? 0);
       setTotalPages(data.totalPages ?? 1);
-    } catch {
+    } catch (e) {
+      console.error("[teachers] Failed to load teachers:", e);
       toast.error("Gagal memuat data guru.");
     } finally {
       setLoading(false);
@@ -321,8 +322,8 @@ export function TeachersManager() {
                   const data = await res.json();
                   if (Array.isArray(data.items)) all = data.items;
                 }
-              } catch {
-                // fallback ke halaman aktif bila fetch penuh gagal
+              } catch (e) {
+                console.error("[teachers] CSV export: failed to fetch all pages:", e);
               }
               exportToCsv(
                 `data-guru-staf-${new Date().toISOString().slice(0, 10)}`,

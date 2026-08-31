@@ -96,7 +96,8 @@ export function ProfileManager() {
         } else {
           setTeacherMissing(true);
         }
-      } catch {
+      } catch (e) {
+        console.error("[profile] Failed to load profile:", e);
         toast.error("Gagal memuat profil.");
       } finally {
         setLoading(false);

@@ -111,8 +111,8 @@ export function Overview() {
         if (!res.ok) throw new Error();
         const data = (await res.json()) as Stats;
         if (alive) setStats(data);
-      } catch {
-        // ignore
+      } catch (e) {
+        console.error("[overview] Failed to load stats:", e);
       } finally {
         if (alive) setLoading(false);
       }

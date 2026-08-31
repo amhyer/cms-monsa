@@ -209,8 +209,8 @@ export function UsersManager({
       setCounts(
         data.counts ?? { all: 0, STAFF: 0, GURU: 0, ORANG_TUA: 0, SISWA: 0 }
       );
-    } catch {
-      // silent
+    } catch (e) {
+      console.error("[users] Failed to load users:", e);
     } finally {
       setLoading(false);
     }
@@ -225,8 +225,8 @@ export function UsersManager({
         id: c.id,
         name: c.name,
       })));
-    } catch {
-      // non-critical
+    } catch (e) {
+      console.error("[users] Failed to load classes:", e);
     }
   }, []);
 
@@ -245,8 +245,8 @@ export function UsersManager({
           })
         )
       );
-    } catch {
-      // non-critical
+    } catch (e) {
+      console.error("[users] Failed to load students:", e);
     }
   }, []);
 

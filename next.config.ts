@@ -49,6 +49,8 @@ const securityHeaders = [
       "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com",
       // Connect: same-origin API + dev websocket for HMR + Sentry error tracking.
       "connect-src 'self' ws: wss: https://*.sentry.io",
+      // Manifest: allow self + Vercel SSO proxy for PWA manifest.
+      "manifest-src 'self' https:",
       // No plugins.
       "object-src 'none'",
       "base-uri 'self'",

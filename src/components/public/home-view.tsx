@@ -35,6 +35,7 @@ import type {
   NewsItem,
   AgendaItem,
   AchievementItem,
+  EventItem,
 } from "@/lib/types";
 
 /* ----------------------------- Hero carousel ----------------------------- */
@@ -231,6 +232,47 @@ function StatCard({
   );
 }
 
+/* ----------------------------- Event card ----------------------------- */
+function EventCard({ item }: { item: EventItem }) {
+  const d = new Date(item.startDate);
+  const day = isNaN(d.getTime()) ? "-" : d.getDate();
+  const month = isNaN(d.getTime())
+    ? "-"
+    : new Intl.DateTimeFormat("id-ID", { month: "short" }).format(d);
+  const weekday = isNaN(d.getTime())
+    ? "-"
+    : new Intl.DateTimeFormat("id-ID", { weekday: "long" }).format(d);
+
+  return (
+    <div className="flex items-start gap-4 rounded-xl border bg-card p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+      <div className="flex size-14 shrink-0 flex-col items-center justify-center rounded-lg bg-gold text-gold-foreground">
+        <span className="text-lg font-bold leading-none">{day}</span>
+        <span className="text-[10px] uppercase tracking-wide">
+          {month}
+        </span>
+      </div>
+      <div className="flex flex-1 flex-col gap-1">
+        <h4 className="font-semibold leading-snug text-foreground">
+          {item.title}
+        </h4>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1">
+            <CalendarDays className="size-3.5" /> {weekday}
+          </span>
+          {item.location && (
+            <span className="inline-flex items-center gap-1">
+              <MapPin className="size-3.5" /> {item.location}
+            </span>
+          )}
+        </div>
+        <div className="mt-1">
+          <CategoryBadge category={item.category} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ----------------------------- Agenda row ----------------------------- */
 function AgendaRow({ item }: { item: AgendaItem }) {
   const d = new Date(item.date);
@@ -314,6 +356,7 @@ export function HomeView() {
 
   const [hero, setHero] = useState<NewsItem[] | null>(null);
   const [latestNews, setLatestNews] = useState<NewsItem[] | null>(null);
+  const [events, setEvents] = useState<EventItem[]>([]);
   const [agenda, setAgenda] = useState<AgendaItem[]>([]);
   const [achievements, setAchievements] = useState<AchievementItem[]>([]);
   const [loadError, setLoadError] = useState(false);
@@ -326,21 +369,26 @@ export function HomeView() {
         // Browser respects Cache-Control headers from API routes (s-maxage for
         // CDN, max-age for browser). No cache-busting needed — the API sets
         // appropriate staleness windows per route.
-        const [newsRes, agendaRes, achRes] = await Promise.all([
+        const [newsRes, eventsRes, agendaRes, achRes] = await Promise.all([
           fetch("/api/news?scope=public&limit=3"),
+          fetch("/api/events?upcoming=true&limit=6"),
           fetch("/api/agenda?upcoming=true"),
           fetch("/api/achievements?limit=3"),
         ]);
-        if (!newsRes.ok || !agendaRes.ok || !achRes.ok) throw new Error("fetch failed");
+        if (!newsRes.ok) throw new Error("fetch failed");
         const newsData = await newsRes.json();
-        const agendaData = await agendaRes.json();
-        const achData = await achRes.json();
+        const eventsData = eventsRes.ok ? await eventsRes.json() : { events: [] };
+        const agendaData = agendaRes.ok ? await agendaRes.json() : { items: [] };
+        const achData = achRes.ok ? await achRes.json() : { items: [] };
         if (cancelled) return;
         const newsItems: NewsItem[] = Array.isArray(newsData?.items)
           ? newsData.items
           : [];
         setHero(newsItems);
         setLatestNews(newsItems);
+        setEvents(
+          Array.isArray(eventsData?.events) ? eventsData.events.slice(0, 6) : []
+        );
         setAgenda(
           Array.isArray(agendaData?.items) ? agendaData.items.slice(0, 4) : []
         );
@@ -349,6 +397,7 @@ export function HomeView() {
         if (cancelled) return;
         setHero([]);
         setLatestNews([]);
+        setEvents([]);
         setAgenda([]);
         setAchievements([]);
         setLoadError(true);
@@ -512,6 +561,22 @@ export function HomeView() {
             : latestNews.map((n) => <NewsCard key={n.id} item={n} />)}
         </div>
       </SectionShell>
+
+      {/* Acara Mendatang */}
+      {events.length > 0 && (
+        <SectionShell>
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <SectionHeading
+              eyebrow="Kegiatan Sekolah"
+              title="Acara Mendatang"
+              description="Jadwal kegiatan dan acara sekolah yang akan datang."
+            />
+          </div>
+          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {events.map((e) => <EventCard key={e.id} item={e} />)}
+          </div>
+        </SectionShell>
+      )}
 
       {/* Agenda + Prestasi (two column) */}
       <SectionShell className="bg-muted/40">

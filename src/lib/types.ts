@@ -72,6 +72,23 @@ export type AgendaItem = {
   createdAt: string;
 };
 
+export type EventItem = {
+  id: string;
+  title: string;
+  description: string | null;
+  startDate: string;
+  endDate: string;
+  location: string | null;
+  category: string;
+  type: string;
+  isAllDay: boolean;
+  color: string | null;
+  imageUrl: string | null;
+  maxParticipants: number | null;
+  requiresRegistration: boolean;
+  registrationCount?: number;
+};
+
 export type TeacherItem = {
   id: string;
   name: string;

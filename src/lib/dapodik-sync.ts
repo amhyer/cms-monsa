@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { DapodikClient, type DapodikConfig as DapodikClientConfig } from "@/lib/dapodik-client";
+import { ensureBridgeColumns } from "@/lib/dapodik-bridge";
 
 // ---- Types (dikonfirmasi dari response Dapodik asli) ----
 
@@ -270,8 +271,25 @@ function maskSecret(value: string): string {
   return value.slice(0, 4) + "****" + value.slice(-4);
 }
 
+/**
+ * Baca DapodikConfig dengan self-heal untuk kolom kunci pairing.
+ * Bila migrasi Neon belum jalan, field bridgeTokenHash/bridgeTokenPrefix/
+ * bridgeTokenCreatedAt belum ada di tabel → Prisma melempar P2022. Runtime
+ * menambahkan kolom lewat ensureBridgeColumns lalu mengulang baca sekali,
+ * agar dashboard tidak error saat kolom belum dimigrasi.
+ */
+async function readConfigWithBridgeHeal() {
+  try {
+    return await db.dapodikConfig.findUnique({ where: { id: "singleton" } });
+  } catch (err) {
+    if ((err as { code?: string })?.code !== "P2022") throw err;
+    await ensureBridgeColumns();
+    return await db.dapodikConfig.findUnique({ where: { id: "singleton" } });
+  }
+}
+
 export async function getDapodikConfig() {
-  const config = await db.dapodikConfig.findUnique({ where: { id: "singleton" } });
+  const config = await readConfigWithBridgeHeal();
   if (!config) return null;
   const token = config.token ?? "";
   return {

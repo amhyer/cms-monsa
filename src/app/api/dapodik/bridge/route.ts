@@ -8,38 +8,49 @@ export const dynamic = "force-dynamic";
 
 /** Buat (atau ganti) kunci pairing aplikasi jembatan. Token utuh hanya di respons ini. */
 export async function POST(req: Request) {
-  const csrfError = await requireCsrf(req);
-  if (csrfError) return csrfError;
+  try {
+    const csrfError = await requireCsrf(req);
+    if (csrfError) return csrfError;
 
-  const auth = await requireRole("OPERATOR");
-  if (!auth.ok) return auth.response;
+    const auth = await requireRole("OPERATOR");
+    if (!auth.ok) return auth.response;
 
-  const { token, prefix } = await issueBridgeToken();
-  await logActivity(
-    auth.user,
-    "UPDATE",
-    "DapodikConfig",
-    `Kunci pairing jembatan Dapodik dibuat (${prefix}…)`
-  );
+    const { token, prefix } = await issueBridgeToken();
+    await logActivity(
+      auth.user,
+      "UPDATE",
+      "DapodikConfig",
+      `Kunci pairing jembatan Dapodik dibuat (${prefix}…)`
+    );
 
-  return NextResponse.json({
-    ok: true,
-    token,
-    prefix,
-    message: "Simpan kunci ini sekarang. Setelah jendela ditutup, kunci tidak ditampilkan lagi.",
-  });
+    return NextResponse.json({
+      ok: true,
+      token,
+      prefix,
+      message: "Simpan kunci ini sekarang. Setelah jendela ditutup, kunci tidak ditampilkan lagi.",
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Gagal membuat kunci pairing.";
+    // Selalu JSON — jangan biarkan 500 body kosong yang memecah res.json() di client.
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
 
 /** Cabut kunci pairing. Aplikasi jembatan tidak bisa mengirim sampai kunci baru dibuat. */
 export async function DELETE(req: Request) {
-  const csrfError = await requireCsrf(req);
-  if (csrfError) return csrfError;
+  try {
+    const csrfError = await requireCsrf(req);
+    if (csrfError) return csrfError;
 
-  const auth = await requireRole("OPERATOR");
-  if (!auth.ok) return auth.response;
+    const auth = await requireRole("OPERATOR");
+    if (!auth.ok) return auth.response;
 
-  await revokeBridgeToken();
-  await logActivity(auth.user, "UPDATE", "DapodikConfig", "Kunci pairing jembatan Dapodik dicabut");
+    await revokeBridgeToken();
+    await logActivity(auth.user, "UPDATE", "DapodikConfig", "Kunci pairing jembatan Dapodik dicabut");
 
-  return NextResponse.json({ ok: true, message: "Kunci pairing dicabut." });
+    return NextResponse.json({ ok: true, message: "Kunci pairing dicabut." });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Gagal mencabut kunci pairing.";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

@@ -50,7 +50,44 @@ export function extractBridgeToken(req: {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-export async function issueBridgeToken(): Promise<{ token: string; prefix: string }> {
+/**
+ * Self-heal: pastikan kolom kunci pairing ada di tabel DapodikConfig.
+ * Kolom ini ditambahkan migrasi prisma/migrations/…_add_dapodik_bridge_token,
+ * tapi bila migrasi Neon belum dijalankan (Deploy database gagal), runtime
+ * akan menambahkan kolom di sini agar tombol "Buat kunci pairing" tetap hidup.
+ * Idempotent (IF NOT EXISTS) — aman dipanggil berkali-kali.
+ */
+const BRIDGE_COLUMN_DDL = [
+  '"bridgeTokenHash" TEXT',
+  '"bridgeTokenPrefix" TEXT',
+  '"bridgeTokenCreatedAt" TIMESTAMP(3)',
+];
+
+export async function ensureBridgeColumns(): Promise<void> {
+  // Sekali ALTER untuk semua kolom; fallback per-kolom bila multi-ADD gagal.
+  try {
+    await db.$executeRawUnsafe(
+      `ALTER TABLE "DapodikConfig" ADD COLUMN IF NOT EXISTS ${BRIDGE_COLUMN_DDL.join(", ADD COLUMN IF NOT EXISTS ")}`
+    );
+    return;
+  } catch (err) {
+    const code = (err as { code?: string })?.code;
+    if (code !== "P2022") throw err;
+  }
+  for (const col of BRIDGE_COLUMN_DDL) {
+    try {
+      await db.$executeRawUnsafe(`ALTER TABLE "DapodikConfig" ADD COLUMN IF NOT EXISTS ${col}`);
+    } catch {
+      // abaikan — kolom kemungkinan sudah ada
+    }
+  }
+}
+
+function isColumnMissing(err: unknown): boolean {
+  return (err as { code?: string })?.code === "P2022";
+}
+
+async function issueBridgeTokenInner(): Promise<{ token: string; prefix: string }> {
   const { token, hash, prefix } = generateBridgeToken();
   const existing = await db.dapodikConfig.findUnique({ where: { id: "singleton" } });
   await db.dapodikConfig.upsert({
@@ -72,7 +109,18 @@ export async function issueBridgeToken(): Promise<{ token: string; prefix: strin
   return { token, prefix };
 }
 
-export async function revokeBridgeToken(): Promise<void> {
+export async function issueBridgeToken(): Promise<{ token: string; prefix: string }> {
+  try {
+    return await issueBridgeTokenInner();
+  } catch (err) {
+    if (!isColumnMissing(err)) throw err;
+    // Migrasi belum jalan — tambah kolom lalu ulangi sekali.
+    await ensureBridgeColumns();
+    return await issueBridgeTokenInner();
+  }
+}
+
+async function revokeBridgeTokenInner(): Promise<void> {
   const existing = await db.dapodikConfig.findUnique({ where: { id: "singleton" } });
   if (!existing) return;
   await db.dapodikConfig.update({
@@ -83,6 +131,16 @@ export async function revokeBridgeToken(): Promise<void> {
       bridgeTokenCreatedAt: null,
     },
   });
+}
+
+export async function revokeBridgeToken(): Promise<void> {
+  try {
+    return await revokeBridgeTokenInner();
+  } catch (err) {
+    if (!isColumnMissing(err)) throw err;
+    await ensureBridgeColumns();
+    return await revokeBridgeTokenInner();
+  }
 }
 
 export async function authenticateBridgeRequest(req: {

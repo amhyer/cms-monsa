@@ -10,11 +10,14 @@ export interface DapodikConfig {
 export interface Sekolah {
   nama: string;
   npsn: string;
-  alamat: string;
+  alamat?: string;
+  alamat_jalan?: string;
   provinsi?: string;
   kabupaten?: string;
+  kabupaten_kota?: string;
   kecamatan?: string;
   kelurahan?: string;
+  desa_kelurahan?: string;
 }
 
 // Field disesuaikan dengan response asli Dapodik Web Service
@@ -125,21 +128,22 @@ export class DapodikClient {
    */
   async getSemesters(): Promise<string[]> {
     const ids = new Set<string>();
-    let primaryFailed = false;
+    let pdFailed = false;
+    let rbFailed = false;
     try {
       const pd = await this.getPesertaDidik();
       for (const p of pd) if (p.semester_id) ids.add(p.semester_id);
     } catch {
-      primaryFailed = true;
-    }
-    if (primaryFailed && ids.size === 0) {
-      throw new Error("getSemesters: gagal mengambil semester dari peserta didik dan rombel.");
+      pdFailed = true;
     }
     try {
       const rb = await this.getRombonganBelajar();
       for (const r of rb) if (r.semester_id) ids.add(r.semester_id);
     } catch {
-      // rombel gagal — pakai hasil dari peserta didik saja
+      rbFailed = true;
+    }
+    if (pdFailed && rbFailed) {
+      throw new Error("getSemesters: gagal mengambil semester dari peserta didik dan rombel.");
     }
     return sortedIdsDesc(ids);
   }
@@ -224,10 +228,10 @@ export class DapodikClient {
     let lastError: unknown;
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      let response: Response;
       try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-        let response: Response;
         try {
           response = await fetch(url, {
             headers: {
@@ -239,33 +243,37 @@ export class DapodikClient {
         } finally {
           clearTimeout(timer);
         }
-
-        if (!response.ok) {
-          // 5xx bisa bersifat sementara — retry; selain itu putus (token dll.)
-          if (response.status < 500 || attempt === MAX_ATTEMPTS) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-          }
-          lastError = new Error(`HTTP ${response.status}: ${response.statusText}`);
-          await sleep(backoffMs(attempt));
-          continue;
-        }
-
-        const text = await response.text();
-        try {
-          return JSON.parse(text);
-        } catch {
-          // Dapodik biasanya balas halaman HTML "Access denied" kalau token/
-          // npsn salah, atau IP belum di-whitelist — dan halaman "Tidak
-          // terhubung dengan database" saat DB server-nya putus sesaat.
-          const msg = `Respons dari Dapodik bukan JSON valid (kemungkinan token salah, npsn salah, atau IP belum di-whitelist). Cuplikan: ${text.slice(0, 150)}`;
-          if (attempt === MAX_ATTEMPTS) throw new Error(msg);
-          lastError = new Error(msg);
-          await sleep(backoffMs(attempt));
-        }
       } catch (err) {
         // AbortError / TypeError (jaringan) — sementara, layak di-retry.
         lastError = err;
         if (attempt === MAX_ATTEMPTS) throw err;
+        await sleep(backoffMs(attempt));
+        continue;
+      }
+
+      if (!response.ok) {
+        const err = new Error(`HTTP ${response.status}: ${response.statusText}`);
+        // 4xx = kesalahan klien (token/npsn/whitelist) — jangan di-retry.
+        // 5xx bisa bersifat sementara — retry sampai batas percobaan.
+        if (response.status < 500 || attempt === MAX_ATTEMPTS) {
+          throw err;
+        }
+        lastError = err;
+        await sleep(backoffMs(attempt));
+        continue;
+      }
+
+      const text = await response.text();
+      try {
+        return JSON.parse(text);
+      } catch {
+        // Dapodik biasanya balas halaman HTML "Access denied" kalau token/
+        // npsn salah, atau IP belum di-whitelist — dan halaman "Tidak
+        // terhubung dengan database" saat DB server-nya putus sesaat.
+        const msg = `Respons dari Dapodik bukan JSON valid (kemungkinan token salah, npsn salah, atau IP belum di-whitelist). Cuplikan: ${text.slice(0, 150)}`;
+        const fatal = /access denied|unauthorized|forbidden/i.test(text);
+        if (fatal || attempt === MAX_ATTEMPTS) throw new Error(msg);
+        lastError = new Error(msg);
         await sleep(backoffMs(attempt));
       }
     }
@@ -306,7 +314,7 @@ export class DapodikClient {
       }
 
       const page = json as DapodikListResponse<T>;
-      const rows = Array.isArray(page.rows) ? page.rows : [page.rows];
+      const rows = Array.isArray(page.rows) ? page.rows : page.rows ? [page.rows] : [];
 
       if (rows.length === 0) break; // sudah sampai halaman terakhir
 
@@ -321,7 +329,14 @@ export class DapodikClient {
       lastPageKeys = pageKeys;
 
       allRows.push(...rows);
-      start += pageSize;
+
+      // Pakai jumlah baris aktual, bukan pageSize. Kalau server membatasi
+      // limit di bawah yang diminta (sering default 25), start += pageSize
+      // akan meloncat dan memotong data.
+      start += rows.length;
+
+      const total = typeof page.results === "number" ? page.results : null;
+      if (total !== null && allRows.length >= total) break;
     }
 
     return allRows;

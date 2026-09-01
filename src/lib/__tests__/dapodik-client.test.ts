@@ -99,12 +99,11 @@ expect(u.searchParams.get("semester_id")).toBe("20261");
       { id: "rb-2", rombongan_belajar_id: "rb-2", nama: "Kelas VI.b", semester_id: "20241" },
     ];
 
-    let call = 0;
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => {
-        call += 1;
-        if (call === 1) return jsonResponse({ rows: pdRows });
+      vi.fn(async (url: RequestInfo | URL) => {
+        const path = String(url);
+        if (path.includes("getPesertaDidik")) return jsonResponse({ rows: pdRows });
         return jsonResponse({ rows: rbRows });
       })
     );
@@ -116,16 +115,14 @@ expect(u.searchParams.get("semester_id")).toBe("20261");
   });
 
   it("getSemesters tetap mengembalikan daftar dari peserta didik bila rombel gagal", async () => {
-    let call = 0;
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => {
-        call += 1;
-        if (call === 1) {
+      vi.fn(async (url: RequestInfo | URL) => {
+        const path = String(url);
+        if (path.includes("getPesertaDidik")) {
           return jsonResponse({ rows: [{ id: "pd-1", peserta_didik_id: "pd-1", nama: "A", semester_id: "20261" }] });
         }
-        if (call === 2) return jsonResponse({ rows: [] }); // PD selesai
-        return jsonResponse({ error: "boom" }, 500); // rombel gagal
+        return new Response("Unauthorized", { status: 401, statusText: "Unauthorized" });
       })
     );
 
@@ -133,5 +130,68 @@ expect(u.searchParams.get("semester_id")).toBe("20261");
     const result = await client.getSemesters();
 
     expect(result).toEqual(["20261"]);
+  });
+
+  it("getSemesters memakai rombel jika peserta didik gagal", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: RequestInfo | URL) => {
+        const path = String(url);
+        if (path.includes("getPesertaDidik")) {
+          return new Response("Unauthorized", { status: 401, statusText: "Unauthorized" });
+        }
+        return jsonResponse({
+          rows: [{ rombongan_belajar_id: "rb-1", nama: "1.a", semester_id: "20261" }],
+        });
+      })
+    );
+
+    const client = makeClient();
+    const result = await client.getSemesters();
+
+    expect(result).toEqual(["20261"]);
+  });
+
+  it("tidak me-retry HTTP 401/403 (token salah)", async () => {
+    const fetchMock = vi.fn(
+      async () => new Response("Unauthorized", { status: 401, statusText: "Unauthorized" })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = makeClient();
+    await expect(client.getSekolah()).rejects.toThrow(/HTTP 401/);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("tidak me-retry HTML Access denied", async () => {
+    const fetchMock = vi.fn(
+      async () => new Response("<html>Access denied</html>", { status: 200 })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = makeClient();
+    await expect(client.getSekolah()).rejects.toThrow(/bukan JSON valid/);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("pagination memakai jumlah baris aktual agar data tidak terloncat jika server membatasi limit", async () => {
+    const rows = Array.from({ length: 60 }, (_, i) => ({
+      id: `pd-${i + 1}`,
+      peserta_didik_id: `pd-${i + 1}`,
+      nama: `Siswa ${i + 1}`,
+    }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: RequestInfo | URL) => {
+        const u = new URL(String(url));
+        const start = Number(u.searchParams.get("start") ?? 0);
+        return jsonResponse({ results: 60, rows: rows.slice(start, start + 25) });
+      })
+    );
+
+    const client = makeClient();
+    const result = await client.getPesertaDidik();
+
+    expect(result).toHaveLength(60);
   });
 });

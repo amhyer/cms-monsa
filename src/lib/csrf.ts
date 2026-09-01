@@ -80,6 +80,7 @@ export async function requireCsrf(
     "/api/auth/login",
     "/api/complaints",  // POST is public submission
     "/api/contact",     // Public contact form
+    "/api/dapodik/ingest", // jembatan PC sekolah (Bearer pairing, bukan cookie)
   ];
   const isPublicPost = method === "POST" && publicPaths.some(p => url.pathname === p || url.pathname.startsWith(p + "/"));
   if (isPublicPost) {

@@ -21,23 +21,28 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const { npsn, token, host, port, protocol, archiveUnlisted, allowInsecureInProduction } = body;
 
-  if (!npsn || !token) {
+  if (!npsn || !String(npsn).trim()) {
     return NextResponse.json(
-      { error: "NPSN dan Token wajib diisi." },
+      { error: "NPSN wajib diisi." },
       { status: 400 }
     );
   }
 
-  await saveDapodikConfig({
-    npsn: String(npsn).trim(),
-    token: String(token).trim(),
-    host: String(host || "localhost").trim(),
-    port: Number(port || 5774),
-    protocol: String(protocol || "http"),
-    archiveUnlisted: typeof archiveUnlisted === "boolean" ? archiveUnlisted : true,
-    allowInsecureInProduction:
-      typeof allowInsecureInProduction === "boolean" ? allowInsecureInProduction : false,
-  });
+  try {
+    await saveDapodikConfig({
+      npsn: String(npsn).trim(),
+      token: typeof token === "string" ? token.trim() : undefined,
+      host: String(host || "localhost").trim(),
+      port: Number(port || 5774),
+      protocol: String(protocol || "http"),
+      archiveUnlisted: typeof archiveUnlisted === "boolean" ? archiveUnlisted : true,
+      allowInsecureInProduction:
+        typeof allowInsecureInProduction === "boolean" ? allowInsecureInProduction : false,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Gagal menyimpan konfigurasi.";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
 
   return NextResponse.json({ ok: true, message: "Konfigurasi tersimpan." });
 }

@@ -55,6 +55,13 @@ aktifkan eksplisit setelah deploy bila hanya diakses dari jaringan aman:
 > Jangan aktifkan bila Dapodik diakses dari internet publik — wajib HTTPS
 > (mis. lewat reverse proxy Caddy) agar token & data siswa tidak bocor.
 
+**CMS di Vercel / cloud:** server aplikasi tidak bisa menghubungi
+`localhost:5774` di PC sekolah. Jangan publish port Dapodik. Pakai aplikasi
+**Jembatan PC Sekolah** (dashboard → Penarikan Dapodik → unduh zip + kunci
+pairing). Jembatan menarik Dapodik secara lokal lalu `POST /api/dapodik/ingest`.
+Migrasi `prisma/migrations/*_add_dapodik_bridge_token/` menambahkan kolom
+`bridgeTokenHash` / `bridgeTokenPrefix` / `bridgeTokenCreatedAt`.
+
 Migrasi kolom `allowInsecureInProduction` (tabel `DapodikConfig`):
 
 - PostgreSQL (Docker / standalone): `bun run db:migrate:prod` — migrasi

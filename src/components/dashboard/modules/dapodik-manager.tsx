@@ -126,6 +126,15 @@ const STEPS: { key: "sekolah" | "siswa" | "guru" | "rombel"; label: string }[] =
   { key: "rombel", label: "Rombongan Belajar" },
 ];
 
+/** Parse JSON respons dengan aman — jangan pecah pada 500 body kosong. */
+async function readJson(res: Response): Promise<Record<string, unknown>> {
+  try {
+    return await res.json();
+  } catch {
+    return {};
+  }
+}
+
 export function DapodikManager() {
   const [config, setConfig] = useState({ npsn: "", token: "", host: "localhost", port: "5774", protocol: "http", archiveUnlisted: true as boolean, allowInsecureInProduction: false as boolean });
   const [hasExistingToken, setHasExistingToken] = useState(false);
@@ -364,11 +373,11 @@ export function DapodikManager() {
     setGeneratingKey(true);
     try {
       const res = await fetch("/api/dapodik/bridge", { method: "POST" });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-      setPlainBridgeToken(json.token);
+      const json = await readJson(res);
+      if (!res.ok) throw new Error((json.error as string) || `HTTP ${res.status}`);
+      setPlainBridgeToken((json.token as string) || null);
       setHasBridgeToken(true);
-      setBridgePrefix(json.prefix || null);
+      setBridgePrefix((json.prefix as string) || null);
       setBridgeCreatedAt(new Date().toISOString());
       setTokenDialogOpen(true);
       toast.success("Kunci pairing dibuat. Salin sekarang — tidak ditampilkan lagi.");
@@ -386,8 +395,8 @@ export function DapodikManager() {
     setRevokingKey(true);
     try {
       const res = await fetch("/api/dapodik/bridge", { method: "DELETE" });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
+      const json = await readJson(res);
+      if (!res.ok) throw new Error((json.error as string) || `HTTP ${res.status}`);
       setHasBridgeToken(false);
       setBridgePrefix(null);
       setBridgeCreatedAt(null);

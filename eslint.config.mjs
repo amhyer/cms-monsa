@@ -48,6 +48,8 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "skills",
     // CommonJS tooling scripts (markdownlint custom rules) — bukan TS
     "scripts/**/*.cjs",
+    // Aplikasi jembatan Dapodik (CJS companion, di-zip ke file bukan TS)
+    "dapodik-jembatan/**",
   ]
 }];
 

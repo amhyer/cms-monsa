@@ -18,6 +18,10 @@ import {
   CheckCircle2,
   XCircle,
   Circle,
+  Cable,
+  KeyRound,
+  Copy,
+  Unplug,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -46,7 +50,18 @@ import {
 import { EmptyState } from "../_shared";
 
 type DapodikData = {
-  sekolah?: { nama: string; npsn: string; alamat_jalan: string; provinsi: string; kabupaten_kota: string; kecamatan: string; desa_kelurahan: string };
+  sekolah?: {
+    nama: string;
+    npsn: string;
+    alamat?: string;
+    alamat_jalan?: string;
+    provinsi?: string;
+    kabupaten?: string;
+    kabupaten_kota?: string;
+    kecamatan?: string;
+    kelurahan?: string;
+    desa_kelurahan?: string;
+  };
   peserta_didik?: Array<{
     nama: string;
     nipd: string;
@@ -113,6 +128,7 @@ const STEPS: { key: "sekolah" | "siswa" | "guru" | "rombel"; label: string }[] =
 
 export function DapodikManager() {
   const [config, setConfig] = useState({ npsn: "", token: "", host: "localhost", port: "5774", protocol: "http", archiveUnlisted: true as boolean, allowInsecureInProduction: false as boolean });
+  const [hasExistingToken, setHasExistingToken] = useState(false);
   const [configLoaded, setConfigLoaded] = useState(false);
   const [data, setData] = useState<DapodikData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -126,6 +142,14 @@ export function DapodikManager() {
   const [syncPreview, setSyncPreview] = useState<SyncPreview | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [progress, setProgress] = useState<Record<string, StepStatus>>({});
+  const [hasBridgeToken, setHasBridgeToken] = useState(false);
+  const [bridgePrefix, setBridgePrefix] = useState<string | null>(null);
+  const [bridgeCreatedAt, setBridgeCreatedAt] = useState<string | null>(null);
+  const [plainBridgeToken, setPlainBridgeToken] = useState<string | null>(null);
+  const [tokenDialogOpen, setTokenDialogOpen] = useState(false);
+  const [generatingKey, setGeneratingKey] = useState(false);
+  const [revokingKey, setRevokingKey] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     fetch("/api/dapodik/config")
@@ -144,7 +168,10 @@ export function DapodikManager() {
             archiveUnlisted: json.config.archiveUnlisted !== false,
             allowInsecureInProduction: json.config.allowInsecureInProduction === true,
           });
-          setConnected(true);
+          setHasExistingToken(Boolean(json.config.hasToken ?? json.config.token));
+          setHasBridgeToken(Boolean(json.config.hasBridgeToken));
+          setBridgePrefix(json.config.bridgeTokenPrefix || null);
+          setBridgeCreatedAt(json.config.bridgeTokenCreatedAt || null);
         }
         setConfigLoaded(true);
       })
@@ -152,8 +179,8 @@ export function DapodikManager() {
   }, []);
 
   const saveConfig = useCallback(async () => {
-    if (!config.npsn || !config.token) {
-      toast.error("NPSN dan Token wajib diisi.");
+    if (!config.npsn || (!config.token && !hasExistingToken)) {
+      toast.error("NPSN wajib. Token wajib diisi pada konfigurasi pertama.");
       return;
     }
     setSaving(true);
@@ -163,7 +190,7 @@ export function DapodikManager() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           npsn: config.npsn,
-          token: config.token,
+          ...(config.token ? { token: config.token } : {}),
           host: config.host,
           port: Number(config.port),
           protocol: config.protocol,
@@ -174,13 +201,14 @@ export function DapodikManager() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
       toast.success("Konfigurasi tersimpan!");
+      if (config.token) setHasExistingToken(true);
       setShowConfig(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Gagal menyimpan");
     } finally {
       setSaving(false);
     }
-  }, [config]);
+  }, [config, hasExistingToken]);
 
   const testConnection = useCallback(async () => {
     setTesting(true);
@@ -304,6 +332,84 @@ export function DapodikManager() {
     }
   }, []);
 
+  const downloadJembatan = useCallback(async () => {
+    setDownloading(true);
+    try {
+      const res = await fetch("/api/dapodik/download");
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || `HTTP ${res.status}`);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "jembatan-dapodik-monsa.zip";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success("Paket jembatan diunduh. Jalankan di PC yang sama dengan Dapodik.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Gagal mengunduh");
+    } finally {
+      setDownloading(false);
+    }
+  }, []);
+
+  const generateBridgeKey = useCallback(async () => {
+    if (hasBridgeToken && !window.confirm("Kunci lama akan langsung tidak berlaku. Lanjutkan?")) {
+      return;
+    }
+    setGeneratingKey(true);
+    try {
+      const res = await fetch("/api/dapodik/bridge", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      setPlainBridgeToken(json.token);
+      setHasBridgeToken(true);
+      setBridgePrefix(json.prefix || null);
+      setBridgeCreatedAt(new Date().toISOString());
+      setTokenDialogOpen(true);
+      toast.success("Kunci pairing dibuat. Salin sekarang — tidak ditampilkan lagi.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Gagal membuat kunci");
+    } finally {
+      setGeneratingKey(false);
+    }
+  }, [hasBridgeToken]);
+
+  const revokeBridgeKey = useCallback(async () => {
+    if (!window.confirm("Cabut kunci pairing? Jembatan tidak bisa mengirim data sampai kunci baru dibuat.")) {
+      return;
+    }
+    setRevokingKey(true);
+    try {
+      const res = await fetch("/api/dapodik/bridge", { method: "DELETE" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      setHasBridgeToken(false);
+      setBridgePrefix(null);
+      setBridgeCreatedAt(null);
+      setPlainBridgeToken(null);
+      toast.success("Kunci pairing dicabut.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Gagal mencabut kunci");
+    } finally {
+      setRevokingKey(false);
+    }
+  }, []);
+
+  const copyBridgeToken = useCallback(async () => {
+    if (!plainBridgeToken) return;
+    try {
+      await navigator.clipboard.writeText(plainBridgeToken);
+      toast.success("Kunci disalin ke papan klip.");
+    } catch {
+      toast.error("Gagal menyalin. Salin manual dari kotak kunci.");
+    }
+  }, [plainBridgeToken]);
+
   if (!configLoaded) return null;
 
   return (
@@ -358,6 +464,50 @@ export function DapodikManager() {
         </div>
       )}
 
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Cable className="size-4" />
+            Jembatan PC Sekolah
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            CMS di cloud tidak bisa menjangkau Dapodik di <code>localhost:5774</code>.
+            Unduh aplikasi jembatan, jalankan di komputer yang sama dengan Dapodik,
+            lalu tempel kunci pairing. Port 5774 tetap tertutup dari internet.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" onClick={downloadJembatan} disabled={downloading}>
+              {downloading ? <Loader2 className="mr-1 size-3 animate-spin" /> : <Download className="mr-1 size-3" />}
+              Unduh jembatan (.zip)
+            </Button>
+            <Button variant="outline" size="sm" onClick={generateBridgeKey} disabled={generatingKey}>
+              {generatingKey ? <Loader2 className="mr-1 size-3 animate-spin" /> : <KeyRound className="mr-1 size-3" />}
+              {hasBridgeToken ? "Buat ulang kunci" : "Buat kunci pairing"}
+            </Button>
+            {hasBridgeToken && (
+              <Button variant="ghost" size="sm" onClick={revokeBridgeKey} disabled={revokingKey}>
+                {revokingKey ? <Loader2 className="mr-1 size-3 animate-spin" /> : <Unplug className="mr-1 size-3" />}
+                Cabut kunci
+              </Button>
+            )}
+          </div>
+          {hasBridgeToken ? (
+            <p className="text-xs text-muted-foreground">
+              Kunci aktif: <span className="font-mono text-foreground">{bridgePrefix || "monsa_br_"}…</span>
+              {bridgeCreatedAt
+                ? ` · dibuat ${new Date(bridgeCreatedAt).toLocaleString("id-ID")}`
+                : ""}
+            </p>
+          ) : (
+            <p className="text-xs text-amber-700">
+              Belum ada kunci pairing. Buat kunci, lalu tempel di aplikasi jembatan.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       {showConfig && (
         <Card>
           <CardHeader>
@@ -383,13 +533,19 @@ export function DapodikManager() {
               </div>
               <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="dapodik-token">Token</Label>
-                <Input id="dapodik-token" type="password" placeholder="Token autentikasi Dapodik" value={config.token} onChange={(e) => setConfig((p) => ({ ...p, token: e.target.value }))} />
+                <Input
+                  id="dapodik-token"
+                  type="password"
+                  placeholder={hasExistingToken ? "Kosongkan jika tidak ingin mengubah token" : "Token autentikasi Dapodik"}
+                  value={config.token}
+                  onChange={(e) => setConfig((p) => ({ ...p, token: e.target.value }))}
+                />
               </div>
               <div className="flex items-center justify-between gap-3 rounded-md border p-3 md:col-span-2">
                 <div>
-                  <p className="text-sm font-medium">Jangan nonaktifkan data yang tidak ada di Dapodik</p>
+                  <p className="text-sm font-medium">Nonaktifkan data yang tidak ada di Dapodik</p>
                   <p className="text-xs text-muted-foreground">
-                    Saat aktif, siswa/guru yang tidak terdaftar di Dapodik dibiarkan aktif (tidak diarsipkan).
+                    Saat aktif, siswa/guru yang tidak terdaftar di Dapodik diarsipkan (riwayat kehadiran tetap aman). Saat nonaktif, data lama dibiarkan aktif.
                   </p>
                 </div>
                 <Switch
@@ -401,9 +557,10 @@ export function DapodikManager() {
                 <div>
                   <p className="text-sm font-medium">Izinkan HTTP di production</p>
                   <p className="text-xs text-muted-foreground">
-                    Aktifkan bila Web Service Dapodik hanya bisa diakses lewat HTTP
-                    (localhost / jaringan lokal / VPN yang sudah aman). Di production,
-                    koneksi HTTP diblokir otomatis kecuali opsi ini dinyalakan.
+                    Aktifkan bila CMS self-host di jaringan sekolah/VPN dan Web Service
+                    Dapodik hanya HTTP. CMS di Vercel/cloud tidak bisa menjangkau
+                    localhost sekolah — gunakan kartu Jembatan PC Sekolah di atas.
+                    Jangan publikasikan port 5774 ke internet.
                   </p>
                 </div>
                 <Switch
@@ -413,7 +570,7 @@ export function DapodikManager() {
               </div>
             </div>
             <div className="mt-4 flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={saveConfig} disabled={saving || !config.token}>
+              <Button variant="outline" size="sm" onClick={saveConfig} disabled={saving || !config.npsn || (!config.token && !hasExistingToken)}>
                 {saving ? <Loader2 className="mr-1 size-3 animate-spin" /> : <Save className="mr-1 size-3" />}
                 Simpan Konfigurasi
               </Button>
@@ -660,11 +817,11 @@ export function DapodikManager() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <InfoRow label="Nama" value={data.sekolah.nama} />
                   <InfoRow label="NPSN" value={data.sekolah.npsn} />
-                  <InfoRow label="Alamat" value={data.sekolah.alamat_jalan} />
+                  <InfoRow label="Alamat" value={data.sekolah.alamat_jalan || data.sekolah.alamat} />
                   <InfoRow label="Provinsi" value={data.sekolah.provinsi} />
-                  <InfoRow label="Kabupaten" value={data.sekolah.kabupaten_kota} />
+                  <InfoRow label="Kabupaten" value={data.sekolah.kabupaten_kota || data.sekolah.kabupaten} />
                   <InfoRow label="Kecamatan" value={data.sekolah.kecamatan} />
-                  <InfoRow label="Kelurahan" value={data.sekolah.desa_kelurahan} />
+                  <InfoRow label="Kelurahan" value={data.sekolah.desa_kelurahan || data.sekolah.kelurahan} />
                 </div>
               )}
             </CardContent>
@@ -711,6 +868,16 @@ export function DapodikManager() {
                   Data yang diarsipkan tidak akan muncul di daftar aktif, tapi riwayat kehadiran/pembayarannya tetap aman.
                 </p>
               )}
+              {(syncPreview.siswa.errors > 0 || syncPreview.gtk.errors > 0) && (
+                <p className="text-xs text-destructive">
+                  {syncPreview.siswa.errors > 0
+                    ? `${syncPreview.siswa.errors} siswa dilewati (rombel tidak ditemukan). `
+                    : ""}
+                  {syncPreview.gtk.errors > 0
+                    ? `${syncPreview.gtk.errors} GTK dilewati (tanpa NUPTK/NIP).`
+                    : ""}
+                </p>
+              )}
             </div>
           )}
           <DialogFooter>
@@ -719,6 +886,31 @@ export function DapodikManager() {
               {syncing ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
               Lanjutkan Sync
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={tokenDialogOpen} onOpenChange={setTokenDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Kunci pairing jembatan</DialogTitle>
+            <DialogDescription>
+              Salin kunci ini ke aplikasi jembatan di PC sekolah. Setelah jendela ditutup,
+              kunci tidak ditampilkan lagi (hanya hash yang disimpan di server).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <code className="block break-all rounded-md bg-muted p-3 text-xs">{plainBridgeToken}</code>
+            <p className="text-xs text-amber-700">
+              Jangan bagikan kunci ini. Cabut dari dashboard jika komputer sekolah berganti atau kunci bocor.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={copyBridgeToken}>
+              <Copy className="mr-1 size-3" />
+              Salin
+            </Button>
+            <Button onClick={() => setTokenDialogOpen(false)}>Sudah disalin</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -749,11 +941,11 @@ function SummaryCard({ title, value, icon: Icon, loading, onPull }: {
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function InfoRow({ label, value }: { label: string; value?: string | null }) {
   return (
     <div className="flex flex-col gap-1">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="text-sm font-medium">{value}</span>
+      <span className="text-sm font-medium">{value || "-"}</span>
     </div>
   );
 }

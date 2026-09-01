@@ -57,6 +57,14 @@ describe("requireCsrf", () => {
     expect(result).toBeNull();
   });
 
+  it("returns null (allows) for POST to /api/dapodik/ingest (jembatan Bearer)", async () => {
+    const req = new Request("http://localhost/api/dapodik/ingest", {
+      method: "POST",
+    });
+    const result = await requireCsrf(req);
+    expect(result).toBeNull();
+  });
+
   it("returns 403 for POST without CSRF token header", async () => {
     const req = new Request("http://localhost/api/users", {
       method: "POST",

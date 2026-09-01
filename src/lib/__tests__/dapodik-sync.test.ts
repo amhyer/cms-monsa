@@ -1,9 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/db", () => ({ db: {} }));
+
 import {
   mapGender,
   normalize,
   combineParentName,
   resolveNis,
+  resolveSchoolAddress,
   parseGradeFromRombel,
   currentAcademicYear,
   parseDate,
@@ -138,6 +142,38 @@ describe("resolveNis", () => {
     );
     expect(result).toBe("9999");
     expect(result).not.toMatch(UUID_RE);
+  });
+
+  it("siswa senama di kelas sama mendapat NIS berbeda (pakai peserta_didik_id)", () => {
+    const r1 = resolveNis(
+      { peserta_didik_id: "id-aaa", nama: "Budi Santoso" } as unknown as ResolveNisInput,
+      "1.a",
+    );
+    const r2 = resolveNis(
+      { peserta_didik_id: "id-bbb", nama: "Budi Santoso" } as unknown as ResolveNisInput,
+      "1.a",
+    );
+    expect(r1).toMatch(/^\d{10}$/);
+    expect(r2).toMatch(/^\d{10}$/);
+    expect(r1).not.toBe(r2);
+  });
+});
+
+describe("resolveSchoolAddress", () => {
+  it("utamakan alamat_jalan dari Dapodik WS", () => {
+    expect(
+      resolveSchoolAddress({ alamat_jalan: "Jl. Wr. Monginsidi No.13", alamat: "lama" })
+    ).toBe("Jl. Wr. Monginsidi No.13");
+  });
+
+  it("fallback ke alamat jika alamat_jalan kosong", () => {
+    expect(resolveSchoolAddress({ alamat: "Jl. Lama" })).toBe("Jl. Lama");
+    expect(resolveSchoolAddress({ alamat_jalan: "  ", alamat: "Jl. Lama" })).toBe("Jl. Lama");
+  });
+
+  it("null jika keduanya kosong", () => {
+    expect(resolveSchoolAddress({})).toBeNull();
+    expect(resolveSchoolAddress({ alamat: "  ", alamat_jalan: "" })).toBeNull();
   });
 });
 

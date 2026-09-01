@@ -3,7 +3,7 @@ import { DapodikClient, type DapodikConfig as DapodikClientConfig } from "@/lib/
 
 // ---- Types (dikonfirmasi dari response Dapodik asli) ----
 
-type DapodikSiswa = {
+export type DapodikSiswa = {
   peserta_didik_id: string;
   nipd?: string; // NIS lokal sekolah — dipakai untuk Student.nis
   nisn?: string; // NIS Nasional — dipakai untuk Student.nisn
@@ -18,7 +18,7 @@ type DapodikSiswa = {
   rombongan_belajar_id?: string; // kunci matching ke Class.dapodikId
 };
 
-type DapodikGTK = {
+export type DapodikGTK = {
   nama: string;
   nuptk?: string;
   nip?: string;
@@ -35,17 +35,18 @@ type DapodikGTK = {
   jabatan_ptk_id_str?: string; // "Kepala Sekolah" | "Guru Kelas" | "Guru Mapel" | "TAS" ...
 };
 
-type DapodikRombel = {
+export type DapodikRombel = {
   rombongan_belajar_id: string; // disimpan sebagai Class.dapodikId
   nama: string;
   tingkat_pendidikan_id_str?: string;
   ptk_id_str?: string; // nama wali kelas
 };
 
-type DapodikSekolah = {
+export type DapodikSekolah = {
   nama: string;
   npsn: string;
-  alamat: string;
+  alamat?: string;
+  alamat_jalan?: string;
 };
 
 export type SyncResult = {
@@ -57,6 +58,47 @@ export type SyncResult = {
 
 export type DryRunResult = SyncResult & { mode: "dry-run" };
 export type CommitResult = SyncResult & { mode: "commit"; logId: string };
+
+export type DapodikPayload = {
+  sekolah: DapodikSekolah;
+  siswa: DapodikSiswa[];
+  gtk: DapodikGTK[];
+  rombel: DapodikRombel[];
+};
+
+const MAX_INGEST_ROWS = 5000;
+
+function asList<T>(raw: unknown): T[] {
+  if (raw == null) return [];
+  return (Array.isArray(raw) ? raw : [raw]) as T[];
+}
+
+/** Normalisasi body ingest / hasil tarikan Dapodik menjadi payload sync. */
+export function normalizeDapodikPayload(raw: unknown): DapodikPayload {
+  if (!raw || typeof raw !== "object") {
+    throw new Error("Payload Dapodik tidak valid.");
+  }
+  const o = raw as Record<string, unknown>;
+  const sekolahRaw = o.sekolah;
+  if (!sekolahRaw || typeof sekolahRaw !== "object" || Array.isArray(sekolahRaw)) {
+    throw new Error("Field sekolah wajib berupa objek.");
+  }
+  const sekolah = sekolahRaw as DapodikSekolah;
+  if (!normalize(sekolah.nama) || !normalize(sekolah.npsn)) {
+    throw new Error("Field sekolah.nama dan sekolah.npsn wajib diisi.");
+  }
+  const siswa = asList<DapodikSiswa>(o.siswa ?? o.peserta_didik);
+  const gtk = asList<DapodikGTK>(o.gtk);
+  const rombel = asList<DapodikRombel>(o.rombel);
+  if (
+    siswa.length > MAX_INGEST_ROWS ||
+    gtk.length > MAX_INGEST_ROWS ||
+    rombel.length > MAX_INGEST_ROWS
+  ) {
+    throw new Error(`Terlalu banyak baris (maksimal ${MAX_INGEST_ROWS} per jenis data).`);
+  }
+  return { sekolah, siswa, gtk, rombel };
+}
 
 // ---- Helpers ----
 
@@ -88,6 +130,14 @@ export function normalize(value?: string | null): string | null {
   if (!value) return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+/** Alamat sekolah dari Dapodik WS: utamakan `alamat_jalan`, fallback `alamat`. */
+export function resolveSchoolAddress(sekolah: {
+  alamat?: string | null;
+  alamat_jalan?: string | null;
+}): string | null {
+  return normalize(sekolah.alamat_jalan) || normalize(sekolah.alamat);
 }
 
 export function combineParentName(ayah?: string, ibu?: string): string | null {
@@ -130,6 +180,7 @@ export function resolveNis(
 
   // Fallback: NIS numerik berbasis kelas/angkatan
   const grade = parseGradeFromRombel(namaRombel ?? s.nama_rombel);
+  const seed = `${s.peserta_didik_id}|${s.nama ?? ""}`;
   if (grade) {
     const now = new Date();
     // Angkatan = tahun saat ini − (kelas − 1)
@@ -138,23 +189,24 @@ export function resolveNis(
     const angkatan = now.getFullYear() - (grade - 1);
     const yy = angkatan % 100;
     const yyNext = (yy + 1) % 100;
-    // 3 digit deterministik dari nama siswa (001–999)
-    const hash = Array.from(s.nama).reduce(
+    // 4 digit deterministik dari peserta_didik_id + nama (0001–9999)
+    // supaya dua siswa senama di kelas yang sama tidak tabrakan.
+    const hash = Array.from(seed).reduce(
       (h, c) => ((h << 5) - h + c.charCodeAt(0)) | 0,
       0,
     );
-    const seq = (Math.abs(hash) % 999) + 1;
+    const seq = (Math.abs(hash) % 9999) + 1;
     return `${String(yy).padStart(2, "0")}${String(yyNext).padStart(2, "0")}07${String(seq).padStart(4, "0")}`;
   }
 
-  // Terakhir: hash deterministik dari nama (bukan UUID)
+  // Terakhir: hash deterministik dari id+nama (bukan UUID)
   // Guard: bila nama kosong, pakai peserta_didik_id sebagai fallback mutlak
   if (!s.nama) return s.peserta_didik_id;
-  const hash = Array.from(s.nama).reduce(
+  const hash = Array.from(seed).reduce(
     (h, c) => ((h << 5) - h + c.charCodeAt(0)) | 0,
     0,
   );
-  return String(Math.abs(hash)).padStart(10, "0");
+  return String(Math.abs(hash)).padStart(10, "0").slice(-10);
 }
 
 // ---- Get Dapodik Client from DB config ----
@@ -182,26 +234,67 @@ export async function getDapodikClient(): Promise<DapodikClient> {
 
 export async function saveDapodikConfig(data: {
   npsn: string;
-  token: string;
+  token?: string;
   host: string;
   port: number;
   protocol: string;
   archiveUnlisted?: boolean;
   allowInsecureInProduction?: boolean;
 }) {
+  const existing = await db.dapodikConfig.findUnique({ where: { id: "singleton" } });
+  const token = normalize(data.token) || existing?.token || null;
+  if (!token) {
+    throw new Error("Token Dapodik wajib diisi pada konfigurasi pertama.");
+  }
+  const payload = {
+    npsn: data.npsn,
+    token,
+    host: data.host,
+    port: data.port,
+    protocol: data.protocol,
+    ...(typeof data.archiveUnlisted === "boolean" ? { archiveUnlisted: data.archiveUnlisted } : {}),
+    ...(typeof data.allowInsecureInProduction === "boolean"
+      ? { allowInsecureInProduction: data.allowInsecureInProduction }
+      : {}),
+  };
   return db.dapodikConfig.upsert({
     where: { id: "singleton" },
-    create: { id: "singleton", ...data },
-    update: data,
+    create: { id: "singleton", ...payload },
+    update: payload,
   });
+}
+
+function maskSecret(value: string): string {
+  if (!value) return "";
+  if (value.length <= 8) return "****";
+  return value.slice(0, 4) + "****" + value.slice(-4);
 }
 
 export async function getDapodikConfig() {
   const config = await db.dapodikConfig.findUnique({ where: { id: "singleton" } });
   if (!config) return null;
+  const token = config.token ?? "";
   return {
-    ...config,
-    token: config.token.slice(0, 4) + "****" + config.token.slice(-4),
+    id: config.id,
+    npsn: config.npsn,
+    host: config.host,
+    port: config.port,
+    protocol: config.protocol,
+    allowInsecureInProduction: config.allowInsecureInProduction,
+    autoSyncEnabled: config.autoSyncEnabled,
+    autoSyncIntervalHours: config.autoSyncIntervalHours,
+    autoSyncLastRunAt: config.autoSyncLastRunAt,
+    autoSyncLastStatus: config.autoSyncLastStatus,
+    autoSyncLastError: config.autoSyncLastError,
+    lastSyncAt: config.lastSyncAt,
+    lastSyncBy: config.lastSyncBy,
+    archiveUnlisted: config.archiveUnlisted,
+    updatedAt: config.updatedAt,
+    token: maskSecret(token),
+    hasToken: token.length > 0,
+    hasBridgeToken: Boolean(config.bridgeTokenHash),
+    bridgeTokenPrefix: config.bridgeTokenPrefix ?? null,
+    bridgeTokenCreatedAt: config.bridgeTokenCreatedAt ?? null,
   };
 }
 
@@ -224,7 +317,8 @@ export async function testConnection(): Promise<{ success: boolean; message: str
 // ---- Main Sync Function ----
 
 export async function runSync(
-  mode: "dry-run" | "commit"
+  mode: "dry-run" | "commit",
+  opts?: { userId?: string }
 ): Promise<DryRunResult | CommitResult> {
   const client = await getDapodikClient();
 
@@ -248,9 +342,24 @@ export async function runSync(
     );
   }
 
-  const siswaList = (Array.isArray(siswaRaw) ? siswaRaw : [siswaRaw]) as DapodikSiswa[];
-  const gtkList = (Array.isArray(gtkRaw) ? gtkRaw : [gtkRaw]) as DapodikGTK[];
-  const rombelList = (Array.isArray(rombelRaw) ? rombelRaw : [rombelRaw]) as DapodikRombel[];
+  return applyDapodikPayload(
+    normalizeDapodikPayload({
+      sekolah,
+      peserta_didik: siswaRaw,
+      gtk: gtkRaw,
+      rombel: rombelRaw,
+    }),
+    mode,
+    opts
+  );
+}
+
+export async function applyDapodikPayload(
+  payload: DapodikPayload,
+  mode: "dry-run" | "commit",
+  opts?: { userId?: string }
+): Promise<DryRunResult | CommitResult> {
+  const { sekolah, siswa: siswaList, gtk: gtkList, rombel: rombelList } = payload;
 
   // Existing DB state
   const existingStudents = await db.student.findMany({
@@ -294,6 +403,7 @@ export async function runSync(
   // (dibuat atau diupdate). Jadi untuk simulasi dry-run, anggap semua
   // rombongan_belajar_id di rombelList "akan ada" sebagai kelas valid.
   const willExistDapodikIds = new Set(rombelList.map((r) => r.rombongan_belajar_id));
+  const willExistNames = new Set(rombelList.map((r) => r.nama));
 
   const siswaCount = { created: 0, updated: 0, archived: 0, errors: 0 };
   const gtkCount = { created: 0, updated: 0, archived: 0, errors: 0 };
@@ -301,7 +411,10 @@ export async function runSync(
 
   const matchedStudentIds = new Set<string>();
   for (const s of siswaList) {
-    if (!s.rombongan_belajar_id || !willExistDapodikIds.has(s.rombongan_belajar_id)) {
+    const hasRombel =
+      (s.rombongan_belajar_id && willExistDapodikIds.has(s.rombongan_belajar_id)) ||
+      (!!s.nama_rombel && willExistNames.has(s.nama_rombel));
+    if (!hasRombel) {
       siswaCount.errors++;
       continue;
     }
@@ -325,13 +438,14 @@ export async function runSync(
 
   const syncedGtkIds = new Set<string>();
   for (const g of gtkList) {
-    const identifier = g.nuptk || g.nip;
-    if (!identifier) {
+    const nuptk = normalize(g.nuptk);
+    const nip = normalize(g.nip);
+    if (!nuptk && !nip) {
       gtkCount.errors++;
       continue;
     }
     const found =
-      (g.nuptk && teacherByNuptk.get(g.nuptk)) || (g.nip && teacherByNip.get(g.nip));
+      (nuptk && teacherByNuptk.get(nuptk)) || (nip && teacherByNip.get(nip));
 
     if (found) {
       syncedGtkIds.add(found.id);
@@ -370,18 +484,19 @@ export async function runSync(
 
   // ---- Commit mode ----
   await db.$transaction(async (tx) => {
+    const schoolAddress = resolveSchoolAddress(sekolah);
     await tx.siteSetting.upsert({
       where: { id: "singleton" },
       update: {
         npsn: sekolah.npsn,
         schoolName: sekolah.nama,
-        address: sekolah.alamat,
+        ...(schoolAddress ? { address: schoolAddress } : {}),
       },
       create: {
         id: "singleton",
         npsn: sekolah.npsn,
         schoolName: sekolah.nama,
-        address: sekolah.alamat,
+        address: schoolAddress ?? "",
         vision: "",
         mission: "",
         history: "",
@@ -392,6 +507,7 @@ export async function runSync(
 
     // Rombel → Class, matching via dapodikId, fallback ke nama
     const freshClassByDapodikId = new Map<string, string>();
+    const freshClassByName = new Map<string, string>();
     for (const r of rombelList) {
       const grade = r.tingkat_pendidikan_id_str || "1";
       const existingId = classByDapodikId.get(r.rombongan_belajar_id) ?? classByName.get(r.nama);
@@ -402,61 +518,55 @@ export async function runSync(
           data: { name: r.nama, grade, academicYear, dapodikId: r.rombongan_belajar_id },
         });
         freshClassByDapodikId.set(r.rombongan_belajar_id, existingId);
+        freshClassByName.set(r.nama, existingId);
       } else {
         const created = await tx.class.create({
           data: { name: r.nama, grade, academicYear, dapodikId: r.rombongan_belajar_id },
         });
         freshClassByDapodikId.set(r.rombongan_belajar_id, created.id);
+        freshClassByName.set(r.nama, created.id);
       }
     }
 
     // GTK
     const syncedGtk = new Set<string>();
     for (const g of gtkList) {
-      const identifier = g.nuptk || g.nip;
-      if (!identifier) continue;
+      const nuptk = normalize(g.nuptk);
+      const nip = normalize(g.nip);
+      if (!nuptk && !nip) continue;
       const existing = await tx.teacher.findFirst({
-        where: { OR: [{ nuptk: identifier }, { nip: identifier }] },
+        where: {
+          OR: [
+            ...(nuptk ? [{ nuptk }] : []),
+            ...(nip ? [{ nip }] : []),
+          ],
+        },
       });
+      const teacherData = {
+        name: g.nama,
+        position: normalize(g.jabatan_ptk_id_str) || normalize(g.jenis_ptk_id_str) || "Guru",
+        nuptk,
+        nip,
+        nik: normalize(g.nik),
+        gender: mapGender(g.jenis_kelamin),
+        tempatLahir: normalize(g.tempat_lahir),
+        tanggalLahir: parseDate(g.tanggal_lahir),
+        agama: normalize(g.agama_id_str),
+        statusKepegawaian: normalize(g.status_kepegawaian_id_str),
+        jenisPtk: normalize(g.jenis_ptk_id_str),
+        pangkatGolongan: normalize(g.pangkat_golongan_terakhir),
+        education: normalize(g.pendidikan_terakhir),
+        bidangStudi: normalize(g.bidang_studi_terakhir),
+      };
       if (existing) {
         syncedGtk.add(existing.id);
         await tx.teacher.update({
           where: { id: existing.id },
-          data: {
-            name: g.nama,
-            position: normalize(g.jabatan_ptk_id_str) || normalize(g.jenis_ptk_id_str) || "Guru",
-            nuptk: g.nuptk || null,
-            nip: g.nip || null,
-            nik: normalize(g.nik),
-            gender: mapGender(g.jenis_kelamin),
-            tempatLahir: normalize(g.tempat_lahir),
-            tanggalLahir: parseDate(g.tanggal_lahir),
-            agama: normalize(g.agama_id_str),
-            statusKepegawaian: normalize(g.status_kepegawaian_id_str),
-            jenisPtk: normalize(g.jenis_ptk_id_str),
-            pangkatGolongan: normalize(g.pangkat_golongan_terakhir),
-            education: normalize(g.pendidikan_terakhir),
-            bidangStudi: normalize(g.bidang_studi_terakhir),
-            archivedAt: null,
-          },
+          data: { ...teacherData, archivedAt: null, isActive: true },
         });
       } else {
         const created = await tx.teacher.create({
-          data: {
-            name: g.nama,
-            position: normalize(g.jabatan_ptk_id_str) || normalize(g.jenis_ptk_id_str) || "Guru",
-            nuptk: g.nuptk || null,
-            nip: g.nip || null,
-            nik: normalize(g.nik),
-            gender: mapGender(g.jenis_kelamin),
-            tempatLahir: normalize(g.tempat_lahir),
-            tanggalLahir: parseDate(g.tanggal_lahir),
-            agama: normalize(g.agama_id_str),
-            statusKepegawaian: normalize(g.status_kepegawaian_id_str),
-            jenisPtk: normalize(g.jenis_ptk_id_str),
-            pangkatGolongan: normalize(g.pangkat_golongan_terakhir),
-            bidangStudi: normalize(g.bidang_studi_terakhir),
-          },
+          data: teacherData,
         });
         syncedGtk.add(created.id);
       }
@@ -504,8 +614,11 @@ export async function runSync(
     const syncedStudentIds = new Set<string>();
 
     for (const s of siswaList) {
-      if (!s.rombongan_belajar_id) continue;
-      const classId = freshClassByDapodikId.get(s.rombongan_belajar_id);
+      const classId =
+        (s.rombongan_belajar_id
+          ? freshClassByDapodikId.get(s.rombongan_belajar_id)
+          : undefined) ??
+        (s.nama_rombel ? freshClassByName.get(s.nama_rombel) : undefined);
       if (!classId) continue; // rombel tidak ditemukan, lewati siswa ini
 
       const nis = resolveNis(s);
@@ -553,19 +666,30 @@ export async function runSync(
     }
   });
 
+  const isBridge = opts?.userId === "jembatan";
   const log = await db.activityLog.create({
     data: {
-      userId: null,
-      userName: "System",
+      userId: isBridge ? null : opts?.userId ?? null,
+      userName: isBridge ? "Jembatan Dapodik" : "System",
       action: "CREATE",
       entity: "DapodikSync",
-      detail: `Sinkronisasi Dapodik: ${result.siswa.created + result.siswa.updated} siswa, ${result.gtk.created + result.gtk.updated} guru, ${result.rombel.created + result.rombel.updated} rombel`,
+      detail: `Sinkronisasi Dapodik${isBridge ? " (jembatan)" : ""}: ${result.siswa.created + result.siswa.updated} siswa, ${result.gtk.created + result.gtk.updated} guru, ${result.rombel.created + result.rombel.updated} rombel`,
     },
   });
 
-  await db.dapodikConfig.update({
+  await db.dapodikConfig.upsert({
     where: { id: "singleton" },
-    data: { lastSyncAt: new Date() },
+    create: {
+      id: "singleton",
+      npsn: sekolah.npsn || "",
+      token: "",
+      lastSyncAt: new Date(),
+      lastSyncBy: opts?.userId ?? null,
+    },
+    update: {
+      lastSyncAt: new Date(),
+      ...(opts?.userId ? { lastSyncBy: opts.userId } : {}),
+    },
   });
 
   return { ...result, mode: "commit", logId: log.id };

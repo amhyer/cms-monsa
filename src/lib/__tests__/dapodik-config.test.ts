@@ -14,7 +14,7 @@ vi.mock("@/lib/db", () => ({
   db: { dapodikConfig: mockDapodikConfig },
 }));
 
-import { getDapodikClient, saveDapodikConfig } from "@/lib/dapodik-sync";
+import { getDapodikClient, getDapodikConfig, saveDapodikConfig } from "@/lib/dapodik-sync";
 import { DapodikClient } from "@/lib/dapodik-client";
 
 const baseDbConfig = {
@@ -123,5 +123,69 @@ describe("saveDapodikConfig — allowInsecureInProduction disimpan ke DB", () =>
         create: expect.not.objectContaining({ allowInsecureInProduction: expect.any(Boolean) }),
       })
     );
+  });
+
+  it("token kosong mempertahankan token yang sudah tersimpan", async () => {
+    mockDapodikConfig.findUnique.mockResolvedValue({
+      ...baseDbConfig,
+      token: "token-lama-9999",
+    });
+    mockDapodikConfig.upsert.mockResolvedValue({ id: "singleton" });
+
+    await saveDapodikConfig({
+      npsn: "40313912",
+      token: "",
+      host: "10.0.0.5",
+      port: 5774,
+      protocol: "http",
+    });
+
+    expect(mockDapodikConfig.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({ token: "token-lama-9999", host: "10.0.0.5" }),
+      })
+    );
+  });
+
+  it("getDapodikConfig menyembunyikan token dan hash kunci pairing", async () => {
+    mockDapodikConfig.findUnique.mockResolvedValue({
+      ...baseDbConfig,
+      allowInsecureInProduction: false,
+      autoSyncEnabled: false,
+      autoSyncIntervalHours: 24,
+      autoSyncLastRunAt: null,
+      autoSyncLastStatus: null,
+      autoSyncLastError: null,
+      lastSyncAt: null,
+      lastSyncBy: null,
+      archiveUnlisted: true,
+      updatedAt: new Date(),
+      bridgeTokenHash: "abc123deadbeef",
+      bridgeTokenPrefix: "monsa_br_abcdef",
+      bridgeTokenCreatedAt: new Date("2026-09-01T00:00:00Z"),
+    });
+
+    const cfg = await getDapodikConfig();
+    expect(cfg).not.toBeNull();
+    expect(cfg?.token).toContain("****");
+    expect(cfg?.token).not.toContain("token-rahasia-1234");
+    expect(cfg?.hasToken).toBe(true);
+    expect(cfg?.hasBridgeToken).toBe(true);
+    expect(cfg?.bridgeTokenPrefix).toBe("monsa_br_abcdef");
+    expect(JSON.stringify(cfg)).not.toContain("abc123deadbeef");
+  });
+
+  it("token wajib pada konfigurasi pertama", async () => {
+    mockDapodikConfig.findUnique.mockResolvedValue(null);
+
+    await expect(
+      saveDapodikConfig({
+        npsn: "40313912",
+        token: "",
+        host: "localhost",
+        port: 5774,
+        protocol: "http",
+      })
+    ).rejects.toThrow(/Token Dapodik wajib/);
   });
 });

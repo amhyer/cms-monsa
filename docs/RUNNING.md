@@ -163,19 +163,45 @@ Ganti port jika 3000 terpakai: `next dev -p 3100`.
 CMS bisa menarik data guru/staf & siswa langsung dari server Dapodik sekolah:
 
 1. Login ke dashboard (`/dashboard`).
-2. Buka menu **Dapodik** → **Sinkronisasi / Penarikan Data**.
-3. Isi URL server Dapodik (mis. `http://ip-server:5774`) & kredensial.
-4. Opsi: aktifkan retry/timeout (default aktif), opsi *jangan nonaktifkan
-   data yang tidak ada di Dapodik* (disarankan aktif).
+2. Buka menu **Penarikan Dapodik**.
+3. Klik **Konfigurasi**, isi NPSN, token Web Service, host (mis. `ip-server`
+   atau `localhost`), dan port (default `5774`). Token hanya wajib diisi
+   pada simpan pertama — simpan berikutnya boleh dikosongkan agar token
+   lama tetap dipakai.
+4. Opsi **Nonaktifkan data yang tidak ada di Dapodik** (default aktif):
+   siswa/guru yang tidak terdaftar di Dapodik diarsipkan (bukan dihapus).
+   Matikan opsi ini jika data lama di CMS ingin tetap aktif.
 5. Bila Web Service Dapodik diakses lewat HTTP (localhost / jaringan
    sekolah / VPN) pada *deployment production*, nyalakan toggle
    **Izinkan HTTP di production** di kartu Konfigurasi. Tanpa ini guard
    HTTPS-only memblokir semua koneksi HTTP di production. Aktifkan hanya
    untuk jaringan lokal/VPN yang sudah aman — untuk akses internet
    publik gunakan HTTPS.
-6. Klik **Sinkronkan Sekarang**. Setelah selesai, data guru/staf aktif & siswa terisi.
+6. **Cek Koneksi**, lalu **Tarik Data** untuk pratinjau. Jika sudah sesuai,
+   klik **Sinkron ke Database** (dry-run dulu, baru konfirmasi commit).
 7. Kepala Sekolah & jabatan lainnya langsung terbaca dari
    `jabatan_ptk_id_str` — termasuk pada kartu **Data Guru**.
+
+### Jembatan PC sekolah (CMS online / Vercel)
+
+Server CMS di cloud **tidak bisa** menghubungi `localhost:5774` di komputer
+sekolah. Jangan buka port 5774 ke internet. Unduh aplikasi jembatan dari
+dashboard (kartu **Jembatan PC Sekolah**), jalankan di PC yang sama dengan
+Dapodik, lalu tempel kunci pairing:
+
+1. Dashboard → **Penarikan Dapodik** → **Unduh jembatan (.zip)**.
+2. **Buat kunci pairing** — salin kunci (`monsa_br_…`); hanya tampil sekali.
+3. Di PC sekolah: pasang [Node.js LTS](https://nodejs.org), buka zip,
+   double-klik `jalankan.bat`. Browser membuka `http://127.0.0.1:3847`.
+4. Isi URL CMS, kunci pairing, NPSN + token Web Service Dapodik.
+5. **Tes Dapodik**, **Tes CMS**, lalu **Tarik & Kirim**.
+
+Jembatan menarik data lewat HTTP lokal lalu `POST /api/dapodik/ingest`
+(Bearer token) ke CMS HTTPS. Kunci disimpan sebagai hash di
+`DapodikConfig.bridgeTokenHash` — cabut dari dashboard jika bocor.
+
+Jika CMS berjalan di Docker, `host=localhost` mengarah ke dalam container —
+pakai IP mesin Dapodik atau `host.docker.internal`.
 
 Detail pemetaan field: [DAPODIK_SYNC_MAPPING.md](DAPODIK_SYNC_MAPPING.md).
 
@@ -323,6 +349,7 @@ Backup PostgreSQL memakai `pg_dump`, sehingga kompatibel antar environment.
 | Port 3000 sudah terpakai | pakai port lain: `bun run dev -- -p 3100` atau ubah di `package.json` |
 | Data Dapodik tidak muncul namanya | pastikan langkah sinkronisasi selesai penuh & `db:push` sudah jalan; cek `logs` dashboard |
 | Penarikan Dapodik error *"HTTP tidak diizinkan di production"* | nyalakan toggle **Izinkan HTTP di production** di menu Dapodik → Konfigurasi (khusus jaringan lokal/VPN aman), simpan, lalu coba lagi |
+| CMS di Vercel tidak bisa tarik `localhost:5774` | unduh **Jembatan PC Sekolah** dari dashboard Dapodik; jalankan di PC yang sama dengan Dapodik; jangan buka port 5774 ke internet |
 | Status server Dapodik "tidak terhubung database" | Itu pesan dari server Dapodik sendiri — pastikan server Dapodik punya DB & trik & kredensial benar |
 | Skema error *undefined* `nik`/`dapodikId` | Client prisma belum di-generate: `bun run db:generate` |
 | Login gagal / versi app lama | `bun run check` lalu ulangi build |
@@ -607,6 +634,7 @@ Saat IP melampaui limit, sistem akan:
 |----------|--------------|--------|
 | `POST /api/complaints` | 20 req | 10 menit |
 | `POST /api/contact` | 20 req | 10 menit |
+| `POST /api/dapodik/ingest` | 30 req | 15 menit |
 
 ### Login Endpoint (Anti-Brute-Force)
 

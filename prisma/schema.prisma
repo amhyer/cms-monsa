@@ -418,6 +418,11 @@ model DapodikConfig {
   // Bila true (default), siswa/guru yang tidak ada lagi di Dapodik ikut
   // dinonaktifkan (isActive=false). Bila false, mereka dibiarkan aktif.
   archiveUnlisted Boolean  @default(true)
+  // Kunci pairing aplikasi jembatan (PC sekolah → CMS online).
+  // Hanya hash yang disimpan; token utuh ditampilkan sekali saat dibuat.
+  bridgeTokenHash      String?
+  bridgeTokenPrefix    String?
+  bridgeTokenCreatedAt DateTime?
   updatedAt   DateTime @updatedAt
 }
 

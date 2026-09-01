@@ -15,7 +15,7 @@ export async function POST(req: Request) {
   const mode = url.searchParams.get("mode") === "commit" ? "commit" : "dry-run";
 
   try {
-    const result = await runSync(mode);
+    const result = await runSync(mode, { userId: auth.user.id });
 
     if (mode === "commit") {
       await logActivity(

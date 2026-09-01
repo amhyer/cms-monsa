@@ -94,6 +94,9 @@ lighthouse-report*.json
 # tool state: output analisis dependensi (graphify) — regenerable, bukan source
 /graphify-out/
 
+# kredensial lokal aplikasi jembatan Dapodik (PC sekolah)
+dapodik-jembatan/jembatan-config.json
+
 # misc local files
 local-*
 .claude

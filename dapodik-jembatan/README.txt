@@ -20,9 +20,11 @@ Prasyarat
 
 Cara pakai
 ----------
-1. Double-klik jalankan.bat (atau klik-kanan Jembatan-Dapodik.ps1 →
-   Run with PowerShell).
-2. Browser akan membuka http://127.0.0.1:3847
+1. Double-klik MULAI-JEMBATAN.vbs. Launcher ini membuka jendela hitam yang
+   tidak langsung tertutup sehingga pesan kesalahan bisa dibaca. Alternatif:
+   jalankan.bat atau Jembatan-Dapodik.ps1.
+2. Browser akan membuka http://127.0.0.1:3847. Jika tidak terbuka
+   otomatis, jangan tutup jendela Jembatan; buka alamat tersebut secara manual.
 3. Isi:
    - URL CMS   (contoh: https://sdn-mongisidi1.sch.id)
    - Kunci pairing dari dashboard
@@ -40,3 +42,9 @@ Bantuan
   atau IP belum di-whitelist di Dapodik.
 - "Tidak terhubung dengan database": buka aplikasi Dapodik dulu, tunggu
   status database hijau, lalu coba lagi.
+- Form tidak muncul: pastikan jendela Jembatan masih terbuka dan menampilkan
+  "Jembatan Dapodik siap", lalu buka http://127.0.0.1:3847 secara manual.
+  Jika ada pesan kesalahan, unduh ulang paket jembatan terbaru dari CMS.
+- Double-klik tidak bereaksi: hapus folder hasil ekstrak, klik-kanan file ZIP →
+  Properties/Properti → centang Unblock/Buka blokir → Apply, lalu ekstrak lagi
+  dan jalankan MULAI-JEMBATAN.vbs.

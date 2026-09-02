@@ -7,11 +7,14 @@
  * Port 5774 tidak perlu dibuka ke internet.
  */
 
-const http = require("http");
-const fs = require("fs");
-const path = require("path");
-const { spawn } = require("child_process");
+import http from "node:http";
+import fs from "node:fs";
+import path from "node:path";
+import { spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const PORT = Number(process.env.JEMBATAN_PORT || 3847);
 const HOST = "127.0.0.1";
 const CONFIG_PATH = path.join(__dirname, "jembatan-config.json");
@@ -226,13 +229,18 @@ function send(res, status, body, headers = {}) {
 
 function openBrowser(url) {
   try {
+    let child;
     if (process.platform === "win32") {
-      spawn("cmd", ["/c", "start", "", url], { detached: true, stdio: "ignore" }).unref();
+      child = spawn("cmd", ["/c", "start", "", url], { detached: true, stdio: "ignore" });
     } else if (process.platform === "darwin") {
-      spawn("open", [url], { detached: true, stdio: "ignore" }).unref();
+      child = spawn("open", [url], { detached: true, stdio: "ignore" });
     } else {
-      spawn("xdg-open", [url], { detached: true, stdio: "ignore" }).unref();
+      child = spawn("xdg-open", [url], { detached: true, stdio: "ignore" });
     }
+    // Kegagalan membuka browser terjadi asynchronous, jadi try/catch saja tidak
+    // cukup. Server harus tetap hidup agar alamat bisa dibuka manual.
+    child.once("error", () => {});
+    child.unref();
   } catch {
     /* abaikan — operator bisa buka manual */
   }
@@ -456,9 +464,18 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+server.on("error", (err) => {
+  if (err && err.code === "EADDRINUSE") {
+    console.error(`Port ${PORT} sedang dipakai. Tutup Jembatan Dapodik yang lama, lalu jalankan lagi.`);
+  } else {
+    console.error("Jembatan Dapodik gagal dijalankan:", err?.message || err);
+  }
+  process.exitCode = 1;
+});
+
 server.listen(PORT, HOST, () => {
   const url = `http://${HOST}:${PORT}`;
   console.log(`Jembatan Dapodik siap di ${url}`);
   console.log("Tekan Ctrl+C untuk berhenti. Jangan tutup jendela ini selama penarikan.");
-  openBrowser(url);
+  if (process.env.JEMBATAN_NO_BROWSER !== "1") openBrowser(url);
 });

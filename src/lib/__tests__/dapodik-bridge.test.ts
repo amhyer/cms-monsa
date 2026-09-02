@@ -92,7 +92,8 @@ describe("zip store + paket jembatan", () => {
     expect(mjs).toContain('id="npsn"');
     expect(mjs).toContain('id="token"');
     const bat = files.find((f) => f.name === "jalankan.bat")?.content ?? "";
-    expect(bat).toMatch(/Jembatan-Dapodik\.ps1/);
+    expect(bat).toContain('node "%~dp0jembatan.mjs"');
+    expect(bat).toMatch(/pause/i);
   });
 
   it("jembatan.mjs dapat dijalankan langsung oleh Node", async () => {

@@ -82,7 +82,7 @@ describe("zip store + paket jembatan", () => {
     expect(zip.length).toBeGreaterThan(80);
   });
 
-  it("paket jembatan berisi keempat berkas dan form konfigurasi", () => {
+  it("paket jembatan berisi semua launcher dan form konfigurasi", () => {
     const files = getJembatanFiles();
     expect(files.map((f) => f.name)).toEqual([...JEMBATAN_FILE_NAMES]);
     const mjs = files.find((f) => f.name === "jembatan.mjs")?.content ?? "";
@@ -91,6 +91,9 @@ describe("zip store + paket jembatan", () => {
     expect(mjs).toContain("getPesertaDidik");
     expect(mjs).toContain('id="npsn"');
     expect(mjs).toContain('id="token"');
+    const vbs = files.find((f) => f.name === "MULAI-JEMBATAN.vbs")?.content ?? "";
+    expect(vbs).toContain("cmd.exe /k");
+    expect(vbs).toContain("node jembatan.mjs");
     const bat = files.find((f) => f.name === "jalankan.bat")?.content ?? "";
     expect(bat).toContain('node "%~dp0jembatan.mjs"');
     expect(bat).toMatch(/pause/i);

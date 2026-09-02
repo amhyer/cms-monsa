@@ -2,6 +2,7 @@ import files from "@/lib/dapodik-jembatan-files.json";
 
 export const JEMBATAN_FILE_NAMES = [
   "README.txt",
+  "MULAI-JEMBATAN.vbs",
   "jalankan.bat",
   "Jembatan-Dapodik.ps1",
   "jembatan.mjs",

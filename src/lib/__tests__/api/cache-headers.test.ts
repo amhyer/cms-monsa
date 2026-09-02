@@ -78,7 +78,6 @@ describe("Cache-Control headers on public GET routes", () => {
     ["/api/gallery", () => galleryGET(asNextRequest(createMockRequest("http://localhost/api/gallery"))), CACHE.gallery],
     ["/api/org-structure", () => orgStructureGET(asNextRequest(createMockRequest("http://localhost/api/org-structure?scope=public"))), CACHE.orgStructure],
     ["/api/news?scope=public", () => newsGET(asNextRequest(createMockRequest("http://localhost/api/news?scope=public"))), CACHE.news],
-    ["/api/site-settings", () => siteSettingsGET(), CACHE.siteSettings],
     ["/api/students/showcase", () => studentsShowcaseGET(asNextRequest(createMockRequest("http://localhost/api/students/showcase"))), CACHE.studentsShowcase],
     ["/api/classes", () => classesGET(asNextRequest(createMockRequest("http://localhost/api/classes?scope=public"))), CACHE.classes],
   ];
@@ -86,6 +85,11 @@ describe("Cache-Control headers on public GET routes", () => {
   it.each(cases)("%s returns correct Cache-Control", async (_route, handler, expected) => {
     const res = await handler();
     expect(res.headers.get("Cache-Control")).toBe(expected);
+  });
+
+  it("/api/site-settings does NOT set Cache-Control (fresh for admin & loaded via store)", async () => {
+    const res = await siteSettingsGET();
+    expect(res.headers.get("Cache-Control")).toBeNull();
   });
 
   it("/api/news?scope=admin does NOT set Cache-Control", async () => {

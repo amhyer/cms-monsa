@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticateBridgeRequest } from "@/lib/dapodik-bridge";
 import { applyDapodikPayload, normalizeDapodikPayload } from "@/lib/dapodik-sync";
 import { rateLimitPublicForm } from "@/lib/rate-limit";
+import { describeIngestError, ingestErrorStatus } from "@/lib/dapodik-ingest-error";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -24,6 +25,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Body JSON wajib." }, { status: 400 });
   }
 
+
   if ((body as { ping?: unknown }).ping === true) {
     return NextResponse.json({ ok: true, message: "Kunci pairing valid." });
   }
@@ -36,9 +38,9 @@ export async function POST(req: NextRequest) {
     const result = await applyDapodikPayload(payload, mode, { userId: "jembatan" });
     return NextResponse.json({ ok: true, ...result });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Gagal memproses data Dapodik";
-    const status = /wajib|tidak valid|Terlalu banyak/i.test(message) ? 400 : 502;
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json(describeIngestError(err), {
+      status: ingestErrorStatus(err),
+    });
   }
 }
 

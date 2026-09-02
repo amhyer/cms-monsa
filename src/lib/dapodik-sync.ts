@@ -501,187 +501,37 @@ export async function applyDapodikPayload(
   }
 
   // ---- Commit mode ----
-  await db.$transaction(async (tx) => {
-    const schoolAddress = resolveSchoolAddress(sekolah);
-    await tx.siteSetting.upsert({
-      where: { id: "singleton" },
-      update: {
-        npsn: sekolah.npsn,
-        schoolName: sekolah.nama,
-        ...(schoolAddress ? { address: schoolAddress } : {}),
-      },
-      create: {
-        id: "singleton",
-        npsn: sekolah.npsn,
-        schoolName: sekolah.nama,
-        address: schoolAddress ?? "",
-        vision: "",
-        mission: "",
-        history: "",
-        principalWelcome: "",
-        spmbInfo: "",
-      },
-    });
-
-    // Rombel → Class, matching via dapodikId, fallback ke nama
-    const freshClassByDapodikId = new Map<string, string>();
-    const freshClassByName = new Map<string, string>();
-    for (const r of rombelList) {
-      const grade = r.tingkat_pendidikan_id_str || "1";
-      const existingId = classByDapodikId.get(r.rombongan_belajar_id) ?? classByName.get(r.nama);
-
-      if (existingId) {
-        await tx.class.update({
-          where: { id: existingId },
-          data: { name: r.nama, grade, academicYear, dapodikId: r.rombongan_belajar_id },
-        });
-        freshClassByDapodikId.set(r.rombongan_belajar_id, existingId);
-        freshClassByName.set(r.nama, existingId);
-      } else {
-        const created = await tx.class.create({
-          data: { name: r.nama, grade, academicYear, dapodikId: r.rombongan_belajar_id },
-        });
-        freshClassByDapodikId.set(r.rombongan_belajar_id, created.id);
-        freshClassByName.set(r.nama, created.id);
-      }
-    }
-
-    // GTK
-    const syncedGtk = new Set<string>();
-    for (const g of gtkList) {
-      const nuptk = normalize(g.nuptk);
-      const nip = normalize(g.nip);
-      if (!nuptk && !nip) continue;
-      const existing = await tx.teacher.findFirst({
-        where: {
-          OR: [
-            ...(nuptk ? [{ nuptk }] : []),
-            ...(nip ? [{ nip }] : []),
-          ],
-        },
-      });
-      const teacherData = {
-        name: g.nama,
-        position: normalize(g.jabatan_ptk_id_str) || normalize(g.jenis_ptk_id_str) || "Guru",
-        nuptk,
-        nip,
-        nik: normalize(g.nik),
-        gender: mapGender(g.jenis_kelamin),
-        tempatLahir: normalize(g.tempat_lahir),
-        tanggalLahir: parseDate(g.tanggal_lahir),
-        agama: normalize(g.agama_id_str),
-        statusKepegawaian: normalize(g.status_kepegawaian_id_str),
-        jenisPtk: normalize(g.jenis_ptk_id_str),
-        pangkatGolongan: normalize(g.pangkat_golongan_terakhir),
-        education: normalize(g.pendidikan_terakhir),
-        bidangStudi: normalize(g.bidang_studi_terakhir),
-      };
-      if (existing) {
-        syncedGtk.add(existing.id);
-        await tx.teacher.update({
-          where: { id: existing.id },
-          data: { ...teacherData, archivedAt: null, isActive: true },
-        });
-      } else {
-        const created = await tx.teacher.create({
-          data: teacherData,
-        });
-        syncedGtk.add(created.id);
-      }
-    }
-    for (const id of existingTeacherIds) {
-      if (!syncedGtk.has(id) && archiveUnlisted) {
-        await tx.teacher.update({
-          where: { id },
-          data: { archivedAt: new Date(), isActive: false },
-        });
-      }
-    }
-
-    // Wali kelas — diambil dari Dapodik (ptk_id_str pada rombel), dipasang ke
-    // Class.homeroomTeacherId dan User.guardianClassId (akun GURU wali kelas).
-    const waliTeachers = await tx.teacher.findMany({ where: { archivedAt: null } });
-    const teacherByLowerName = new Map(
-      waliTeachers.map((t) => [t.name.trim().toLowerCase(), t])
-    );
-    for (const r of rombelList) {
-      const classId = freshClassByDapodikId.get(r.rombongan_belajar_id);
-      const waliName = r.ptk_id_str?.trim();
-      if (!classId || !waliName) continue;
-      const teacher = teacherByLowerName.get(waliName.toLowerCase());
-      if (!teacher) continue;
-      const cls = await tx.class.findUnique({
-        where: { id: classId },
-        select: { homeroomTeacherId: true },
-      });
-      if (cls && cls.homeroomTeacherId !== teacher.id) {
-        await tx.class.update({
-          where: { id: classId },
-          data: { homeroomTeacherId: teacher.id },
-        });
-      }
-      await tx.user.updateMany({
-        where: { name: teacher.name, role: "GURU" },
-        data: { guardianClassId: classId },
-      });
-    }
-
-    // Siswa — classId dari rombongan_belajar_id, bukan nama.
-    // Matching diprioritaskan via peserta_didik_id (identitas stabil);
-    // nis hanya fallback untuk data lama dari sync sebelum dapodikId disimpan.
-    const syncedStudentIds = new Set<string>();
-
-    for (const s of siswaList) {
-      const classId =
-        (s.rombongan_belajar_id
-          ? freshClassByDapodikId.get(s.rombongan_belajar_id)
-          : undefined) ??
-        (s.nama_rombel ? freshClassByName.get(s.nama_rombel) : undefined);
-      if (!classId) continue; // rombel tidak ditemukan, lewati siswa ini
-
-      const nis = resolveNis(s);
-      const nisn = normalize(s.nisn);
-
-      const studentData = {
-        nis,
-        nisn,
-        dapodikId: s.peserta_didik_id || null,
-        name: s.nama,
-        dateOfBirth: parseDate(s.tanggal_lahir),
-        gender: mapGender(s.jenis_kelamin),
-        address: s.alamat_jalan || null,
-        parentName: combineParentName(s.nama_ayah, s.nama_ibu),
-        classId,
-      };
-
-      const existing = s.peserta_didik_id
-        ? existingByDapodikId.get(s.peserta_didik_id)
-        : undefined;
-      const matched = existing ?? existingByNis.get(nis);
-      if (matched) {
-        syncedStudentIds.add(matched.id);
-        await tx.student.update({
-          where: { id: matched.id },
-          data: { ...studentData, archivedAt: null, isActive: true },
-        });
-      } else {
-        const created = await tx.student.create({ data: studentData });
-        syncedStudentIds.add(created.id);
-      }
-    }
-
-    // Arsipkan siswa yang tidak ada di Dapodik (tidak di-sync dari Dapodik manapun).
-    // Menggunakan allExistingIds supaya siswa yang matched via dapodikId saja
-    // (tanpa NIS di existingByNis) juga ikut diperiksa.
-    for (const id of allExistingIds) {
-      if (syncedStudentIds.has(id)) continue;
-      if (archiveUnlisted) {
-        await tx.student.update({
-          where: { id },
-          data: { archivedAt: new Date(), isActive: false },
-        });
-      }
-    }
+  //
+  // Strategi transaksi (lihat docs/dapodik-sync-transactions.md):
+  // Interactive transaction Prisma punya timeout bawaan 5 detik. Payload nyata
+  // (±500 siswa, ±30 GTK, ±12 rombel) membutuhkan ratusan query berurutan,
+  // sehingga transaksi tunggal selalu melewati batas itu dan Prisma melempar
+  // P2028 "Transaction not found" di tengah proses (mis. pada teacher.create).
+  //
+  // Perbaikan:
+  //  1. Semua interactive transaction diberi maxWait/timeout eksplisit yang
+  //     aman dan tetap di bawah batas request Vercel 60 detik.
+  //  2. Query N+1 dihilangkan: GTK dicocokkan lewat map yang sudah dimuat,
+  //     wali kelas memakai data kelas yang sudah ada di memori, dan
+  //     pengarsipan memakai updateMany (bukan satu update per ID).
+  //  3. Siswa diproses per-batch dalam transaksi terpisah agar tiap transaksi
+  //     tetap pendek. Pengarsipan hanya dijalankan setelah SELURUH batch utama
+  //     berhasil, sehingga siswa/guru baru tidak pernah langsung terarsip.
+  await commitDapodikPayload({
+    sekolah,
+    siswaList,
+    gtkList,
+    rombelList,
+    academicYear,
+    archiveUnlisted,
+    classByDapodikId,
+    classByName,
+    teacherByNuptk,
+    teacherByNip,
+    existingTeacherIds,
+    existingByNis,
+    existingByDapodikId,
+    allExistingIds,
   });
 
   const isBridge = opts?.userId === "jembatan";
@@ -712,3 +562,259 @@ export async function applyDapodikPayload(
 
   return { ...result, mode: "commit", logId: log.id };
 }
+
+// ---- Konfigurasi transaksi commit ----
+//
+// Nilai dipilih agar total worst-case tetap di bawah batas request Vercel
+// (maxDuration = 60 detik) sekaligus jauh di atas default Prisma 5 detik yang
+// menyebabkan P2028 pada payload nyata.
+export const DAPODIK_TX_OPTIONS = {
+  /** Maksimum menunggu koneksi dari pool sebelum transaksi dimulai. */
+  maxWait: 10_000,
+  /** Batas hidup satu interactive transaction. */
+  timeout: 25_000,
+} as const;
+
+/** Jumlah siswa per transaksi batch. */
+export const DAPODIK_STUDENT_BATCH_SIZE = 100;
+
+export function chunk<T>(items: T[], size: number): T[][] {
+  if (size <= 0) throw new Error("Ukuran batch harus lebih besar dari nol.");
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
+type CommitArgs = {
+  sekolah: DapodikSekolah;
+  siswaList: DapodikSiswa[];
+  gtkList: DapodikGTK[];
+  rombelList: DapodikRombel[];
+  academicYear: string;
+  archiveUnlisted: boolean;
+  classByDapodikId: Map<string, string>;
+  classByName: Map<string, string>;
+  teacherByNuptk: Map<string, { id: string }>;
+  teacherByNip: Map<string, { id: string }>;
+  existingTeacherIds: Set<string>;
+  existingByNis: Map<string, { id: string }>;
+  existingByDapodikId: Map<string, { id: string }>;
+  allExistingIds: Set<string>;
+};
+
+export async function commitDapodikPayload(args: CommitArgs): Promise<void> {
+  const {
+    sekolah,
+    siswaList,
+    gtkList,
+    rombelList,
+    academicYear,
+    archiveUnlisted,
+    classByDapodikId,
+    classByName,
+    teacherByNuptk,
+    teacherByNip,
+    existingTeacherIds,
+    existingByNis,
+    existingByDapodikId,
+    allExistingIds,
+  } = args;
+
+  const freshClassByDapodikId = new Map<string, string>();
+  const freshClassByName = new Map<string, string>();
+  const syncedGtk = new Set<string>();
+  // Nama guru (lowercase) → id, dipakai untuk resolusi wali kelas tanpa
+  // query findMany tambahan di dalam transaksi.
+  const teacherIdByLowerName = new Map<string, string>();
+
+  // ---- Transaksi 1: sekolah + rombel + GTK ----
+  await db.$transaction(async (tx) => {
+    const schoolAddress = resolveSchoolAddress(sekolah);
+    await tx.siteSetting.upsert({
+      where: { id: "singleton" },
+      update: {
+        npsn: sekolah.npsn,
+        schoolName: sekolah.nama,
+        ...(schoolAddress ? { address: schoolAddress } : {}),
+      },
+      create: {
+        id: "singleton",
+        npsn: sekolah.npsn,
+        schoolName: sekolah.nama,
+        address: schoolAddress ?? "",
+        vision: "",
+        mission: "",
+        history: "",
+        principalWelcome: "",
+        spmbInfo: "",
+      },
+    });
+
+    // Rombel → Class, matching via dapodikId, fallback ke nama.
+    for (const r of rombelList) {
+      const grade = r.tingkat_pendidikan_id_str || "1";
+      const existingId = classByDapodikId.get(r.rombongan_belajar_id) ?? classByName.get(r.nama);
+      if (existingId) {
+        await tx.class.update({
+          where: { id: existingId },
+          data: { name: r.nama, grade, academicYear, dapodikId: r.rombongan_belajar_id },
+        });
+        freshClassByDapodikId.set(r.rombongan_belajar_id, existingId);
+        freshClassByName.set(r.nama, existingId);
+      } else {
+        const created = await tx.class.create({
+          data: { name: r.nama, grade, academicYear, dapodikId: r.rombongan_belajar_id },
+        });
+        freshClassByDapodikId.set(r.rombongan_belajar_id, created.id);
+        freshClassByName.set(r.nama, created.id);
+      }
+    }
+
+    // GTK — matching NUPTK dulu, lalu NIP, memakai map yang sudah dimuat di
+    // luar transaksi (menghilangkan findFirst per guru / N+1).
+    for (const g of gtkList) {
+      const nuptk = normalize(g.nuptk);
+      const nip = normalize(g.nip);
+      if (!nuptk && !nip) continue;
+      const matched =
+        (nuptk ? teacherByNuptk.get(nuptk) : undefined) ??
+        (nip ? teacherByNip.get(nip) : undefined);
+
+      const teacherData = {
+        name: g.nama,
+        position: normalize(g.jabatan_ptk_id_str) || normalize(g.jenis_ptk_id_str) || "Guru",
+        nuptk,
+        nip,
+        nik: normalize(g.nik),
+        gender: mapGender(g.jenis_kelamin),
+        tempatLahir: normalize(g.tempat_lahir),
+        tanggalLahir: parseDate(g.tanggal_lahir),
+        agama: normalize(g.agama_id_str),
+        statusKepegawaian: normalize(g.status_kepegawaian_id_str),
+        jenisPtk: normalize(g.jenis_ptk_id_str),
+        pangkatGolongan: normalize(g.pangkat_golongan_terakhir),
+        education: normalize(g.pendidikan_terakhir),
+        bidangStudi: normalize(g.bidang_studi_terakhir),
+      };
+
+      let teacherId: string;
+      if (matched) {
+        await tx.teacher.update({
+          where: { id: matched.id },
+          data: { ...teacherData, archivedAt: null, isActive: true },
+        });
+        teacherId = matched.id;
+      } else {
+        const created = await tx.teacher.create({ data: teacherData });
+        teacherId = created.id;
+        // Daftarkan ke map supaya duplikat dalam payload yang sama
+        // (NUPTK/NIP identik) tidak membuat guru kedua.
+        if (nuptk) teacherByNuptk.set(nuptk, { id: teacherId });
+        if (nip) teacherByNip.set(nip, { id: teacherId });
+      }
+      syncedGtk.add(teacherId);
+      if (g.nama) teacherIdByLowerName.set(g.nama.trim().toLowerCase(), teacherId);
+    }
+
+    // Wali kelas — dari ptk_id_str pada rombel. Hanya guru yang baru saja
+    // disinkronkan (aktif) yang dipakai, tanpa findMany/findUnique per rombel.
+    for (const r of rombelList) {
+      const classId = freshClassByDapodikId.get(r.rombongan_belajar_id);
+      const waliName = r.ptk_id_str?.trim();
+      if (!classId || !waliName) continue;
+      const teacherId = teacherIdByLowerName.get(waliName.toLowerCase());
+      if (!teacherId) continue;
+      await tx.class.updateMany({
+        where: { id: classId, NOT: { homeroomTeacherId: teacherId } },
+        data: { homeroomTeacherId: teacherId },
+      });
+      await tx.user.updateMany({
+        where: { name: waliName, role: "GURU" },
+        data: { guardianClassId: classId },
+      });
+    }
+  }, DAPODIK_TX_OPTIONS);
+
+  // ---- Transaksi 2..n: siswa per batch ----
+  // Tiap batch adalah transaksi tersendiri yang pendek sehingga tidak pernah
+  // menyentuh batas timeout. Pengarsipan sengaja ditunda sampai semua batch
+  // selesai agar kegagalan di tengah tidak mengarsipkan siswa yang valid.
+  const syncedStudentIds = new Set<string>();
+  const batches = chunk(siswaList, DAPODIK_STUDENT_BATCH_SIZE);
+
+  for (const batch of batches) {
+    await db.$transaction(async (tx) => {
+      for (const s of batch) {
+        const classId =
+          (s.rombongan_belajar_id
+            ? freshClassByDapodikId.get(s.rombongan_belajar_id)
+            : undefined) ??
+          (s.nama_rombel ? freshClassByName.get(s.nama_rombel) : undefined);
+        if (!classId) continue; // rombel tidak ditemukan, lewati siswa ini
+
+        const nis = resolveNis(s);
+        const nisn = normalize(s.nisn);
+
+        const studentData = {
+          nis,
+          nisn,
+          dapodikId: s.peserta_didik_id || null,
+          name: s.nama,
+          dateOfBirth: parseDate(s.tanggal_lahir),
+          gender: mapGender(s.jenis_kelamin),
+          address: s.alamat_jalan || null,
+          parentName: combineParentName(s.nama_ayah, s.nama_ibu),
+          classId,
+        };
+
+        // Matching: peserta_didik_id dulu (identitas stabil), lalu NIS.
+        const matched =
+          (s.peserta_didik_id ? existingByDapodikId.get(s.peserta_didik_id) : undefined) ??
+          existingByNis.get(nis);
+
+        if (matched) {
+          await tx.student.update({
+            where: { id: matched.id },
+            data: { ...studentData, archivedAt: null, isActive: true },
+          });
+          syncedStudentIds.add(matched.id);
+        } else {
+          const created = await tx.student.create({ data: studentData });
+          syncedStudentIds.add(created.id);
+          // Cegah duplikat bila payload memuat siswa yang sama dua kali.
+          if (s.peserta_didik_id) existingByDapodikId.set(s.peserta_didik_id, { id: created.id });
+          existingByNis.set(nis, { id: created.id });
+        }
+      }
+    }, DAPODIK_TX_OPTIONS);
+  }
+
+  // ---- Pengarsipan (setelah semua batch utama sukses) ----
+  // archiveUnlisted tetap dihormati; tidak ada penghapusan data. Hanya data
+  // yang SUDAH ADA sebelum sync dan tidak muncul di Dapodik yang diarsipkan,
+  // sehingga siswa/guru yang baru dibuat tidak mungkin ikut terarsip.
+  if (!archiveUnlisted) return;
+
+  const teacherIdsToArchive = [...existingTeacherIds].filter((id) => !syncedGtk.has(id));
+  const studentIdsToArchive = [...allExistingIds].filter((id) => !syncedStudentIds.has(id));
+  if (teacherIdsToArchive.length === 0 && studentIdsToArchive.length === 0) return;
+
+  const archivedAt = new Date();
+  await db.$transaction(async (tx) => {
+    for (const ids of chunk(teacherIdsToArchive, ARCHIVE_CHUNK_SIZE)) {
+      await tx.teacher.updateMany({
+        where: { id: { in: ids } },
+        data: { archivedAt, isActive: false },
+      });
+    }
+    for (const ids of chunk(studentIdsToArchive, ARCHIVE_CHUNK_SIZE)) {
+      await tx.student.updateMany({
+        where: { id: { in: ids } },
+        data: { archivedAt, isActive: false },
+      });
+    }
+  }, DAPODIK_TX_OPTIONS);
+}
+
+/** Batas jumlah ID per updateMany agar query tidak terlalu besar. */
+export const ARCHIVE_CHUNK_SIZE = 500;

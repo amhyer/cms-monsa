@@ -19,6 +19,7 @@ echo Jika browser tidak terbuka, buka http://127.0.0.1:3847
 echo Jangan tutup jendela ini selama penarikan data.
 echo.
 
+set "NODE_OPTIONS=--max-old-space-size=2048 %NODE_OPTIONS%"
 node "%~dp0jembatan.mjs"
 set "EXIT_CODE=%ERRORLEVEL%"
 echo.

@@ -13,7 +13,7 @@ End If
 folder = fso.GetParentFolderName(WScript.ScriptFullName)
 shell.CurrentDirectory = folder
 
-command = "cmd.exe /k ""title Jembatan Dapodik - CMS MONSA & echo Menjalankan Jembatan Dapodik... & echo Jendela ini jangan ditutup. & echo. & node --version & echo. & node jembatan.mjs"""
+command = "cmd.exe /k ""title Jembatan Dapodik - CMS MONSA & echo Menjalankan Jembatan Dapodik... & echo Jendela ini jangan ditutup. & echo. & node --version & echo. & set NODE_OPTIONS=--max-old-space-size=2048 & node jembatan.mjs"""
 Err.Clear
 shell.Run command, 1, False
 

@@ -18,6 +18,10 @@ const __dirname = path.dirname(__filename);
 const PORT = Number(process.env.JEMBATAN_PORT || 3847);
 const HOST = "127.0.0.1";
 const CONFIG_PATH = path.join(__dirname, "jembatan-config.json");
+const DAPODIK_TIMEOUT_MS = 30_000;
+const CMS_TIMEOUT_MS = 120_000;
+const MAX_PAGES = 200;
+const MAX_ROWS_PER_ENDPOINT = 20_000;
 
 const DEFAULTS = {
   cmsUrl: "https://sdn-mongisidi1.sch.id",
@@ -57,6 +61,50 @@ function trimSlash(url) {
   return String(url || "").replace(/\/+$/, "");
 }
 
+function elapsedSeconds(startedAt) {
+  return Math.max(0, Math.round((Date.now() - startedAt) / 1000));
+}
+
+function createRunLogger(label) {
+  const startedAt = Date.now();
+  return {
+    step(message) {
+      console.log(`[${label}] ${message}… (${elapsedSeconds(startedAt)}s)`);
+    },
+    info(message) {
+      console.log(`[${label}] ${message} (${elapsedSeconds(startedAt)}s)`);
+    },
+    error(message) {
+      console.error(`[${label}] ${message} (${elapsedSeconds(startedAt)}s)`);
+    },
+  };
+}
+
+function formatError(err) {
+  if (err instanceof Error) return err.stack || err.message;
+  if (typeof err === "string") return err;
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return String(err);
+  }
+}
+
+function logFatal(kind, err) {
+  console.error(`[FATAL] ${kind}`);
+  console.error(formatError(err));
+}
+
+process.on("uncaughtException", (err) => {
+  logFatal("uncaughtException", err);
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (reason) => {
+  logFatal("unhandledRejection", reason);
+  process.exit(1);
+});
+
 async function requestRaw(baseUrl, npsn, token, endpoint, params = {}) {
   const query = new URLSearchParams({
     npsn,
@@ -64,12 +112,11 @@ async function requestRaw(baseUrl, npsn, token, endpoint, params = {}) {
   });
   const url = `${baseUrl}/${endpoint}?${query.toString()}`;
   const MAX_ATTEMPTS = 3;
-  const TIMEOUT_MS = 30_000;
   let lastError;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    const timer = setTimeout(() => controller.abort(), DAPODIK_TIMEOUT_MS);
     let response;
     try {
       try {
@@ -133,7 +180,15 @@ async function requestAllPages(baseUrl, npsn, token, endpoint, pageSize = 100) {
   const allRows = [];
   let start = 0;
   let lastPageKeys = null;
+  let page = 0;
   while (true) {
+    page += 1;
+    if (page > MAX_PAGES) {
+      throw new Error(
+        `Pengaman paging aktif: endpoint ${endpoint} tidak selesai setelah ${MAX_PAGES} halaman (${allRows.length} baris). Web Service Dapodik kemungkinan mengabaikan start/limit.`
+      );
+    }
+
     const json = await requestRaw(baseUrl, npsn, token, endpoint, {
       start,
       limit: pageSize,
@@ -141,12 +196,21 @@ async function requestAllPages(baseUrl, npsn, token, endpoint, pageSize = 100) {
     if (!json || typeof json !== "object" || !("rows" in json)) {
       return Array.isArray(json) ? json : [json];
     }
+
     const rows = Array.isArray(json.rows) ? json.rows : json.rows ? [json.rows] : [];
     if (rows.length === 0) break;
+
     const pageKeys = rows.map((r) => JSON.stringify(r));
     if (lastPageKeys && sameRows(lastPageKeys, pageKeys)) break;
     lastPageKeys = pageKeys;
+
     allRows.push(...rows);
+    if (allRows.length > MAX_ROWS_PER_ENDPOINT) {
+      throw new Error(
+        `Pengaman paging aktif: endpoint ${endpoint} mengirim lebih dari ${MAX_ROWS_PER_ENDPOINT.toLocaleString("id-ID")} baris tanpa berhenti. Web Service Dapodik kemungkinan mengabaikan start/limit.`
+      );
+    }
+
     start += rows.length;
     const total = typeof json.results === "number" ? json.results : null;
     if (total !== null && allRows.length >= total) break;
@@ -163,13 +227,13 @@ async function pullDapodik(cfg, onStep) {
     throw new Error("NPSN dan token Web Service Dapodik wajib diisi.");
   }
   const base = dapodikBase(cfg);
-  onStep && onStep("sekolah");
+  onStep && onStep("menarik sekolah");
   const sekolah = await requestSingle(base, cfg.npsn, cfg.token, "getSekolah");
-  onStep && onStep("siswa");
+  onStep && onStep("menarik siswa");
   const peserta_didik = await requestAllPages(base, cfg.npsn, cfg.token, "getPesertaDidik");
-  onStep && onStep("gtk");
+  onStep && onStep("menarik GTK");
   const gtk = await requestAllPages(base, cfg.npsn, cfg.token, "getGtk");
-  onStep && onStep("rombel");
+  onStep && onStep("menarik rombel");
   const rombel = await requestAllPages(base, cfg.npsn, cfg.token, "getRombonganBelajar");
   return { sekolah, peserta_didik, gtk, rombel };
 }
@@ -179,14 +243,28 @@ async function postCms(cfg, payload, mode) {
   if (!cms) throw new Error("URL CMS wajib diisi.");
   if (!cfg.bridgeToken) throw new Error("Kunci pairing CMS wajib diisi.");
   const url = `${cms}/api/dapodik/ingest${mode ? `?mode=${encodeURIComponent(mode)}` : ""}`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${cfg.bridgeToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), CMS_TIMEOUT_MS);
+  let res;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${cfg.bridgeToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (controller.signal.aborted) {
+      throw new Error(`Koneksi ke CMS melewati batas ${Math.round(CMS_TIMEOUT_MS / 1000)} detik.`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+
   const text = await res.text();
   let json;
   try {
@@ -452,10 +530,28 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "POST" && (url.pathname === "/api/preview" || url.pathname === "/api/sync")) {
       const cfg = loadConfig();
-      const payload = await pullDapodik(cfg);
-      const mode = url.pathname === "/api/preview" ? "dry-run" : "commit";
-      const json = await postCms(cfg, payload, mode);
-      return send(res, 200, json);
+      const runLabel = url.pathname === "/api/preview" ? "preview" : "commit";
+      const mode = runLabel === "preview" ? "dry-run" : "commit";
+      const runLog = createRunLogger(runLabel);
+
+      try {
+        const payload = await pullDapodik(cfg, (message) => runLog.step(message));
+        runLog.step(
+          `mengirim ke CMS (${payload.peserta_didik.length} siswa, ${payload.gtk.length} GTK, ${payload.rombel.length} rombel)`
+        );
+        const json = await postCms(cfg, payload, mode);
+        const siswa = json?.siswa || {};
+        const gtk = json?.gtk || {};
+        const rombel = json?.rombel || {};
+        runLog.info(
+          `selesai: siswa +${siswa.created || 0}/${siswa.updated || 0} · guru +${gtk.created || 0}/${gtk.updated || 0} · rombel +${rombel.created || 0}/${rombel.updated || 0}`
+        );
+        return send(res, 200, json);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        runLog.error(`gagal: ${message}`);
+        throw err;
+      }
     }
     send(res, 404, { error: "Tidak ditemukan." });
   } catch (err) {
@@ -473,8 +569,12 @@ server.on("error", (err) => {
   process.exitCode = 1;
 });
 
+server.requestTimeout = 0;
+server.headersTimeout = 0;
+
 server.listen(PORT, HOST, () => {
-  const url = `http://${HOST}:${PORT}`;
+  const actualPort = server.address() && typeof server.address() === "object" ? server.address().port : PORT;
+  const url = `http://${HOST}:${actualPort}`;
   console.log(`Jembatan Dapodik siap di ${url}`);
   console.log("Tekan Ctrl+C untuk berhenti. Jangan tutup jendela ini selama penarikan.");
   if (process.env.JEMBATAN_NO_BROWSER !== "1") openBrowser(url);

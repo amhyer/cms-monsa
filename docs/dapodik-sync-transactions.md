@@ -125,5 +125,51 @@ di `src/lib/__tests__/dapodik-sync-transaction.test.ts`).
 
 ## Jembatan
 
-Perubahan ini murni di backend CMS. Aplikasi jembatan di PC sekolah **tidak
-perlu diunduh ulang**.
+Perbaikan P2028 di dokumen ini memang murni backend CMS, tetapi ada satu kelas
+masalah lain yang harus ditangani di aplikasi jembatan lokal di PC sekolah:
+`Failed to fetch` saat tombol **Tarik & Kirim** berjalan beberapa detik lalu
+browser kehilangan koneksi ke `http://127.0.0.1:3847`.
+
+Bila gejalanya seperti itu, penyebabnya **bukan** respons error dari CMS.
+Endpoint `/api/dapodik/ingest` sekarang selalu membalas JSON, jadi error CMS
+akan tampil sebagai pesan teks biasa di UI jembatan. `Failed to fetch` berarti
+proses Node jembatan di komputer sekolah berhenti, sehingga browser tidak lagi
+bisa menjangkau server lokalnya.
+
+### Guard paging di jembatan
+
+Akar masalah yang sudah direproduksi: sebagian instalasi Web Service Dapodik
+bisa mengabaikan parameter `start`/`limit` saat endpoint paging dipanggil.
+Bila itu terjadi dan respons juga tidak mengirim field `results`, loop lama di
+`requestAllPages()` akan terus menambah baris baru tanpa kondisi berhenti.
+Akibatnya memori Node terus naik sampai proses mati.
+
+Untuk itu, jembatan sekarang menambahkan dua pengaman keras:
+
+- `MAX_PAGES = 200`
+- `MAX_ROWS_PER_ENDPOINT = 20_000`
+
+Jika salah satu batas itu terlewati, proses akan melempar error operator yang
+jelas, misalnya bahwa endpoint Dapodik kemungkinan mengabaikan `start/limit`.
+Dengan begitu aplikasi berhenti dengan pesan yang bisa dibaca, **bukan** mati
+senyap.
+
+### Timeout dan logging operator
+
+Selain guard paging, jembatan lokal juga sekarang:
+
+- menonaktifkan `server.requestTimeout` dan `server.headersTimeout` agar server
+  lokal tidak memutus request browser sendiri saat sinkronisasi lama,
+- memberi batas `120` detik khusus untuk POST dari jembatan ke CMS,
+- memasang handler `uncaughtException` dan `unhandledRejection`,
+- mencetak log tahap per tahap ke jendela hitam, misalnya
+  `[commit] menarik siswa… (5s)`,
+- serta menjalankan Node dengan batas memori lebih longgar
+  (`--max-old-space-size=2048`) dari launcher Windows.
+
+### Dampak operasional
+
+Karena perbaikan ini berada di aplikasi jembatan, operator sekolah **perlu
+mengunduh / menyalin ulang folder `dapodik-jembatan`** sebelum mencoba lagi.
+Minimal file yang harus terganti adalah `jembatan.mjs`, `jalankan.bat`, dan
+`MULAI-JEMBATAN.vbs`.

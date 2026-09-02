@@ -17,3 +17,10 @@ Write-Host "Browser akan membuka http://127.0.0.1:3847"
 Write-Host "Tekan Ctrl+C di jendela ini untuk berhenti."
 Write-Host ""
 & node ".\jembatan.mjs"
+$nodeExitCode = $LASTEXITCODE
+if ($nodeExitCode -ne 0) {
+  Write-Host ""
+  Write-Host "Jembatan berhenti karena terjadi kesalahan (kode $nodeExitCode)." -ForegroundColor Red
+  Write-Host "Periksa pesan di atas. Jendela ini akan tetap terbuka agar pesannya bisa dibaca."
+  exit $nodeExitCode
+}

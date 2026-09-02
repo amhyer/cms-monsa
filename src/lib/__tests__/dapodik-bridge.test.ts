@@ -1,3 +1,8 @@
+import { spawn } from "node:child_process";
+import { once } from "node:events";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/db", () => ({ db: { dapodikConfig: {} } }));
@@ -77,14 +82,63 @@ describe("zip store + paket jembatan", () => {
     expect(zip.length).toBeGreaterThan(80);
   });
 
-  it("paket jembatan berisi keempat berkas", () => {
+  it("paket jembatan berisi keempat berkas dan form konfigurasi", () => {
     const files = getJembatanFiles();
     expect(files.map((f) => f.name)).toEqual([...JEMBATAN_FILE_NAMES]);
     const mjs = files.find((f) => f.name === "jembatan.mjs")?.content ?? "";
     expect(mjs).toContain("127.0.0.1");
     expect(mjs).toContain("/api/dapodik/ingest");
     expect(mjs).toContain("getPesertaDidik");
+    expect(mjs).toContain('id="npsn"');
+    expect(mjs).toContain('id="token"');
     const bat = files.find((f) => f.name === "jalankan.bat")?.content ?? "";
     expect(bat).toMatch(/Jembatan-Dapodik\.ps1/);
+  });
+
+  it("jembatan.mjs dapat dijalankan langsung oleh Node", async () => {
+    const mjs = getJembatanFiles().find((f) => f.name === "jembatan.mjs")?.content ?? "";
+    const dir = await mkdtemp(join(tmpdir(), "cms-monsa-jembatan-"));
+    const entry = join(dir, "jembatan.mjs");
+    await writeFile(entry, mjs, "utf8");
+
+    const child = spawn(process.execPath, [entry], {
+      env: { ...process.env, JEMBATAN_PORT: "0", JEMBATAN_NO_BROWSER: "1" },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let output = "";
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          reject(new Error(`Jembatan tidak siap dalam 5 detik. Output: ${output}`));
+        }, 5_000);
+        const collect = (chunk: Buffer) => {
+          output += chunk.toString("utf8");
+          if (output.includes("Jembatan Dapodik siap")) {
+            clearTimeout(timer);
+            resolve();
+          }
+        };
+        child.stdout.on("data", collect);
+        child.stderr.on("data", collect);
+        child.once("exit", (code) => {
+          clearTimeout(timer);
+          if (!output.includes("Jembatan Dapodik siap")) {
+            reject(new Error(`Jembatan berhenti (kode ${code}). Output: ${output}`));
+          }
+        });
+      });
+
+      expect(output).toContain("Jembatan Dapodik siap");
+    } finally {
+      if (child.exitCode === null) {
+        child.kill("SIGTERM");
+        await Promise.race([
+          once(child, "exit"),
+          new Promise((resolve) => setTimeout(resolve, 2_000)),
+        ]);
+      }
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });

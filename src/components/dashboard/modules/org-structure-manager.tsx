@@ -95,8 +95,7 @@ export function OrgStructureManager() {
       setItems(data.items || []);
       setTotal(data.total ?? 0);
       setTotalPages(data.totalPages ?? 1);
-    } catch (e) {
-      console.error("[org-structure] Failed to load structure:", e);
+    } catch {
       toast.error("Gagal memuat struktur organisasi.");
     } finally {
       setLoading(false);

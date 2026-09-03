@@ -19,7 +19,11 @@ export async function POST(req: Request) {
   if (!auth.ok) return auth.response;
 
   const body = await req.json().catch(() => ({}));
-  const { npsn, token, host, port, protocol, archiveUnlisted, allowInsecureInProduction } = body;
+  const {
+    npsn, token, host, port, protocol,
+    archiveUnlisted, allowInsecureInProduction,
+    cfAccessClientId, cfAccessClientSecret,
+  } = body;
 
   if (!npsn || !String(npsn).trim()) {
     return NextResponse.json(
@@ -38,6 +42,8 @@ export async function POST(req: Request) {
       archiveUnlisted: typeof archiveUnlisted === "boolean" ? archiveUnlisted : true,
       allowInsecureInProduction:
         typeof allowInsecureInProduction === "boolean" ? allowInsecureInProduction : false,
+      cfAccessClientId: cfAccessClientId ? String(cfAccessClientId).trim() : null,
+      cfAccessClientSecret: cfAccessClientSecret ? String(cfAccessClientSecret).trim() : null,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Gagal menyimpan konfigurasi.";

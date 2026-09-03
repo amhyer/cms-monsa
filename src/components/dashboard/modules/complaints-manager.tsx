@@ -104,8 +104,7 @@ export function ComplaintsManager() {
       if (!res.ok) throw new Error();
       const data = await res.json();
       setItems(data.items || []);
-    } catch (e) {
-      console.error("[complaints] Failed to load complaints:", e);
+    } catch {
       toast.error("Gagal memuat pengaduan.");
     } finally {
       setLoading(false);

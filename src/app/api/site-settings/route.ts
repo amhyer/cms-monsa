@@ -11,9 +11,9 @@ export async function GET() {
     if (!settings) {
       settings = await db.siteSetting.create({ data: { id: "singleton", vision: "", mission: "", history: "", principalWelcome: "", spmbInfo: "" } });
     }
-    // No CDN cache — admin dashboard needs fresh data after PUT, and the
-    // public site fetches settings once per session via Zustand store.
-    return NextResponse.json(settings);
+    const res = NextResponse.json(settings);
+    res.headers.set("Cache-Control", "public, s-maxage=3600, stale-while-revalidate=7200");
+    return res;
   } catch (e) {
     logger.error({ err: e }, "[site-settings] GET error");
     return NextResponse.json(

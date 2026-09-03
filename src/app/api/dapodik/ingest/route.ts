@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateBridgeRequest } from "@/lib/dapodik-bridge";
+import { authenticateIngestRequest } from "@/lib/dapodik-auth";
 import { applyDapodikPayload, normalizeDapodikPayload } from "@/lib/dapodik-sync";
 import { rateLimitPublicForm } from "@/lib/rate-limit";
 import { describeIngestError, ingestErrorStatus } from "@/lib/dapodik-ingest-error";
@@ -8,14 +8,14 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * Penerimaan payload dari aplikasi jembatan di PC sekolah.
- * Autentikasi: Bearer kunci pairing (bukan sesi dashboard / CSRF).
+ * Penerimaan payload dari aplikasi jembatan / script Python lokal.
+ * Autentikasi: x-api-key (SYNC_SECRET_KEY) ATAU Bearer kunci pairing.
  */
 export async function POST(req: NextRequest) {
   const limited = await rateLimitPublicForm(req, 30, 15 * 60 * 1000);
   if (limited) return limited;
 
-  const auth = await authenticateBridgeRequest(req);
+  const auth = await authenticateIngestRequest(req);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
 
 export async function GET() {
   return NextResponse.json(
-    { error: "Gunakan POST dari aplikasi jembatan (Authorization: Bearer …)." },
+    { error: "Gunakan POST dengan x-api-key atau Authorization: Bearer …." },
     { status: 405 }
   );
 }

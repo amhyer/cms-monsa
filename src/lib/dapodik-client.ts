@@ -82,8 +82,8 @@ export class DapodikClient {
     const port = config.port ?? 5774;
     const protocol = config.protocol ?? "http";
 
-    // Untuk https port 443, jangan tampilkan port eksplisit (standar HTTPS)
-    const defaultPort = protocol === "https" ? 443 : 5774;
+    // Hanya sembunyikan port standar web (80 untuk HTTP, 443 untuk HTTPS)
+    const defaultPort = protocol === "https" ? 443 : 80;
     const portPart = port === defaultPort ? "" : `:${port}`;
     this.baseUrl = `${protocol}://${host}${portPart}/WebService`;
 

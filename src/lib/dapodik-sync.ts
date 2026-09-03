@@ -67,6 +67,14 @@ export type DapodikPayload = {
   siswa: DapodikSiswa[];
   gtk: DapodikGTK[];
   rombel: DapodikRombel[];
+  /**
+   * Override config archiveUnlisted untuk request ini. Dipakai oleh script
+   * Python saat mengirim data dalam beberapa chunk: tiap chunk harus kirim
+   * `archiveUnlisted: false` agar siswa/guru di chunk lain tidak ikut
+   * terarsip sebelum semua chunk terkirim. Arsip dilakukan terpisah via
+   * POST /api/dapodik/archive setelah semua chunk berhasil.
+   */
+  archiveUnlisted?: boolean;
 };
 
 const MAX_INGEST_ROWS = 5000;
@@ -93,6 +101,8 @@ export function normalizeDapodikPayload(raw: unknown): DapodikPayload {
   const siswa = asList<DapodikSiswa>(o.siswa ?? o.peserta_didik);
   const gtk = asList<DapodikGTK>(o.gtk);
   const rombel = asList<DapodikRombel>(o.rombel);
+  const archiveUnlisted =
+    typeof o.archiveUnlisted === "boolean" ? o.archiveUnlisted : undefined;
   if (
     siswa.length > MAX_INGEST_ROWS ||
     gtk.length > MAX_INGEST_ROWS ||
@@ -100,7 +110,7 @@ export function normalizeDapodikPayload(raw: unknown): DapodikPayload {
   ) {
     throw new Error(`Terlalu banyak baris (maksimal ${MAX_INGEST_ROWS} per jenis data).`);
   }
-  return { sekolah, siswa, gtk, rombel };
+  return { sekolah, siswa, gtk, rombel, archiveUnlisted };
 }
 
 // ---- Helpers ----
@@ -460,8 +470,11 @@ export async function applyDapodikPayload(
   const allExistingIds = new Set(existingStudents.map((s) => s.id));
 
   // Bila false, siswa/guru yang tidak ada di Dapodik TIDAK dinonaktifkan.
+  // Payload bisa override (dipakai saat kirim chunk parsial dari script
+  // Python — lihat docs/SYNC-DAPODIK-PYTHON.md).
   const cfg = await db.dapodikConfig.findUnique({ where: { id: "singleton" } });
-  const archiveUnlisted = cfg?.archiveUnlisted !== false;
+  const archiveUnlisted =
+    payload.archiveUnlisted ?? cfg?.archiveUnlisted !== false;
 
   const existingTeachers = await db.teacher.findMany({
     select: { id: true, nuptk: true, nip: true },
@@ -886,3 +899,76 @@ export async function commitDapodikPayload(args: CommitArgs): Promise<void> {
 
 /** Batas jumlah ID per updateMany agar query tidak terlalu besar. */
 export const ARCHIVE_CHUNK_SIZE = 500;
+
+export type ArchiveResult = {
+  siswaArchived: number;
+  gtkArchived: number;
+};
+
+/**
+ * Arsipkan siswa/guru yang TIDAK ada di daftar ID Dapodik yang diberikan.
+ * Dipakai setelah sync berchunk (lihat docs/SYNC-DAPODIK-PYTHON.md): script
+ * Python mengirim data per-chunk dengan archiveUnlisted:false, lalu memanggil
+ * endpoint ini sekali dengan daftar lengkap peserta_didik_id + NUPTK/NIP agar
+ * data yang tidak muncul lagi di Dapodik diarsipkan. Hanya 2-3 query — aman
+ * di bawah batas waktu Vercel Hobby (10 detik).
+ */
+export async function archiveDapodikUnlisted(args: {
+  pesertaDidikIds: string[];
+  gtkIds: string[];
+}): Promise<ArchiveResult> {
+  const { pesertaDidikIds, gtkIds } = args;
+  const archivedAt = new Date();
+
+  // Map dapodikId -> id internal (hanya yang masih aktif & belum diarsip).
+  const [activeStudents, activeTeachers] = await Promise.all([
+    db.student.findMany({
+      where: { archivedAt: null },
+      select: { id: true, dapodikId: true },
+    }),
+    db.teacher.findMany({
+      where: { archivedAt: null },
+      select: { id: true, nuptk: true, nip: true },
+    }),
+  ]);
+
+  const pdIdSet = new Set(pesertaDidikIds.filter(Boolean));
+  const gtkIdSet = new Set(gtkIds.filter(Boolean));
+
+  const studentsToArchive = activeStudents
+    .filter((s) => s.dapodikId && !pdIdSet.has(s.dapodikId))
+    .map((s) => s.id);
+  const teachersToArchive = activeTeachers
+    .filter(
+      (t) =>
+        (!t.nuptk || !gtkIdSet.has(t.nuptk)) && (!t.nip || !gtkIdSet.has(t.nip))
+    )
+    .filter((t) => {
+      // Guru tanpa NUPTK & NIP tidak bisa dicocokkan — jangan arsip.
+      return !!(t.nuptk || t.nip);
+    })
+    .map((t) => t.id);
+
+  let siswaArchived = 0;
+  let gtkArchived = 0;
+  if (studentsToArchive.length > 0) {
+    for (const ids of chunk(studentsToArchive, ARCHIVE_CHUNK_SIZE)) {
+      const r = await db.student.updateMany({
+        where: { id: { in: ids } },
+        data: { archivedAt, isActive: false },
+      });
+      siswaArchived += r.count;
+    }
+  }
+  if (teachersToArchive.length > 0) {
+    for (const ids of chunk(teachersToArchive, ARCHIVE_CHUNK_SIZE)) {
+      const r = await db.teacher.updateMany({
+        where: { id: { in: ids } },
+        data: { archivedAt, isActive: false },
+      });
+      gtkArchived += r.count;
+    }
+  }
+
+  return { siswaArchived, gtkArchived };
+}

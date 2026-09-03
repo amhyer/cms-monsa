@@ -40,3 +40,7 @@ Alternatif: gunakan `Authorization: Bearer <bridge-token>` (kunci pairing dari d
 | `500` | `SYNC_SECRET_KEY` belum diatur di server |
 
 Query param `?mode=dry-run` untuk preview tanpa menulis ke database.
+
+## POST /api/dapodik/archive
+
+Mengarsipkan siswa/guru yang **tidak muncul lagi** di Dapodik. Dipanggil **setelah** semua chunk data terkirim. Autentikasi sama (`x-api-key` atau Bearer). Body: `{ "pesertaDidikIds": [...], "gtkIds": [...] }` — daftar lengkap ID yang ADA di Dapodik. Respons cepat (2-3 query): `{ "success": true, "siswaArchived": n, "gtkArchived": n }`.

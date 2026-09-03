@@ -3,10 +3,16 @@
 sync_dapodik.py -- Tarik data dari Dapodik Web Service lokal, push ke CMS Vercel.
 
 Usage:
-    python scripts/sync_dapodik.py              # sync penuh
-    python scripts/sync_dapodik.py --dry-run    # preview tanpa menulis
-    python scripts/sync_dapodik.py --endpoint sekolah   # filter endpoint
-    python scripts/sync_dapodik.py --ping       # test koneksi ke CMS
+    python scripts/sync_dapodik.py                    # sync penuh (berchunk)
+    python scripts/sync_dapodik.py --dry-run          # preview tanpa menulis
+    python scripts/sync_dapodik.py --batch-size 50    # chunk lebih kecil
+    python scripts/sync_dapodik.py --endpoint siswa   # filter endpoint
+    python scripts/sync_dapodik.py --ping             # test koneksi ke CMS
+
+Mengapa berchunk: fungsi serverless Vercel (Hobby) punya batas waktu ~10 detik.
+Payload besar (200+ siswa) bisa kena HTTP 504 FUNCTION_INVOCATION_TIMEOUT.
+Script ini mengirim data dalam beberapa chunk kecil, lalu mengarsipkan data
+yang tidak muncul lagi di Dapodik via POST /api/dapodik/archive.
 
 Env vars (set di .env.local atau shell):
     DAPODIK_BASE_URL   -- base URL Dapodik WS (default: http://localhost:5774/WebService)
@@ -32,6 +38,10 @@ try:
 except ImportError:
     print("ERROR: 'requests' belum terinstall. Jalankan: pip install requests")
     sys.exit(1)
+
+DEFAULT_BATCH_SIZE = 100
+MAX_RETRIES = 3
+RETRY_STATUS = {429, 502, 503, 504}
 
 # --- Config ------------------------------------------------------
 
@@ -155,41 +165,157 @@ def fetch_all(config: dict[str, str]) -> dict[str, Any]:
 
 # --- Push to Vercel ----------------------------------------------
 
+def chunk_list(items: list, size: int) -> list[list]:
+    return [items[i : i + size] for i in range(0, len(items), size)]
+
+
+def _auth_headers(config: dict[str, str]) -> dict[str, str]:
+    return {
+        "Content-Type": "application/json",
+        "x-api-key": config["SYNC_SECRET_KEY"],
+    }
+
+
+def _post_with_retry(url: str, payload: dict, headers: dict[str, str]) -> dict:
+    """POST dengan retry untuk 429/502/503/504 (backoff eksponensial)."""
+    attempt = 0
+    while True:
+        attempt += 1
+        try:
+            resp = requests.post(url, json=payload, headers=headers, timeout=120)
+        except requests.exceptions.ConnectionError as e:
+            if attempt > MAX_RETRIES:
+                raise RuntimeError(f"Tidak bisa terhubung ke CMS ({url}).")
+            Log.warn(f"Koneksi gagal, coba lagi ({attempt}/{MAX_RETRIES})...")
+            time.sleep(2**attempt)
+            continue
+
+        if resp.status_code in RETRY_STATUS and attempt <= MAX_RETRIES:
+            delay = float(resp.headers.get("Retry-After", 2**attempt))
+            Log.warn(
+                f"HTTP {resp.status_code} (timeout/rate-limit), "
+                f"coba lagi dalam {int(delay)}s ({attempt}/{MAX_RETRIES})..."
+            )
+            time.sleep(delay)
+            continue
+
+        try:
+            body = resp.json()
+        except ValueError:
+            raise RuntimeError(
+                f"CMS membalas bukan JSON (HTTP {resp.status_code}): {resp.text[:200]}"
+            )
+
+        if resp.status_code == 401:
+            raise RuntimeError(f"Auth gagal (401): {body.get('error', body)}")
+        if resp.status_code >= 400:
+            raise RuntimeError(f"Error {resp.status_code}: {body.get('error', body)}")
+
+        return body
+
+
 def push_to_vercel(config: dict[str, str], payload: dict, dry_run: bool = False) -> dict:
     """POST payload ke endpoint ingest di Vercel."""
     url = config["VERCEL_SYNC_URL"]
     if dry_run:
         url += "?mode=dry-run"
-
-    headers = {
-        "Content-Type": "application/json",
-        "x-api-key": config["SYNC_SECRET_KEY"],
-    }
-
     Log.info(f"POST {url}")
-    resp = requests.post(url, json=payload, headers=headers, timeout=120)
+    return _post_with_retry(url, payload, _auth_headers(config))
 
-    try:
-        body = resp.json()
-    except ValueError:
-        raise RuntimeError(f"Response bukan JSON: {resp.text[:200]}")
 
-    if resp.status_code == 401:
-        raise RuntimeError(f"Auth gagal ({resp.status_code}): {body.get('error', body)}")
-    if resp.status_code >= 400:
-        raise RuntimeError(f"Error {resp.status_code}: {body.get('error', body)}")
+def push_chunks(
+    config: dict[str, str],
+    payload: dict[str, Any],
+    batch_size: int,
+    dry_run: bool = False,
+) -> list[dict]:
+    """
+    Kirim data berchunk agar tiap request selesai di bawah batas waktu Vercel.
+    - Request 1: sekolah + GTK + rombel (jumlah kecil).
+    - Request 2..n: siswa per chunk.
+    Semua chunk memakai archiveUnlisted:false; arsip dilakukan terpisah
+    lewat archive_dapodik() setelah semua chunk berhasil.
+    """
+    sekolah = payload.get("sekolah", {})
+    gtk = payload.get("gtk", [])
+    rombel = payload.get("rombel", [])
+    siswa = payload.get("siswa", [])
 
-    return body
+    results: list[dict] = []
+
+    # Chunk 1: sekolah + guru + rombel (tanpa siswa)
+    if gtk or rombel:
+        r = push_to_vercel(
+            config,
+            {
+                "sekolah": sekolah,
+                "siswa": [],
+                "gtk": gtk,
+                "rombel": rombel,
+                "archiveUnlisted": False,
+            },
+            dry_run,
+        )
+        results.append(r)
+
+    # Chunk 2..n: siswa per batch
+    batches = chunk_list(siswa, batch_size)
+    for i, batch in enumerate(batches, start=1):
+        Log.info(f"Chunk {i}/{len(batches)} -- {len(batch)} siswa")
+        r = push_to_vercel(
+            config,
+            {
+                "sekolah": sekolah,
+                "siswa": batch,
+                "gtk": [],
+                "rombel": [],
+                "archiveUnlisted": False,
+            },
+            dry_run,
+        )
+        results.append(r)
+
+    return results
+
+
+def archive_dapodik(
+    config: dict[str, str],
+    payload: dict[str, Any],
+    dry_run: bool = False,
+) -> dict:
+    """
+    Arsipkan siswa/guru yang tidak ada lagi di Dapodik.
+    Mengirim daftar lengkap ID (peserta_didik_id + NUPTK/NIP) ke
+    POST /api/dapodik/archive -- respons cepat (2-3 query).
+    """
+    base = config["VERCEL_SYNC_URL"].rstrip("/")
+    # VERCEL_SYNC_URL berakhir di /ingest -> ganti ke /archive
+    archive_url = base[: base.rfind("/")] + "/archive"
+    if dry_run:
+        archive_url += "?mode=dry-run"
+
+    peserta_didik_ids = [
+        s["peserta_didik_id"] for s in payload.get("siswa", []) if s.get("peserta_didik_id")
+    ]
+    gtk_ids = []
+    for g in payload.get("gtk", []):
+        if g.get("nuptk"):
+            gtk_ids.append(str(g["nuptk"]))
+        elif g.get("nip"):
+            gtk_ids.append(str(g["nip"]))
+
+    Log.info(f"POST {archive_url} -- arsip data tidak muncul lagi")
+    return _post_with_retry(
+        archive_url,
+        {"pesertaDidikIds": peserta_didik_ids, "gtkIds": gtk_ids},
+        _auth_headers(config),
+    )
 
 
 # --- Main --------------------------------------------------------
 
 def print_summary(result: dict) -> None:
     """Tampilkan ringkasan sync."""
-    if "error" in result and not isinstance(result.get("sekolah"), dict):
-        Log.err(result.get("error", "Unknown error"))
-        return
-
     s = result.get("siswa", {})
     g = result.get("gtk", {})
     r = result.get("rombel", {})
@@ -198,16 +324,36 @@ def print_summary(result: dict) -> None:
     tag = f" ({mode})" if mode == "dry-run" else ""
     Log.ok(f"Sinkronisasi selesai{tag}:")
     print(f"  Siswa  -- +{s.get('created', 0)} baru, ~{s.get('updated', 0)} update, "
-          f"📁 {s.get('archived', 0)} arsip, [!] {s.get('errors', 0)} error")
+          f"{s.get('archived', 0)} arsip, {s.get('errors', 0)} error")
     print(f"  Guru   -- +{g.get('created', 0)} baru, ~{g.get('updated', 0)} update, "
-          f"📁 {g.get('archived', 0)} arsip, [!] {g.get('errors', 0)} error")
+          f"{g.get('archived', 0)} arsip, {g.get('errors', 0)} error")
     print(f"  Rombel -- +{r.get('created', 0)} baru, ~{r.get('updated', 0)} update, "
-          f"[!] {r.get('errors', 0)} error")
+          f"{r.get('errors', 0)} error")
+
+
+def _fetch_payload(config: dict[str, str], endpoint: str) -> dict[str, Any]:
+    """Tarik payload dari Dapodik sesuai filter endpoint."""
+    if endpoint == "all":
+        return fetch_all(config)
+    rows = fetch_dapodik(config, endpoint)
+    payload: dict[str, Any] = {endpoint: rows}
+    # Tambah sekolah minimal agar normalizeDapodikPayload tidak error
+    if endpoint != "sekolah":
+        sekolah_list = fetch_dapodik(config, "sekolah")
+        payload["sekolah"] = sekolah_list[0] if sekolah_list else {
+            "nama": "", "npsn": config["NPSN"]
+        }
+    # Pastikan semua kunci ada (chunking butuh daftar lengkap)
+    for key in ("sekolah", "siswa", "gtk", "rombel"):
+        payload.setdefault(key, [])
+    if "sekolah" in payload and not isinstance(payload["sekolah"], dict):
+        payload["sekolah"] = {}
+    return payload
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Sinkronisasi data Dapodik -> CMS Vercel"
+        description="Sinkronisasi data Dapodik -> CMS Vercel (berchunk)"
     )
     parser.add_argument(
         "--dry-run", action="store_true",
@@ -219,12 +365,21 @@ def main() -> None:
         help="Filter endpoint: sekolah|siswa|gtk|rombel|all (default: all)"
     )
     parser.add_argument(
+        "--batch-size", type=int, default=DEFAULT_BATCH_SIZE,
+        help=f"Jumlah siswa per request (default: {DEFAULT_BATCH_SIZE})"
+    )
+    parser.add_argument(
+        "--no-archive", action="store_true",
+        help="Lewati pengarsipan data yang tidak muncul lagi di Dapodik"
+    )
+    parser.add_argument(
         "--ping", action="store_true",
         help="Test koneksi ke CMS Vercel (kirim ping, tanpa data)"
     )
     args = parser.parse_args()
 
     config = get_config()
+    batch_size = max(1, min(args.batch_size, 500))
 
     print(f"\n{'=' * 50}")
     print(f"  Dapodik Sync -- {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -239,17 +394,7 @@ def main() -> None:
 
     # Fetch dari Dapodik
     try:
-        if args.endpoint == "all":
-            payload = fetch_all(config)
-        else:
-            rows = fetch_dapodik(config, args.endpoint)
-            payload = {args.endpoint: rows}
-            # Tambah sekolah minimal agar normalizeDapodikPayload tidak error
-            if args.endpoint != "sekolah":
-                sekolah_list = fetch_dapodik(config, "sekolah")
-                payload["sekolah"] = sekolah_list[0] if sekolah_list else {
-                    "nama": "", "npsn": config["NPSN"]
-                }
+        payload = _fetch_payload(config, args.endpoint)
     except requests.exceptions.ConnectionError:
         Log.err("Tidak bisa terhubung ke Dapodik WS lokal.")
         Log.warn("Pastikan Aplikasi Dapodik sedang berjalan di localhost.")
@@ -258,22 +403,41 @@ def main() -> None:
         Log.err(str(e))
         sys.exit(1)
 
-    Log.info(f"Teralihkan: {len(payload.get('siswa', []))} siswa, "
-             f"{len(payload.get('gtk', []))} guru, "
-             f"{len(payload.get('rombel', []))} rombel")
+    siswa, gtk, rombel = payload.get("siswa", []), payload.get("gtk", []), payload.get("rombel", [])
+    Log.info(f"Teralihkan: {len(siswa)} siswa, {len(gtk)} guru, {len(rombel)} rombel")
 
-    # Push ke Vercel
+    if args.endpoint == "sekolah":
+        # Hanya sekolah — satu request kecil
+        try:
+            result = push_to_vercel(config, payload, dry_run=args.dry_run)
+            Log.ok(f"Sekolah tersimpan: {result.get('sekolah', {}).get('updated', '?')} update")
+        except RuntimeError as e:
+            Log.err(f"Push gagal: {e}")
+            sys.exit(1)
+        return
+
+    # Push berchunk
     try:
-        result = push_to_vercel(config, payload, dry_run=args.dry_run)
-        print_summary(result)
+        results = push_chunks(config, payload, batch_size, dry_run=args.dry_run)
     except RuntimeError as e:
         Log.err(f"Push gagal: {e}")
         sys.exit(1)
-    except requests.exceptions.ConnectionError:
-        Log.err("Tidak bisa terhubung ke CMS Vercel.")
-        Log.warn("Periksa koneksi internet dan URL VERCEL_SYNC_URL.")
-        sys.exit(1)
+
+    # Ringkasan dari chunk terakhir yang berisi data siswa
+    last_with_siswa = next(
+        (r for r in reversed(results) if r.get("siswa")), results[-1] if results else {}
+    )
+    print_summary(last_with_siswa)
+
+    # Arsip fase akhir (kecuali --no-archive / dry-run / endpoint non-all)
+    if not args.no_archive and not args.dry_run and args.endpoint == "all":
+        try:
+            ar = archive_dapodik(config, payload)
+            Log.ok(f"Arsip selesai: {ar.get('siswaArchived', 0)} siswa, "
+                   f"{ar.get('gtkArchived', 0)} guru diarsipkan")
+        except RuntimeError as e:
+            Log.warn(f"Arsip gagal (data sudah terkirim): {e}")
 
 
 if __name__ == "__main__":
-    main()
+    main()

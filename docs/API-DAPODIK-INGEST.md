@@ -30,6 +30,19 @@ curl -X POST https://your-domain.vercel.app/api/dapodik/ingest \
 
 Alternatif: gunakan `Authorization: Bearer <bridge-token>` (kunci pairing dari dashboard CMS).
 
+## Format Per-Modul (`dataType`)
+
+Selain payload penuh, endpoint menerima **satu modul per request** — dipakai script Python modular agar tiap request kecil (1-2 detik) dan bebas timeout:
+
+```json
+{ "dataType": "sekolah", "payload": { "nama": "...", "npsn": "..." } }
+{ "dataType": "gtk", "payload": [ { "nama": "...", "nuptk": "..." } ] }
+{ "dataType": "rombel", "payload": [ { "rombongan_belajar_id": "...", "nama": "..." } ] }
+{ "dataType": "peserta_didik", "payload": [ { "peserta_didik_id": "...", "nama": "..." } ] }
+```
+
+Setiap modul parsial otomatis diproses dengan `archiveUnlisted: false` — modul lain **tidak** ikut terarsip. Hanya `sekolah` yang meng-update identitas sekolah. Arsip data yang tidak muncul lagi dilakukan terpisah via `POST /api/dapodik/archive` setelah semua modul sukses (lihat `docs/SYNC-DAPODIK-PYTHON.md`).
+
 ## Response
 
 | Status | Arti |

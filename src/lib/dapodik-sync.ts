@@ -84,12 +84,69 @@ function asList<T>(raw: unknown): T[] {
   return (Array.isArray(raw) ? raw : [raw]) as T[];
 }
 
+const EMPTY_SCHOOL: DapodikSekolah = { nama: "", npsn: "" };
+
+function ensureMaxRows(siswa: unknown[], gtk: unknown[], rombel: unknown[]): void {
+  if (
+    siswa.length > MAX_INGEST_ROWS ||
+    gtk.length > MAX_INGEST_ROWS ||
+    rombel.length > MAX_INGEST_ROWS
+  ) {
+    throw new Error(`Terlalu banyak baris (maksimal ${MAX_INGEST_ROWS} per jenis data).`);
+  }
+}
+
+/**
+ * Normalisasi format per-modul: { dataType, payload }.
+ * Setiap modul diubah menjadi payload penuh dengan bagian lain kosong dan
+ * archiveUnlisted:false (arsip parsial berbahaya — lihat commitDapodikPayload).
+ * Arsip dilakukan terpisah lewat POST /api/dapodik/archive setelah semua modul.
+ */
+function normalizeDataTypePayload(dataType: string, p: unknown): DapodikPayload {
+  switch (dataType) {
+    case "sekolah": {
+      const skl = (Array.isArray(p) ? asList(p)[0] : p) as DapodikSekolah | undefined;
+      if (!skl || typeof skl !== "object" || Array.isArray(skl)) {
+        throw new Error("Payload dataType=sekolah wajib berupa objek.");
+      }
+      if (!normalize(skl.nama) || !normalize(skl.npsn)) {
+        throw new Error("Field sekolah.nama dan sekolah.npsn wajib diisi.");
+      }
+      return { sekolah: skl, siswa: [], gtk: [], rombel: [], archiveUnlisted: false };
+    }
+    case "gtk": {
+      const gtk = asList<DapodikGTK>(p);
+      ensureMaxRows([], gtk, []);
+      return { sekolah: EMPTY_SCHOOL, siswa: [], gtk, rombel: [], archiveUnlisted: false };
+    }
+    case "rombel": {
+      const rombel = asList<DapodikRombel>(p);
+      ensureMaxRows([], [], rombel);
+      return { sekolah: EMPTY_SCHOOL, siswa: [], gtk: [], rombel, archiveUnlisted: false };
+    }
+    case "peserta_didik": {
+      const siswa = asList<DapodikSiswa>(p);
+      ensureMaxRows(siswa, [], []);
+      return { sekolah: EMPTY_SCHOOL, siswa, gtk: [], rombel: [], archiveUnlisted: false };
+    }
+    default:
+      throw new Error(`dataType tidak dikenal: ${dataType}`);
+  }
+}
+
 /** Normalisasi body ingest / hasil tarikan Dapodik menjadi payload sync. */
 export function normalizeDapodikPayload(raw: unknown): DapodikPayload {
   if (!raw || typeof raw !== "object") {
     throw new Error("Payload Dapodik tidak valid.");
   }
   const o = raw as Record<string, unknown>;
+
+  // Format per-modul: { dataType, payload } — dari script Python modular.
+  if (typeof o.dataType === "string" && "payload" in o) {
+    return normalizeDataTypePayload(o.dataType, o.payload);
+  }
+
+  // Format penuh: { sekolah, siswa?, gtk?, rombel?, archiveUnlisted? }
   const sekolahRaw = o.sekolah;
   if (!sekolahRaw || typeof sekolahRaw !== "object" || Array.isArray(sekolahRaw)) {
     throw new Error("Field sekolah wajib berupa objek.");
@@ -103,13 +160,7 @@ export function normalizeDapodikPayload(raw: unknown): DapodikPayload {
   const rombel = asList<DapodikRombel>(o.rombel);
   const archiveUnlisted =
     typeof o.archiveUnlisted === "boolean" ? o.archiveUnlisted : undefined;
-  if (
-    siswa.length > MAX_INGEST_ROWS ||
-    gtk.length > MAX_INGEST_ROWS ||
-    rombel.length > MAX_INGEST_ROWS
-  ) {
-    throw new Error(`Terlalu banyak baris (maksimal ${MAX_INGEST_ROWS} per jenis data).`);
-  }
+  ensureMaxRows(siswa, gtk, rombel);
   return { sekolah, siswa, gtk, rombel, archiveUnlisted };
 }
 
@@ -570,8 +621,12 @@ export async function applyDapodikPayload(
     gtkCount.archived = 0;
   }
 
+  // Payload parsial (dataType: gtk/rombel/peserta_didik) tidak membawa info
+  // sekolah — sekolah.updated = 0 dan siteSetting tidak disentuh.
+  const hasSchool = !!normalize(sekolah.nama) && !!normalize(sekolah.npsn);
+
   const result: SyncResult = {
-    sekolah: { updated: 1 },
+    sekolah: { updated: hasSchool ? 1 : 0 },
     siswa: siswaCount,
     gtk: gtkCount,
     rombel: rombelCount,
@@ -638,6 +693,8 @@ export async function applyDapodikPayload(
     update: {
       lastSyncAt: new Date(),
       ...(opts?.userId ? { lastSyncBy: opts.userId } : {}),
+      // Payload parsial tidak membawa sekolah — jangan timpa npsn yang ada.
+      ...(hasSchool ? { npsn: sekolah.npsn } : {}),
     },
   });
 
@@ -710,26 +767,32 @@ export async function commitDapodikPayload(args: CommitArgs): Promise<void> {
 
   // ---- Transaksi 1: sekolah + rombel + GTK ----
   await db.$transaction(async (tx) => {
-    const schoolAddress = resolveSchoolAddress(sekolah);
-    await tx.siteSetting.upsert({
-      where: { id: "singleton" },
-      update: {
-        npsn: sekolah.npsn,
-        schoolName: sekolah.nama,
-        ...(schoolAddress ? { address: schoolAddress } : {}),
-      },
-      create: {
-        id: "singleton",
-        npsn: sekolah.npsn,
-        schoolName: sekolah.nama,
-        address: schoolAddress ?? "",
-        vision: "",
-        mission: "",
-        history: "",
-        principalWelcome: "",
-        spmbInfo: "",
-      },
-    });
+    // Payload parsial (dataType gtk/rombel/peserta_didik) membawa sekolah
+    // kosong — JANGAN timpa siteSetting (nama/npsn/alamat sekolah) dengan
+    // nilai kosong. Hanya modul "sekolah" yang meng-update siteSetting.
+    const hasSchool = !!normalize(sekolah.nama) && !!normalize(sekolah.npsn);
+    if (hasSchool) {
+      const schoolAddress = resolveSchoolAddress(sekolah);
+      await tx.siteSetting.upsert({
+        where: { id: "singleton" },
+        update: {
+          npsn: sekolah.npsn,
+          schoolName: sekolah.nama,
+          ...(schoolAddress ? { address: schoolAddress } : {}),
+        },
+        create: {
+          id: "singleton",
+          npsn: sekolah.npsn,
+          schoolName: sekolah.nama,
+          address: schoolAddress ?? "",
+          vision: "",
+          mission: "",
+          history: "",
+          principalWelcome: "",
+          spmbInfo: "",
+        },
+      });
+    }
 
     // Rombel → Class, matching via dapodikId, fallback ke nama.
     for (const r of rombelList) {

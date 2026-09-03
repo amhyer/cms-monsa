@@ -58,6 +58,47 @@ describe("normalizeDapodikPayload", () => {
     expect(p.gtk).toHaveLength(1);
     expect(p.rombel).toEqual([]);
   });
+
+  // Format per-modul: { dataType, payload } — dari script Python modular.
+
+  it("dataType=sekolah menerima objek tunggal", () => {
+    const p = normalizeDapodikPayload({
+      dataType: "sekolah",
+      payload: { nama: "SDN Tes", npsn: "40313912" },
+    });
+    expect(p.sekolah.nama).toBe("SDN Tes");
+    expect(p.siswa).toEqual([]);
+    expect(p.archiveUnlisted).toBe(false);
+  });
+
+  it("dataType=gtk/rombel/peserta_didik memetakan ke field yang benar", () => {
+    const gtk = normalizeDapodikPayload({ dataType: "gtk", payload: [{ nuptk: "1" }] });
+    expect(gtk.gtk).toHaveLength(1);
+    expect(gtk.siswa).toEqual([]);
+
+    const rombel = normalizeDapodikPayload({ dataType: "rombel", payload: [{ nama: "1.a" }] });
+    expect(rombel.rombel).toHaveLength(1);
+
+    const pd = normalizeDapodikPayload({
+      dataType: "peserta_didik",
+      payload: [{ peserta_didik_id: "1", nama: "Budi" }],
+    });
+    expect(pd.siswa).toHaveLength(1);
+    expect(pd.gtk).toEqual([]);
+  });
+
+  it("dataType tidak dikenal ditolak", () => {
+    expect(() =>
+      normalizeDapodikPayload({ dataType: "nilai", payload: [] })
+    ).toThrow(/dataType/);
+  });
+
+  it("format per-modul selalu archiveUnlisted=false (anti arsip parsial)", () => {
+    for (const dt of ["gtk", "rombel", "peserta_didik"]) {
+      const p = normalizeDapodikPayload({ dataType: dt, payload: [{}] });
+      expect(p.archiveUnlisted).toBe(false);
+    }
+  });
 });
 
 describe("applyDapodikPayload — dry-run", () => {
@@ -106,6 +147,28 @@ describe("applyDapodikPayload — dry-run", () => {
       "dry-run"
     );
     expect(result.siswa.errors).toBe(1);
+    expect(result.siswa.created).toBe(0);
+  });
+
+  it("payload parsial (dataType) tidak menghitung sekolah.updated", async () => {
+    const partial = normalizeDapodikPayload({
+      dataType: "gtk",
+      payload: [{ nama: "Guru Parsial", nuptk: "9999999999" }],
+    });
+    const result = await applyDapodikPayload(partial, "dry-run");
+    expect(result.sekolah.updated).toBe(0);
+    expect(result.gtk.created).toBe(1);
+  });
+
+  it("siswa modul parsial tetap butuh rombel yang sudah ada", async () => {
+    // peserta_didik dikirim tanpa rombel di payload yang sama — siswa baru di
+    // rombel yang belum pernah disync dihitung errors (rombel belum dikenal).
+    const partial = normalizeDapodikPayload({
+      dataType: "peserta_didik",
+      payload: payload.siswa,
+    });
+    const result = await applyDapodikPayload(partial, "dry-run");
+    expect(result.sekolah.updated).toBe(0);
     expect(result.siswa.created).toBe(0);
   });
 });

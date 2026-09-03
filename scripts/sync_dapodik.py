@@ -36,7 +36,9 @@ Env vars (set di .env.local atau shell):
 from __future__ import annotations
 
 import argparse
+import json
 import os
+import re
 import sys
 import time
 from datetime import datetime, timezone
@@ -139,6 +141,26 @@ def fetch_dapodik(config: dict[str, str], module: str) -> list[dict[str, Any]]:
     Log.info(f"GET {ws_method} -> {config['DAPODIK_BASE_URL']}")
     resp = requests.get(url, params=params, headers=headers, timeout=30)
 
+    # Dapodik WS lokal sering membungkus error 403 sebagai HTTP 200 dengan
+    # teks header HTTP di dalam body:
+    #   HTTP/1.0 403 Forbidden\n...\n\n{"success":false,...,"message":"..."}
+    # Deteksi pola itu dan parse pesan errornya agar log jelas.
+    text = resp.text
+    if text.lstrip().startswith("HTTP/"):
+        # Dapodik memakai CRLF — cari objek JSON di bagian akhir body.
+        match = re.search(r"\{[\s\S]*\}", text)
+        msg = "request ditolak (lihat respons mentah di bawah)"
+        if match:
+            try:
+                err = json.loads(match.group(0))
+                msg = err.get("message") or msg
+            except ValueError:
+                pass
+        raise RuntimeError(
+            f"Dapodik WS menolak request: {msg}\n"
+            "Buka Dapodik -> Pengaturan -> Web Services Lokal -> Tambah Aplikasi."
+        )
+
     if resp.status_code == 403:
         raise RuntimeError(
             "HTTP 403 -- Token salah atau aplikasi belum terdaftar di Dapodik.\n"
@@ -146,7 +168,12 @@ def fetch_dapodik(config: dict[str, str], module: str) -> list[dict[str, Any]]:
         )
     resp.raise_for_status()
 
-    data = resp.json()
+    try:
+        data = resp.json()
+    except ValueError:
+        raise RuntimeError(
+            f"Dapodik membalas bukan JSON (HTTP {resp.status_code}): {resp.text[:200]}"
+        )
     rows = data.get("rows", data) if isinstance(data, dict) else data
     if isinstance(rows, dict):
         rows = [rows]  # getSekolah mengembalikan objek tunggal -> bungkus list

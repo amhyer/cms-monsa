@@ -152,8 +152,7 @@ export function TeachersManager() {
       setItems(data.items || []);
       setTotal(data.total ?? 0);
       setTotalPages(data.totalPages ?? 1);
-    } catch (e) {
-      console.error("[teachers] Failed to load teachers:", e);
+    } catch {
       toast.error("Gagal memuat data guru.");
     } finally {
       setLoading(false);
@@ -322,8 +321,7 @@ export function TeachersManager() {
                   const data = await res.json();
                   if (Array.isArray(data.items)) all = data.items;
                 }
-              } catch (e) {
-                console.error("[teachers] CSV export: failed to fetch all pages:", e);
+              } catch {
               }
               exportToCsv(
                 `data-guru-staf-${new Date().toISOString().slice(0, 10)}`,

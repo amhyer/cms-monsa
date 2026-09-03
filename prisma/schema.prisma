@@ -402,11 +402,14 @@ model SiteSetting {
 model DapodikConfig {
   id          String   @id @default("singleton")
   npsn        String
-  token       String   // simpan token (tidak di-expose utuh ke client)
+  token       String   // simpan token (terenkripsi AES-256-GCM)
   host        String   @default("localhost")
   port        Int      @default(5774)
   protocol    String   @default("http") // http | https
   allowInsecureInProduction Boolean @default(false) // izinkan HTTP di production (jaringan lokal/VPN aman)
+  // Cloudflare Access (opsional — untuk tunnel ke Dapodik dari Vercel)
+  cfAccessClientId     String?  // Cloudflare Access Service Token Client ID
+  cfAccessClientSecret String?  // Cloudflare Access Service Token Client Secret (terenkripsi)
   // Auto-sync berkala (scheduler di src/instrumentation.ts)
   autoSyncEnabled        Boolean   @default(false)
   autoSyncIntervalHours  Int      @default(24) // 1-24 jam (lihat scheduler)

@@ -1,0 +1,32 @@
+# Large files not needed in deployment
+CMS MONSA.zip
+graphify-out/
+e2e-stats.jsonl
+
+# Test artifacts
+playwright-report/
+test-results/
+coverage/
+
+# Development files
+.backups/
+*.log
+.freebuff/
+
+# Git
+.git/
+.github/
+
+# Documentation (not needed at runtime)
+docs/
+*.md
+!README.md
+
+# Docker
+Dockerfile
+docker-compose*.yml
+Caddyfile*
+.dockerignore
+
+# Config files not needed at runtime
+docker-compose*.yml

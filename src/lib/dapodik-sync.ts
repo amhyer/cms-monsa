@@ -1,5 +1,7 @@
 import { db } from "@/lib/db";
 import { DapodikClient, type DapodikConfig as DapodikClientConfig } from "@/lib/dapodik-client";
+import { encrypt, decrypt, isEncrypted } from "@/lib/encryption";
+import { logger } from "@/lib/logger";
 
 // ---- Types (dikonfirmasi dari response Dapodik asli) ----
 
@@ -164,16 +166,53 @@ export async function getDapodikClient(): Promise<DapodikClient> {
   if (!config) {
     throw new Error("Konfigurasi Dapodik belum diatur. Silakan simpan konfigurasi terlebih dahulu.");
   }
+
+  // Dekripsi token — support backward compatibility (data lama belum terenkripsi)
+  let token = config.token;
+  try {
+    if (isEncrypted(token)) {
+      token = decrypt(token);
+    } else if (process.env.DAPODIK_ENCRYPTION_KEY) {
+      // Data lama belum terenkripsi tapi key sudah ada → enkripsi ulang
+      logger.info("[dapodik] Mengenkripsi token lama yang belum terenkripsi");
+      await db.dapodikConfig.update({
+        where: { id: "singleton" },
+        data: { token: encrypt(token) },
+      });
+    }
+  } catch (err) {
+    logger.error({ err }, "[dapodik] Gagal dekripsi token");
+    // Lanjut dengan token asli — mungkin memang belum terenkripsi
+  }
+
+  // Dekripsi CF Access Client Secret (jika ada)
+  let cfAccessClientSecret = config.cfAccessClientSecret ?? undefined;
+  if (cfAccessClientSecret) {
+    try {
+      if (isEncrypted(cfAccessClientSecret)) {
+        cfAccessClientSecret = decrypt(cfAccessClientSecret);
+      } else if (process.env.DAPODIK_ENCRYPTION_KEY) {
+        const encrypted = encrypt(cfAccessClientSecret);
+        await db.dapodikConfig.update({
+          where: { id: "singleton" },
+          data: { cfAccessClientSecret: encrypted },
+        });
+        cfAccessClientSecret = decrypt(encrypted);
+      }
+    } catch (err) {
+      logger.error({ err }, "[dapodik] Gagal dekripsi cfAccessClientSecret");
+    }
+  }
+
   const clientConfig: DapodikClientConfig = {
     npsn: config.npsn,
-    token: config.token,
+    token,
     host: config.host,
     port: config.port,
     protocol: config.protocol as "http" | "https",
-    // Dapodik Web Service lokal hampir selalu HTTP; di production flag ini
-    // harus diaktifkan operator lewat UI agar guard HTTPS-only tidak memblokir
-    // koneksi ke server Dapodik di jaringan lokal/VPN yang sudah aman.
     allowInsecureInProduction: config.allowInsecureInProduction,
+    cfAccessClientId: config.cfAccessClientId ?? undefined,
+    cfAccessClientSecret,
   };
   return new DapodikClient(clientConfig);
 }
@@ -188,11 +227,35 @@ export async function saveDapodikConfig(data: {
   protocol: string;
   archiveUnlisted?: boolean;
   allowInsecureInProduction?: boolean;
+  cfAccessClientId?: string | null;
+  cfAccessClientSecret?: string | null;
 }) {
+  // Enkripsi token & cfAccessClientSecret sebelum simpan ke DB
+  const encryptionKey = process.env.DAPODIK_ENCRYPTION_KEY;
+  const tokenToSave = encryptionKey ? encrypt(data.token) : data.token;
+  const cfSecretToSave = data.cfAccessClientSecret && encryptionKey
+    ? encrypt(data.cfAccessClientSecret)
+    : data.cfAccessClientSecret ?? null;
+
   return db.dapodikConfig.upsert({
     where: { id: "singleton" },
-    create: { id: "singleton", ...data },
-    update: data,
+    create: {
+      id: "singleton",
+      ...data,
+      token: tokenToSave,
+      cfAccessClientSecret: cfSecretToSave,
+    },
+    update: {
+      npsn: data.npsn,
+      token: tokenToSave,
+      host: data.host,
+      port: data.port,
+      protocol: data.protocol,
+      archiveUnlisted: data.archiveUnlisted,
+      allowInsecureInProduction: data.allowInsecureInProduction,
+      cfAccessClientId: data.cfAccessClientId ?? null,
+      cfAccessClientSecret: cfSecretToSave,
+    },
   });
 }
 
@@ -201,7 +264,12 @@ export async function getDapodikConfig() {
   if (!config) return null;
   return {
     ...config,
+    // Mask token — jangan pernah kirim token asli/dekripsi ke client
     token: config.token.slice(0, 4) + "****" + config.token.slice(-4),
+    // CF Access Client ID tampil penuh (bukan secret), tapi secret di-mask
+    cfAccessClientSecret: config.cfAccessClientSecret
+      ? config.cfAccessClientSecret.slice(0, 4) + "****" + config.cfAccessClientSecret.slice(-4)
+      : null,
   };
 }
 

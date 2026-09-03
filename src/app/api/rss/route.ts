@@ -41,7 +41,9 @@ export async function GET() {
       })),
       ...announcements.map((a) => ({
         title: a.title,
-        link: `${siteUrl}/`,
+        // Tidak ada halaman detail pengumuman — arahkan ke anchor di beranda
+        // agar user langsung di-scroll ke bagian pengumuman.
+        link: `${siteUrl}/#pengumuman`,
         description: a.content.slice(0, 200),
         pubDate: a.createdAt.toUTCString(),
         category: "Pengumuman",

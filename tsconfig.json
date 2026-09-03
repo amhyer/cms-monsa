@@ -46,6 +46,7 @@
     "download",
     "mini-services",
     ".zscripts",
+    ".next",
     ".next-gate/dev/types/**/*.ts"
   ]
 }

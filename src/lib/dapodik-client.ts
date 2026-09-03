@@ -5,6 +5,9 @@ export interface DapodikConfig {
   port?: number;
   protocol?: "http" | "https";
   allowInsecureInProduction?: boolean;
+  // Cloudflare Access (opsional — untuk tunnel dari Vercel ke Dapodik)
+  cfAccessClientId?: string;
+  cfAccessClientSecret?: string;
 }
 
 export interface Sekolah {
@@ -63,15 +66,23 @@ export class DapodikClient {
   private npsn: string;
   private token: string;
   private baseUrl: string;
+  private cfAccessClientId?: string;
+  private cfAccessClientSecret?: string;
 
   constructor(config: DapodikConfig) {
     this.npsn = config.npsn;
     this.token = config.token;
+    this.cfAccessClientId = config.cfAccessClientId;
+    this.cfAccessClientSecret = config.cfAccessClientSecret;
 
     const host = config.host ?? "localhost";
     const port = config.port ?? 5774;
     const protocol = config.protocol ?? "http";
-    this.baseUrl = `${protocol}://${host}:${port}/WebService`;
+
+    // Untuk https port 443, jangan tampilkan port eksplisit (standar HTTPS)
+    const defaultPort = protocol === "https" ? 443 : 5774;
+    const portPart = port === defaultPort ? "" : `:${port}`;
+    this.baseUrl = `${protocol}://${host}${portPart}/WebService`;
 
     // Dapodik Web Service lokal hampir selalu HTTP (jalan di localhost/jaringan
     // sekolah), jadi proteksi ini mencegah salah konfigurasi kalau tidak sengaja
@@ -233,6 +244,13 @@ export class DapodikClient {
             headers: {
               Authorization: `Bearer ${this.token}`,
               "Content-Type": "application/json",
+              // Cloudflare Access Service Token (opsional)
+              ...(this.cfAccessClientId && this.cfAccessClientSecret
+                ? {
+                    "CF-Access-Client-Id": this.cfAccessClientId,
+                    "CF-Access-Client-Secret": this.cfAccessClientSecret,
+                  }
+                : {}),
             },
             signal: controller.signal,
           });

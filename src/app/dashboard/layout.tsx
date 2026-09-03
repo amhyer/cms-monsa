@@ -99,8 +99,7 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
         if (rc && typeof rc.all === "number") {
           setAccountTotal(rc.all);
         }
-      } catch (e) {
-        console.error("[dashboard] Failed to load stats badge:", e);
+      } catch {
       }
     }
     load();

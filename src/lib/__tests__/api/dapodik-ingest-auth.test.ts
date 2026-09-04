@@ -45,6 +45,20 @@ function postReq(headers: Record<string, string> = {}) {
   );
 }
 
+function modularReq(
+  dataType: string,
+  payload: unknown,
+  headers: Record<string, string> = {}
+) {
+  return asNextRequest(
+    createMockRequest("http://localhost/api/dapodik/ingest", {
+      method: "POST",
+      body: { dataType, payload },
+      headers,
+    })
+  );
+}
+
 // ─── Route integration — real auth, mocked downstream ───────────
 
 import { POST } from "@/app/api/dapodik/ingest/route";
@@ -119,6 +133,49 @@ describe("POST /api/dapodik/ingest — route", () => {
     });
     const res = await POST(asNextRequest(r));
     expect(res.status).toBe(400);
+  });
+
+  it("modular {dataType, payload} → { success, message, count }", async () => {
+    const payload = [
+      { ptkId: "1", nama: "Guru A" },
+      { ptkId: "2", nama: "Guru B" },
+    ];
+    const res = await POST(modularReq("gtk", payload, { "x-api-key": KEY }));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toMatchObject({
+      success: true,
+      message: "Modul [gtk] batch berhasil diproses",
+      count: payload.length,
+      sekolah: { updated: 0 },
+    });
+  });
+
+  it("modular payload as object (sekolah) → count 1", async () => {
+    const res = await POST(
+      modularReq("sekolah", { nama: "SD X", npsn: "1" }, { "x-api-key": KEY })
+    );
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.success).toBe(true);
+    expect(json.count).toBe(1);
+  });
+
+  it("full-format body keeps legacy { ok: true } response", async () => {
+    const res = await POST(postReq({ "x-api-key": KEY }));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.ok).toBe(true);
+    expect(json.success).toBeUndefined();
+  });
+
+  it("unknown dataType → 502 via describeIngestError", async () => {
+    mockNormalizeDapodikPayload.mockImplementation(() => {
+      throw new Error("dataType tidak dikenal");
+    });
+    const res = await POST(modularReq("bogus", [], { "x-api-key": KEY }));
+    expect(res.status).toBe(502);
+    expect(JSON.parse(await res.text())).toEqual({ error: "fail" });
   });
 });
 

@@ -33,9 +33,29 @@ export async function POST(req: NextRequest) {
   const url = new URL(req.url);
   const mode = url.searchParams.get("mode") === "dry-run" ? "dry-run" : "commit";
 
+  // Format modular (dari script Python): { dataType, payload }.
+  // Response memakai { success, message, count } agar sesuai kontrak script.
+  const isModular =
+    typeof (body as { dataType?: unknown }).dataType === "string" &&
+    "payload" in (body as Record<string, unknown>);
+
   try {
     const payload = normalizeDapodikPayload(body);
     const result = await applyDapodikPayload(payload, mode, { userId: "jembatan" });
+
+    if (isModular) {
+      const dt = (body as { dataType: string }).dataType;
+      const count = Array.isArray((body as { payload?: unknown }).payload)
+        ? ((body as { payload: unknown[] }).payload.length)
+        : 1;
+      return NextResponse.json({
+        success: true,
+        message: `Modul [${dt}] batch berhasil diproses`,
+        count,
+        ...result,
+      });
+    }
+
     return NextResponse.json({ ok: true, ...result });
   } catch (err) {
     return NextResponse.json(describeIngestError(err), {

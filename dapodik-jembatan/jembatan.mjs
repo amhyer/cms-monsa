@@ -205,12 +205,6 @@ async function postCms(cfg, payload, mode) {
 // dari server. Mencegah HTTP 504 FUNCTION_INVOCATION_TIMEOUT di Vercel Hobby.
 
 const CHUNK_BATCH_SIZE = 50;
-const MODULE_LABELS = {
-  sekolah: "Data Sekolah",
-  gtk: "GTK (Guru & Tendik)",
-  rombel: "Rombongan Belajar",
-  peserta_didik: "Peserta Didik",
-};
 
 async function postModule(cfg, dataType, payload, mode) {
   const cms = trimSlash(cfg.cmsUrl);

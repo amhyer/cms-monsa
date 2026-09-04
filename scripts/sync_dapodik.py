@@ -259,11 +259,11 @@ def sync_module(
     module: str,
     batch_size: int,
     dry_run: bool,
-) -> tuple[list[dict], list[str], list[str]]:
+) -> tuple[list[str], list[str]]:
     """
     Tarik satu modul dari Dapodik dan kirim ke Vercel (berbatch bila perlu).
-    Mengembalikan (hasil request, daftar peserta_didik_id, daftar nuptk/nip)
-    untuk fase archive di akhir.
+    Mengembalikan (daftar peserta_didik_id, daftar nuptk/nip) untuk fase
+    archive di akhir.
     """
     print(f"\n{'=' * 50}")
     print(f"  MEMPROSES BAGIAN: {module.upper()}")
@@ -284,24 +284,21 @@ def sync_module(
 
     if not items:
         Log.warn(f"Data [{module}] kosong -- dilewati.")
-        return [], [], []
+        return [], []
 
     # sekolah dikirim sebagai objek tunggal; lainnya sebagai list per batch
-    results: list[dict] = []
     pd_ids: list[str] = []
     gtk_ids: list[str] = []
 
     if module == "sekolah":
-        obj = items[0]
-        results.append(push_module(config, data_type, obj, dry_run))
+        push_module(config, data_type, items[0], dry_run)
     else:
         batches = [items[i : i + batch_size] for i in range(0, len(items), batch_size)]
         total = len(items)
         print(f"  Total: {total} item | batch: {len(batches)}")
         for idx, batch in enumerate(batches, start=1):
             try:
-                r = push_module(config, data_type, batch, dry_run)
-                results.append(r)
+                push_module(config, data_type, batch, dry_run)
                 print(f"  [OK] Batch {idx}/{len(batches)} [{module}] terkirim ({len(batch)} item)")
             except RuntimeError as e:
                 print(f"  [X] Batch {idx}/{len(batches)} [{module}] gagal: {e}")
@@ -317,7 +314,7 @@ def sync_module(
             elif item.get("nip"):
                 gtk_ids.append(str(item["nip"]))
 
-    return results, pd_ids, gtk_ids
+    return pd_ids, gtk_ids
 
 
 def main() -> None:
@@ -357,7 +354,7 @@ def main() -> None:
     all_gtk_ids: list[str] = []
 
     for module in modules:
-        _, pd_ids, gtk_ids = sync_module(config, module, batch_size, args.dry_run)
+        pd_ids, gtk_ids = sync_module(config, module, batch_size, args.dry_run)
         all_pd_ids.extend(pd_ids)
         all_gtk_ids.extend(gtk_ids)
         time.sleep(1)  # jeda antar modul agar Dapodik WS rileks

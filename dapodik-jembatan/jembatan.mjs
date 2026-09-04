@@ -330,14 +330,11 @@ async function syncChunked(cfg, data, mode, onProgress) {
   }
 
   // Ringkasan gabungan (untuk log UI)
-  const sum = (arr, key) => arr.reduce((acc, r) => acc + (r?.[key] || 0), 0);
-  const siswaTotals = results.siswa.length
-    ? {
-        created: sum(results.siswa, "siswa") > 0 ? results.siswa.reduce((a, r) => a + (r.siswa?.created || 0), 0) : 0,
-        updated: results.siswa.reduce((a, r) => a + (r.siswa?.updated || 0), 0),
-        errors: results.siswa.reduce((a, r) => a + (r.siswa?.errors || 0), 0),
-      }
-    : { created: 0, updated: 0, errors: 0 };
+  const siswaTotals = {
+    created: results.siswa.reduce((a, r) => a + (r.siswa?.created || 0), 0),
+    updated: results.siswa.reduce((a, r) => a + (r.siswa?.updated || 0), 0),
+    errors: results.siswa.reduce((a, r) => a + (r.siswa?.errors || 0), 0),
+  };
   const gtkTotals = results.gtk
     ? {
         created: results.gtk.gtk?.created || 0,

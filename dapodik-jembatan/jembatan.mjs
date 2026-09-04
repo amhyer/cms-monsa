@@ -200,6 +200,177 @@ async function postCms(cfg, payload, mode) {
   return json;
 }
 
+// ---- Versi chunked: kirim per-modul, tiap request kecil (<60s) ----
+// Format per-modul: { dataType, payload } dengan archiveUnlisted:false otomatis
+// dari server. Mencegah HTTP 504 FUNCTION_INVOCATION_TIMEOUT di Vercel Hobby.
+
+const CHUNK_BATCH_SIZE = 50;
+const MODULE_LABELS = {
+  sekolah: "Data Sekolah",
+  gtk: "GTK (Guru & Tendik)",
+  rombel: "Rombongan Belajar",
+  peserta_didik: "Peserta Didik",
+};
+
+async function postModule(cfg, dataType, payload, mode) {
+  const cms = trimSlash(cfg.cmsUrl);
+  if (!cms) throw new Error("URL CMS wajib diisi.");
+  if (!cfg.bridgeToken) throw new Error("Kunci pairing CMS wajib diisi.");
+  const url = `${cms}/api/dapodik/ingest${mode ? `?mode=${encodeURIComponent(mode)}` : ""}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${cfg.bridgeToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ dataType, payload }),
+  });
+  const text = await res.text();
+  let json;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new Error(`CMS membalas bukan JSON (HTTP ${res.status}): ${text.slice(0, 180)}`);
+  }
+  if (!res.ok) {
+    throw new Error(json.error || json.message || `HTTP ${res.status}`);
+  }
+  return json;
+}
+
+async function postArchive(cfg, pdIds, gtkIds) {
+  const cms = trimSlash(cfg.cmsUrl);
+  if (!cms) throw new Error("URL CMS wajib diisi.");
+  if (!cfg.bridgeToken) throw new Error("Kunci pairing CMS wajib diisi.");
+  // URL: .../ingest -> .../archive (ganti segmen terakhir)
+  const ingestUrl = `${cms}/api/dapodik/ingest`;
+  const archiveUrl = ingestUrl.replace(/\/ingest$/, "/archive");
+  const res = await fetch(archiveUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${cfg.bridgeToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ pesertaDidikIds: pdIds, gtkIds }),
+  });
+  const text = await res.text();
+  let json;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new Error(`CMS membalas bukan JSON (HTTP ${res.status}): ${text.slice(0, 180)}`);
+  }
+  if (!res.ok) {
+    throw new Error(json.error || json.message || `HTTP ${res.status}`);
+  }
+  return json;
+}
+
+/**
+ * Sinkronisasi chunked:
+ *   1. POST {dataType:"sekolah", payload:{...}}                          (1 request)
+ *   2. POST {dataType:"gtk", payload:[...]}                              (1 request)
+ *   3. POST {dataType:"rombel", payload:[...]}                           (1 request)
+ *   4. POST {dataType:"peserta_didik", payload:[...]} per 50 item        (N requests)
+ *   5. POST /api/dapodik/archive dengan daftar ID lengkap                (1 request)
+ *
+ * Tiap request kecil → tidak terkena timeout Vercel 60s.
+ * archiveUnlisted:false otomatis oleh server saat format {dataType,payload}.
+ */
+async function syncChunked(cfg, data, mode, onProgress) {
+  const isDryRun = mode === "dry-run";
+  const results = { sekolah: null, gtk: null, rombel: null, siswa: [], archive: null };
+
+  // 1. Sekolah (objek tunggal)
+  onProgress && onProgress("sekolah", "Kirim Data Sekolah...");
+  results.sekolah = await postModule(cfg, "sekolah", data.sekolah, mode);
+
+  // 2. GTK (1 request — biasanya <50 guru)
+  if (data.gtk && data.gtk.length) {
+    onProgress && onProgress("gtk", `Kirim GTK (${data.gtk.length} item)...`);
+    results.gtk = await postModule(cfg, "gtk", data.gtk, mode);
+  }
+
+  // 3. Rombel (1 request — biasanya <20 rombel)
+  if (data.rombel && data.rombel.length) {
+    onProgress && onProgress("rombel", `Kirim Rombongan Belajar (${data.rombel.length} item)...`);
+    results.rombel = await postModule(cfg, "rombel", data.rombel, mode);
+  }
+
+  // 4. Peserta Didik — chunk @50 item supaya tiap request <60s
+  if (data.peserta_didik && data.peserta_didik.length) {
+    const total = data.peserta_didik.length;
+    const batches = [];
+    for (let i = 0; i < total; i += CHUNK_BATCH_SIZE) {
+      batches.push(data.peserta_didik.slice(i, i + CHUNK_BATCH_SIZE));
+    }
+    for (let i = 0; i < batches.length; i++) {
+      onProgress && onProgress(
+        "peserta_didik",
+        `Kirim Peserta Didik batch ${i + 1}/${batches.length} (${batches[i].length} item)...`
+      );
+      const r = await postModule(cfg, "peserta_didik", batches[i], mode);
+      results.siswa.push(r);
+    }
+  }
+
+  // 5. Archive: hanya di mode commit (bukan dry-run), kirim daftar ID lengkap
+  if (!isDryRun) {
+    const pdIds = (data.peserta_didik || [])
+      .map((p) => p?.peserta_didik_id)
+      .filter(Boolean)
+      .map(String);
+    const gtkIds = (data.gtk || [])
+      .map((g) => g?.nuptk || g?.nip)
+      .filter(Boolean)
+      .map(String);
+    if (pdIds.length || gtkIds.length) {
+      onProgress && onProgress("archive", `Arsip data lama (siswa:${pdIds.length} guru:${gtkIds.length})...`);
+      try {
+        results.archive = await postArchive(cfg, pdIds, gtkIds);
+      } catch (err) {
+        // Archive gagal tidak fatal — data modul sudah tersimpan
+        results.archive = { error: err.message, warning: true };
+      }
+    }
+  }
+
+  // Ringkasan gabungan (untuk log UI)
+  const sum = (arr, key) => arr.reduce((acc, r) => acc + (r?.[key] || 0), 0);
+  const siswaTotals = results.siswa.length
+    ? {
+        created: sum(results.siswa, "siswa") > 0 ? results.siswa.reduce((a, r) => a + (r.siswa?.created || 0), 0) : 0,
+        updated: results.siswa.reduce((a, r) => a + (r.siswa?.updated || 0), 0),
+        errors: results.siswa.reduce((a, r) => a + (r.siswa?.errors || 0), 0),
+      }
+    : { created: 0, updated: 0, errors: 0 };
+  const gtkTotals = results.gtk
+    ? {
+        created: results.gtk.gtk?.created || 0,
+        updated: results.gtk.gtk?.updated || 0,
+        errors: results.gtk.gtk?.errors || 0,
+      }
+    : { created: 0, updated: 0, errors: 0 };
+  const rombelTotals = results.rombel
+    ? {
+        created: results.rombel.rombel?.created || 0,
+        updated: results.rombel.rombel?.updated || 0,
+        errors: results.rombel.rombel?.errors || 0,
+      }
+    : { created: 0, updated: 0, errors: 0 };
+  const sekolahUpdated = results.sekolah?.sekolah?.updated || 0;
+  const archived = results.archive?.siswaArchived ?? 0;
+  const gtkArchived = results.archive?.gtkArchived ?? 0;
+
+  return {
+    sekolah: { updated: sekolahUpdated },
+    siswa: { ...siswaTotals, archived },
+    gtk: { ...gtkTotals, archived: gtkArchived },
+    rombel: rombelTotals,
+    _archive: results.archive,
+  };
+}
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -388,7 +559,7 @@ function page() {
       busy(true);
       try {
         await api("/api/config", "PUT", readForm());
-        log("Menarik data Dapodik lalu pratinjau ke CMS…");
+        log("Menarik data Dapodik + pratinjau (chunked, dry-run)…");
         const r = await api("/api/preview", "POST");
         const s = r.siswa || {}, g = r.gtk || {}, rb = r.rombel || {};
         log(
@@ -401,16 +572,18 @@ function page() {
       finally { busy(false); }
     };
     $("btnSync").onclick = async () => {
-      if (!confirm("Tarik data dari Dapodik lokal dan kirim ke CMS sekarang?")) return;
+      if (!confirm("Tarik data dari Dapodik lokal dan kirim ke CMS sekarang?\nData akan dikirim dalam beberapa request kecil (chunked) supaya tidak timeout.")) return;
       busy(true);
       try {
         await api("/api/config", "PUT", readForm());
-        log("Menarik data Dapodik (berurutan)…");
+        log("Menarik data Dapodik + kirim chunked (1 modul per request)…");
         const r = await api("/api/sync", "POST");
         const s = r.siswa || {}, g = r.gtk || {}, rb = r.rombel || {};
+        const archS = s.archived || 0, archG = g.archived || 0;
         log(
-          "Terkirim: siswa +" + (s.created||0) + "/" + (s.updated||0) +
-          " · guru +" + (g.created||0) + "/" + (g.updated||0) +
+          "Tersimpan: sekolah " + (r.sekolah?.updated || 0) +
+          " · siswa +" + (s.created||0) + "/" + (s.updated||0) + " arsip " + archS +
+          " · guru +" + (g.created||0) + "/" + (g.updated||0) + " arsip " + archG +
           " · rombel +" + (rb.created||0) + "/" + (rb.updated||0),
           "ok"
         );
@@ -454,7 +627,7 @@ const server = http.createServer(async (req, res) => {
       const cfg = loadConfig();
       const payload = await pullDapodik(cfg);
       const mode = url.pathname === "/api/preview" ? "dry-run" : "commit";
-      const json = await postCms(cfg, payload, mode);
+      const json = await syncChunked(cfg, payload, mode);
       return send(res, 200, json);
     }
     send(res, 404, { error: "Tidak ditemukan." });

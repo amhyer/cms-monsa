@@ -16,7 +16,9 @@ Prasyarat
 
 Cara pakai (EXE — disarankan)
 ----------
-1. Double-klik Jembatan-Dapodik.exe.
+1. Unduh Jembatan-Dapodik.exe dari dashboard CMS (menu Penarikan Dapodik
+   → kartu "Jembatan PC Sekolah" → tombol "Unduh Jembatan Dapodik (.exe)"),
+   lalu double-klik.
    - Jika muncul peringatan SmartScreen ("Windows protected your PC"):
      klik "More info" lalu "Run anyway".
    - Jika exe datang dari file ZIP: klik-kanan file ZIP → Properties/

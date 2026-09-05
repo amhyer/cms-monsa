@@ -22,6 +22,10 @@ install Node.js lagi.
   "Cannot find module C:\snapshot\...").
 - `README.txt` + `docs/RUNNING.md`: panduan exe-first; mode Node.js
   (`MULAI-JEMBATAN.vbs` dkk.) tetap tersedia sebagai cadangan.
+- `public/jembatan/Jembatan-Dapodik.exe` (83 MB, Windows x64) + tombol
+  "Unduh Jembatan Dapodik (.exe)" di dashboard (kartu Jembatan PC
+  Sekolah) — sekolah mengunduh exe langsung dari domain CMS, tanpa
+  install Node.js.
 
 ### 💥 Changed — Konsolidasi ke SATU skema PostgreSQL (dev = produksi)
 

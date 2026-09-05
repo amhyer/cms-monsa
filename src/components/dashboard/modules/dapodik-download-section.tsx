@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Download, Loader2, Monitor, Globe, AlertCircle, CheckCircle2, ExternalLink } from "lucide-react";
+import { Download, Loader2, Monitor, Globe, AlertCircle, CheckCircle2, ExternalLink, Github } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,7 +46,7 @@ const PLATFORMS = [
 ];
 
 const GITHUB_REPO = "amhyer/cms-monsa";
-const GITHUB_RELEASES = `https://github.com/${GITHUB_REPO}/releases/latest`;
+const GITHUB_RELEASES_URL = `https://github.com/${GITHUB_REPO}/releases`;
 
 /**
  * Download section untuk aplikasi Jembatan Dapodik
@@ -54,35 +54,30 @@ const GITHUB_RELEASES = `https://github.com/${GITHUB_REPO}/releases/latest`;
 export function DapodikDownloadSection() {
   const [downloading, setDownloading] = useState<Platform | null>(null);
   const [showInstructions, setShowInstructions] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [showReleaseInfo, setShowReleaseInfo] = useState(false);
 
   const handleDownload = async (platform: Platform) => {
     setDownloading(platform);
-    setError(null);
     
     try {
       const res = await fetch(`/api/dapodik/download?platform=${platform}`);
       
-      if (!res.ok) {
+      if (res.redirected && res.url) {
+        // Success - redirected to download URL
+        window.open(res.url, "_blank");
+        toast.success("Download dimulai dari GitHub!");
+        setTimeout(() => setShowInstructions(true), 1500);
+      } else if (res.status === 404) {
+        // File not in releases - show info
+        setShowReleaseInfo(true);
+        toast.warning("File belum tersedia di GitHub Releases");
+      } else {
+        // Other error
         const json = await res.json().catch(() => ({}));
-        
-        if (json.error && json.githubReleases) {
-          // Buka GitHub Releases di tab baru
-          window.open(json.githubReleases, "_blank");
-          toast.info("Buka GitHub Releases untuk download manual");
-          setDownloading(null);
-          return;
-        }
-        
         throw new Error(json.error || `HTTP ${res.status}`);
       }
-
-      // Jika redirect, browser akan handle download
-      toast.success("Download dimulai!");
-      setTimeout(() => setShowInstructions(true), 1000);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Gagal mengunduh";
-      setError(message);
       toast.error(message);
     } finally {
       setDownloading(null);
@@ -115,6 +110,23 @@ export function DapodikDownloadSection() {
           yang sama dengan aplikasi Dapodik. Tidak perlu install Node.js atau software tambahan.
         </p>
 
+        {/* Alert - Release belum ada */}
+        <Alert>
+          <AlertCircle className="size-4" />
+          <AlertTitle>File executable belum tersedia</AlertTitle>
+          <AlertDescription className="text-xs">
+            Administrator perlu upload file executable ke GitHub Releases terlebih dahulu.
+            <Button 
+              variant="link" 
+              className="p-0 h-auto text-xs underline block mt-2" 
+              onClick={() => window.open(GITHUB_RELEASES_URL, "_blank")}
+            >
+              <Github className="size-3 mr-1" />
+              Buka GitHub Releases untuk upload
+            </Button>
+          </AlertDescription>
+        </Alert>
+
         {/* Platform Selection */}
         <div className="grid gap-3 sm:grid-cols-3">
           {PLATFORMS.map((platform) => {
@@ -143,34 +155,47 @@ export function DapodikDownloadSection() {
           })}
         </div>
 
-        {/* Error Alert */}
-        {error && (
-          <Alert variant="destructive">
-            <AlertCircle className="size-4" />
-            <AlertTitle>Download Gagal</AlertTitle>
-            <AlertDescription className="text-xs">
-              {error}
-              <br />
-              <Button 
-                variant="link" 
-                className="p-0 h-auto text-xs underline" 
-                onClick={() => window.open(GITHUB_RELEASES, "_blank")}
-              >
-                <ExternalLink className="size-3 mr-1" />
-                Download manual dari GitHub Releases
-              </Button>
-            </AlertDescription>
-          </Alert>
-        )}
-
         {/* Info */}
         <div className="flex items-start gap-2 rounded-md bg-muted/50 p-3 text-xs">
           <AlertCircle className="size-4 shrink-0 text-muted-foreground mt-0.5" />
           <p className="text-muted-foreground">
-            <strong>Catatan:</strong> Download akan mengalihkan ke GitHub Releases untuk mengunduh 
+            <strong>Catatan:</strong> Download mengalihkan ke GitHub Releases untuk mengunduh 
             file executable. Pastikan Dapodik terbuka dan Web Service aktif sebelum menjalankan.
           </p>
         </div>
+
+        {/* Release Info Dialog */}
+        <Dialog open={showReleaseInfo} onOpenChange={setShowReleaseInfo}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>File Belum Tersedia</DialogTitle>
+              <DialogDescription>
+                File executable untuk platform yang dipilih belum tersedia di GitHub Releases.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div className="rounded-md bg-amber-50 border border-amber-200 p-4">
+                <h4 className="font-semibold text-sm text-amber-900 mb-2">Langkah untuk Administrator:</h4>
+                <ol className="list-decimal list-inside space-y-2 text-sm text-amber-800">
+                  <li>Buka <strong>GitHub Releases</strong></li>
+                  <li>Klik <strong>Draft a new release</strong></li>
+                  <li>Isi tag <code>v1.0.0</code> dan title</li>
+                  <li>Drag & drop file executable</li>
+                  <li>Klik <strong>Publish release</strong></li>
+                </ol>
+              </div>
+              
+              <Button 
+                className="w-full" 
+                onClick={() => window.open(GITHUB_RELEASES_URL, "_blank")}
+              >
+                <Github className="size-4 mr-2" />
+                Buka GitHub Releases
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Instructions Dialog */}
         <Dialog open={showInstructions} onOpenChange={setShowInstructions}>

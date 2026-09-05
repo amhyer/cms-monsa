@@ -12,19 +12,21 @@ Prasyarat
 ---------
 1. Aplikasi Dapodik sudah terbuka di komputer ini (ikon "terhubung dengan
    database", bukan "Tidak terhubung dengan database").
-2. Node.js LTS (https://nodejs.org) — unduh installer Windows, centang
-   "Add to PATH", lalu buka ulang Command Prompt.
-3. Kunci pairing dari dashboard CMS: menu Penarikan Dapodik → kartu
-   "Jembatan PC Sekolah" → Buat kunci pairing. Salin kunci itu (hanya
-   tampil sekali).
+2. HANYA itu saja — TIDAK perlu install Node.js (pakai mode exe).
 
-Cara pakai
+Cara pakai (EXE — disarankan)
 ----------
-1. Double-klik MULAI-JEMBATAN.vbs. Launcher ini membuka jendela hitam yang
-   tidak langsung tertutup sehingga pesan kesalahan bisa dibaca. Alternatif:
-   jalankan.bat atau Jembatan-Dapodik.ps1.
-2. Browser akan membuka http://127.0.0.1:3847. Jika tidak terbuka
-   otomatis, jangan tutup jendela Jembatan; buka alamat tersebut secara manual.
+1. Unduh Jembatan-Dapodik.exe dari dashboard CMS (menu Penarikan Dapodik
+   → kartu "Jembatan PC Sekolah" → tombol "Unduh Jembatan Dapodik (.exe)"),
+   lalu double-klik.
+   - Jika muncul peringatan SmartScreen ("Windows protected your PC"):
+     klik "More info" lalu "Run anyway".
+   - Jika exe datang dari file ZIP: klik-kanan file ZIP → Properties/
+     Properti → centang Unblock/Buka blokir → Apply → ekstrak dulu,
+     baru jalankan.
+2. Muncul jendela hitam (jendela Jembatan) dan browser membuka
+   http://127.0.0.1:3847. JANGAN tutup jendela hitam selama penarikan.
+   Jika browser tidak terbuka, buka alamat tersebut secara manual.
 3. Isi:
    - URL CMS   (contoh: https://sdn-mongisidi1.sch.id)
    - Kunci pairing dari dashboard
@@ -32,8 +34,14 @@ Cara pakai
 4. Tes Dapodik, Tes CMS, lalu Tarik & Kirim.
 
 Kunci pairing dan token Dapodik disimpan di file jembatan-config.json
-di folder yang sama (hanya di komputer ini). Jangan kirim file itu ke
-siapa pun.
+yang dibuat OTOMATIS di folder yang sama dengan file exe (hanya di
+komputer ini; lokasi persisnya ditampilkan di jendela Jembatan).
+Jangan kirim file itu ke siapa pun.
+
+Cara pakai (ALTERNATIF — Node.js)
+----------
+Jika PC sekolah sudah punya Node.js LTS: double-klik MULAI-JEMBATAN.vbs
+(atau jalankan.bat / Jembatan-Dapodik.ps1). Cara isinya sama.
 
 Bantuan
 -------
@@ -42,9 +50,18 @@ Bantuan
   atau IP belum di-whitelist di Dapodik.
 - "Tidak terhubung dengan database": buka aplikasi Dapodik dulu, tunggu
   status database hijau, lalu coba lagi.
-- Form tidak muncul: pastikan jendela Jembatan masih terbuka dan menampilkan
-  "Jembatan Dapodik siap", lalu buka http://127.0.0.1:3847 secara manual.
-  Jika ada pesan kesalahan, unduh ulang paket jembatan terbaru dari CMS.
-- Double-klik tidak bereaksi: hapus folder hasil ekstrak, klik-kanan file ZIP →
-  Properties/Properti → centang Unblock/Buka blokir → Apply, lalu ekstrak lagi
-  dan jalankan MULAI-JEMBATAN.vbs.
+- Form tidak muncul: pastikan jendela Jembatan masih terbuka dan
+  menampilkan "Jembatan Dapodik siap", lalu buka http://127.0.0.1:3847
+  secara manual. Jika ada pesan kesalahan, minta paket jembatan terbaru.
+- Port 3847 "sedang dipakai": tutup jendela Jembatan yang lama,
+  lalu jalankan exe-nya lagi.
+
+Membangun ulang exe (untuk developer)
+----------
+Butuh Bun (https://bun.sh):  powershell -c "irm bun.sh/install.ps1 | iex"
+Lalu dari folder ini:
+  .\build-exe.ps1
+atau satu perintah:
+  bun build --compile --target=bun-windows-x64 --outfile Jembatan-Dapodik.exe .\jembatan.mjs
+PENTING: jangan build dengan vercel/pkg — pkg tidak mendukung ES Module
+(.mjs) sehingga exe-nya error "Cannot find module C:\snapshot\...".

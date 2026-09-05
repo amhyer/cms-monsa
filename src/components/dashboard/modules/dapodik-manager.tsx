@@ -487,6 +487,12 @@ export function DapodikManager() {
             lalu tempel kunci pairing. Port 5774 tetap tertutup dari internet.
           </p>
           <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" asChild>
+              <a href="/jembatan/Jembatan-Dapodik.exe" download target="_blank" rel="noreferrer">
+                <Download className="mr-1 size-3" />
+                Unduh Jembatan Dapodik (.exe)
+              </a>
+            </Button>
             <Button variant="outline" size="sm" onClick={downloadJembatan} disabled={downloading}>
               {downloading ? <Loader2 className="mr-1 size-3 animate-spin" /> : <Download className="mr-1 size-3" />}
               Unduh jembatan (.zip)
@@ -502,6 +508,13 @@ export function DapodikManager() {
               </Button>
             )}
           </div>
+          <p className="text-xs text-muted-foreground">
+            <span className="font-medium">exe</span> (disarankan): Windows 10/11 x64, langsung jalan
+            tanpa install Node.js — double-klik, lalu browser membuka <code>http://127.0.0.1:3847</code>.
+            Peringatan SmartScreen? <em>More info</em> → <em>Run anyway</em>.
+            <span className="font-medium"> .zip</span>: paket source (butuh Node.js LTS) —
+            double-klik <code>MULAI-JEMBATAN.vbs</code>.
+          </p>
           {hasBridgeToken ? (
             <p className="text-xs text-muted-foreground">
               Kunci aktif: <span className="font-mono text-foreground">{bridgePrefix || "monsa_br_"}…</span>

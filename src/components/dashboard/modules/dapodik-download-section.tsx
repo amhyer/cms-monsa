@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Download, Loader2, Monitor, Smartphone, Globe, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Download, Loader2, Monitor, Globe, AlertCircle, CheckCircle2, FolderOpen, FileCode } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,11 +15,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 
 type Platform = "windows" | "macos" | "linux";
 
@@ -57,9 +56,11 @@ const PLATFORMS = [
 export function DapodikDownloadSection() {
   const [downloading, setDownloading] = useState<Platform | null>(null);
   const [showInstructions, setShowInstructions] = useState(false);
+  const [downloadType, setDownloadType] = useState<"exe" | "source" | null>(null);
 
   const handleDownload = async (platform: Platform) => {
     setDownloading(platform);
+    setDownloadType("exe");
     try {
       const res = await fetch(`/api/dapodik/download?platform=${platform}`);
       
@@ -70,7 +71,7 @@ export function DapodikDownloadSection() {
 
       const blob = await blobFromResponse(res);
       const contentDisposition = res.headers.get("Content-Disposition");
-      const filename = extractFilename(contentDisposition, platform);
+      const filename = extractFilename(contentDisposition, platform, downloadType);
       
       downloadBlob(blob, filename);
       toast.success("Download dimulai! Simpan file di tempat yang mudah diakses.");
@@ -81,6 +82,22 @@ export function DapodikDownloadSection() {
       toast.error(err instanceof Error ? err.message : "Gagal mengunduh");
     } finally {
       setDownloading(null);
+      setDownloadType(null);
+    }
+  };
+
+  // Detect if download is executable or source bundle
+  const checkDownloadType = async (platform: Platform) => {
+    try {
+      const res = await fetch(`/api/dapodik/download?platform=${platform}`, { method: "HEAD" });
+      const contentType = res.headers.get("Content-Type") || "";
+      
+      if (contentType.includes("zip") || contentType.includes("octet-stream")) {
+        return "source";
+      }
+      return "exe";
+    } catch {
+      return "unknown";
     }
   };
 
@@ -110,6 +127,20 @@ export function DapodikDownloadSection() {
           yang sama dengan aplikasi Dapodik. Tidak perlu install Node.js atau software tambahan.
         </p>
 
+        {/* Alert untuk file tidak ditemukan */}
+        <Alert>
+          <AlertCircle className="size-4" />
+          <AlertTitle>File executable belum tersedia</AlertTitle>
+          <AlertDescription className="text-xs">
+            Untuk mengunduh aplikasi executable (.exe), administrator perlu:
+            <ol className="list-decimal list-inside mt-2 space-y-1">
+              <li>Copy file <code>Jembatan-Dapodik.exe</code> ke folder <code>public/downloads/</code></li>
+              <li>Redeploy aplikasi ke Vercel</li>
+            </ol>
+            Sementara ini, download source code untuk dijalankan manual dengan Node.js.
+          </AlertDescription>
+        </Alert>
+
         {/* Platform Selection */}
         <div className="grid gap-3 sm:grid-cols-3">
           {PLATFORMS.map((platform) => {
@@ -117,23 +148,28 @@ export function DapodikDownloadSection() {
             const isDownloading = downloading === platform.id;
             
             return (
-              <Button
-                key={platform.id}
-                variant="outline"
-                className="h-auto flex-col py-4 gap-2"
-                onClick={() => handleDownload(platform.id)}
-                disabled={downloading !== null}
-              >
-                {isDownloading ? (
-                  <Loader2 className="size-6 animate-spin" />
-                ) : (
-                  <Icon className="size-6" />
-                )}
-                <span className="font-medium">{platform.name}</span>
-                <span className="text-xs text-muted-foreground">
-                  {platform.description}
-                </span>
-              </Button>
+              <div key={platform.id} className="space-y-2">
+                <Button
+                  variant="outline"
+                  className="h-auto flex-col py-4 gap-2 w-full"
+                  onClick={() => handleDownload(platform.id)}
+                  disabled={downloading !== null}
+                >
+                  {isDownloading ? (
+                    <Loader2 className="size-6 animate-spin" />
+                  ) : (
+                    <Icon className="size-6" />
+                  )}
+                  <span className="font-medium">{platform.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {platform.description}
+                  </span>
+                </Button>
+                <p className="text-xs text-center text-muted-foreground">
+                  <FileCode className="size-3 inline mr-1" />
+                  Source code bundle
+                </p>
+              </div>
             );
           })}
         </div>
@@ -142,8 +178,8 @@ export function DapodikDownloadSection() {
         <div className="flex items-start gap-2 rounded-md bg-muted/50 p-3 text-xs">
           <AlertCircle className="size-4 shrink-0 text-muted-foreground mt-0.5" />
           <p className="text-muted-foreground">
-            <strong>Catatan:</strong> Aplikasi hanya bisa dijalankan di komputer yang sama dengan 
-            Dapodik (localhost:5774). Pastikan Dapodik terbuka dan Web Service aktif sebelum menjalankan.
+            <strong>Catatan:</strong> Download saat ini adalah source code. 
+            Untuk aplikasi siap-pakai (.exe), lihat instruksi di atas atau hubungi administrator.
           </p>
         </div>
 
@@ -159,59 +195,70 @@ export function DapodikDownloadSection() {
             <DialogHeader>
               <DialogTitle>Cara Menggunakan Jembatan Dapodik</DialogTitle>
               <DialogDescription>
-                Ikuti langkah-langkah berikut untuk menghubungkan Dapodik dengan website sekolah
+                {downloadType === "exe" 
+                  ? "Aplikasi executable berhasil diunduh. Ikuti langkah-langkah berikut:"
+                  : "Source code berhasil diunduh. Berikut cara menjalankannya:"}
               </DialogDescription>
             </DialogHeader>
             
-            <div className="space-y-4 text-sm">
-              <div className="space-y-2">
-                <h4 className="font-semibold">1. Setup di Dapodik</h4>
-                <ol className="list-decimal list-inside space-y-1 text-muted-foreground pl-2">
-                  <li>Buka aplikasi Dapodik</li>
-                  <li>Login sebagai Admin</li>
-                  <li>Klik <strong>Pengaturan</strong> → <strong>Web Service Lokal</strong></li>
-                  <li>Klik <strong>Tambah</strong></li>
-                  <li>Isi nama: <code>Jembatan-CMS</code>, IP: <code>localhost</code></li>
-                  <li>Simpan dan <strong>salin Token</strong></li>
-                </ol>
-              </div>
+            {downloadType === "exe" ? (
+              <div className="space-y-4 text-sm">
+                <div className="space-y-2">
+                  <h4 className="font-semibold">1. Setup di Dapodik</h4>
+                  <ol className="list-decimal list-inside space-y-1 text-muted-foreground pl-2">
+                    <li>Buka aplikasi Dapodik</li>
+                    <li>Login sebagai Admin</li>
+                    <li>Klik <strong>Pengaturan</strong> → <strong>Web Service Lokal</strong></li>
+                    <li>Klik <strong>Tambah</strong></li>
+                    <li>Isi nama: <code>Jembatan-CMS</code>, IP: <code>localhost</code></li>
+                    <li>Simpan dan <strong>salin Token</strong></li>
+                  </ol>
+                </div>
 
-              <div className="space-y-2">
-                <h4 className="font-semibold">2. Jalankan Aplikasi Jembatan</h4>
-                <ol className="list-decimal list-inside space-y-1 text-muted-foreground pl-2">
-                  <li>Double-click file executable yang sudah diunduh</li>
-                  <li>Tunggu sampai browser terbuka otomatis</li>
-                  <li>Jika tidak terbuka, buka browser ke <code>http://localhost:3847</code></li>
-                </ol>
-              </div>
+                <div className="space-y-2">
+                  <h4 className="font-semibold">2. Jalankan Aplikasi Jembatan</h4>
+                  <ol className="list-decimal list-inside space-y-1 text-muted-foreground pl-2">
+                    <li>Double-click file executable yang sudah diunduh</li>
+                    <li>Tunggu sampai browser terbuka otomatis</li>
+                    <li>Jika tidak terbuka, buka browser ke <code>http://localhost:3847</code></li>
+                  </ol>
+                </div>
 
-              <div className="space-y-2">
-                <h4 className="font-semibold">3. Setup di Aplikasi Jembatan</h4>
-                <ol className="list-decimal list-inside space-y-1 text-muted-foreground pl-2">
-                  <li>Isi <strong>URL CMS</strong>: https://[domain].vercel.app</li>
-                  <li>Isi <strong>Kunci Pairing</strong>: dari dashboard CMS</li>
-                  <li>Isi <strong>NPSN</strong> dan <strong>Token Dapodik</strong></li>
-                  <li>Klik <strong>Simpan</strong></li>
-                  <li>Klik <strong>Tes Dapodik</strong> untuk memastikan koneksi</li>
-                </ol>
+                <div className="space-y-2">
+                  <h4 className="font-semibold">3. Sinkronisasi Data</h4>
+                  <ol className="list-decimal list-inside space-y-1 text-muted-foreground pl-2">
+                    <li>Isi <strong>URL CMS</strong>, <strong>Kunci Pairing</strong>, <strong>NPSN</strong>, dan <strong>Token</strong></li>
+                    <li>Klik <strong>Tes Dapodik</strong> untuk memastikan koneksi</li>
+                    <li>Klik <strong>Tarik & Kirim</strong></li>
+                  </ol>
+                </div>
               </div>
+            ) : (
+              <div className="space-y-4 text-sm">
+                <div className="space-y-2">
+                  <h4 className="font-semibold">1. Install Node.js</h4>
+                  <p className="text-muted-foreground">
+                    Pastikan Node.js 18+ sudah terinstall. Download dari <a href="https://nodejs.org" target="_blank" className="text-primary underline">nodejs.org</a>
+                  </p>
+                </div>
 
-              <div className="space-y-2">
-                <h4 className="font-semibold">4. Sinkronisasi Data</h4>
-                <ol className="list-decimal list-inside space-y-1 text-muted-foreground pl-2">
-                  <li>Klik <strong>Tarik & Kirim</strong></li>
-                  <li>Tunggu sampai proses selesai</li>
-                  <li>Data akan tersimpan di database website</li>
-                </ol>
-              </div>
+                <div className="space-y-2">
+                  <h4 className="font-semibold">2. Ekstrak dan Jalankan</h4>
+                  <ol className="list-decimal list-inside space-y-1 text-muted-foreground pl-2">
+                    <li>Ekstrak file ZIP yang sudah diunduh</li>
+                    <li>Buka Terminal/Command Prompt di folder hasil ekstrak</li>
+                    <li>Jalankan: <code>node jembatan.mjs</code></li>
+                    <li>Buka browser ke <code>http://localhost:3847</code></li>
+                  </ol>
+                </div>
 
-              <div className="rounded-md bg-amber-50 border border-amber-200 p-3">
-                <p className="text-xs text-amber-800">
-                  <strong>💡 Tips:</strong> Lakukan sinkronisasi secara berkala, terutama saat ada 
-                  perubahan data siswa atau guru di Dapodik.
-                </p>
+                <div className="rounded-md bg-amber-50 border border-amber-200 p-3">
+                  <p className="text-xs text-amber-800">
+                    <strong>💡 Tips:</strong> Hubungi administrator untuk mendapatkan aplikasi .exe yang lebih mudah dijalankan tanpa perlu install Node.js.
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
           </DialogContent>
         </Dialog>
       </CardContent>
@@ -221,23 +268,10 @@ export function DapodikDownloadSection() {
 
 // Helper functions
 function blobFromResponse(res: Response): Promise<Blob> {
-  const contentType = res.headers.get("Content-Type") || "";
-  
-  if (contentType.includes("application/zip") || contentType.includes("application/x-zip")) {
-    return res.blob();
-  }
-  
-  // For executables, create a blob with proper type
-  return res.blob().then(blob => {
-    // Adjust content type if needed
-    if (contentType.includes("msdownload") && !blob.type.includes("msdownload")) {
-      return new Blob([blob], { type: "application/octet-stream" });
-    }
-    return blob;
-  });
+  return res.blob();
 }
 
-function extractFilename(contentDisposition: string | null, platform: Platform): string {
+function extractFilename(contentDisposition: string | null, platform: Platform, type: "exe" | "source" | null): string {
   if (contentDisposition) {
     const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
     if (match) {
@@ -246,16 +280,19 @@ function extractFilename(contentDisposition: string | null, platform: Platform):
   }
   
   // Default filenames
-  switch (platform) {
-    case "windows":
-      return "Jembatan-Dapodik.exe";
-    case "macos":
-      return "Jembatan-Dapodik-macos";
-    case "linux":
-      return "Jembatan-Dapodik-linux";
-    default:
-      return "Jembatan-Dapodik.exe";
+  if (type === "exe") {
+    switch (platform) {
+      case "windows":
+        return "Jembatan-Dapodik.exe";
+      case "macos":
+        return "Jembatan-Dapodik-macos";
+      case "linux":
+        return "Jembatan-Dapodik-linux";
+    }
   }
+  
+  // Fallback to source bundle
+  return "jembatan-dapodik-source.zip";
 }
 
 function downloadBlob(blob: Blob, filename: string): void {

@@ -1,1 +1,4 @@
 jembatan-config.json
+dist/
+*.exe
+*.log

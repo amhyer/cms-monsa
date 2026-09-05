@@ -7,6 +7,22 @@
 
 ## [Unreleased] - 2026-08-28
 
+### ✨ Added — Jembatan Dapodik sebagai EXE (tanpa install Node.js)
+
+PC sekolah cukup double-klik `Jembatan-Dapodik.exe` — tidak perlu
+install Node.js lagi.
+
+- `jembatan.mjs`: lokasi config kini dinamis (`resolveAppDir`) —
+  mode script: folder script; mode exe: folder di samping exe
+  (snapshot exe read-only); fallback `%USERPROFILE%\Jembatan-Dapodik`.
+  Path config juga dicetak di log startup.
+- `dapodik-jembatan/build-exe.ps1`: build one-click
+  (`bun build --compile --target=bun-windows-x64`). vercel/pkg tidak
+  dipakai karena tidak mendukung ES Module (exe rusak dengan
+  "Cannot find module C:\snapshot\...").
+- `README.txt` + `docs/RUNNING.md`: panduan exe-first; mode Node.js
+  (`MULAI-JEMBATAN.vbs` dkk.) tetap tersedia sebagai cadangan.
+
 ### 💥 Changed — Konsolidasi ke SATU skema PostgreSQL (dev = produksi)
 
 SQLite dev **dihapus**; `prisma/schema.prisma` kini ber-provider

@@ -17,9 +17,9 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, "..");
 
 const platforms = {
-  win: "node20-win-x64",
-  mac: "node20-macos-x64",
-  linux: "node20-linux-x64",
+  win: "node18-win-x64",
+  mac: "node18-macos-x64",
+  linux: "node18-linux-x64",
 };
 
 const targetArg = process.argv[2] || "all";

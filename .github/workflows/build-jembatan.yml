@@ -1,0 +1,92 @@
+name: Build Jembatan Dapodik
+
+on:
+  push:
+    branches:
+      - main
+      - 'arena/**'
+    paths:
+      - 'dapodik-jembatan/jembatan.mjs'
+      - 'dapodik-jembatan/jembatan-cli.mjs'
+      - 'dapodik-jembatan/builder/**'
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: |
+          cd dapodik-jembatan/builder
+          npm install
+
+      - name: Build Windows executable
+        run: |
+          cd dapodik-jembatan/builder
+          node build.js win
+        env:
+          PKG_CACHE_PATH: .pkg-cache
+
+      - name: Build macOS executable
+        run: |
+          cd dapodik-jembatan/builder
+          node build.js mac
+        env:
+          PKG_CACHE_PATH: .pkg-cache-mac
+
+      - name: Build Linux executable
+        run: |
+          cd dapodik-jembatan/builder
+          node build.js linux
+        env:
+          PKG_CACHE_PATH: .pkg-cache-linux
+
+      - name: List built files
+        run: |
+          ls -la dapodik-jembatan/dist/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: jembatan-dapodik-binaries
+          path: |
+            dapodik-jembatan/dist/Jembatan-Dapodik.exe
+            dapodik-jembatan/dist/Jembatan-Dapodik-macos
+            dapodik-jembatan/dist/Jembatan-Dapodik-linux
+          retention-days: 30
+
+      - name: Create Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dapodik-jembatan/dist/Jembatan-Dapodik.exe
+            dapodik-jembatan/dist/Jembatan-Dapodik-macos
+            dapodik-jembatan/dist/Jembatan-Dapodik-linux
+          body: |
+            ## Download Jembatan Dapodik
+
+            Download file yang sesuai dengan sistem operasi Anda:
+
+            | Platform | File | Cara Pakai |
+            |----------|------|------------|
+            | Windows | `Jembatan-Dapodik.exe` | Double-click untuk jalankan |
+            | macOS | `Jembatan-Dapodik-macos` | `chmod +x` lalu jalankan |
+            | Linux | `Jembatan-Dapodik-linux` | `chmod +x` lalu jalankan |
+
+            ## Panduan Penggunaan
+
+            Lihat [README-OPERATOR.md](dapodik-jembatan/README-OPERATOR.md) untuk panduan lengkap.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

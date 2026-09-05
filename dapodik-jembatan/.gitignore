@@ -1,1 +1,18 @@
+# Build artifacts
+dist/
+*.exe
+Jembatan-Dapodik-*
+
+# Config files (contain sensitive data)
 jembatan-config.json
+
+# Cache
+.pkg-cache/
+.pkg-cache-*/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

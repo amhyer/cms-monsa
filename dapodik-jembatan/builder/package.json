@@ -1,0 +1,16 @@
+{
+  "name": "jembatan-dapodik-builder",
+  "version": "1.0.0",
+  "description": "Build script untuk Jembatan Dapodik CMS MONSA",
+  "type": "module",
+  "scripts": {
+    "build:win": "node build.js win",
+    "build:mac": "node build.js mac",
+    "build:linux": "node build.js linux",
+    "build:all": "node build.js all",
+    "prebuild": "node scripts/prepare-build.js"
+  },
+  "devDependencies": {
+    "pkg": "^5.8.1"
+  }
+}

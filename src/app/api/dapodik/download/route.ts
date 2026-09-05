@@ -6,13 +6,15 @@ export const dynamic = "force-dynamic";
 type Platform = "windows" | "macos" | "linux";
 
 const GITHUB_REPO = "amhyer/cms-monsa";
-const GITHUB_API = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
+const GITHUB_API = `https://api.github.com/repos/${GITHUB_REPO}/releases`;
 
 /**
  * Download jembatan executable from GitHub Releases
+ * Fetch all releases (including pre-releases) and find matching asset
  */
 async function getLatestReleaseUrl(platform: Platform): Promise<string | null> {
   try {
+    // Fetch all releases, including pre-releases
     const res = await fetch(GITHUB_API, {
       headers: {
         Accept: "application/vnd.github.v3+json",
@@ -25,8 +27,12 @@ async function getLatestReleaseUrl(platform: Platform): Promise<string | null> {
       return null;
     }
 
-    const release = await res.json();
-    const assets = release.assets || [];
+    const releases = await res.json();
+    
+    if (!Array.isArray(releases) || releases.length === 0) {
+      console.log("[jembatan-download] No releases found");
+      return null;
+    }
 
     // Map platform to asset name pattern
     const patterns: Record<Platform, string[]> = {
@@ -37,11 +43,17 @@ async function getLatestReleaseUrl(platform: Platform): Promise<string | null> {
 
     const targetPatterns = patterns[platform];
 
-    for (const asset of assets) {
-      const name = asset.name.toLowerCase();
-      const matches = targetPatterns.some((p) => name.includes(p.toLowerCase()));
-      if (matches && asset.browser_download_url) {
-        return asset.browser_download_url;
+    // Search through all releases
+    for (const release of releases) {
+      const assets = release.assets || [];
+      
+      for (const asset of assets) {
+        const name = asset.name.toLowerCase();
+        const matches = targetPatterns.some((p) => name.includes(p.toLowerCase()));
+        if (matches && asset.browser_download_url) {
+          console.log("[jembatan-download] Found asset:", asset.name, "in release:", release.tag_name);
+          return asset.browser_download_url;
+        }
       }
     }
 
@@ -82,6 +94,7 @@ export async function GET(req: NextRequest) {
 
   if (downloadUrl) {
     // Redirect to GitHub download
+    console.log("[jembatan-download] Redirecting to:", downloadUrl);
     return NextResponse.redirect(downloadUrl);
   }
 
@@ -89,7 +102,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(
     {
       error: "File executable belum tersedia di GitHub Releases",
-      message: `Silakan download manual dari GitHub Releases:\n\nhttps://github.com/${GITHUB_REPO}/releases/latest\n\nAtau hubungi administrator untuk petunjuk lebih lanjut.`,
+      message: `Silakan download manual dari GitHub Releases:\n\nhttps://github.com/${GITHUB_REPO}/releases\n\nAtau hubungi administrator untuk petunjuk lebih lanjut.`,
       githubRepo: GITHUB_REPO,
       githubReleases: `https://github.com/${GITHUB_REPO}/releases`,
       platform,

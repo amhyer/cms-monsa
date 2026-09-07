@@ -52,11 +52,33 @@ function stubEmpty() {
   mockPrisma.news.count.mockResolvedValue(0);
   mockPrisma.news.findMany.mockResolvedValue([]);
   mockPrisma.siteSetting.findUnique.mockResolvedValue({
-    id: "singleton", schoolName: "", npsn: "", logo: null, address: "", phone: "", email: "",
-    mapEmbed: null, vision: "", mission: "", history: "", principalName: "", principalPhoto: null,
-    principalWelcome: "", facebook: null, instagram: null, youtube: null, tiktok: null,
-    studentCount: 0, teacherCount: 0, facilityCount: 0, achievementCount: 0,
-    spmbInfo: "", spmbLink: null,
+    id: "singleton",
+    schoolName: "",
+    npsn: "",
+    logo: null,
+    faviconUrl: null,
+    address: "",
+    phone: "",
+    email: "",
+    mapEmbed: null,
+    vision: "",
+    mission: "",
+    history: "",
+    principalName: "",
+    principalPhoto: null,
+    principalWelcome: "",
+    facebook: null,
+    instagram: null,
+    youtube: null,
+    tiktok: null,
+    studentCount: 0,
+    teacherCount: 0,
+    facilityCount: 0,
+    achievementCount: 0,
+    spmbInfo: "",
+    spmbLink: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
   });
   mockPrisma.student.count.mockResolvedValue(0);
   mockPrisma.student.findMany.mockResolvedValue([]);
@@ -72,15 +94,90 @@ describe("Cache-Control headers on public GET routes", () => {
   });
 
   const cases: [string, () => Promise<Response>, string][] = [
-    ["/api/teachers", () => teachersGET(asNextRequest(createMockRequest("http://localhost/api/teachers?scope=public"))), CACHE.teachers],
-    ["/api/agenda", () => agendaGET(asNextRequest(createMockRequest("http://localhost/api/agenda"))), CACHE.agenda],
-    ["/api/achievements", () => achievementsGET(asNextRequest(createMockRequest("http://localhost/api/achievements"))), CACHE.achievements],
-    ["/api/gallery", () => galleryGET(asNextRequest(createMockRequest("http://localhost/api/gallery"))), CACHE.gallery],
-    ["/api/org-structure", () => orgStructureGET(asNextRequest(createMockRequest("http://localhost/api/org-structure?scope=public"))), CACHE.orgStructure],
-    ["/api/news?scope=public", () => newsGET(asNextRequest(createMockRequest("http://localhost/api/news?scope=public"))), CACHE.news],
-    ["/api/site-settings", () => siteSettingsGET(), CACHE.siteSettings],
-    ["/api/students/showcase", () => studentsShowcaseGET(asNextRequest(createMockRequest("http://localhost/api/students/showcase"))), CACHE.studentsShowcase],
-    ["/api/classes", () => classesGET(asNextRequest(createMockRequest("http://localhost/api/classes?scope=public"))), CACHE.classes],
+    [
+      "/api/teachers",
+      () =>
+        teachersGET(
+          asNextRequest(
+            createMockRequest("http://localhost/api/teachers?scope=public")
+          )
+        ),
+      CACHE.teachers,
+    ],
+    [
+      "/api/agenda",
+      () =>
+        agendaGET(asNextRequest(createMockRequest("http://localhost/api/agenda"))),
+      CACHE.agenda,
+    ],
+    [
+      "/api/achievements",
+      () =>
+        achievementsGET(
+          asNextRequest(
+            createMockRequest("http://localhost/api/achievements")
+          )
+        ),
+      CACHE.achievements,
+    ],
+    [
+      "/api/gallery",
+      () =>
+        galleryGET(
+          asNextRequest(createMockRequest("http://localhost/api/gallery"))
+        ),
+      CACHE.gallery,
+    ],
+    [
+      "/api/org-structure",
+      () =>
+        orgStructureGET(
+          asNextRequest(
+            createMockRequest("http://localhost/api/org-structure?scope=public")
+          )
+        ),
+      CACHE.orgStructure,
+    ],
+    [
+      "/api/news?scope=public",
+      () =>
+        newsGET(
+          asNextRequest(
+            createMockRequest("http://localhost/api/news?scope=public")
+          )
+        ),
+      CACHE.news,
+    ],
+    [
+      "/api/site-settings",
+      () =>
+        siteSettingsGET(
+          asNextRequest(
+            createMockRequest("http://localhost/api/site-settings")
+          ) as any
+        ),
+      CACHE.siteSettings,
+    ],
+    [
+      "/api/students/showcase",
+      () =>
+        studentsShowcaseGET(
+          asNextRequest(
+            createMockRequest("http://localhost/api/students/showcase")
+          )
+        ),
+      CACHE.studentsShowcase,
+    ],
+    [
+      "/api/classes",
+      () =>
+        classesGET(
+          asNextRequest(
+            createMockRequest("http://localhost/api/classes?scope=public")
+          )
+        ),
+      CACHE.classes,
+    ],
   ];
 
   it.each(cases)("%s returns correct Cache-Control", async (_route, handler, expected) => {
@@ -90,7 +187,11 @@ describe("Cache-Control headers on public GET routes", () => {
 
   it("/api/news?scope=admin does NOT set Cache-Control", async () => {
     mockRequireAuth.mockResolvedValue({ ok: true, user: createMockUser() });
-    const res = await newsGET(asNextRequest(createMockRequest("http://localhost/api/news?scope=admin")));
+    const res = await newsGET(
+      asNextRequest(
+        createMockRequest("http://localhost/api/news?scope=admin")
+      )
+    );
     expect(res.headers.get("Cache-Control")).toBeNull();
   });
 
@@ -98,14 +199,27 @@ describe("Cache-Control headers on public GET routes", () => {
     mockRequireRole.mockResolvedValue({ ok: true, user: createMockUser() });
     mockPrisma.news.findUnique.mockResolvedValue(null);
     mockPrisma.news.create.mockResolvedValue({
-      id: "1", title: "Test", slug: "test", excerpt: null, content: "x",
-      coverImage: null, category: "Umum", status: "DRAFT", authorId: "u1",
-      publishedAt: null, createdAt: new Date(), updatedAt: new Date(),
+      id: "1",
+      title: "Test",
+      slug: "test",
+      excerpt: null,
+      content: "x",
+      coverImage: null,
+      category: "Umum",
+      status: "DRAFT",
+      authorId: "u1",
+      publishedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
-    const res = await newsPOST(asNextRequest(createMockRequest("http://localhost/api/news", {
-      method: "POST",
-      body: { title: "Test", content: "x", category: "Umum", status: "DRAFT" },
-    })));
+    const res = await newsPOST(
+      asNextRequest(
+        createMockRequest("http://localhost/api/news", {
+          method: "POST",
+          body: { title: "Test", content: "x", category: "Umum", status: "DRAFT" },
+        })
+      )
+    );
     expect(res.headers.get("Cache-Control")).toBeNull();
   });
 });

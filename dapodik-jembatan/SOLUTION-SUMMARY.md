@@ -37,13 +37,11 @@
 ## 📁 File yang Sudah Dibuat
 
 ### 1. Kode Sumber
-- `dapodik-jembatan/jembatan.mjs` - Aplikasi GUI utama (sudah ada)
-- `dapodik-jembatan/jembatan-cli.mjs` - Aplikasi CLI untuk sinkronisasi otomatis (BARU)
+- `dapodik-jembatan/jembatan.mjs` - Satu source untuk dua mode: server + UI browser (double-click) dan subcommand CLI (`test | preview | sync | config`)
 
 ### 2. Build System
-- `dapodik-jembatan/builder/package.json` - Package configuration
-- `dapodik-jembatan/builder/build.js` - Script build otomatis
-- `.github/workflows/build-jembatan.yml` - GitHub Actions untuk build otomatis
+- `dapodik-jembatan/builder/build.js` - Script build otomatis (bun build --compile)
+- `.github/workflows/build-jembatan.yml` - GitHub Actions untuk build otomatis (termasuk smoke-test binary)
 
 ### 3. Dokumentasi
 - `dapodik-jembatan/README-OPERATOR.md` - Panduan untuk operator sekolah
@@ -56,14 +54,10 @@
 ### Untuk Developer (Build .exe)
 
 ```bash
-# 1. Install dependencies
-cd dapodik-jembatan/builder
-npm install
+# 1. Build untuk Windows
+node dapodik-jembatan/builder/build.js win
 
-# 2. Build untuk Windows
-npm run build:win
-
-# 3. File .exe akan muncul di
+# 2. File .exe akan muncul di
 # dapodik-jembatan/dist/Jembatan-Dapodik.exe
 ```
 
@@ -126,7 +120,7 @@ Bridge token dibuat dari dashboard CMS:
 
 ## 📅 Roadmap
 
-- [ ] Build executable untuk Windows, macOS, Linux
+- [x] Build executable untuk Windows, macOS, Linux (bun build --compile + CI)
 - [ ] Buat installer (.msi untuk Windows)
 - [ ] Test dengan operator sekolah
 - [ ] Dokumentasi video tutorial

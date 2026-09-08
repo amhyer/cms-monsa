@@ -98,6 +98,10 @@ Jika Anda lebih suka sinkronisasi otomatis:
    Jembatan-Dapodik.exe sync       # Sinkronisasi
    ```
 
+   Mode CLI memakai konfigurasi yang sama dengan aplikasi browser (file
+   `jembatan-config.json` di samping program), dan mengirim data dengan cara
+   chunked yang sama — jadi pengaturan cukup dilakukan sekali saja.
+
 ---
 
 ## 📊 Data Apa yang Diambil?

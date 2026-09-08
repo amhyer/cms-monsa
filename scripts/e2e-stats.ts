@@ -12,7 +12,7 @@
  */
 import { readFileSync } from "node:fs";
 
-export interface Non2xxEntry {
+interface Non2xxEntry {
   method: string;
   path: string;
   status: number;
@@ -66,7 +66,7 @@ export function computeRequestStats(lines: readonly string[]): {
  * Peta path → set specFile dari laporan mutasi (JSONL `{specFile, path}`).
  * Hanya mutasi yang tercatat di fixture — GET non-mutasi tak teratribusi.
  */
-export function buildSpecByPath(reportText: string): Map<string, Set<string>> {
+function buildSpecByPath(reportText: string): Map<string, Set<string>> {
   const out = new Map<string, Set<string>>();
   for (const line of reportText.split("\n").filter((l) => l.trim())) {
     try {

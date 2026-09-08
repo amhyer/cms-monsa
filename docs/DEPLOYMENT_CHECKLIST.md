@@ -39,6 +39,15 @@ REDIS_URL=""
 
 # Loki (opsional, untuk log aggregation)
 LOKI_URL=""
+
+# Upload (opsional — default 90 hari; 0 = nonaktifkan pembersihan otomatis)
+# UPLOAD_RETENTION_DAYS="90"
+# Kuota storage Neon (MB) untuk laporan /api/storage-usage & storage:usage
+# NEON_STORAGE_QUOTA_MB="512"
+# Ambang alert storage (persen kuota; default 80; <= 0 nonaktif) — cron /api/cron/storage-alert
+# STORAGE_ALERT_THRESHOLD_PCT="80"
+# Selisih turun untuk me-reset alert (persen; default 10)
+# STORAGE_ALERT_HYSTERESIS_PCT="10"
 ```
 
 ### 2. Database Setup

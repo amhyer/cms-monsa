@@ -179,15 +179,18 @@ test.describe("Data Prestasi — typeahead siswa (Tambah Prestasi)", () => {
     // Kartu baru menampilkan NIS/NISN dari siswa yang dipilih.
     // Ambil data siswa yang dipilih dari API (bukan hardcode).
     // Ambil data siswa yang dipilih dari API (bukan hardcode seed).
-    const selectedStudent = await page.evaluate<
-      { name: string; nis: string; nisn?: string } | null
-    >(async (fn) => {
-      const d = await (await fetch("/api/students?limit=1000")).json();
-      const s = (d.items || []).find(
-        (x: { name: string; nis?: string }) => x.name === fn && x.nis
-      );
-      return s ? { name: s.name, nis: s.nis, nisn: s.nisn } : null;
-    }, firstName);
+    const selectedStudent = await page.evaluate(
+      async (fn: string): Promise<{ name: string; nis: string; nisn?: string } | null> => {
+        const d = await (await fetch("/api/students?limit=1000")).json();
+        const s = (d.items || []).find(
+          (x: { name: string; nis?: string }) => x.name === fn && x.nis
+        );
+        return s
+          ? { name: s.name as string, nis: s.nis as string, nisn: s.nisn as string | undefined }
+          : null;
+      },
+      firstName
+    );
     const kartuBaru = page.locator("div.bg-card").filter({ hasText: title });
     await expect(kartuBaru).toBeVisible();
     if (selectedStudent) {

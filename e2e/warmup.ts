@@ -15,7 +15,7 @@ import { readFileSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-export const WARMUP_ROUTES = [
+export const WARMUP_ROUTES: string[] = [
   "/",
   "/login",
   "/profile",
@@ -27,7 +27,7 @@ export const WARMUP_ROUTES = [
   "/struktur-organisasi",
   "/transparansi",
   "/dashboard",
-] as const;
+];
 
 /** Direktori spec E2E (default). Bisa di-override lewat env E2E_TEST_DIR. */
 export const DEFAULT_E2E_TEST_DIR = "./e2e";
@@ -106,7 +106,7 @@ const METHOD_TOKEN = /^[A-Z]+$/;
  * path-only (method null → semua method). Contoh:
  *   "POST /api/news /api/gallery" → [{POST, /api/news}, {null, /api/gallery}]
  */
-export function parseWarmupDecl(content: string): WarmupDecl[] {
+function parseWarmupDecl(content: string): WarmupDecl[] {
   const tokens = content.split(/[\s,]+/).filter(Boolean);
   const out: WarmupDecl[] = [];
   let i = 0;
@@ -294,7 +294,7 @@ export async function collectSpecWarmupRoutesByFile(
  * ter-compile lebih dulu tanpa terkecuali (yang tidak diinginkan cukup
  * dimasukkan ke API_EXCLUDED_SUBTREES).
  */
-export async function collectApiRoutes(
+async function collectApiRoutes(
   apiDir: string = DEFAULT_API_DIR
 ): Promise<string[]> {
   try {
@@ -317,7 +317,7 @@ export async function collectApiRoutes(
 }
 
 /** Daftar rute akhir: default + deklarasi spec (dedupe, urut stabil). */
-export function mergeWarmupRoutes(declared: readonly string[]): string[] {
+function mergeWarmupRoutes(declared: readonly string[]): string[] {
   const seen = new Set<string>(WARMUP_ROUTES);
   const out = [...WARMUP_ROUTES];
   for (const r of declared) {
@@ -335,7 +335,7 @@ export function mergeWarmupRoutes(declared: readonly string[]): string[] {
  * dinamis ikut ter-compile. Dedupe penuh; rute yang SUDAH mengandung
  * `__warmup__` (hasil discovery) tidak digandakan lagi.
  */
-export function expandWarmupRoutes(routes: readonly string[]): {
+function expandWarmupRoutes(routes: readonly string[]): {
   routes: string[];
   synthetic: Set<string>;
 } {

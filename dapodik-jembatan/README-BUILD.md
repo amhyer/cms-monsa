@@ -4,36 +4,30 @@ Panduan untuk membangun file `.exe` dari `jembatan.mjs` sehingga bisa dijalankan
 
 ## Prasyarat
 
-- Node.js 18+ terinstall
-- npm atau yarn
+- **Bun** terinstall (project ini memakai bun — lihat `bun.lock` di root repo)
 
 ## Langkah Build
 
-### 1. Install Dependencies
+### 1. Build untuk Windows (.exe)
 
 ```bash
-cd builder
-npm install
+node dapodik-jembatan/builder/build.js win
 ```
 
-### 2. Build untuk Windows (.exe)
+File `.exe` akan muncul di folder `dapodik-jembatan/dist/Jembatan-Dapodik.exe`
+
+### 2. Build untuk Semua Platform
 
 ```bash
-npm run build:win
-```
-
-File `.exe` akan muncul di folder `dist/Jembatan-Dapodik.exe`
-
-### 3. Build untuk Semua Platform
-
-```bash
-npm run build:all
+node dapodik-jembatan/builder/build.js all
 ```
 
 Akan menghasilkan:
 - `dist/Jembatan-Dapodik.exe` - untuk Windows
 - `dist/Jembatan-Dapodik-macos` - untuk macOS
 - `dist/Jembatan-Dapodik-linux` - untuk Linux
+
+Tidak ada dependency lain — `build.js` memanggil `bun build --compile` langsung.
 
 ## Cara Pakai File .exe
 
@@ -72,6 +66,15 @@ Akan menghasilkan:
 
 ## Troubleshooting
 
+### Error: bun tidak ditemukan
+
+```bash
+# macOS/Linux
+curl -fsSL https://bun.sh/install | bash
+# Windows (PowerShell)
+powershell -c "irm bun.sh/install.ps1 | iex"
+```
+
 ### Error "Port 3847 sedang dipakai"
 
 Ada proses jembatan lain yang sedang berjalan. Tutup aplikasi jembatan yang lama, atau cek task manager untuk proses Node.js yang masih aktif.
@@ -90,32 +93,11 @@ Ada proses jembatan lain yang sedang berjalan. Tutup aplikasi jembatan yang lama
 
 ## Build dengan GitHub Actions (Otomatis)
 
-Untuk build otomatis setiap ada update, bisa gunakan GitHub Actions. Contoh workflow:
-
-```yaml
-# .github/workflows/build-jembatan.yml
-name: Build Jembatan Dapodik
-
-on:
-  push:
-    paths:
-      - 'dapodik-jembatan/jembatan.mjs'
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - run: cd dapodik-jembatan/builder && npm install
-      - run: npm run build:all
-      - uses: actions/upload-artifact@v4
-        with:
-          name: jembatan-dapodik-binaries
-          path: dapodik-jembatan/dist/
-```
+Workflow `.github/workflows/build-jembatan.yml` sudah tersedia: setiap push
+yang menyentuh `jembatan.mjs` / `builder/**` otomatis build ketiga platform
+(cross-compile dari ubuntu via bun), smoke-test binary Linux (server mode +
+subcommand CLI), lalu upload artifact. Saat tag release dibuat, executable
+juga otomatis di-attach ke release.
 
 ## Lisensi
 

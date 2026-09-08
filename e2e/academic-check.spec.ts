@@ -39,9 +39,9 @@ test("academic page: directory, kalender, dan halaman portofolio guru", async ({
     const d = await (await fetch("/api/teachers?limit=1000")).json();
     return (d.items as { name: string; bio?: string; contact?: string }[])[0] ?? null;
   });
+  const dialog = page.getByRole("dialog");
   if (firstTeacher) {
     await guruCards.first().click();
-    const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
     await expect(dialog.getByRole("heading").first()).toBeVisible();
     // Assert nama guru ada di modal (dynamic, bukan hardcode seed).

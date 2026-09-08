@@ -7,7 +7,6 @@ on:
       - 'arena/**'
     paths:
       - 'dapodik-jembatan/jembatan.mjs'
-      - 'dapodik-jembatan/jembatan-cli.mjs'
       - 'dapodik-jembatan/builder/**'
   release:
     types: [published]
@@ -16,45 +15,39 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Install dependencies
-        run: |
-          cd dapodik-jembatan/builder
-          npm install
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
 
       - name: Build Windows executable
-        run: |
-          cd dapodik-jembatan/builder
-          node build.js win
-        env:
-          PKG_CACHE_PATH: .pkg-cache
+        run: node dapodik-jembatan/builder/build.js win
 
       - name: Build macOS executable
-        run: |
-          cd dapodik-jembatan/builder
-          node build.js mac
-        env:
-          PKG_CACHE_PATH: .pkg-cache-mac
+        run: node dapodik-jembatan/builder/build.js mac
 
       - name: Build Linux executable
-        run: |
-          cd dapodik-jembatan/builder
-          node build.js linux
-        env:
-          PKG_CACHE_PATH: .pkg-cache-linux
+        run: node dapodik-jembatan/builder/build.js linux
 
-      - name: List built files
+      - name: Smoke test Linux binary (server mode)
         run: |
-          ls -la dapodik-jembatan/dist/
+          chmod +x dapodik-jembatan/dist/Jembatan-Dapodik-linux
+          JEMBATAN_NO_BROWSER=1 JEMBATAN_PORT=48347 ./dapodik-jembatan/dist/Jembatan-Dapodik-linux > /tmp/jembatan.log 2>&1 &
+          PID=$!
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:48347/api/config > /dev/null && break
+            sleep 1
+          done
+          curl -fs http://127.0.0.1:48347/api/config | grep -q '"cmsUrl"'
+          kill $PID
+          cat /tmp/jembatan.log
+
+      - name: Smoke test CLI subcommand
+        run: |
+          dapodik-jembatan/dist/Jembatan-Dapodik-linux --help | grep -q "sync"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -85,8 +78,11 @@ jobs:
             | macOS | `Jembatan-Dapodik-macos` | `chmod +x` lalu jalankan |
             | Linux | `Jembatan-Dapodik-linux` | `chmod +x` lalu jalankan |
 
+            Setiap file mendukung mode browser (double-click) dan mode CLI:
+            `Jembatan-Dapodik.exe test | preview | sync | config`
+
             ## Panduan Penggunaan
 
             Lihat [README-OPERATOR.md](dapodik-jembatan/README-OPERATOR.md) untuk panduan lengkap.
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

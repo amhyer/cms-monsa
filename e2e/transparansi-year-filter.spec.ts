@@ -17,8 +17,8 @@ test.describe("Transparansi — filter tahun (server-side)", () => {
     const docTitle = `Dokumen ARKAS 2025 test ${stamp}`;
 
     // Buat belanja 2025 + dokumen 2025 via page.evaluate (sudah login, CSRF otomatis).
-    const setupResult = await page.evaluate<{ expOk: boolean; docOk: boolean }>(
-      async (data) => {
+    const setupResult = await page.evaluate(
+      async (data: { expName: string; docTitle: string }): Promise<{ expOk: boolean; docOk: boolean }> => {
         const csrf = await (await fetch("/api/csrf-token")).json();
         const headers = {
           "Content-Type": "application/json",
@@ -84,7 +84,9 @@ test.describe("Transparansi — filter tahun (server-side)", () => {
     const has2025 = optionTexts.some((t) => t.includes("2025"));
     expect(has2025).toBe(true);
     const yearValues = await options.evaluateAll((els) =>
-      els.filter((el) => el.value !== "all").map((el) => el.value)
+      els
+        .filter((el) => (el as HTMLOptionElement).value !== "all")
+        .map((el) => (el as HTMLOptionElement).value)
     );
     expect(yearValues.length).toBeGreaterThanOrEqual(2);
 
@@ -104,8 +106,7 @@ test.describe("Transparansi — filter tahun (server-side)", () => {
     await page.waitForTimeout(2000);
 
     // Verifikasi item 2025 ada di API 2025.
-    const expIn2025 = await page.evaluate<boolean>(
-      async (name) => {
+    const expIn2025 = await page.evaluate(async (name: string): Promise<boolean> => {
         const r = await fetch("/api/bos-expenditures?year=2025&limit=1000");
         const d = await r.json();
         return d.items?.some((i: { item: string }) => i.item === name) ?? false;
@@ -137,7 +138,7 @@ test.describe("Transparansi — filter tahun (server-side)", () => {
     expect(allTotal).toBeGreaterThanOrEqual(1);
 
     // ---- Bersihkan data uji ----
-    await page.evaluate(async (data) => {
+    await page.evaluate(async (data: { expName: string; docTitle: string }): Promise<void> => {
       const csrf = await (await fetch("/api/csrf-token")).json();
       const headers = { "x-csrf-token": csrf.token };
 

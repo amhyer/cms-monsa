@@ -39,15 +39,16 @@ test.describe("Transparansi Anggaran (ARKAS / Dana BOS)", () => {
     ).toBeVisible();
 
     // Ambil baseline dari API — tidak hardcode seed.
-    const baseline = await page.evaluate<{ total: number; years: number[] }>(
-      async () => {
+    const baseline = await page.evaluate(async (): Promise<{ total: number; years: number[] }> => {
         const r = await fetch("/api/bos-expenditures?limit=1");
         const d = await r.json();
         // Dapatkan daftar tahun unik.
         const r2 = await fetch("/api/bos-expenditures?limit=1000");
         const d2 = await r2.json();
-        const years = [...new Set(d2.items.map((i: { year: number }) => i.year))];
-        return { total: d.total, years };
+        const years = [
+          ...new Set(d2.items.map((i: { year: number }) => i.year)),
+        ] as number[];
+        return { total: d.total as number, years };
       }
     );
 
@@ -399,7 +400,7 @@ test.describe("Transparansi Anggaran (ARKAS / Dana BOS)", () => {
     }
 
     // CLEANUP: hapus belanja uji lewat API.
-    const deleted = await page.evaluate<number>(async (items) => {
+    const deleted = await page.evaluate(async (items: string[]): Promise<number> => {
       const csrf = await (await fetch("/api/csrf-token")).json();
       let pg = 1;
       let hasMore = true;
@@ -548,7 +549,7 @@ test.describe("Transparansi Anggaran (ARKAS / Dana BOS)", () => {
     }
 
     // CLEANUP: hapus 11 dokumen uji lewat API (paginate).
-    const deleted = await page.evaluate<number>(async (names) => {
+    const deleted = await page.evaluate(async (names: string[]): Promise<number> => {
       const csrf = await (await fetch("/api/csrf-token")).json();
       let pg = 1;
       let hasMore = true;

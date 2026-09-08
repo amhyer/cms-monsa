@@ -24,7 +24,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 export { expect };
-export type { APIRequest } from "@playwright/test";
+export type { APIRequestContext } from "@playwright/test";
 
 /** Path laporan JSONL — override via E2E_MUTATION_REPORT (default %TEMP%). */
 export const E2E_MUTATION_REPORT =
@@ -99,11 +99,14 @@ export const test = base.extend({
                 query = q >= 0 ? url.slice(q) : "";
               }
               record(specFile, method, url, query);
-              return (target[prop] as (...a: unknown[]) => unknown)(...args);
+              // APIRequestContext tidak punya index signature — akses dinamis
+              // via Record<string, unknown> lalu panggil sebagai fungsi.
+              const fn = (target as unknown as Record<string, unknown>)[prop as string];
+              return (fn as (...a: unknown[]) => unknown)(...args);
             };
           }
           const v = Reflect.get(target, prop, receiver);
-          return typeof v === "function" ? v.bind(target) : v;
+          return typeof v === "function" ? (v as (...args: unknown[]) => unknown).bind(target) : v;
         },
       });
     await use(wrapped);

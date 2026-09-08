@@ -848,3 +848,13 @@ model UploadedFile {
 
   @@index([createdAt])
 }
+
+// Status alert storage upload — mencegah notifikasi terulang tiap cron
+// selama pemakaian masih di atas ambang (lihat src/lib/storage-alert.ts).
+model StorageAlertState {
+  id               String    @id @default("singleton")
+  aboveThreshold   Boolean   @default(false)
+  lastAlertedAt    DateTime?
+  lastUsagePercent Float?
+  updatedAt        DateTime  @updatedAt
+}

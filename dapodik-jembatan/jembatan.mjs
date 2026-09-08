@@ -11,13 +11,18 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
+import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PORT = Number(process.env.JEMBATAN_PORT || 3847);
 const HOST = "127.0.0.1";
-const CONFIG_PATH = path.join(__dirname, "jembatan-config.json");
+// Saat executable di-compile (pkg/bun), __dirname menunjuk snapshot read-only
+// yang tidak ada di disk → simpan config di samping file executable agar
+// bertahan lintas restart.
+const BASE_DIR = fs.existsSync(__dirname) ? __dirname : path.dirname(process.execPath);
+const CONFIG_PATH = path.join(BASE_DIR, "jembatan-config.json");
 
 const DEFAULTS = {
   cmsUrl: "https://sdn-mongisidi1.sch.id",
@@ -628,18 +633,155 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.on("error", (err) => {
-  if (err && err.code === "EADDRINUSE") {
-    console.error(`Port ${PORT} sedang dipakai. Tutup Jembatan Dapodik yang lama, lalu jalankan lagi.`);
-  } else {
-    console.error("Jembatan Dapodik gagal dijalankan:", err?.message || err);
-  }
-  process.exitCode = 1;
-});
+// ---------------------------------------------------------------------------
+// Mode CLI — subcommand: sync | preview | test | config | --help
+// Dipakai dari executable: `Jembatan-Dapodik.exe sync` (mis. Task Scheduler).
+// Memakai jalur chunked yang SAMA dengan UI browser (anti-504 di Vercel).
+// ---------------------------------------------------------------------------
 
-server.listen(PORT, HOST, () => {
-  const url = `http://${HOST}:${PORT}`;
-  console.log(`Jembatan Dapodik siap di ${url}`);
-  console.log("Tekan Ctrl+C untuk berhenti. Jangan tutup jendela ini selama penarikan.");
-  if (process.env.JEMBATAN_NO_BROWSER !== "1") openBrowser(url);
-});
+function cliConfig() {
+  const base = loadConfig();
+  const env = process.env;
+  return {
+    ...base,
+    cmsUrl: env.JEMBATAN_CMS_URL || base.cmsUrl,
+    bridgeToken: env.JEMBATAN_BRIDGE_TOKEN || base.bridgeToken,
+    npsn: env.JEMBATAN_NPSN || base.npsn,
+    token: env.JEMBATAN_TOKEN || base.token,
+    host: env.JEMBATAN_HOST || base.host,
+    port: Number(env.JEMBATAN_PORT || base.port) || 5774,
+    protocol: env.JEMBATAN_PROTOCOL || base.protocol,
+  };
+}
+
+function printSyncSummary(result) {
+  const s = result.siswa || {};
+  const g = result.gtk || {};
+  const r = result.rombel || {};
+  console.log("\n📊 Ringkasan:");
+  console.log(`   Sekolah: ${result.sekolah?.updated || 0} update`);
+  console.log(`   Siswa: +${s.created || 0} baru, ~${s.updated || 0} update, ${s.archived || 0} arsip`);
+  console.log(`   GTK: +${g.created || 0} baru, ~${g.updated || 0} update, ${g.archived || 0} arsip`);
+  console.log(`   Rombel: +${r.created || 0} baru`);
+  if (result._archive && result._archive.warning) {
+    console.log(`   ⚠️  Arsip data lama gagal: ${result._archive.error}`);
+  }
+}
+
+async function cmdSync(cfg, mode) {
+  const label = mode === "dry-run" ? "Pratinjau (dry-run)" : "Sinkronisasi";
+  console.log(`\n🚀 ${label}...\n`);
+  const data = await pullDapodik(cfg, (step) => {
+    const nama = { sekolah: "Sekolah", siswa: "Peserta didik", gtk: "GTK", rombel: "Rombel" }[step] || step;
+    console.log(`   ✓ Menarik ${nama}...`);
+  });
+  console.log(`   Total: ${data.peserta_didik.length} siswa, ${data.gtk.length} GTK, ${data.rombel.length} rombel\n`);
+  console.log(mode === "dry-run" ? "📤 Preview di CMS (tanpa mengubah data)..." : "📤 Mengirim ke CMS (chunked)...");
+  const result = await syncChunked(cfg, data, mode, (_mod, msg) => console.log(`   ${msg}`));
+  printSyncSummary(result);
+  return result;
+}
+
+async function cmdTest(cfg) {
+  console.log("\n🔍 Test koneksi Dapodik...");
+  const sekolah = await requestSingle(dapodikBase(cfg), cfg.npsn, cfg.token, "getSekolah");
+  console.log(`   ✅ Dapodik OK: ${sekolah?.nama || "-"} (NPSN: ${sekolah?.npsn || cfg.npsn})`);
+  console.log("🔍 Test koneksi CMS...");
+  const json = await postCms(cfg, { ping: true }, "dry-run");
+  console.log(`   ✅ CMS OK: ${json.message || "kunci pairing valid"}`);
+  console.log("\n✅ Semua koneksi berhasil!");
+}
+
+async function cmdConfig() {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const tanya = (q) => new Promise((resolve) => rl.question(q, resolve));
+  try {
+    console.log("\n⚙️  Setup Konfigurasi Jembatan Dapodik");
+    console.log("(Enter untuk memakai nilai default)\n");
+    const current = loadConfig();
+    const cmsUrl = (await tanya(`URL CMS [${current.cmsUrl}]: `)).trim() || current.cmsUrl;
+    const bridgeToken = (await tanya(`Kunci Pairing CMS [${current.bridgeToken ? "****" : "-"}]: `)).trim() || current.bridgeToken;
+    const npsn = (await tanya(`NPSN [${current.npsn}]: `)).trim() || current.npsn;
+    const token = (await tanya(`Token Dapodik [${current.token ? "****" : "-"}]: `)).trim() || current.token;
+    const host = (await tanya(`Host Dapodik [${current.host}]: `)).trim() || current.host;
+    const port = Number((await tanya(`Port Dapodik [${current.port}]: `)).trim()) || current.port;
+    saveConfig({ cmsUrl, bridgeToken, npsn, token, host, port });
+    console.log("\n✅ Konfigurasi disimpan!");
+    console.log(`   File: ${CONFIG_PATH}`);
+    console.log("💡 Jalankan 'Jembatan-Dapodik.exe test' untuk menguji koneksi\n");
+  } finally {
+    rl.close();
+  }
+}
+
+const CLI_HELP = `Jembatan Dapodik — CMS MONSA
+================================
+
+Tanpa argumen        : jalankan server + UI browser (mode sekolah).
+Subcommand (CLI):
+  sync               Tarik data dari Dapodik, kirim ke CMS (chunked, commit)
+  preview            Pratinjau tanpa mengubah data CMS (dry-run)
+  test               Uji koneksi Dapodik dan CMS
+  config             Konfigurasi interaktif (disimpan di samping aplikasi)
+  --help, -h         Tampilkan bantuan ini
+
+Contoh:
+  Jembatan-Dapodik.exe test
+  Jembatan-Dapodik.exe preview
+  Jembatan-Dapodik.exe sync
+
+Konfigurasi juga bisa diisi lewat environment variable:
+  JEMBATAN_CMS_URL, JEMBATAN_BRIDGE_TOKEN, JEMBATAN_NPSN, JEMBATAN_TOKEN,
+  JEMBATAN_HOST (default localhost), JEMBATAN_PORT (default 5774)
+
+File konfigurasi: ${CONFIG_PATH}
+`;
+
+async function runCli(command) {
+  switch (command) {
+    case "sync":
+      await cmdSync(cliConfig(), "commit");
+      break;
+    case "preview":
+      await cmdSync(cliConfig(), "dry-run");
+      break;
+    case "test":
+      await cmdTest(cliConfig());
+      break;
+    case "config":
+      await cmdConfig();
+      break;
+  }
+}
+
+// Dispatch: subcommand → CLI; tanpa argumen → server + UI (double-click).
+const command = process.argv[2];
+if (command === "--help" || command === "-h") {
+  console.log(CLI_HELP);
+} else if (command) {
+  if (!["sync", "preview", "test", "config"].includes(command)) {
+    console.error(`❌ Perintah tidak dikenal: ${command}`);
+    console.error("   Gunakan '--help' untuk daftar perintah.");
+    process.exit(1);
+  }
+  runCli(command).catch((err) => {
+    console.error("\n❌ Error:", err.message);
+    process.exit(1);
+  });
+} else {
+  server.on("error", (err) => {
+    if (err && err.code === "EADDRINUSE") {
+      console.error(`Port ${PORT} sedang dipakai. Tutup Jembatan Dapodik yang lama, lalu jalankan lagi.`);
+    } else {
+      console.error("Jembatan Dapodik gagal dijalankan:", err?.message || err);
+    }
+    process.exitCode = 1;
+  });
+
+  server.listen(PORT, HOST, () => {
+    const url = `http://${HOST}:${PORT}`;
+    console.log(`Jembatan Dapodik siap di ${url}`);
+    console.log("Tekan Ctrl+C untuk berhenti. Jangan tutup jendela ini selama penarikan.");
+    if (process.env.JEMBATAN_NO_BROWSER !== "1") openBrowser(url);
+  });
+}

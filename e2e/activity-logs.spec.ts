@@ -3,7 +3,7 @@ import { login, ADMIN } from "./helpers";
 
 test.describe("Activity Logs", () => {
   test("admin can view activity logs page", async ({ page }) => {
-    await login(page, ADMIN);
+    await login(page, ADMIN.email, ADMIN.password);
     await page.goto("/dashboard/logs");
     await page.waitForLoadState("networkidle");
 
@@ -15,7 +15,7 @@ test.describe("Activity Logs", () => {
   });
 
   test("activity logs shows filter and export buttons", async ({ page }) => {
-    await login(page, ADMIN);
+    await login(page, ADMIN.email, ADMIN.password);
     await page.goto("/dashboard/logs");
     await page.waitForLoadState("networkidle");
 
@@ -26,7 +26,7 @@ test.describe("Activity Logs", () => {
   });
 
   test("filter dropdown has entity options", async ({ page }) => {
-    await login(page, ADMIN);
+    await login(page, ADMIN.email, ADMIN.password);
     await page.goto("/dashboard/logs");
     await page.waitForLoadState("networkidle");
 

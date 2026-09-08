@@ -93,6 +93,12 @@ lagi dual-schema drift / "miskomunikasi" dev vs prod.
   frame-ancestors di next.config.ts) & `X-XSS-Protection` (deprecated) dan
   rewrite no-op dihapus; cron backup dipindah ke `0 18 * * *` (02.00 WITA,
   sebelumnya 02.00 UTC = 09.00 WITA).
+- **Pembersihan upload otomatis** — cron harian baru
+  `/api/cron/cleanup-uploads` (`30 18 * * *` UTC = 02.30 WITA, tetap 1×/hari
+  sehingga aman di Hobby) menghapus upload lama dari tabel `UploadedFile`
+  (bytea Neon) agar kuota storage gratis tidak cepat penuh; retensi default
+  90 hari, override `UPLOAD_RETENTION_DAYS` (nilai `<= 0` = nonaktif).
+  File yang direferensikan konten lama akan 404 setelah kedaluwarsa.
 
 #### Lainnya
 - `scripts/backup-db.sh` mengenali env `BACKUP_DIR`/`UPLOADS_DIR`/`RETENTION`
@@ -106,7 +112,42 @@ lagi dual-schema drift / "miskomunikasi" dev vs prod.
 ### ✨ Added
 - Model Prisma `UploadedFile` + migrasi `20260828120000_add_uploaded_file`.
 - `src/lib/file-storage.ts` + route serve `/uploads/[...path]`.
+- `src/lib/upload-cleanup.ts` + cron route `/api/cron/cleanup-uploads`
+  (pembersihan upload lama harian).
+- `src/lib/upload-stats.ts` + route `/api/storage-usage` (SUPER_ADMIN) +
+  script `bun run storage:usage` — laporan pemakaian storage `UploadedFile`
+  (jumlah file, total byte, rincian per mimeType, persen kuota bila
+  `NEON_STORAGE_QUOTA_MB` diset, dan kandidat cleanup berikutnya).
+- Refactor: semantik retensi upload satu owner — helper `retentionCutoff()`
+  di `upload-cleanup.ts` dipakai juga oleh `upload-stats`; script
+  `storage:usage` mengimpor lib (duplikasi query dihapus); env
+  `UPLOAD_RETENTION_DAYS` kosong kini dianggap tidak diset (default 90),
+  bukan menonaktifkan cleanup diam-diam.
+- Laporan dampak cleanup di `/api/storage-usage` + `storage:usage`:
+  berapa file kandidat hapus yang masih direferensikan konten (berita,
+  galeri, dokumen, dll. — rincian per entity via satu query UNION ALL),
+  sehingga admin tahu berapa konten yang akan 404 bila cron cleanup
+  dijalankan.
 - 19 unit test baru: `src/lib/__tests__/file-storage.test.ts`.
+- 7 unit test baru: `src/lib/__tests__/upload-cleanup.test.ts`.
+- 6 unit test baru: `src/lib/__tests__/upload-stats.test.ts`.
+
+### ✨ Added — Alert kuota storage (WhatsApp/Telegram)
+- Cron `/api/cron/storage-alert` (`0 19 * * *` UTC = 03.00 WITA, setelah
+  cleanup — Vercel Cron `CRON_SECRET`-protected) mengirim notifikasi ke
+  admin saat pemakaian storage `UploadedFile` melewati ambang persen dari
+  kuota Neon (`STORAGE_ALERT_THRESHOLD_PCT`, default 80).
+- `src/lib/storage-alert.ts`: logika ambang + hysteresis
+  (`STORAGE_ALERT_HYSTERESIS_PCT`, default 10) + dedup — notifikasi
+  terkirim SEKALI per persilangan, state durabel di tabel baru
+  `StorageAlertState` (migrasi `20260908000000_add_storage_alert_state`)
+  agar tidak terulang tiap cron walau instance Vercel cold-start.
+- `notifyAdmin()` baru di `src/lib/notifications.ts` — memakai kanal
+  yang sudah ada: WhatsApp Fonnte (`ADMIN_PHONE` + `FONNTE_TOKEN`) dan
+  Telegram (`TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID`); fire-and-forget,
+  kanal yang tidak dikonfigurasi dilewati.
+- 10 unit test baru: `src/lib/__tests__/storage-alert.test.ts` (8) +
+  `src/lib/__tests__/notifications.test.ts` (+2 untuk `notifyAdmin`).
 
 ---
 

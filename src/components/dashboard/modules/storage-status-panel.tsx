@@ -8,7 +8,9 @@
  *   - kandidat cleanup (file yang akan dihapus cron cleanup-uploads),
  *   - dampak referensi (kandidat yang masih dipakai konten → berisiko 404),
  *   - status alert terakhir (dari tabel StorageAlertState, ditulis cron
- *     /api/cron/storage-alert).
+ *     /api/cron/storage-alert),
+ *   - tombol Uji Kirim Alert — POST /api/notifications/test-alert untuk
+ *     memverifikasi jalur notifikasi admin (WA/TG) tanpa menunggu cron.
  *
  * Gagal memuat → kartu error ringkas dengan tombol coba lagi; panel tidak
  * pernah menggagalkan beranda (data dimuat terpisah dari /api/stats).
@@ -24,11 +26,13 @@ import {
   CircleX,
   AlertTriangle,
   RefreshCw,
+  Loader2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useAppStore } from "@/store/app";
+import { toast } from "sonner";
 import { formatBytes, formatDateTime } from "@/lib/format";
 
 type MimeStat = { mimeType: string; count: number; bytes: number };
@@ -97,6 +101,9 @@ export function StorageStatusPanel() {
   const [data, setData] = useState<StorageUsageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [testingAlert, setTestingAlert] = useState(false);
+  const [alertResult, setAlertResult] = useState<string | null>(null);
+  const [alertError, setAlertError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -116,6 +123,38 @@ export function StorageStatusPanel() {
   useEffect(() => {
     if (isAdmin) void load();
   }, [isAdmin, load]);
+
+  // Uji jalur alert admin (notifyAdmin) langsung dari panel — endpoint yang
+  // sama dengan tombol di Pengaturan. CSRF ditambahkan interceptor global
+  // (src/lib/csrf-client.ts), jadi cukup POST polos. Route mengembalikan
+  // HTTP 200 dengan success:false untuk kegagalan logis (mis. tanpa kanal).
+  async function handleTestAlert() {
+    setTestingAlert(true);
+    setAlertResult(null);
+    setAlertError(null);
+    try {
+      const res = await fetch("/api/notifications/test-alert", {
+        method: "POST",
+      });
+      const json = (await res.json()) as {
+        success?: boolean;
+        message?: string;
+        error?: string;
+      };
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Gagal mengirim alert uji");
+      }
+      setAlertResult(json.message ?? "Alert uji terkirim.");
+      toast.success(json.message ?? "Alert uji terkirim.");
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "Gagal mengirim alert uji";
+      setAlertError(msg);
+      toast.error(msg);
+    } finally {
+      setTestingAlert(false);
+    }
+  }
 
   if (!isAdmin) return null;
 
@@ -286,6 +325,34 @@ export function StorageStatusPanel() {
               </>
             )}
           </div>
+        </div>
+
+        {/* Uji alert dari panel — verifikasi jalur WA/TG tanpa menunggu cron */}
+        <div className="flex items-center justify-between gap-3 border-t pt-2">
+          <p className="min-w-0 flex-1 text-xs text-muted-foreground">
+            {alertError ? (
+              <span className="text-destructive">{alertError}</span>
+            ) : alertResult ? (
+              <span className="text-emerald-600 dark:text-emerald-400">
+                {alertResult}
+              </span>
+            ) : (
+              "Kirim pesan uji ke admin via WhatsApp/Telegram yang terkonfigurasi."
+            )}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void handleTestAlert()}
+            disabled={testingAlert}
+          >
+            {testingAlert ? (
+              <Loader2 className="mr-1 size-3 animate-spin" />
+            ) : (
+              <BellRing className="mr-1 size-3" />
+            )}
+            {testingAlert ? "Mengirim…" : "Uji Kirim Alert"}
+          </Button>
         </div>
 
         {/* Rincian jenis file + entitas perujuk */}

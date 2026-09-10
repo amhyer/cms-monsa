@@ -135,6 +135,129 @@ jobs:
       - name: Build
         run: bun run build
 
+  # ── Docker image gate ────────────────────────────────────────────────────────
+  # Membangun image produksi (Dockerfile) + smoke boot pada setiap PR & push
+  # main — jalur deploy self-host (docker compose up → entrypoint `prisma
+  # migrate deploy` → server) digate sama seperti jalur Vercel (job validate
+  # + deploy-vercel.yml). Tanpa job ini, Dockerfile bisa rusak di PR tanpa
+  # ada yang menyadarinya sampai deployment self-host berikutnya.
+  #
+  # Smoke boot membuktikan per PERILAKU (bukan sekadar image terkompilasi):
+  #   1. entrypoint menjalankan `prisma migrate deploy` di DB KOSONG
+  #      (service postgres di atas) — seluruh migrasi masuk tanpa gagal;
+  #   2. server produksi (node server.js, output standalone) listen di :3000;
+  #   3. /api/health 200 dengan checks.db ok (DB nyata, bukan mock).
+  # Tag memakai github.run_id — unik per run, tak perlu tahu nomor PR.
+  docker-build:
+    name: Docker build & boot smoke
+    runs-on: ubuntu-latest
+    # Service postgres untuk smoke boot — DB "docker_smoke" sengaja KOSONG:
+    # entrypoint container membangun skema dari nol via `prisma migrate
+    # deploy` (persis jalur produksi self-host pada boot pertama).
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: docker_smoke
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Cache GHA: layer deps (bun install + prisma generate) dan build
+      # Next di-cache antar run — build ulang hanya mengompilasi layer yang
+      # berubah, bukan dari nol. mode=max agar layer stage builder ikut
+      # tersimpan (bukan hanya layer terakhir).
+      - name: Build production image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: cms-monsa:ci-${{ github.run_id }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # --network host: container app memakai jaringan host runner (pola
+      # sama dengan job orphan-check — pg_dump via 127.0.0.1), sehingga
+      # DATABASE_URL menunjuk service postgres job ini, bukan ke dalam
+      # container app sendiri.
+      - name: Boot container against fresh DB (entrypoint migrate)
+        run: |
+          docker run -d --name monsa-smoke --network host \
+            -e DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/docker_smoke?schema=public" \
+            -e AUTH_SECRET="ci-insecure-smoke-secret" \
+            cms-monsa:ci-${{ github.run_id }}
+
+      # Sehat = migrate deploy sukses + server standalone listen + health
+      # 200 dengan checks.db ok (route health mem-query DB nyata dan 503
+      # bila gagal). Poll 120 detik — start-period healthcheck image 60s.
+      - name: Smoke — wait for /api/health healthy
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:3000/api/health | grep -q '"status":"healthy"'; then
+              echo "Container healthy setelah ~$((i * 2)) detik."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Container tidak healthy dalam 120 detik — log di bawah."
+          docker logs monsa-smoke
+          exit 1
+
+      # Bukti migrate path dari SISI DATABASE (bukan hanya health): skema
+      # dibangun oleh entrypoint `prisma migrate deploy`, bukan db push —
+      #   1. ada migrasi yang diterapkan (entrypoint benar-benar jalan);
+      #   2. tidak ada migrasi gagal / di-rollback;
+      #   3. tabel User punya kolom mustChangePassword — REGRESI drift
+      #      2026-09-08: kolom ini hilang di DB hasil migrate deploy sehingga
+      #      login error P2022. Hilang lagi = gate ini merah sebelum deploy.
+      - name: Smoke — verify migrate deploy result via psql
+        run: |
+          psqlq() {
+            docker run --rm --network host -e PGPASSWORD=postgres postgres:16-alpine \
+              psql -h 127.0.0.1 -U postgres -d docker_smoke -tAc "$1"
+          }
+          FAIL=0
+          TOTAL=$(psqlq "select count(*) from \"_prisma_migrations\"")
+          FAILED=$(psqlq "select count(*) from \"_prisma_migrations\" where finished_at is null or rolled_back_at is not null")
+          USERCOL=$(psqlq "select count(*) from information_schema.columns where table_name='User' and column_name='mustChangePassword'")
+          TOTAL=${TOTAL:-0}; FAILED=${FAILED:-"?"}; USERCOL=${USERCOL:-0}
+          if [ "$TOTAL" -ge 1 ]; then
+            echo "✓ migrate deploy diterapkan ($TOTAL migrasi)."
+          else
+            echo "::error::Tidak ada migrasi diterapkan — entrypoint tidak jalan? Log:"; docker logs monsa-smoke; FAIL=1
+          fi
+          if [ "$FAILED" = 0 ]; then
+            echo "✓ tidak ada migrasi gagal/rollback."
+          else
+            echo "::error::$FAILED migrasi gagal/rollback di _prisma_migrations."; FAIL=1
+          fi
+          if [ "$USERCOL" -eq 1 ]; then
+            echo "✓ kolom mustChangePassword ada di tabel User."
+          else
+            echo "::error::Kolom mustChangePassword hilang di User — drift migrations↔schema (kasus 2026-09-08) kembali terjadi."; FAIL=1
+          fi
+          exit $FAIL
+
+      - name: Dump container logs on failure
+        if: failure()
+        run: docker logs monsa-smoke
+
+      - name: Remove smoke container
+        if: always()
+        run: docker rm -f monsa-smoke
+
   # Gate pre-commit EXACT — SUMBER TUNGGAL di hooks-gate.yml (reusable
   # workflow, dipakai juga playwright.yml) supaya tidak ada drift antara
   # pengalaman developer (pre-commit) dan CI sebelum merge.

@@ -102,6 +102,8 @@ ls -la .next/
 - [ ] PostgreSQL database sudah dibuat
 - [ ] `prisma migrate deploy` sudah dijalankan
   (jalur Docker: otomatis via entrypoint container — `RUN_MIGRATIONS`)
+  - DB lama yang dibuat via `db push` → `deploy` gagal `P3005`; baseline sekali
+    dulu: [docs/RUNBOOK-BASELINE-NEON.md](RUNBOOK-BASELINE-NEON.md)
 - [ ] Drift check lulus — riwayat migrasi selaras dengan `schema.prisma`
   (CI `ci.yml` + pre-deploy `deploy-vercel.yml` menjalankan
   `check:schema-migrations` otomatis; jalur manual: `bun run
@@ -123,11 +125,13 @@ ls -la .next/
   (`uploads-data:/app/public/uploads` — sudah default di docker-compose.yml)
 - [ ] Docker/self-host: backup ikut mengarsipkan uploads
 - [ ] Alert kuota diverifikasi dengan tombol **Uji Kirim Alert**
-  (dashboard → Pengaturan → Alert Admin (cron)) — mengirim pesan uji via
-  `notifyAdmin` ke kanal yang dikonfigurasi tanpa menunggu cron
+  (dashboard → panel **Storage Upload**, atau Pengaturan → Alert Admin
+  (cron)) — mengirim pesan uji via `notifyAdmin` ke kanal yang
+  dikonfigurasi tanpa menunggu cron
 - [ ] Panel **Storage Upload** di beranda dashboard (SUPER_ADMIN)
-  menampilkan pemakaian kuota, kandidat cleanup, dan dampak referensi —
-  pemantauan harian tanpa membuka `/api/storage-usage` langsung
+  menampilkan pemakaian kuota, kandidat cleanup, dampak referensi, dan
+  tombol **Uji Kirim Alert** — pemantauan harian tanpa membuka
+  `/api/storage-usage` langsung
 - [ ] Self-host: cron alert kuota tetap jalan setelah migrasi —
   `docker-compose.cron.yml` memanggil `/api/cron/cleanup-uploads` (02.30)
   dan `/api/cron/storage-alert` (03.00, TZ Asia/Makassar) dengan header

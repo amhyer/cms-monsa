@@ -105,6 +105,12 @@ npx prisma migrate deploy
 > and then runs `prisma migrate deploy` + seed against Neon. The manual
 > commands above are only for ad-hoc deployments; the drift check is the
 > reason a `prisma db push`-only schema change will fail CI.
+>
+> **First run against an existing db-pushed database?** If `migrate deploy`
+> fails with `P3005` ("The database schema is not empty"), the production DB
+> was created via `db push` and must be baselined once before migrations can
+> take over — follow `docs/RUNBOOK-BASELINE-NEON.md` (validated end-to-end,
+> no downtime, no data changes).
 #   ^ also applies prisma/migrations/*_add_dapodik_allow_insecure/
 #     (adds the allowInsecureInProduction column to DapodikConfig)
 
@@ -192,8 +198,10 @@ Requires the notification env vars (`ADMIN_PHONE` + `FONNTE_TOKEN` for
 WhatsApp, `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` for Telegram);
 unconfigured channels are skipped silently. To verify the exact alert
 pipeline without waiting for the cron, use the **"Uji Kirim Alert"**
-button on the dashboard settings page (notifications section) — it calls
-`POST /api/notifications/test-alert` and reports the per-channel result.
+button — available on the dashboard home inside the **Storage Upload**
+panel (SUPER_ADMIN) and on the settings page (notifications section). It
+calls `POST /api/notifications/test-alert` and reports the per-channel
+result.
 
 Migration: the `UploadedFile` table is created by migration
 `20260828120000_add_uploaded_file` (applied by `prisma migrate deploy`).

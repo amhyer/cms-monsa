@@ -9,8 +9,18 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Install dependencies based on the preferred package manager
+# Bun diambil sebagai binary tunggal dari image resmi oven/bun — BUKAN
+# corepack: corepack hanya mengelola package manager yang didukung npm
+# (npm/pnpm/yarn) dan menolak spec `bun@latest` ("Unsupported package
+# manager specification") pada node:20-alpine terbaru. Binary bun
+# self-contained (satu file, tanpa runtime tambahan), jadi COPY antar
+# image cukup.
+COPY --from=oven/bun:1-alpine /usr/local/bin/bun /usr/local/bin/bun
+# Schema Prisma ikut di-copy: postinstall project menjalankan `prisma
+# generate`, yang mencari prisma/schema.prisma — tanpa file ini `bun
+# install` gagal di stage deps.
+COPY prisma/schema.prisma ./prisma/schema.prisma
 COPY package.json bun.lock ./
-RUN corepack enable && corepack prepare bun@latest --activate
 RUN bun install --frozen-lockfile
 
 # ── Stage 2: Build ────────────────────────────────────────────────────────────
@@ -18,10 +28,11 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # bun harus di-install lagi di stage ini — stage adalah image terpisah; bun
-# yang di-activate via corepack di stage `deps` TIDAK ikut ter-copy ke sini
-# (hanya node_modules yang di-copy). Tanpa ini `bun run build` gagal
-# ("bun: not found").
-RUN corepack enable && corepack prepare bun@latest --activate
+# yang di-copy di stage `deps` TIDAK ikut ter-copy ke sini (hanya
+# node_modules yang di-copy). Tanpa ini `bun run build` gagal
+# ("bun: not found"). Lihat komentar stage deps: binary dari oven/bun,
+# bukan corepack (corepack menolak spec bun).
+COPY --from=oven/bun:1-alpine /usr/local/bin/bun /usr/local/bin/bun
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -41,6 +52,21 @@ ENV DATABASE_URL="postgresql://build:build@localhost:5432/build"
 ENV AUTH_SECRET="build-time-dummy-secret-not-used-at-runtime"
 RUN bun run build
 
+# ── Stage: Prisma CLI (versi disamakan dengan builder) ────────────────────────
+# Runner menyalin node_modules secara piecemeal — itu TIDAK cukup untuk CLI
+# Prisma: @prisma/config punya dependensi runtime (effect, c12, deepmerge-ts,
+# empathic + transitifnya) yang tidak ikut bila hanya folder `prisma` yang
+# disalin (gejala: "Cannot find module 'effect'" saat entrypoint menjalankan
+# `prisma migrate deploy`). Stage ini memasang HANYA CLI prisma; versinya
+# dibaca dari package.json yang sudah terpasang di builder supaya selalu
+# identik tanpa perlu di-update manual saat Prisma di-upgrade.
+FROM oven/bun:1-alpine AS prisma-cli
+WORKDIR /cli
+COPY --from=builder /app/node_modules/prisma/package.json ./prisma-package.json
+RUN echo '{"name":"prisma-cli","private":true}' > package.json \
+  && bun -e "console.log(JSON.parse(require('fs').readFileSync('prisma-package.json','utf8')).version)" > .prisma-version \
+  && bun add "prisma@$(cat .prisma-version)"
+
 # ── Stage 3: Production ───────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
 WORKDIR /app
@@ -57,11 +83,14 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Copy Prisma client and schema
+# CLI Prisma dengan pohon dependensi RUNTIME utuh (stage prisma-cli) —
+# dibutuhkan entrypoint untuk `prisma migrate deploy`. Disalin SEBELUM
+# potongan dari builder agar binari engine platform linux-musl dari builder
+# (hasil install yang sama dengan generate client) yang menang bila path
+# tumpang tindih.
+COPY --from=prisma-cli /cli/node_modules ./node_modules
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-# Prisma CLI — dibutuhkan entrypoint untuk `prisma migrate deploy`
-# (paket `prisma` self-contained; engine binary sudah ikut di
-# node_modules/@prisma/engines dari stage builder).
 COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder /app/prisma ./prisma
 

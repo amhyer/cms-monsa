@@ -5,6 +5,42 @@
 
 ---
 
+## [Unreleased] - 2026-09-10
+
+### 📖 Added — Runbook baseline database db-pushed
+
+`docs/RUNBOOK-BASELINE-NEON.md`: prosedur aman menyerahkan database Neon
+produksi yang dibangun lewat `prisma db push` kepada `prisma migrate deploy`
+(baseline `prisma migrate resolve`, tanpa downtime, tanpa perubahan data).
+Prosedur tervalidasi end-to-end terhadap Postgres 16 nyata — termasuk gerbang
+paritas `migrate diff` (wajib lulus sebelum resolve, karena `resolve` tidak
+memvalidasi apa pun) dan pemulihan salah baseline (DELETE buku besar —
+`resolve --rolled-back` terbukti ditolak dengan P3012). Dirujuk dari
+dokumen deployment saat `P3005` ditemui.
+
+### 🛠 Added — Gate CI untuk image Docker produksi
+
+Job `docker-build` baru di `.github/workflows/ci.yml` membangun image
+produksi (Dockerfile) pada setiap PR & push main, lalu melakukan smoke boot
+perilaku: container dijalankan terhadap Postgres service CI yang kosong agar
+entrypoint `prisma migrate deploy` benar-benar dieksekusi, menunggu
+`/api/health` healthy, dan memverifikasi hasil migrasi dari sisi database
+(`_prisma_migrations` terisi tanpa rollback, kolom `mustChangePassword` ada di
+tabel `User` — regresi drift 2026-09-08). Jalur self-host kini digate sama
+seperti jalur Vercel.
+
+Perbaikan yang ditemukan gate ini sejak run pertamanya (Dockerfile sebelumnya
+tidak bisa di-build dari nol):
+
+- `corepack prepare bun@latest` ditolak corepack versi baru (bun bukan
+  package manager yang didukung corepack) — bun kini di-copy sebagai binary
+  tunggal dari `oven/bun:1-alpine`.
+- Postinstall `prisma generate` gagal di stage deps karena schema tidak ada —
+  `prisma/schema.prisma` kini ikut di-copy.
+- CLI Prisma di runner kehilangan dependensi runtime (`effect`, dll.) karena
+  penyalinan node_modules piecemeal — kini dipasang di stage `prisma-cli`
+  tersendiri dengan versi yang dibaca dari builder.
+
 ## [Unreleased] - 2026-09-09
 
 ### 🛠 Added — Panel status storage di beranda dashboard
@@ -50,7 +86,9 @@ jalan bila kosong). Panduan: docs/MIGRATION-VERCEL-TO-SELFHOST.md §5.1.
 
 ### 🛠 Added — Tombol "Uji Kirim Alert" di pengaturan notifikasi
 
-Kartu **Alert Admin (cron)** di halaman Pengaturan mengirim pesan uji via
+Kartu **Alert Admin (cron)** di halaman Pengaturan — dan kini juga tombol
+dengan nama sama di panel **Storage Upload** beranda dashboard — mengirim
+pesan uji via
 `notifyAdmin` (src/lib/notifications.ts) — jalur persis yang dipakai cron
 alert kuota storage: satu pesan ke semua kanal terkonfigurasi sekaligus
 (WhatsApp via `ADMIN_PHONE` + `FONNTE_TOKEN`, Telegram via

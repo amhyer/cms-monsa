@@ -79,6 +79,11 @@ Migrasi kolom `allowInsecureInProduction` (tabel `DapodikConfig`):
 > `prisma migrate dev` — `db push` tidak mencatat file migrasi dan akan
 > membuat check ini gagal (kasus nyata 2026-09-08: drift 519 baris).
 
+> Database lama yang dibangun via `db push` (Neon maupun self-host) akan
+> menolak `migrate deploy` pertama dengan `P3005` — baseline sekali dengan
+> `prisma migrate resolve` sebelum migrasi mengambil alih: prosedur aman
+> lengkap di [RUNBOOK-BASELINE-NEON.md](RUNBOOK-BASELINE-NEON.md).
+
 Verifikasi kolom sudah ada di DB (bukan error "kolom tidak ditemukan"):
 
 ```sql

@@ -8,6 +8,8 @@
  * 4. Tanpa kuota (NEON_STORAGE_QUOTA_MB) → total saja + petunjuk env.
  * 5. Non-admin → tidak merender apa pun, tidak memanggil API.
  * 6. Gagal fetch → kartu error dengan tombol coba lagi.
+ * 7. Tombol Uji Kirim Alert → POST /api/notifications/test-alert,
+ *    hasil sukses/gagal tampil inline.
  */
 
 import { render, screen, act } from "@testing-library/react";
@@ -152,5 +154,55 @@ describe("StorageStatusPanel", () => {
     expect(
       screen.getByRole("button", { name: /Coba lagi/ })
     ).toBeInTheDocument();
+  });
+
+  it("Uji Kirim Alert → POST test-alert dan tampilkan hasil sukses", async () => {
+    render(<StorageStatusPanel />);
+    await flushAsync();
+
+    // Respons route untuk klik berikutnya (GET storage-usage sudah memakai
+    // mock default).
+    h.fetchMock.mockImplementationOnce(async () =>
+      okResponse({
+        success: true,
+        channels: { whatsapp: false, telegram: true },
+        message: "Alert uji terkirim via Telegram.",
+      })
+    );
+
+    await act(async () => {
+      (screen.getByRole("button", { name: /Uji Kirim Alert/ }) as HTMLButtonElement).click();
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    expect(h.fetchMock).toHaveBeenCalledWith("/api/notifications/test-alert", {
+      method: "POST",
+    });
+    expect(screen.getByText(/terkirim via Telegram/)).toBeInTheDocument();
+  });
+
+  it("Uji Kirim Alert gagal (success:false) → pesan error tampil inline", async () => {
+    render(<StorageStatusPanel />);
+    await flushAsync();
+
+    h.fetchMock.mockImplementationOnce(async () =>
+      okResponse({
+        success: false,
+        whatsappConfigured: false,
+        telegramConfigured: false,
+        error: "Tidak ada kanal aktif. Set ADMIN_PHONE + FONNTE_TOKEN.",
+      })
+    );
+
+    await act(async () => {
+      (screen.getByRole("button", { name: /Uji Kirim Alert/ }) as HTMLButtonElement).click();
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    expect(screen.getByText(/Tidak ada kanal aktif/)).toBeInTheDocument();
+    // Tombol kembali aktif setelah gagal — bisa dicoba ulang.
+    expect(
+      (screen.getByRole("button", { name: /Uji Kirim Alert/ }) as HTMLButtonElement).disabled
+    ).toBe(false);
   });
 });

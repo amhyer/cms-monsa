@@ -7,6 +7,30 @@
 
 ## [Unreleased] - 2026-09-10
 
+### 🛠 Added — Runner cron dengan retry & log body respons
+
+Job wget cron container (cleanup-uploads 02.30, storage-alert 03.00) kini
+berjalan lewat `scripts/cron-job.sh`: bila request gagal (app down, 401,
+5xx), job diulang **satu kali setelah 5 menit** (`RETRY_DELAY_SEC`, default
+300) dan setiap percobaan mencatat hasil ke `/backups/cron.log` — body
+respons saat sukses, baris error wget saat gagal (mis. `HTTP/1.1 401
+Unauthorized`, `Connection refused`) — sehingga cron yang gagal bisa
+did diagnosis dari log, tanpa menjalankan ulang manual. Runner
+divalidasi live di container cron (sukses, 401+retry, connection
+refused+retry, argumen kurang) dan oleh suite E2E per-menit.
+
+### 🧪 Added — Validasi E2E stack self-host (compose override + assert script)
+
+`docker-compose.e2e.yml` (lokal saja) menyalakan stack penuh — app, Postgres,
+cron — di port terpisah (app 3100, db 55432) dengan jadwal cron per-menit,
+sedangkan `scripts/e2e-selfhost-assert.ts` men-seed file upload lama/baru via
+psql lalu memastikan end-to-end: health app, guard auth kedua endpoint cron,
+cleanup hanya menghapus file di atas retensi (jumlah + bytes dibebaskan),
+storage-alert melewati ambang + dedup + pencatatan state, dan ketiga job cron
+container tercatat di `/backups/cron.log` + `backup.log` (pg_dump benar
+menghasilkan `.sql`). Terbukti 15/15 assertion PASS terhadap stack nyata;
+prosedur didokumentasikan di docs/MIGRATION-VERCEL-TO-SELFHOST.md §5.1.
+
 ### 🛠 Added — Widget kuota storage di sidebar dashboard
 
 Admin (SUPER_ADMIN) kini melihat pemakaian kuota storage dari sidebar

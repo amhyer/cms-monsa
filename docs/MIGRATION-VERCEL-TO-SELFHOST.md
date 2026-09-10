@@ -333,6 +333,31 @@ docker compose exec cron wget -qO- --header "Authorization: Bearer $CRON_SECRET"
   http://app:3000/api/cron/storage-alert
 ```
 
+Kedua job wget dijalankan lewat runner `scripts/cron-job.sh`: bila request
+hasil gagal (app down, 401, 5xx), job **diulang satu kali setelah 5 menit**
+(`RETRY_DELAY_SEC`) dan setiap percobaan dicatat ke `/backups/cron.log`
+bersama body/error respons — penyebab kegagalan kelihatan tanpa
+menjalankan ulang manual. Jeda ulangan bisa diubah lewat env
+`RETRY_DELAY_SEC` pada service cron.
+
+> **Uji E2E penuh sebelum go-live (opsional tapi disarankan):** override
+> `docker-compose.e2e.yml` menyalakan stack penuh (app + postgres + cron) di
+> port terpisah dengan jadwal cron per-menit, lalu script
+> `scripts/e2e-selfhost-assert.ts` men-seed file lama/baru dan memastikan
+> ketiga job cron (cleanup, storage-alert, backup) benar-benar berjalan:
+>
+> ```bash
+> REDIS_URL= POSTGRES_PASSWORD=e2e-pass CRON_SECRET=e2e-cron-secret \
+>   docker compose -p monsa-e2e -f docker-compose.yml -f docker-compose.cron.yml \
+>   -f docker-compose.e2e.yml up -d
+> bun scripts/e2e-selfhost-assert.ts   # tunggu ~3 menit (menunggu siklus cron)
+> docker compose -p monsa-e2e -f docker-compose.yml -f docker-compose.cron.yml \
+>   -f docker-compose.e2e.yml down -v
+> ```
+>
+> CATATAN: override E2E menimpa port & jadwal — **jangan pernah** dipakai di
+> produksi. `REDIS_URL=` kosong penting bila `.env` dev berisi Redis lokal.
+
 > **Ganti cron Vercel:** cron `/api/cron/backup` (Neon branch) tidak relevan
 > lagi — hapus dari `vercel.json` di repo bila Vercel dipertahankan sebagai
 > rollback, atau nonaktifkan project Vercel (Fase 5.4). Cron

@@ -7,6 +7,18 @@
 
 ## [Unreleased] - 2026-09-10
 
+### 🛠 Added — Widget kuota storage di sidebar dashboard
+
+Admin (SUPER_ADMIN) kini melihat pemakaian kuota storage dari sidebar
+dashboard di semua halaman admin, bukan hanya di beranda. Widget mini
+menampilkan bar pemakaian berwarna sesuai tingkat (≥80% merah), total
+bytes, jumlah file, dan kandidat cleanup; klik widget menuju beranda
+(section **Storage Upload**) untuk rincian referensi, status alert, dan
+aksi (uji alert). Auto-refresh tiap 2 menit; gagal memuat tidak
+tampilkan apa-apa di sidebar (tanpa kotak error). Panel beranda dan
+widget kini memakai satu hook bersama (`useStorageUsage`) — satu pemilik
+logika fetch `/api/storage-usage`.
+
 ### 🛠 Added — Riwayat kirim alert kuota di kartu Alert Admin
 
 Cron alert kuota storage kini mencatat hasil pengiriman terakhirnya di

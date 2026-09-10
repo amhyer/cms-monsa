@@ -16,7 +16,7 @@
  * pernah menggagalkan beranda (data dimuat terpisah dari /api/stats).
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import {
   HardDrive,
   BellRing,
@@ -34,28 +34,10 @@ import { Progress } from "@/components/ui/progress";
 import { useAppStore } from "@/store/app";
 import { toast } from "sonner";
 import { formatBytes, formatDateTime } from "@/lib/format";
-
-type MimeStat = { mimeType: string; count: number; bytes: number };
-
-type StorageUsageData = {
-  fileCount: number;
-  totalBytes: number;
-  byMimeType: MimeStat[];
-  quotaBytes: number | null;
-  usagePercent: number | null;
-  cleanupCandidates: number | null;
-  impact: {
-    referencedCandidates: number;
-    safeCandidates: number;
-    byEntity: Record<string, number>;
-  } | null;
-  alertState: {
-    aboveThreshold: boolean;
-    lastAlertedAt: string | null;
-    lastUsagePercent: number | null;
-  } | null;
-  timestamp: string;
-};
+import {
+  useStorageUsage,
+  type StorageUsageData,
+} from "@/hooks/use-storage-usage";
 
 /**
  * Warna bar sesuai tingkat pemakaian. Literal penuh (bukan gabungan dinamis)
@@ -98,31 +80,12 @@ function StatLine({
 
 export function StorageStatusPanel() {
   const isAdmin = useAppStore((s) => s.user?.role === "SUPER_ADMIN");
-  const [data, setData] = useState<StorageUsageData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  // Interval 0 → tanpa auto-refresh (panel punya tombol muat-ulang sendiri);
+  // enabled=false untuk non-admin → tidak ada panggilan API sama sekali.
+  const { data, error, loading, refresh } = useStorageUsage(0, isAdmin);
   const [testingAlert, setTestingAlert] = useState(false);
   const [alertResult, setAlertResult] = useState<string | null>(null);
   const [alertError, setAlertError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(false);
-    try {
-      const res = await fetch("/api/storage-usage", { cache: "no-store" });
-      if (!res.ok) throw new Error();
-      const json = (await res.json()) as StorageUsageData;
-      setData(json);
-    } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (isAdmin) void load();
-  }, [isAdmin, load]);
 
   // Uji jalur alert admin (notifyAdmin) langsung dari panel — endpoint yang
   // sama dengan tombol di Pengaturan. CSRF ditambahkan interceptor global
@@ -187,7 +150,7 @@ export function StorageStatusPanel() {
           <p className="text-sm text-muted-foreground">
             Gagal memuat laporan storage.
           </p>
-          <Button variant="outline" size="sm" onClick={() => void load()}>
+          <Button variant="outline" size="sm" onClick={refresh}>
             <RefreshCw className="mr-1 size-3" /> Coba lagi
           </Button>
         </CardContent>
@@ -207,7 +170,7 @@ export function StorageStatusPanel() {
           <HardDrive className="size-4 text-gold-foreground" />
           Storage Upload
         </CardTitle>
-        <Button variant="ghost" size="sm" onClick={() => void load()}>
+        <Button variant="ghost" size="sm" onClick={refresh} aria-label="Muat ulang laporan storage">
           <RefreshCw className="size-3.5" />
         </Button>
       </CardHeader>

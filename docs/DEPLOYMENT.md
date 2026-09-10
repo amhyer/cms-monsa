@@ -72,6 +72,13 @@ Migrasi kolom `allowInsecureInProduction` (tabel `DapodikConfig`):
   lebih dari satu instance app).
 - Dev: `bun run db:push` (PostgreSQL — dev = produksi, satu skema).
 
+> **Kawalan drift migrasi (CI)**: `ci.yml` memeriksa keselarasan riwayat
+> migrasi dengan `schema.prisma` (`bun run check:schema-migrations`) di
+> setiap PR, dan `deploy-vercel.yml` memeriksanya lagi sebelum
+> `migrate deploy` ke Neon. Karena itu, ubah skema lewat
+> `prisma migrate dev` — `db push` tidak mencatat file migrasi dan akan
+> membuat check ini gagal (kasus nyata 2026-09-08: drift 519 baris).
+
 Verifikasi kolom sudah ada di DB (bukan error "kolom tidak ditemukan"):
 
 ```sql

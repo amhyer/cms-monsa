@@ -306,13 +306,40 @@ docker compose -f docker-compose.yml -f docker-compose.ssl.yml -f docker-compose
 docker compose ps cron
 ```
 
-Container `cron` menjalankan `scripts/backup-db.sh` tiap **02.00 Asia/Makassar**
-(`TZ` dari env), rotasi 14 backup, menyimpan `db-*.sql` + `uploads-*.tar.gz`
-ke volume `backups-data`.
+Container `cron` menjalankan tiga job harian (zona waktu Asia/Makassar, `TZ`
+dari env):
+
+| Jam | Job | Cara kerja |
+|-----|-----|------------|
+| 02.00 | Backup DB + uploads | `scripts/backup-db.sh` (pg_dump + tar), rotasi 14 backup ke volume `backups-data` |
+| 02.30 | Cleanup upload lama | `wget http://app:3000/api/cron/cleanup-uploads` dengan header `Authorization: Bearer $CRON_SECRET` |
+| 03.00 | **Alert kuota storage** | `wget http://app:3000/api/cron/storage-alert` (header sama) — WhatsApp/Telegram ke admin saat pemakaian melewati ambang |
+
+Dua job terakhir memanggil endpoint app yang sama dengan Vercel Cron — jadi
+semantik dedup/hysteresis alert dan logika retensi cleanup identik, tanpa
+duplikasi. Prasyarat di `.env`:
+
+- `CRON_SECRET` **wajib** (dipakai container cron DAN service app — nilai
+  sama; compose gagal jalan bila kosong),
+- `NEON_STORAGE_QUOTA_MB` agar alert punya dasar persen (di self-host ini
+  "referensi kuota", bukan kuota Neon),
+- `ADMIN_PHONE`/`FONNTE_TOKEN`/`TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` sesuai
+  kanal yang diinginkan.
+
+Verifikasi cepat tanpa menunggu jadwal:
+
+```bash
+docker compose exec cron wget -qO- --header "Authorization: Bearer $CRON_SECRET" \
+  http://app:3000/api/cron/storage-alert
+```
 
 > **Ganti cron Vercel:** cron `/api/cron/backup` (Neon branch) tidak relevan
 > lagi — hapus dari `vercel.json` di repo bila Vercel dipertahankan sebagai
-> rollback, atau nonaktifkan project Vercel (Fase 5.4).
+> rollback, atau nonaktifkan project Vercel (Fase 5.4). Cron
+> `cleanup-uploads` & `storage-alert` di Vercel juga bisa dihapus: container
+> cron self-host sudah mengambil alih keduanya (berlaku untuk DB lokal;
+> selama app masih menunjuk Neon, pilih SATU tempat penjadwal agar tidak
+> dobel kirim notifikasi).
 
 ### 5.2 (Opsional) Pembersihan upload lama di self-host
 

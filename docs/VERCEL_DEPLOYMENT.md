@@ -98,6 +98,13 @@ vercel link
 # Run migrations
 vercel env pull .env.local
 npx prisma migrate deploy
+
+> **Automated path**: pushing to `main` runs the GitHub workflow
+> `deploy-vercel.yml`, which first checks migrations ↔ `schema.prisma` drift
+> (`bun run check:schema-migrations` against an ephemeral shadow Postgres)
+> and then runs `prisma migrate deploy` + seed against Neon. The manual
+> commands above are only for ad-hoc deployments; the drift check is the
+> reason a `prisma db push`-only schema change will fail CI.
 #   ^ also applies prisma/migrations/*_add_dapodik_allow_insecure/
 #     (adds the allowInsecureInProduction column to DapodikConfig)
 
@@ -183,7 +190,10 @@ while usage stays above the threshold: the state is persisted in the
 below `threshold − STORAGE_ALERT_HYSTERESIS_PCT` (default 10 points).
 Requires the notification env vars (`ADMIN_PHONE` + `FONNTE_TOKEN` for
 WhatsApp, `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` for Telegram);
-unconfigured channels are skipped silently.
+unconfigured channels are skipped silently. To verify the exact alert
+pipeline without waiting for the cron, use the **"Uji Kirim Alert"**
+button on the dashboard settings page (notifications section) — it calls
+`POST /api/notifications/test-alert` and reports the per-channel result.
 
 Migration: the `UploadedFile` table is created by migration
 `20260828120000_add_uploaded_file` (applied by `prisma migrate deploy`).

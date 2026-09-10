@@ -36,13 +36,50 @@ jobs:
   validate:
     name: Typecheck, Lint, Test & Build
     runs-on: ubuntu-latest
+    # Dua service Postgres untuk step "Check schema/migrations drift":
+    # postgres (DB "ci_dummy" — juga dipakai PrismaClient build-time) dan
+    # postgres-shadow (DB "shadow_ci" kosong untuk `prisma migrate diff`).
+    # Dua kontainer, bukan satu, supaya diff tidak menyentuh DB utama job.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ci_dummy
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres-shadow:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: shadow_ci
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
       # PrismaClient membaca DATABASE_URL saat konstruksi (sitemap.ts
       # di-prerender saat build). Test unit memakai mock penuh, jadi DB
       # dummy cukup — tidak ada koneksi nyata yang dibutuhkan (query
       # prerender gagal tertangani try/catch di sitemap). Skema tunggal
-      # PostgreSQL — dummy URL harus berprotokol postgresql://.
-      DATABASE_URL: "postgresql://ci:ci@127.0.0.1:5432/ci_dummy"
+      # PostgreSQL — dummy URL harus berprotokol postgresql://. Sejak
+      # drift check, DB ini BENAR-BENAR ADA (service postgres di atas) dan
+      # dipakai step drift; test unit tetap full-mock (tidak menyentuh DB).
+      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/ci_dummy?schema=public"
+      # Shadow DB untuk prisma migrate diff — kosong tanpa tabel; script
+      # check-schema-migrations yang menerapkan migrasi ke sana. Umur =
+      # umur job (kontainer mati bersama runner).
+      SHADOW_DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5433/shadow_ci"
       # AUTH_SECRET tidak wajib saat build, tapi diset untuk menghindari
       # peringatan dari src/lib/auth.ts. Ganti dengan secret asli di
       # production (jangan pernah commit secret di sini).
@@ -70,7 +107,18 @@ jobs:
 
       # (Check schema sync DIHAPUS 2026-08-28 — skema tunggal PostgreSQL,
       # tidak ada lagi pasangan schema.prisma/schema.postgres.prisma yang
-      # perlu dijaga sinkron.)
+      # perlu dijaga sinkron. Step drift di bawah adalah check BERBEDA:
+      # keselarasan RIWAYAT MIGRASI vs schema.prisma.)
+
+      # Drift guard: `prisma migrate deploy` (deploy-vercel.yml, entrypoint
+      # Docker) membangun skema dari FILE migrasi, sedangkan `prisma db
+      # push` mengubah DB tanpa mencatat migrasi — selisih keduanya membuat
+      # database fresh mendapat skema yang salah (kasus nyata 2026-09-08:
+      # migrasi tertinggal 519 baris, login P2022 di DB fresh). Step ini
+      # menjalankan prisma migrate diff migrasi→schema dan GAGAL bila
+      # tidak kosong; lihat scripts/check-schema-migrations.ts.
+      - name: Check schema/migrations drift
+        run: bun run check:schema-migrations
 
       # Guard klasifikasi scope publik (public-scope.test.ts): setiap kolom
       # model Teacher/OrgStructure harus terklasifikasi sadar (daftar PUTIH

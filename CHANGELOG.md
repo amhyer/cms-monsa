@@ -5,6 +5,76 @@
 
 ---
 
+## [Unreleased] - 2026-09-09
+
+### 🛠 Added — Panel status storage di beranda dashboard
+
+Kartu **Storage Upload** (khusus SUPER_ADMIN) di beranda dashboard
+menampilkan laporan `/api/storage-usage` tanpa membuka endpoint: bar
+pemakaian kuota (warna sesuai tingkat; indikasi ambang 80%), jumlah kandidat
+cleanup, dampak referensi (kandidat yang masih dipakai konten → berisiko
+404, plus entitas perujuk), dan status alert terakhir dari tabel
+`StorageAlertState`. `/api/storage-usage` kini menyertakan `alertState`
+(fail-soft — null bila tabel belum bermigrasi atau cron belum pernah jalan).
+Panel gagal-muat tidak menggagalkan beranda (tombol coba lagi); fetch
+hanya dilakukan admin.
+
+---
+
+## [Unreleased] - 2026-09-08
+
+### 🐛 Fixed — Drift migrasi vs schema.prisma (ditemukan validasi live Postgres)
+
+`prisma migrate deploy` di database **baru** menghasilkan skema yang tidak
+cocok dengan `schema.prisma` — `User` tanpa `mustChangePassword`/2FA,
+tabel `TeacherSection`/`StudentAchievement`/`SchoolEvent`/dll. tidak ada —
+karena skema berevolusi lewat `prisma db push` sementara direktori migrasi
+tertinggal. Ditambahkan migrasi rekonsiliasi idempoten
+`20260908000001_reconcile_schema_drift` (hanya aditif: ADD COLUMN / CREATE
+TABLE / CREATE INDEX, semua dijaga `IF NOT EXISTS`) yang menjembatani
+seluruh selisih. Terverifikasi: `migrate deploy` di DB fresh → zero drift;
+idempoten di DB yang sudah bermigrasi/db-push.
+
+### 🛠 Added — Cron alert kuota di self-host (Docker)
+
+Container cron self-host (`docker-compose.cron.yml`) kini menjadwalkan SEMUA
+cron app yang relevan, bukan hanya backup: `/api/cron/cleanup-uploads`
+(02.30) dan `/api/cron/storage-alert` (03.00, TZ Asia/Makassar) dipanggil
+via wget ke service `app` dengan header `Authorization: Bearer $CRON_SECRET`
+— semantik persis Vercel Cron, tanpa duplikasi logika dedup/hysteresis.
+Service `app` kini menerima `CRON_SECRET` + env kuota/alert
+(`NEON_STORAGE_QUOTA_MB`, `STORAGE_ALERT_THRESHOLD_PCT`,
+`STORAGE_ALERT_HYSTERESIS_PCT`, `UPLOAD_RETENTION_DAYS`) dari compose;
+`CRON_SECRET` wajib di .env saat memakai container cron (compose gagal
+jalan bila kosong). Panduan: docs/MIGRATION-VERCEL-TO-SELFHOST.md §5.1.
+
+### 🛠 Added — Tombol "Uji Kirim Alert" di pengaturan notifikasi
+
+Kartu **Alert Admin (cron)** di halaman Pengaturan mengirim pesan uji via
+`notifyAdmin` (src/lib/notifications.ts) — jalur persis yang dipakai cron
+alert kuota storage: satu pesan ke semua kanal terkonfigurasi sekaligus
+(WhatsApp via `ADMIN_PHONE` + `FONNTE_TOKEN`, Telegram via
+`TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID`), tanpa menunggu cron. Endpoint
+`POST /api/notifications/test-alert` (CSRF + role OPERATOR+) mengembalikan
+hasil per-kanal, mencatat `AdminNotification` di log aktivitas, dan tetap
+sukses bila hanya sebagian kanal yang terkirim.
+
+### 🛠 Added — Check drift migrasi (regression guard)
+
+`bun run check:schema-migrations` (scripts/check-schema-migrations.ts)
+membandingkan riwayat migrasi dengan `prisma/schema.prisma` via
+`prisma migrate diff` dan gagal bila ada selisih — mencegah drift terulang.
+Fail-soft bila database tidak terjangkau (gate lokal tidak patah); butuh
+`DATABASE_URL` asli + shadow DB.
+
+**Terpasang otomatis di CI**: job `validate` di `.github/workflows/ci.yml`
+menjalankannya di setiap PR (dua service Postgres: DB utama + shadow), dan
+`.github/workflows/deploy-vercel.yml` menjalankannya lagi SEBELUM
+`prisma migrate deploy` ke Neon — deploy gagal cepat bila riwayat migrasi
+tidak selaras, bukan setelah skema setengah jadi terlanjur diterapkan.
+
+---
+
 ## [Unreleased] - 2026-08-28
 
 ### 💥 Changed — Konsolidasi ke SATU skema PostgreSQL (dev = produksi)

@@ -1,6 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-
-vi.mock("@/lib/db", () => ({
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";vi.mock("@/lib/db", () => ({
   db: {
     uploadedFile: {
       aggregate: vi.fn(),
@@ -8,6 +6,9 @@ vi.mock("@/lib/db", () => ({
       findMany: vi.fn(),
     },
     $queryRawUnsafe: vi.fn(),
+    storageAlertState: {
+      findUnique: vi.fn(),
+    },
   },
 }));
 
@@ -23,6 +24,9 @@ const aggregate = db.uploadedFile.aggregate as ReturnType<typeof vi.fn>;
 const groupBy = db.uploadedFile.groupBy as ReturnType<typeof vi.fn>;
 const findMany = db.uploadedFile.findMany as ReturnType<typeof vi.fn>;
 const queryRawUnsafe = db.$queryRawUnsafe as ReturnType<typeof vi.fn>;
+const alertStateFindUnique = db.storageAlertState.findUnique as ReturnType<
+  typeof vi.fn
+>;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -103,6 +107,7 @@ describe("getUploadStorageStats", () => {
     groupBy.mockReset();
     findMany.mockReset();
     queryRawUnsafe.mockReset();
+    alertStateFindUnique.mockReset();
   });
   afterEach(() => {
     setEnv("NEON_STORAGE_QUOTA_MB", undefined);
@@ -181,5 +186,37 @@ describe("getUploadStorageStats", () => {
       safeCandidates: 1,
       byEntity: { News: 1 },
     });
+  });
+
+  it("alertState diisi dari StorageAlertState saat tersedia", async () => {
+    aggregate.mockResolvedValue({ _count: { _all: 1 }, _sum: { size: 10 } });
+    groupBy.mockResolvedValue([]);
+    findMany.mockResolvedValue([]);
+    queryRawUnsafe.mockResolvedValue([]);
+    alertStateFindUnique.mockResolvedValue({
+      id: "singleton",
+      aboveThreshold: true,
+      lastAlertedAt: new Date("2026-09-08T00:00:00.000Z"),
+      lastUsagePercent: 95.4,
+    });
+
+    const stats = await getUploadStorageStats();
+
+    expect(stats.alertState).toEqual({
+      aboveThreshold: true,
+      lastAlertedAt: "2026-09-08T00:00:00.000Z",
+      lastUsagePercent: 95.4,
+    });
+  });
+
+  it("alertState null bila row belum ada / tabel gagal dibaca", async () => {
+    aggregate.mockResolvedValue({ _count: { _all: 0 }, _sum: { size: null } });
+    groupBy.mockResolvedValue([]);
+    findMany.mockResolvedValue([]);
+    queryRawUnsafe.mockResolvedValue([]);
+    alertStateFindUnique.mockResolvedValue(null);
+
+    const stats = await getUploadStorageStats();
+    expect(stats.alertState).toBeNull();
   });
 });

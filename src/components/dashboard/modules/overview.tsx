@@ -28,6 +28,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageLoader, actionBadgeClass, actionLabel } from "../_shared";
+import { StorageStatusPanel } from "./storage-status-panel";
 import { relativeTime } from "@/lib/format";
 import type { ActivityLogItem, ContactMessageItem } from "@/lib/types";
 
@@ -194,6 +195,9 @@ export function Overview() {
           );
         })}
       </div>
+
+      {/* Panel status storage upload — self-gating (hanya SUPER_ADMIN) */}
+      <StorageStatusPanel />
 
       {/* Attendance Highlight */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

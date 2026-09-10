@@ -14,6 +14,7 @@ import {
   BarChart3,
   Megaphone,
   Mail,
+  BellRing,
   Send,
   MessageCircle,
   Smartphone,
@@ -83,6 +84,9 @@ export function SettingsManager() {
   const [tgResult, setTgResult] = useState<string | null>(null);
   const [tgError, setTgError] = useState<string | null>(null);
   const [tgChatId, setTgChatId] = useState("");
+  const [testingAlert, setTestingAlert] = useState(false);
+  const [alertResult, setAlertResult] = useState<string | null>(null);
+  const [alertError, setAlertError] = useState<string | null>(null);
   const [healthStatus, setHealthStatus] = useState<{
     smtp: { configured: boolean; host: string; port: number; userPreview: string | null };
     whatsapp: { configured: boolean; hasAdminPhone: boolean };
@@ -264,6 +268,33 @@ export function SettingsManager() {
       toast.error(msg);
     } finally {
       setTestingTelegram(false);
+    }
+  }
+
+  // Uji jalur alert admin (notifyAdmin) — jalur persis yang dipakai cron
+  // alert kuota storage: satu pesan ke SEMUA kanal terkonfigurasi sekaligus.
+  async function handleAlertTest() {
+    setTestingAlert(true);
+    setAlertResult(null);
+    setAlertError(null);
+    try {
+      const res = await fetch("/api/notifications/test-alert", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Gagal mengirim alert uji");
+      }
+      setAlertResult(json.message);
+      toast.success(json.message);
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "Gagal mengirim alert uji";
+      setAlertError(msg);
+      toast.error(msg);
+    } finally {
+      setTestingAlert(false);
     }
   }
 
@@ -787,6 +818,48 @@ export function SettingsManager() {
             {tgError && (
               <span className="text-xs font-medium text-destructive">
                 {tgError}
+              </span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Alert Admin — uji jalur cron alert (notifyAdmin) ke semua kanal */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <BellRing className="size-4 text-gold-foreground" /> Alert Admin
+            (cron)
+          </CardTitle>
+          <CardDescription>
+            Uji jalur alert yang dipakai cron (mis. peringatan kuota storage):
+            satu pesan ke semua kanal terkonfigurasi sekaligus, dengan routing
+            env yang sama — bukan uji per-kanal seperti kartu di bawah.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleAlertTest}
+              disabled={testingAlert}
+            >
+              {testingAlert ? (
+                <Loader2 className="mr-1 size-3 animate-spin" />
+              ) : (
+                <BellRing className="mr-1 size-3" />
+              )}
+              Uji Kirim Alert
+            </Button>
+            {alertResult && (
+              <span className="text-xs font-medium text-emerald-600">
+                {alertResult}
+              </span>
+            )}
+            {alertError && (
+              <span className="text-xs font-medium text-destructive">
+                {alertError}
               </span>
             )}
           </div>

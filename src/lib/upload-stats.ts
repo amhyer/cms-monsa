@@ -30,6 +30,16 @@ export type CleanupImpact = {
   byEntity: Record<string, number>;
 };
 
+/** Status alert kuota terakhir (singleton tabel StorageAlertState). */
+export type StorageAlertStateInfo = {
+  /** true = pemakaian sedang di atas ambang (belum turun melewati hysteresis). */
+  aboveThreshold: boolean;
+  /** Waktu notifikasi terakhir terkirim — null bila belum pernah alert. */
+  lastAlertedAt: string | null;
+  /** Pemakaian persen saat alert terakhir dikirim. */
+  lastUsagePercent: number | null;
+};
+
 export type UploadStorageStats = {
   /** Jumlah file di tabel UploadedFile. */
   fileCount: number;
@@ -54,6 +64,12 @@ export type UploadStorageStats = {
    * pemindaian referensi gagal (statistik tetap dilaporkan).
    */
   impact: CleanupImpact | null;
+  /**
+   * Status alert kuota terakhir (dipakai cron /api/cron/storage-alert) —
+   * null bila tabel StorageAlertState tidak terbaca atau belum pernah
+   * diisi cron.
+   */
+  alertState: StorageAlertStateInfo | null;
 };
 
 /** Kuota storage (bytes) dari env NEON_STORAGE_QUOTA_MB. */
@@ -147,6 +163,32 @@ export async function scanUploadReferences(
 }
 
 /**
+ * Baca status alert terakhir dari tabel StorageAlertState (singleton).
+ * Fail-soft — bila tabel belum bermigrasi/DB bermasalah, kembalikan null
+ * (laporan utama tetap terbit). Row belum ada (cron belum pernah jalan)
+ * juga null.
+ */
+async function readAlertState(): Promise<StorageAlertStateInfo | null> {
+  try {
+    const row = await withDbRetry(() =>
+      db.storageAlertState.findUnique({ where: { id: "singleton" } })
+    );
+    if (!row) return null;
+    return {
+      aboveThreshold: row.aboveThreshold,
+      lastAlertedAt: row.lastAlertedAt?.toISOString() ?? null,
+      lastUsagePercent: row.lastUsagePercent,
+    };
+  } catch (e) {
+    logger.warn(
+      { err: e },
+      "[upload-stats] gagal membaca StorageAlertState — alertState null"
+    );
+    return null;
+  }
+}
+
+/**
  * Baca pemakaian storage UploadedFile + dampak cleanup. Memakai withDbRetry
  * karena route ini sering jadi request pertama setelah cold-start Vercel.
  */
@@ -168,15 +210,17 @@ export async function getUploadStorageStats(now = new Date()): Promise<UploadSto
       : null;
 
   const retentionDays = uploadRetentionDays();
-  const candidateRows =
+  const [candidateRows, alertState] = await Promise.all([
     retentionDays > 0
-      ? await withDbRetry(() =>
+      ? withDbRetry(() =>
           db.uploadedFile.findMany({
             where: { createdAt: { lt: retentionCutoff(retentionDays, now) } },
             select: { filename: true },
           })
         )
-      : [];
+      : Promise.resolve([] as { filename: string }[]),
+    readAlertState(),
+  ]);
   const candidateFilenames = candidateRows.map((r) => r.filename);
 
   return {
@@ -190,5 +234,6 @@ export async function getUploadStorageStats(now = new Date()): Promise<UploadSto
     cleanupCandidates: retentionDays > 0 ? candidateFilenames.length : null,
     impact:
       retentionDays > 0 ? await scanUploadReferences(candidateFilenames) : null,
+    alertState,
   };
 }

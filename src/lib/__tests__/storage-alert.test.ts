@@ -11,6 +11,9 @@ vi.mock("@/lib/db", () => ({
     storageAlertState: {
       upsert: vi.fn(),
       update: vi.fn(),
+      // getUploadStorageStats kini membaca status alert (readAlertState) —
+      // di-stub null agar cepat; logika alert sendiri tak memakainya.
+      findUnique: vi.fn().mockResolvedValue(null),
     },
   },
 }));

@@ -33,11 +33,30 @@ jobs:
   deploy-db:
     name: Migrate & seed Neon
     runs-on: ubuntu-latest
+    # Shadow Postgres untuk drift guard: `prisma migrate diff --from-migrations`
+    # butuh database KOSONG untuk mereplay seluruh riwayat migrasi tanpa
+    # menyentuh Neon. Kontainer ephemeral — hidup selama job ini saja.
+    services:
+      postgres-shadow:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: shadow_ci
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
       # Wajib: secret DATABASE_URL di GitHub. Script memvalidasi bahwa ini
       # PostgreSQL (Neon). Bila secret kosong/belum diset, script keluar
       # dengan error yang jelas.
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # Postgres service di atas (bukan secret). 127.0.0.1 eksplisit —
+      # konsisten dengan komentar job e2e di ci.yml (localhost → ::1).
     steps:
       # Checkout WAJIB sebagai step pertama sebelum action lokal —
       # runner me-resolve path ./.github/actions/* dari workspace yang
@@ -48,6 +67,19 @@ jobs:
 
       - name: Setup repo (Node + Bun + install)
         uses: ./.github/actions/setup-repo
+
+      # Drift guard SEBELUM migrate deploy: jalankan prisma migrate diff
+      # (migrasi → schema.prisma) pada shadow DB. Bila riwayat migrasi
+      # tidak selaras dengan schema.prisma, deploy GAGAL di sini — bukan
+      # setelah `migrate deploy` menghasilkan skema setengah jadi di Neon
+      # (kasus nyata 2026-09-08: drift 519 baris, login P2022 di DB fresh).
+      # Tanpa secret DATABASE_URL (mis. fork), step dilewati — migrate
+      # deploy di bawah yang akan gagal dengan pesan script yang jelas.
+      - name: Check schema/migrations drift
+        if: env.DATABASE_URL != ''
+        env:
+          SHADOW_DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5433/shadow_ci"
+        run: bun run check:schema-migrations
 
       # `bash scripts/...` (bukan ./scripts/...) agar tidak bergantung pada
       # executable bit di git — aman dari repo yang di-commit di Windows.

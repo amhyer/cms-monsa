@@ -125,9 +125,9 @@ Jangan resolve. Simpan keluarannya, lalu:
 ls prisma/migrations | grep -v toml
 ```
 
-15 direktori migrasi (per 2026-09-10), dari `20260808000000_init` sampai
-`20260908000001_reconcile_schema_drift`. Angka ini dipakai untuk verifikasi
-di Langkah 7 — update bila riwayat sudah bertambah.
+16 direktori migrasi (per 2026-09-10), dari `20260808000000_init` sampai
+`20260910000000_add_storage_alert_last_send`. Angka ini dipakai untuk
+verifikasi di Langkah 7 — update bila riwayat sudah bertambah.
 
 ### Langkah 5 — Tandai seluruh riwayat sebagai applied
 
@@ -145,7 +145,7 @@ done
 
 Keluaran yang benar per migrasi: `Migration <nama> marked as applied.`
 Pada Prisma 6.19 masing-masing perintah membuat koneksi sendiri (± 2–4 detik);
-15 migrasi ≈ 1 menit. **Tidak ada SQL skema yang dijalankan** — hanya baris
+16 migrasi ≈ 1 menit. **Tidak ada SQL skema yang dijalankan** — hanya baris
 buku besar.
 
 ### Langkah 6 — Verifikasi status
@@ -162,7 +162,7 @@ bunx prisma migrate status
 # 1. migrate deploy kini NO-OP (keluaran "No pending migrations", exit 0)
 bunx prisma migrate deploy; echo "exit=$?"
 
-# 2. Jumlah baris di buku besar = jumlah migrasi (15 per Langkah 4)
+# 2. Jumlah baris di buku besar = jumlah migrasi (16 per Langkah 4)
 psql "$DATABASE_URL" -tAc 'select count(*) from "_prisma_migrations"'
 #    dan tidak ada yang gagal/di-rollback:
 psql "$DATABASE_URL" -tAc \
@@ -232,7 +232,7 @@ Postgres 16 (Docker lokal), bukan sekadar disusun dari dokumentasi:
 | 2 | `migrate deploy` pra-baseline | **P3005** (dipersilakan) |
 | 3 | Drift gate CI di DB db-pushed | ✅ lolos (membuktikan gate ≠ paritas DB) |
 | 4 | `migrate diff` from-url → to-schema-datamodel | `-- This is an empty migration.` |
-| 5 | `resolve --applied` init + 14 sisanya | 15× `marked as applied.` |
+| 5 | `resolve --applied` init + 15 sisanya | 16× `marked as applied.` |
 | 6 | `migrate status` pasca-baseline | `Database schema is up to date!` |
 | 7 | `migrate deploy` pasca-baseline | `No pending migrations to apply.`, exit 0 |
 | 8 | Data pasca-baseline | 1 User / 1 News — utuh |

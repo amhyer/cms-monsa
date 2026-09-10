@@ -198,6 +198,9 @@ describe("getUploadStorageStats", () => {
       aboveThreshold: true,
       lastAlertedAt: new Date("2026-09-08T00:00:00.000Z"),
       lastUsagePercent: 95.4,
+      lastSendAt: new Date("2026-09-09T03:00:00.000Z"),
+      lastChannelsWhatsapp: true,
+      lastChannelsTelegram: false,
     });
 
     const stats = await getUploadStorageStats();
@@ -206,6 +209,9 @@ describe("getUploadStorageStats", () => {
       aboveThreshold: true,
       lastAlertedAt: "2026-09-08T00:00:00.000Z",
       lastUsagePercent: 95.4,
+      lastSendAt: "2026-09-09T03:00:00.000Z",
+      lastChannelsWhatsapp: true,
+      lastChannelsTelegram: false,
     });
   });
 

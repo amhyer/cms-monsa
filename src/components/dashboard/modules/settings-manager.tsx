@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Save,
   Loader2,
@@ -20,6 +20,7 @@ import {
   Smartphone,
   CircleCheck,
   CircleX,
+  Info,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ImageUpload } from "@/components/shared/image-upload";
+import { formatDateTime } from "@/lib/format";
 import { TwoFactorSettings } from "./two-factor-settings";
 import { useAppStore } from "@/store/app";
 import type { SiteSettingItem } from "@/lib/types";
@@ -92,6 +94,12 @@ export function SettingsManager() {
     whatsapp: { configured: boolean; hasAdminPhone: boolean };
     telegram: { configured: boolean };
     lastLogs: Record<string, { action: string; detail: string; at: string } | null>;
+    storageAlert: {
+      aboveThreshold: boolean;
+      lastSendAt: string | null;
+      lastChannelsWhatsapp: boolean | null;
+      lastChannelsTelegram: boolean | null;
+    } | null;
   } | null>(null);
 
   useEffect(() => {
@@ -139,22 +147,25 @@ export function SettingsManager() {
     };
   }, []);
 
-  // Fetch notification health status (independent dari site-settings)
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const res = await fetch("/api/notifications/health");
-        if (!res.ok) return;
-        const data = (await res.json()) as typeof healthStatus;
-        if (alive) setHealthStatus(data);
-      } catch {
-      }
-    })();
-    return () => {
-      alive = false;
-    };
+  // Fetch notification health status (independent dari site-settings).
+  // Diekstrak ke callback agar bisa dipanggil ulang setelah uji kirim —
+  // chip hasil kirim terakhir di kartu Alert Admin ikut ter-update.
+  const loadHealth = useCallback(async () => {
+    try {
+      const res = await fetch("/api/notifications/health");
+      if (!res.ok) return;
+      const data = (await res.json()) as NonNullable<
+        typeof healthStatus
+      >;
+      setHealthStatus(data);
+    } catch {
+      // health bersifat tambahan — kegagalan fetch diabaikan diam-diam.
+    }
   }, []);
+
+  useEffect(() => {
+    void loadHealth();
+  }, [loadHealth]);
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -295,6 +306,10 @@ export function SettingsManager() {
       toast.error(msg);
     } finally {
       setTestingAlert(false);
+      // Refresh kesehatan — chip "hasil kirim terakhir" di kartu ini
+      // mencerminkan attempt terbaru (test-alert tidak menulis ke
+      // StorageAlertState; itu catatan kirim cron).
+      void loadHealth();
     }
   }
 
@@ -863,6 +878,44 @@ export function SettingsManager() {
               </span>
             )}
           </div>
+
+          {/* Hasil kirim alert terakhir dari CRON (StorageAlertState) —
+              bukan hasil tombol uji di atas (uji tidak menulis state). */}
+          {healthStatus?.storageAlert && (
+            <div
+              className={`flex items-center gap-2 rounded-md border px-3 py-2 text-xs ${
+                healthStatus.storageAlert.lastSendAt === null
+                  ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                  : (healthStatus.storageAlert.lastChannelsWhatsapp ||
+                      healthStatus.storageAlert.lastChannelsTelegram)
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                    : "border-destructive/30 bg-destructive/10 text-destructive"
+              }`}
+            >
+              {healthStatus.storageAlert.lastSendAt === null ? (
+                <Info className="size-3.5 shrink-0" />
+              ) : (healthStatus.storageAlert.lastChannelsWhatsapp ||
+                healthStatus.storageAlert.lastChannelsTelegram) ? (
+                <CircleCheck className="size-3.5 shrink-0" />
+              ) : (
+                <CircleX className="size-3.5 shrink-0" />
+              )}
+              <span className="font-medium">Kirim cron terakhir:</span>
+              <span>
+                {healthStatus.storageAlert.lastSendAt === null
+                  ? "belum pernah berjalan (cron alert belum mengirim)"
+                  : `${formatDateTime(healthStatus.storageAlert.lastSendAt)} · WhatsApp ${
+                      healthStatus.storageAlert.lastChannelsWhatsapp
+                        ? "ok"
+                        : "gagal/lewati"
+                    }, Telegram ${
+                      healthStatus.storageAlert.lastChannelsTelegram
+                        ? "ok"
+                        : "gagal/lewati"
+                    }`}
+              </span>
+            </div>
+          )}
         </CardContent>
       </Card>
 

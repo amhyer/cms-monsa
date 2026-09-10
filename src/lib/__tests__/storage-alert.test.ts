@@ -247,4 +247,40 @@ describe("checkStorageAlert", () => {
     expect(result.notified).toBe(true);
     expect(result.aboveThreshold).toBe(true);
   });
+
+  it("mencatat hasil kirim per kanal di state (lastSendAt + kanal)", async () => {
+    resetAll();
+    setEnv("NEON_STORAGE_QUOTA_MB", "100");
+    stubStats(85);
+    upsert.mockResolvedValue({ id: "singleton", aboveThreshold: false });
+    update.mockResolvedValue({ id: "singleton" });
+    notify.mockResolvedValue({ whatsapp: true, telegram: false });
+
+    const result = await checkStorageAlert();
+
+    expect(result.notifiedChannels).toEqual({ whatsapp: true, telegram: false });
+    expect(update).toHaveBeenCalledTimes(1);
+    const payload = update.mock.calls[0][0].data;
+    expect(payload.aboveThreshold).toBe(true);
+    expect(payload.lastSendAt).toBeInstanceOf(Date);
+    expect(payload.lastChannelsWhatsapp).toBe(true);
+    expect(payload.lastChannelsTelegram).toBe(false);
+  });
+
+  it("attempt gagal (semua kanal false) tetap tercatat di state", async () => {
+    resetAll();
+    setEnv("NEON_STORAGE_QUOTA_MB", "100");
+    stubStats(85);
+    upsert.mockResolvedValue({ id: "singleton", aboveThreshold: false });
+    update.mockResolvedValue({ id: "singleton" });
+    notify.mockResolvedValue({ whatsapp: false, telegram: false });
+
+    const result = await checkStorageAlert();
+
+    expect(result.notifiedChannels).toEqual({ whatsapp: false, telegram: false });
+    const payload = update.mock.calls[0][0].data;
+    expect(payload.lastSendAt).toBeInstanceOf(Date);
+    expect(payload.lastChannelsWhatsapp).toBe(false);
+    expect(payload.lastChannelsTelegram).toBe(false);
+  });
 });

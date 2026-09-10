@@ -172,11 +172,20 @@ export async function checkStorageAlert(now = new Date()): Promise<StorageAlertR
     // Simpan state SETELAH kirim: bila update gagal, cron berikutnya
     // mengirim ulang (duplikat ringan) — lebih baik daripada alert yang
     // hilang diam-diam karena state tersimpan padahal pesan gagal.
+    // Attempt gagal (semua kanal false) pun dicatat — kartu kesehatan
+    // "Alert Admin" di Pengaturan perlu melihat percobaan yang gagal.
     try {
       await withDbRetry(() =>
         db.storageAlertState.update({
           where: { id: "singleton" },
-          data: { aboveThreshold: true, lastAlertedAt: now, lastUsagePercent: usagePercent },
+          data: {
+            aboveThreshold: true,
+            lastAlertedAt: now,
+            lastUsagePercent: usagePercent,
+            lastSendAt: now,
+            lastChannelsWhatsapp: channels.whatsapp,
+            lastChannelsTelegram: channels.telegram,
+          },
         })
       );
     } catch (e) {

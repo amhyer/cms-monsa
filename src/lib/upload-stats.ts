@@ -38,6 +38,12 @@ export type StorageAlertStateInfo = {
   lastAlertedAt: string | null;
   /** Pemakaian persen saat alert terakhir dikirim. */
   lastUsagePercent: number | null;
+  /** Waktu percobaan kirim terakhir (apa pun hasilnya) — null = belum pernah. */
+  lastSendAt: string | null;
+  /** Hasil kanal WhatsApp pada percobaan terakhir — null bila belum pernah. */
+  lastChannelsWhatsapp: boolean | null;
+  /** Hasil kanal Telegram pada percobaan terakhir — null bila belum pernah. */
+  lastChannelsTelegram: boolean | null;
 };
 
 export type UploadStorageStats = {
@@ -166,9 +172,10 @@ export async function scanUploadReferences(
  * Baca status alert terakhir dari tabel StorageAlertState (singleton).
  * Fail-soft — bila tabel belum bermigrasi/DB bermasalah, kembalikan null
  * (laporan utama tetap terbit). Row belum ada (cron belum pernah jalan)
- * juga null.
+ * juga null. Diekspor juga untuk /api/notifications/health (kartu Alert
+ * Admin di Pengaturan) — modul ini pemilik tunggal pembacaan tabel ini.
  */
-async function readAlertState(): Promise<StorageAlertStateInfo | null> {
+export async function readStorageAlertState(): Promise<StorageAlertStateInfo | null> {
   try {
     const row = await withDbRetry(() =>
       db.storageAlertState.findUnique({ where: { id: "singleton" } })
@@ -178,6 +185,9 @@ async function readAlertState(): Promise<StorageAlertStateInfo | null> {
       aboveThreshold: row.aboveThreshold,
       lastAlertedAt: row.lastAlertedAt?.toISOString() ?? null,
       lastUsagePercent: row.lastUsagePercent,
+      lastSendAt: row.lastSendAt?.toISOString() ?? null,
+      lastChannelsWhatsapp: row.lastChannelsWhatsapp,
+      lastChannelsTelegram: row.lastChannelsTelegram,
     };
   } catch (e) {
     logger.warn(
@@ -219,7 +229,7 @@ export async function getUploadStorageStats(now = new Date()): Promise<UploadSto
           })
         )
       : Promise.resolve([] as { filename: string }[]),
-    readAlertState(),
+    readStorageAlertState(),
   ]);
   const candidateFilenames = candidateRows.map((r) => r.filename);
 

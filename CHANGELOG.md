@@ -7,6 +7,19 @@
 
 ## [Unreleased] - 2026-09-10
 
+### 🛠 Added — Riwayat kirim alert kuota di kartu Alert Admin
+
+Cron alert kuota storage kini mencatat hasil pengiriman terakhirnya di
+`StorageAlertState` (`lastSendAt` + hasil per kanal WhatsApp/Telegram,
+migrasi `20260910000000`). Kartu **Alert Admin (cron)** di Pengaturan
+menampilkan chip status: waktu kirim cron terakhir + hasil per kanal
+(amber = cron belum pernah berjalan, hijau = minimal satu kanal terkirim,
+merah = semua kanal gagal). Data disajikan oleh `/api/notifications/health`
+(fail-soft — tabel belum bermigrasi tetap tidak menggagalkan kesehatan
+kanal lain); chip di-refresh otomatis setelah tombol **Uji Kirim Alert**
+ditekan. Catatan: tombol uji tidak menulis ke `StorageAlertState` — chip
+selalu mencerminkan pengiriman cron sungguhan.
+
 ### 📖 Added — Runbook baseline database db-pushed
 
 `docs/RUNBOOK-BASELINE-NEON.md`: prosedur aman menyerahkan database Neon

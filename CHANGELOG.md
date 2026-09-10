@@ -7,6 +7,16 @@
 
 ## [Unreleased] - 2026-09-10
 
+### 🛠 Added — Publikasi image produksi ke GHCR dari CI
+<arg_value><b88a6f17>Job `docker-build` kini juga mem-push image produksi ke GitHub Container
+Registry saat push ke `main` — tag `ghcr.io/<owner>/<repo>:sha-<commit>`
+dan `:latest`. Yang di-push = persis image yang lulus boot smoke (migrate
+deploy + health 200 + assert psql): image di-rename dari tag lokal lalu
+di-push, bukan build ulang. PR & push cabang lain tetap hanya build +
+smoke tanpa menyentuh registry (`packages: write` hanya di job ini).
+Jalur publish divalidasi live: tag + login + push dua tag ke registry
+berauth, kedua tag menghasilkan digest identik.
+
 ### 🛠 Added — Runner cron dengan retry & log body respons
 
 Job wget cron container (cleanup-uploads 02.30, storage-alert 03.00) kini

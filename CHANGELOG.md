@@ -7,6 +7,21 @@
 
 ## [Unreleased] - 2026-09-10
 
+### 🛠 Added — Guard pra-deploy P3005 di workflow deploy Neon
+
+`deploy-vercel.yml` kini menjalankan `check:predeploy-db`
+(`scripts/check-predeploy-db.ts`) sebelum `prisma migrate deploy`: bila
+database produksi berisi tabel tetapi tidak punya buku besar
+`_prisma_migrations` (kondisi P3005 — hasil `prisma db push` yang belum
+di-baseline), job GAGAL di sini dengan petunjuk ke
+`docs/RUNBOOK-BASELINE-NEON.md` (backup → gerbang paritas → resolve),
+bukan error Prisma samar di tengah deploy. Status sebagian/seluruhnya
+ter-baseline diteruskan (dengan info jumlah migrasi pending); database
+tak terjangkau juga menggagalkan deploy dengan pesan jelas.
+Divalidasi live terhadap 5 keadaan Postgres nyata (P3005, partial-baseline
+12/16 — cermin kondisi produksi hasil dry-run 2026-09-11, fresh, tak
+terjangkau, tanpa env) plus kontrol negatif `migrate deploy`.
+
 ### 🛠 Added — Publikasi image produksi ke GHCR dari CI
 <arg_value><b88a6f17>Job `docker-build` kini juga mem-push image produksi ke GitHub Container
 Registry saat push ke `main` — tag `ghcr.io/<owner>/<repo>:sha-<commit>`

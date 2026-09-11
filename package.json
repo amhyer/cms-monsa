@@ -25,6 +25,7 @@
     "check:server-log": "bunx tsx scripts/check-server-log.ts",
     "check:data-leak": "bunx tsx scripts/check-test-data-leak.ts",
     "check:schema-migrations": "bunx tsx scripts/check-schema-migrations.ts",
+    "check:predeploy-db": "bunx tsx scripts/check-predeploy-db.ts",
     "triage:e2e": "bunx tsx scripts/triage-e2e.ts",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",

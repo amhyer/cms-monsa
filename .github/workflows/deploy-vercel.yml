@@ -79,9 +79,22 @@ jobs:
         if: env.DATABASE_URL != ''
         env:
           SHADOW_DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5433/shadow_ci"
-        run: bun run check:schema-migrations
+        run: bun run check:schema-migrations      # Guard pra-deploy: deteksi kondisi P3005 di database SEBELUM migrate
+      # deploy — schema terisi tanpa buku besar _prisma_migrations (hasil
+      # `prisma db push`) membuat `migrate deploy` gagal di tengah jalan.
+      # Guard gagal dengan petunjuk runbook baseline
+      # (docs/RUNBOOK-BASELINE-NEON.md), bukan error Prisma yang samar.
+      # Memakai DATABASE_URL_DIRECT bila secret-nya ada (konsisten dengan
+      # scripts/deploy-vercel.sh); tanpa secret DATABASE_URL (mis. fork),
+      # step dilewati seperti drift check di atas.
+      - name: Check pre-deploy DB state (P3005 guard)
+        if: env.DATABASE_URL != ''
+        env:
+          DATABASE_URL_DIRECT: ${{ secrets.DATABASE_URL_DIRECT }}
+        run: bun run check:predeploy-db
 
       # `bash scripts/...` (bukan ./scripts/...) agar tidak bergantung pada
+
       # executable bit di git — aman dari repo yang di-commit di Windows.
       # Script menjalankan: prisma generate → migrate deploy → seed (semua
       # memakai skema tunggal prisma/schema.prisma — PostgreSQL). Seed

@@ -9,6 +9,10 @@ import { execSync } from "node:child_process";
 
 const APP = "http://127.0.0.1:3100";
 const CRON_SECRET = "e2e-cron-secret";
+/** Nama container stack E2E (sengaja beda dari stack produksi — lihat
+ * docker-compose.e2e.yml). Env override untuk pengetesan lokal. */
+const PSQL_CONTAINER = process.env.E2E_PG_CONTAINER ?? "monsa-postgres-e2e";
+const CRON_CONTAINER = process.env.E2E_CRON_CONTAINER ?? "monsa-cron-e2e";
 
 let failures = 0;
 function ok(cond: boolean, label: string, detail = "") {
@@ -46,7 +50,7 @@ function psql(rawSql: string): string {
   // Satu baris — shell quoting lintas-platform (Windows cmd) merusak newline.
   const sql = rawSql.replace(/\s*\n\s*/g, " ").trim();
   return execSync(
-    `docker exec monsa-postgres psql -U postgres -d cms_mongisidi -At -c ${JSON.stringify(sql)}`,
+    `docker exec ${PSQL_CONTAINER} psql -U postgres -d cms_mongisidi -At -c ${JSON.stringify(sql)}`,
     { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }
   ).trim();
 }
@@ -126,7 +130,7 @@ async function main() {
   console.log("menunggu 130 detik untuk cron container (jadwal per-menit)…");
   await new Promise((r) => setTimeout(r, 130_000));
   const cronLog = execSync(
-    `docker exec cms-monsa-cron sh -c "cat /backups/cron.log; echo ---; cat /backups/backup.log"`,
+    `docker exec ${CRON_CONTAINER} sh -c "cat /backups/cron.log; echo ---; cat /backups/backup.log"`,
     { encoding: "utf8" }
   );
   ok(
@@ -145,7 +149,7 @@ async function main() {
     "cron container: backup.log mencatat pg_dump sukses",
     (cronLog.split("---")[1] ?? "").slice(0, 200)
   );
-  const backupsListed = execSync(`docker exec cms-monsa-cron ls /backups`, {
+  const backupsListed = execSync(`docker exec ${CRON_CONTAINER} ls /backups`, {
     encoding: "utf8",
   }).trim();
   ok(

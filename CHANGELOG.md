@@ -7,6 +7,18 @@
 
 ## [Unreleased] - 2026-09-11
 
+### 🛠 Added — E2E self-host sebagai satu perintah + job CI per-PR
+
+`npm run e2e:selfhost` kini menjalankan seluruh siklus validasi stack
+self-host: preflight (engine hidup, port 3100/55432 bebas, tanpa clash
+dengan stack produksi), compose up project `monsa-e2e`, poll health,
+seed + assert end-to-end (`scripts/e2e-selfhost-assert.ts`), dan teardown
+`down -v` yang selalu jalan — log container dibuang ke direktori log
+sebelum dihapus bila assert gagal. Job CI baru `selfhost-e2e` menjalankan
+ini di setiap PR (image dibangun dengan cache GHA yang sama dengan job
+docker-build). Container E2E kini bernama `*-e2e` sehingga stack uji tidak
+pernah menabrak stack produksi berjalan di host yang sama.
+
 ### 🛠 Added — Interval muat-ulang otomatis yang dapat dikonfigurasi di panel Storage Upload
 
 Panel **Storage Upload** kini punya pilihan interval muat-ulang otomatis —

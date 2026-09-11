@@ -6,14 +6,32 @@
 # secara live. Jangan pernah dipakai di produksi.
 #
 # Usage:
-#   docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d
-# ============================================
+#   npm run e2e:selfhost    # orchestrator: up → assert → teardown
+#   atau manual:
+#   REDIS_URL= POSTGRES_PASSWORD=e2e-pass CRON_SECRET=e2e-cron-secret \
+#     docker compose -p monsa-e2e -f docker-compose.yml -f docker-compose.cron.yml \
+#     -f docker-compose.e2e.yml up -d
+#
+# WAJIB menyertakan docker-compose.cron.yml (service `cron` didefinisikan di
+# sana; file ini hanya menimpa port/env/jadwalnya).
+#
+# ISOLASI: container_name sengaja DITIMPA dengan akhiran -e2e supaya stack
+# uji TIDAK pernah menabrak stack produksi yang sedang berjalan di host yang
+# sama (compose mempertahankan container_name apa adanya meski -p beda).
+# Port juga terpisah (app 3100, postgres 55432) dan volume tercakup ke
+# project `monsa-e2e` — `down -v` hanya menghapus miliknya.
 
 services:
   postgres:
+    container_name: monsa-postgres-e2e
     ports: !override ["127.0.0.1:55432:5432"]
 
   app:
+    container_name: monsa-app-e2e
+    # Tag lokal eksplisit — CI pre-build image dengan cache GHA (lihat job
+    # selfhost-e2e) sehingga `up` memakai image jadi; tanpa image, compose
+    # membangun dari Dockerfile (perilaku lokal).
+    image: cms-monsa:e2e
     ports: !override ["127.0.0.1:3100:3000"]
     environment:
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD wajib diisi}@postgres:5432/cms_mongisidi?schema=public
@@ -31,6 +49,7 @@ services:
       retries: 30
 
   cron:
+    container_name: monsa-cron-e2e
     environment:
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD wajib diisi}@postgres:5432/cms_mongisidi?schema=public
       CRON_SECRET: e2e-cron-secret

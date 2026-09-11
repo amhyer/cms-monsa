@@ -292,6 +292,51 @@ jobs:
           docker push "$IMAGE:latest"
           echo "✓ Ter-push: $IMAGE:sha-${{ github.sha }} dan $IMAGE:latest"
 
+  # ── Self-host E2E penuh (compose up → assert → teardown) ─────────────
+  # Membuktikan stack Docker self-host (app + postgres + cron per-menit)
+  # benar-benar bekerja end-to-end di setiap PR: image produksi dibangun,
+  # entrypoint menjalankan migrate deploy, ketiga cron job (cleanup,
+  # storage-alert, backup) terbukti memukul endpoint app dan menulis
+  # hasilnya (assert via scripts/e2e-selfhost-assert.ts). Menggunakan
+  # cache GHA yang sama dengan job docker-build agar build murah.
+  selfhost-e2e:
+    name: Self-host E2E (compose up → assert → teardown)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup repo (Node + Bun + install)
+        uses: ./.github/actions/setup-repo
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build image cms-monsa:e2e dengan cache GHA — sama namespace cache
+      # dengan job docker-build, jadi layer deps & Next build di-reuse.
+      - name: Build image for E2E stack
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: cms-monsa:e2e
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Orchestrator melakukan preflight (port bebas, tanpa clash), compose
+      # up project monsa-e2e, poll health, jalankan assert script, dan
+      # teardown down -v selalu. E2E_SKIP_BUILD=1 — image sudah dibangun
+      # di atas dengan cache.
+      - name: Run self-host E2E (up → assert → teardown)
+        run: bun run e2e:selfhost
+        env:
+          E2E_SKIP_BUILD: "1"
+
+      - name: Dump compose ps on failure
+        if: failure()
+        run: docker ps -a --format 'table {{.Names}}\t{{.Status}}'
+
   # Gate pre-commit EXACT — SUMBER TUNGGAL di hooks-gate.yml (reusable
   # workflow, dipakai juga playwright.yml) supaya tidak ada drift antara
   # pengalaman developer (pre-commit) dan CI sebelum merge.

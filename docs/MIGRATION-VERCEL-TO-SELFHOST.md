@@ -344,13 +344,20 @@ menjalankan ulang manual. Jeda ulangan bisa diubah lewat env
 > `docker-compose.e2e.yml` menyalakan stack penuh (app + postgres + cron) di
 > port terpisah dengan jadwal cron per-menit, lalu script
 > `scripts/e2e-selfhost-assert.ts` men-seed file lama/baru dan memastikan
-> ketiga job cron (cleanup, storage-alert, backup) benar-benar berjalan:
+> ketiga job cron (cleanup, storage-alert, backup) benar-benar berjalan.
+> Cara termudah — satu perintah (preflight + build + up + assert + teardown):
+>
+> ```bash
+> npm run e2e:selfhost        # ~5-8 menit; teardown otomatis walau gagal
+> ```
+>
+> Atau manual per langkah:
 >
 > ```bash
 > REDIS_URL= POSTGRES_PASSWORD=e2e-pass CRON_SECRET=e2e-cron-secret \
 >   docker compose -p monsa-e2e -f docker-compose.yml -f docker-compose.cron.yml \
 >   -f docker-compose.e2e.yml up -d
-> bun scripts/e2e-selfhost-assert.ts   # tunggu ~3 menit (menunggu siklus cron)
+> bunx tsx scripts/e2e-selfhost-assert.ts   # tunggu ~3 menit (siklus cron)
 > docker compose -p monsa-e2e -f docker-compose.yml -f docker-compose.cron.yml \
 >   -f docker-compose.e2e.yml down -v
 > ```

@@ -125,8 +125,8 @@ Jangan resolve. Simpan keluarannya, lalu:
 ls prisma/migrations | grep -v toml
 ```
 
-16 direktori migrasi (per 2026-09-10), dari `20260808000000_init` sampai
-`20260910000000_add_storage_alert_last_send`. Angka ini dipakai untuk
+17 direktori migrasi (per 2026-09-11), dari `20260808000000_init` sampai
+`20260911000000_add_storage_alert_last_tested`. Angka ini dipakai untuk
 verifikasi di Langkah 7 — update bila riwayat sudah bertambah.
 
 ### Langkah 5 — Tandai seluruh riwayat sebagai applied

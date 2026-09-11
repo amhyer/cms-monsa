@@ -7,6 +7,21 @@
 
 ## [Unreleased] - 2026-09-10
 
+### 🛠 Added — Penanda uji manual jalur alert (StorageAlertState.lastTestedAt)
+
+Tombol **Uji Kirim Alert** kini mencatat verifikasi manual: saat minimal
+satu kanal (WhatsApp/Telegram) benar-benar terkirim, kolom baru
+`lastTestedAt` di `StorageAlertState` diisi lewat
+`markStorageAlertTested()` (fail-soft) — kasus tanpa kanal dan semua-kanal
+gagal tidak mengubahnya. Panel **Storage Upload** menampilkan baris
+"Diuji: …" di blok status alert, hint tombol uji kirim berubah menjadi
+"Jalur terakhir diuji: …", dan panel memuat ulang statistik setelah uji
+sukses agar penanda langsung tampil. Tersedia via `/api/storage-usage`
+(`alertState.lastTestedAt`). Migrasi baru
+`20260911000000_add_storage_alert_last_tested` (kolom opsional — aman
+untuk DB produksi yang baru di-baseline sebagian); gerbang drift CI
+hijau.
+
 ### 🛠 Added — Guard pra-deploy P3005 di workflow deploy Neon
 
 `deploy-vercel.yml` kini menjalankan `check:predeploy-db`

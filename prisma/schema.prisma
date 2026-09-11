@@ -862,5 +862,9 @@ model StorageAlertState {
   lastSendAt           DateTime?
   lastChannelsWhatsapp Boolean?
   lastChannelsTelegram Boolean?
+  // Waktu terakhir jalur alert diuji manual dari dashboard (tombol Uji
+  // Kirim Alert, /api/notifications/test-alert) — hanya saat minimal satu
+  // kanal benar-benar terkirim. Null = belum pernah diuji manual.
+  lastTestedAt         DateTime?
   updatedAt            DateTime  @updatedAt
 }

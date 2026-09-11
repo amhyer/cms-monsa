@@ -9,7 +9,9 @@
  * 5. Non-admin → tidak merender apa pun, tidak memanggil API.
  * 6. Gagal fetch → kartu error dengan tombol coba lagi.
  * 7. Tombol Uji Kirim Alert → POST /api/notifications/test-alert,
- *    hasil sukses/gagal tampil inline.
+ *    hasil sukses/gagal tampil inline; sukses memicu refresh statistik.
+ * 8. alertState.lastTestedAt → baris "Diuji:" + hint tombol berisi waktu
+ *    uji terakhir; tanpa lastTestedAt → hint default.
  */
 
 import { render, screen, act } from "@testing-library/react";
@@ -48,6 +50,7 @@ const h = vi.hoisted(() => {
         aboveThreshold: true,
         lastAlertedAt: "2026-09-08T19:00:00.000Z",
         lastUsagePercent: 95.4,
+        lastTestedAt: "2026-09-10T02:00:00.000Z",
       },
       timestamp: "2026-09-09T00:00:00.000Z",
     })
@@ -103,9 +106,12 @@ describe("StorageStatusPanel", () => {
     expect(screen.getByText("2 file berisiko 404")).toBeInTheDocument();
     expect(screen.getByText(/News \(1\), GalleryItem \(1\)/)).toBeInTheDocument();
 
-    // Status alert: di atas ambang + waktu notifikasi
+    // Status alert: di atas ambang + waktu notifikasi + uji manual terakhir
     expect(screen.getByText(/Di atas ambang · 95\.4%/)).toBeInTheDocument();
     expect(screen.getByText(/Notif:/)).toBeInTheDocument();
+    expect(screen.getByText(/Diuji:/)).toBeInTheDocument();
+    // Hint tombol memakai waktu uji terakhir
+    expect(screen.getByText(/Jalur terakhir diuji:/)).toBeInTheDocument();
   });
 
   it("impact null → tidak diketahui; alert belum jalan → belum pernah berjalan; tanpa kuota → petunjuk env", async () => {
@@ -130,6 +136,12 @@ describe("StorageStatusPanel", () => {
     expect(screen.getByText(/Tidak diketahui/)).toBeInTheDocument();
     expect(screen.getByText(/Belum pernah berjalan/)).toBeInTheDocument();
     expect(screen.getByText(/NEON_STORAGE_QUOTA_MB/)).toBeInTheDocument();
+    // Tanpa lastTestedAt → hint default (bukan "Jalur terakhir diuji")
+    expect(
+      screen.getByText(
+        /Kirim pesan uji ke admin via WhatsApp\/Telegram/
+      )
+    ).toBeInTheDocument();
   });
 
   it("non-admin → tidak merender apa pun dan tidak memanggil API", async () => {
@@ -179,6 +191,13 @@ describe("StorageStatusPanel", () => {
       method: "POST",
     });
     expect(screen.getByText(/terkirim via Telegram/)).toBeInTheDocument();
+
+    // Sukses → panel memuat ulang statistik agar baris "Diuji:" memakai
+    // lastTestedAt yang baru tersimpan.
+    const usageCalls = (
+      h.fetchMock.mock.calls as unknown as [string, unknown?][]
+    ).filter(([url]) => url === "/api/storage-usage");
+    expect(usageCalls.length).toBeGreaterThanOrEqual(2);
   });
 
   it("Uji Kirim Alert gagal (success:false) → pesan error tampil inline", async () => {

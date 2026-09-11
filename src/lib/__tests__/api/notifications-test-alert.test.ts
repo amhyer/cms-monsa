@@ -21,6 +21,10 @@ vi.mock("@/lib/notifications", () => ({
   notifyAdmin: vi.fn().mockResolvedValue({ whatsapp: true, telegram: true }),
 }));
 
+vi.mock("@/lib/storage-alert", () => ({
+  markStorageAlertTested: vi.fn().mockResolvedValue(undefined),
+}));
+
 function makeReq(body?: object, method = "POST"): Request {
   const init: RequestInit = { method, headers: {} };
   if (body !== undefined) {
@@ -52,6 +56,9 @@ describe("POST /api/notifications/test-alert", () => {
     expect(json.channels).toEqual({ whatsapp: true, telegram: true });
     expect(json.message).toContain("WhatsApp dan Telegram");
     expect(json.error).toBeUndefined();
+
+    const { markStorageAlertTested } = await import("@/lib/storage-alert");
+    expect(markStorageAlertTested).toHaveBeenCalledTimes(1);
   });
 
   it("sukses parsial: satu kanal gagal dilaporkan, tetap success", async () => {
@@ -72,6 +79,10 @@ describe("POST /api/notifications/test-alert", () => {
     expect(json.channels).toEqual({ whatsapp: false, telegram: true });
     expect(json.message).toContain("via Telegram");
     expect(json.message).toContain("WhatsApp gagal atau dilewati");
+
+    // Sukses parsial (≥1 kanal) tetap menghitung sebagai uji berhasil.
+    const { markStorageAlertTested } = await import("@/lib/storage-alert");
+    expect(markStorageAlertTested).toHaveBeenCalledTimes(1);
   });
 
   it("tanpa kanal terkonfigurasi → error tanpa memanggil notifyAdmin", async () => {
@@ -85,6 +96,10 @@ describe("POST /api/notifications/test-alert", () => {
 
     const { notifyAdmin } = await import("@/lib/notifications");
     expect(notifyAdmin).not.toHaveBeenCalled();
+
+    // Tidak ada kanal → jalur tidak teruji → lastTestedAt tidak disentuh.
+    const { markStorageAlertTested } = await import("@/lib/storage-alert");
+    expect(markStorageAlertTested).not.toHaveBeenCalled();
   });
 
   it("kanal terkonfigurasi tapi semua gagal kirim → error", async () => {
@@ -104,6 +119,10 @@ describe("POST /api/notifications/test-alert", () => {
     expect(json.success).toBe(false);
     expect(json.channels).toEqual({ whatsapp: false, telegram: false });
     expect(json.error).toContain("Gagal mengirim alert ke semua kanal");
+
+    // Semua kanal gagal → jalur TIDAK terverifikasi → tidak dicatat.
+    const { markStorageAlertTested } = await import("@/lib/storage-alert");
+    expect(markStorageAlertTested).not.toHaveBeenCalled();
   });
 
   it("mencatat log aktivitas AdminNotification saat sukses", async () => {

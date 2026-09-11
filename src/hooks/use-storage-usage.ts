@@ -21,6 +21,7 @@ export type StorageUsageData = {
     aboveThreshold: boolean;
     lastAlertedAt: string | null;
     lastUsagePercent: number | null;
+    lastTestedAt: string | null;
   } | null;
   timestamp: string;
 };

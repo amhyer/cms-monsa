@@ -97,6 +97,29 @@ export type StorageAlertResult = {
 };
 
 /**
+ * Catat bahwa jalur alert admin barusan diverifikasi manual (tombol
+ * "Uji Kirim Alert") dengan minimal satu kanal terkirim. Fail-soft —
+ * kegagalan pencatatan tidak boleh menggagalkan response uji kirim.
+ * Fail-soft juga saat tabel belum bermigrasi (kolom belum ada).
+ */
+export async function markStorageAlertTested(now = new Date()): Promise<void> {
+  try {
+    await withDbRetry(() =>
+      db.storageAlertState.upsert({
+        where: { id: "singleton" },
+        create: { id: "singleton" },
+        update: { lastTestedAt: now },
+      })
+    );
+  } catch (e) {
+    logger.warn(
+      { err: e },
+      "[storage-alert] gagal mencatat lastTestedAt"
+    );
+  }
+}
+
+/**
  * Cek pemakaian storage dan kirim notifikasi bila ambang baru dilampaui.
  * Idempotent per status: sekali per persilangan. Memakai withDbRetry untuk
  * pembacaan DB — cron ini sering jadi request pertama setelah cold-start.

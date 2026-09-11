@@ -109,6 +109,9 @@ export function StorageStatusPanel() {
       }
       setAlertResult(json.message ?? "Alert uji terkirim.");
       toast.success(json.message ?? "Alert uji terkirim.");
+      // Muat ulang statistik agar baris "Diuji: …" (lastTestedAt yang baru
+      // tersimpan) tampil tanpa menunggu refresh manual.
+      refresh();
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : "Gagal mengirim alert uji";
@@ -271,6 +274,11 @@ export function StorageStatusPanel() {
                       Notif: {formatDateTime(alert.lastAlertedAt)}
                     </p>
                   )}
+                  {alert.lastTestedAt && (
+                    <p className="text-xs text-muted-foreground">
+                      Diuji: {formatDateTime(alert.lastTestedAt)}
+                    </p>
+                  )}
                 </div>
               </>
             ) : (
@@ -282,6 +290,11 @@ export function StorageStatusPanel() {
                   {alert.lastAlertedAt && (
                     <p className="text-xs text-muted-foreground">
                       Notif terakhir: {formatDateTime(alert.lastAlertedAt)}
+                    </p>
+                  )}
+                  {alert.lastTestedAt && (
+                    <p className="text-xs text-muted-foreground">
+                      Diuji: {formatDateTime(alert.lastTestedAt)}
                     </p>
                   )}
                 </div>
@@ -299,6 +312,8 @@ export function StorageStatusPanel() {
               <span className="text-emerald-600 dark:text-emerald-400">
                 {alertResult}
               </span>
+            ) : alert?.lastTestedAt ? (
+              `Jalur terakhir diuji: ${formatDateTime(alert.lastTestedAt)} — klik untuk menguji ulang.`
             ) : (
               "Kirim pesan uji ke admin via WhatsApp/Telegram yang terkonfigurasi."
             )}

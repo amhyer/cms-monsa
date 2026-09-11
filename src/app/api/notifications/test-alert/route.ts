@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
 import { notifyAdmin } from "@/lib/notifications";
+import { markStorageAlertTested } from "@/lib/storage-alert";
 
 /**
  * Uji jalur alert admin (notifyAdmin) dari dashboard.
@@ -82,6 +83,10 @@ export async function POST(req: Request) {
     "AdminNotification",
     `Uji kirim alert admin — WhatsApp: ${channels.whatsapp ? "ok" : "gagal"}, Telegram: ${channels.telegram ? "ok" : "gagal"}`
   );
+
+  // Jalur alert terverifikasi (≥1 kanal terkirim) — catat untuk panel
+  // Storage Upload ("Diuji: …") dan kartu kesehatan alert.
+  await markStorageAlertTested();
 
   return NextResponse.json({
     success: true,

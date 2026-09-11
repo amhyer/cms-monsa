@@ -22,6 +22,9 @@ export type StorageUsageData = {
     lastAlertedAt: string | null;
     lastUsagePercent: number | null;
     lastTestedAt: string | null;
+    lastTestSendAt: string | null;
+    lastTestChannelsWhatsapp: boolean | null;
+    lastTestChannelsTelegram: boolean | null;
   } | null;
   timestamp: string;
 };

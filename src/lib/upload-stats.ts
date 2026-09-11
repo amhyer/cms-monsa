@@ -46,6 +46,12 @@ export type StorageAlertStateInfo = {
   lastChannelsTelegram: boolean | null;
   /** Waktu terakhir jalur diuji manual (Uji Kirim Alert, sukses ≥1 kanal). */
   lastTestedAt: string | null;
+  /** Percobaan uji manual terakhir (apa pun hasilnya) — null = belum pernah. */
+  lastTestSendAt: string | null;
+  /** Hasil kanal WhatsApp pada uji manual terakhir. */
+  lastTestChannelsWhatsapp: boolean | null;
+  /** Hasil kanal Telegram pada uji manual terakhir. */
+  lastTestChannelsTelegram: boolean | null;
 };
 
 export type UploadStorageStats = {
@@ -191,6 +197,9 @@ export async function readStorageAlertState(): Promise<StorageAlertStateInfo | n
       lastChannelsWhatsapp: row.lastChannelsWhatsapp,
       lastChannelsTelegram: row.lastChannelsTelegram,
       lastTestedAt: row.lastTestedAt?.toISOString() ?? null,
+      lastTestSendAt: row.lastTestSendAt?.toISOString() ?? null,
+      lastTestChannelsWhatsapp: row.lastTestChannelsWhatsapp,
+      lastTestChannelsTelegram: row.lastTestChannelsTelegram,
     };
   } catch (e) {
     logger.warn(

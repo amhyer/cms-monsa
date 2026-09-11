@@ -97,24 +97,45 @@ export type StorageAlertResult = {
 };
 
 /**
- * Catat bahwa jalur alert admin barusan diverifikasi manual (tombol
- * "Uji Kirim Alert") dengan minimal satu kanal terkirim. Fail-soft —
- * kegagalan pencatatan tidak boleh menggagalkan response uji kirim.
- * Fail-soft juga saat tabel belum bermigrasi (kolom belum ada).
+ * Catat hasil uji manual jalur alert admin (tombol "Uji Kirim Alert").
+ *
+ * Dua catatan terpisah, paralel dengan catatan milik cron:
+ *   - lastTestSendAt + lastTestChannels* — SETIAP percobaan uji, apa pun
+ *     hasilnya (kartu kesehatan "Uji manual terakhir").
+ *   - lastTestedAt — hanya saat minimal satu kanal benar-benar terkirim
+ *     (penanda "Diuji: …" di panel Storage Upload).
+ *
+ * Fail-soft: kegagalan pencatatan tidak boleh menggagalkan response uji
+ * kirim; juga saat tabel/kolom belum bermigrasi.
  */
-export async function markStorageAlertTested(now = new Date()): Promise<void> {
+export async function markStorageAlertTested(
+  channels: { whatsapp: boolean; telegram: boolean },
+  now = new Date()
+): Promise<void> {
+  const success = channels.whatsapp || channels.telegram;
   try {
     await withDbRetry(() =>
       db.storageAlertState.upsert({
         where: { id: "singleton" },
-        create: { id: "singleton" },
-        update: { lastTestedAt: now },
+        create: {
+          id: "singleton",
+          lastTestSendAt: now,
+          lastTestChannelsWhatsapp: channels.whatsapp,
+          lastTestChannelsTelegram: channels.telegram,
+          ...(success ? { lastTestedAt: now } : {}),
+        },
+        update: {
+          lastTestSendAt: now,
+          lastTestChannelsWhatsapp: channels.whatsapp,
+          lastTestChannelsTelegram: channels.telegram,
+          ...(success ? { lastTestedAt: now } : {}),
+        },
       })
     );
   } catch (e) {
     logger.warn(
       { err: e },
-      "[storage-alert] gagal mencatat lastTestedAt"
+      "[storage-alert] gagal mencatat hasil uji manual alert"
     );
   }
 }

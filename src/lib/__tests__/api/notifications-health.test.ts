@@ -62,6 +62,10 @@ describe("GET /api/notifications/health — storageAlert", () => {
       lastSendAt: new Date("2026-09-09T03:00:00.000Z"),
       lastChannelsWhatsapp: true,
       lastChannelsTelegram: false,
+      lastTestedAt: new Date("2026-09-10T02:30:00.000Z"),
+      lastTestSendAt: new Date("2026-09-10T02:30:00.000Z"),
+      lastTestChannelsWhatsapp: true,
+      lastTestChannelsTelegram: false,
     });
 
     const res = await GET();
@@ -71,6 +75,9 @@ describe("GET /api/notifications/health — storageAlert", () => {
         lastSendAt: string | null;
         lastChannelsWhatsapp: boolean | null;
         lastChannelsTelegram: boolean | null;
+        lastTestSendAt: string | null;
+        lastTestChannelsWhatsapp: boolean | null;
+        lastTestChannelsTelegram: boolean | null;
       } | null;
     };
 
@@ -79,6 +86,10 @@ describe("GET /api/notifications/health — storageAlert", () => {
       lastSendAt: "2026-09-09T03:00:00.000Z",
       lastChannelsWhatsapp: true,
       lastChannelsTelegram: false,
+      // Catatan uji manual ikut diekspos, terpisah dari kirim cron.
+      lastTestSendAt: "2026-09-10T02:30:00.000Z",
+      lastTestChannelsWhatsapp: true,
+      lastTestChannelsTelegram: false,
     });
   });
 

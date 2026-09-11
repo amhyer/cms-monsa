@@ -7,6 +7,18 @@
 
 ## [Unreleased] - 2026-09-10
 
+### 🛠 Added — Pemisahan catatan uji manual dari kirim cron (StorageAlertState)
+
+Uji manual jalur alert kini tercatat pada kolom terpisah:
+`lastTestSendAt` + `lastTestChannelsWhatsapp/Telegram` diisi
+`/api/notifications/test-alert` pada SETIAP percobaan (apa pun hasilnya),
+paralel dengan `lastSendAt` + `lastChannels*` milik cron — sehingga kartu
+"Alert Admin" di Pengaturan menampilkan dua chip berbeda: "Kirim cron
+terakhir" dan "Uji manual terakhir". `lastTestedAt` tetap berarti uji
+manual terakhir yang SUKSES (penanda "Diuji: …" di panel Storage Upload).
+Migrasi `20260911000001_add_storage_alert_last_test_send` (kolom opsional,
+prosedur biasa); gerbang drift CI hijau.
+
 ### 🛠 Added — Penanda uji manual jalur alert (StorageAlertState.lastTestedAt)
 
 Tombol **Uji Kirim Alert** kini mencatat verifikasi manual: saat minimal

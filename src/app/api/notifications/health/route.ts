@@ -74,9 +74,15 @@ export async function GET() {
     storageAlert: storageAlert
       ? {
           aboveThreshold: storageAlert.aboveThreshold,
+          // Kirim cron terakhir (ditulis /api/cron/storage-alert).
           lastSendAt: storageAlert.lastSendAt,
           lastChannelsWhatsapp: storageAlert.lastChannelsWhatsapp,
           lastChannelsTelegram: storageAlert.lastChannelsTelegram,
+          // Uji manual terakhir (ditulis /api/notifications/test-alert) —
+          // terpisah agar kartu kesehatan bisa membedakan keduanya.
+          lastTestSendAt: storageAlert.lastTestSendAt,
+          lastTestChannelsWhatsapp: storageAlert.lastTestChannelsWhatsapp,
+          lastTestChannelsTelegram: storageAlert.lastTestChannelsTelegram,
         }
       : null,
   });

@@ -202,6 +202,9 @@ describe("getUploadStorageStats", () => {
       lastChannelsWhatsapp: true,
       lastChannelsTelegram: false,
       lastTestedAt: new Date("2026-09-10T02:30:00.000Z"),
+      lastTestSendAt: new Date("2026-09-10T02:30:00.000Z"),
+      lastTestChannelsWhatsapp: true,
+      lastTestChannelsTelegram: false,
     });
 
     const stats = await getUploadStorageStats();
@@ -214,6 +217,9 @@ describe("getUploadStorageStats", () => {
       lastChannelsWhatsapp: true,
       lastChannelsTelegram: false,
       lastTestedAt: "2026-09-10T02:30:00.000Z",
+      lastTestSendAt: "2026-09-10T02:30:00.000Z",
+      lastTestChannelsWhatsapp: true,
+      lastTestChannelsTelegram: false,
     });
   });
 

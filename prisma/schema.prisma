@@ -852,19 +852,25 @@ model UploadedFile {
 // Status alert storage upload — mencegah notifikasi terulang tiap cron
 // selama pemakaian masih di atas ambang (lihat src/lib/storage-alert.ts).
 model StorageAlertState {
-  id                   String    @id @default("singleton")
-  aboveThreshold       Boolean   @default(false)
-  lastAlertedAt        DateTime?
-  lastUsagePercent     Float?
+  id                       String    @id @default("singleton")
+  aboveThreshold           Boolean   @default(false)
+  lastAlertedAt            DateTime?
+  lastUsagePercent         Float?
   // Catatan pengiriman TERAKHIR (attempt) — diisi cron saat mengirim,
   // apa pun hasilnya. lastSendAt null = belum pernah ada percobaan kirim;
   // sukses minimal satu kanal (whatsapp || telegram).
-  lastSendAt           DateTime?
-  lastChannelsWhatsapp Boolean?
-  lastChannelsTelegram Boolean?
+  lastSendAt               DateTime?
+  lastChannelsWhatsapp     Boolean?
+  lastChannelsTelegram     Boolean?
   // Waktu terakhir jalur alert diuji manual dari dashboard (tombol Uji
   // Kirim Alert, /api/notifications/test-alert) — hanya saat minimal satu
   // kanal benar-benar terkirim. Null = belum pernah diuji manual.
-  lastTestedAt         DateTime?
-  updatedAt            DateTime  @updatedAt
+  lastTestedAt             DateTime?
+  // Percobaan uji manual TERAKHIR (apa pun hasilnya) — paralel dengan
+  // lastSendAt milik cron, agar kartu kesehatan bisa membedakan kirim cron
+  // dari kirim uji manual.
+  lastTestSendAt           DateTime?
+  lastTestChannelsWhatsapp Boolean?
+  lastTestChannelsTelegram Boolean?
+  updatedAt                DateTime  @updatedAt
 }

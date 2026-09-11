@@ -51,6 +51,12 @@ export async function POST(req: Request) {
 
   const channels = await notifyAdmin(message);
 
+  // Catat percobaan uji apa pun hasilnya (lastTestSendAt + kanal) —
+  // terpisah dari catatan milik cron, agar kartu kesehatan bisa
+  // membedakan kirim cron dari uji manual. markStorageAlertTested
+  // menandai lastTestedAt hanya bila ≥1 kanal sukses.
+  await markStorageAlertTested(channels);
+
   if (!channels.whatsapp && !channels.telegram) {
     return NextResponse.json({
       success: false,
@@ -83,10 +89,6 @@ export async function POST(req: Request) {
     "AdminNotification",
     `Uji kirim alert admin — WhatsApp: ${channels.whatsapp ? "ok" : "gagal"}, Telegram: ${channels.telegram ? "ok" : "gagal"}`
   );
-
-  // Jalur alert terverifikasi (≥1 kanal terkirim) — catat untuk panel
-  // Storage Upload ("Diuji: …") dan kartu kesehatan alert.
-  await markStorageAlertTested();
 
   return NextResponse.json({
     success: true,

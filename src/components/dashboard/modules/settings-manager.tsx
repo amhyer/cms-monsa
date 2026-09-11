@@ -99,6 +99,9 @@ export function SettingsManager() {
       lastSendAt: string | null;
       lastChannelsWhatsapp: boolean | null;
       lastChannelsTelegram: boolean | null;
+      lastTestSendAt: string | null;
+      lastTestChannelsWhatsapp: boolean | null;
+      lastTestChannelsTelegram: boolean | null;
     } | null;
   } | null>(null);
 
@@ -880,7 +883,7 @@ export function SettingsManager() {
           </div>
 
           {/* Hasil kirim alert terakhir dari CRON (StorageAlertState) —
-              bukan hasil tombol uji di atas (uji tidak menulis state). */}
+              terpisah dari hasil uji manual di chip kedua di bawah. */}
           {healthStatus?.storageAlert && (
             <div
               className={`flex items-center gap-2 rounded-md border px-3 py-2 text-xs ${
@@ -916,6 +919,41 @@ export function SettingsManager() {
               </span>
             </div>
           )}
+
+          {/* Uji manual terakhir (StorageAlertState.lastTest*) — dari tombol
+              Uji Kirim Alert di atas, terpisah dari kirim cron. */}
+          {healthStatus?.storageAlert &&
+            healthStatus.storageAlert.lastTestSendAt !== null && (
+              <div
+                className={`flex items-center gap-2 rounded-md border px-3 py-2 text-xs ${
+                  healthStatus.storageAlert.lastTestChannelsWhatsapp ||
+                  healthStatus.storageAlert.lastTestChannelsTelegram
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                    : "border-destructive/30 bg-destructive/10 text-destructive"
+                }`}
+              >
+                {healthStatus.storageAlert.lastTestChannelsWhatsapp ||
+                healthStatus.storageAlert.lastTestChannelsTelegram ? (
+                  <CircleCheck className="size-3.5 shrink-0" />
+                ) : (
+                  <CircleX className="size-3.5 shrink-0" />
+                )}
+                <span className="font-medium">Uji manual terakhir:</span>
+                <span>
+                  {`${formatDateTime(
+                    healthStatus.storageAlert.lastTestSendAt
+                  )} · WhatsApp ${
+                    healthStatus.storageAlert.lastTestChannelsWhatsapp
+                      ? "ok"
+                      : "gagal"
+                  }, Telegram ${
+                    healthStatus.storageAlert.lastTestChannelsTelegram
+                      ? "ok"
+                      : "gagal"
+                  }`}
+                </span>
+              </div>
+            )}
         </CardContent>
       </Card>
 

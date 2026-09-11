@@ -5,7 +5,16 @@
 
 ---
 
-## [Unreleased] - 2026-09-10
+## [Unreleased] - 2026-09-11
+
+### 🛠 Added — Interval muat-ulang otomatis yang dapat dikonfigurasi di panel Storage Upload
+
+Panel **Storage Upload** kini punya pilihan interval muat-ulang otomatis —
+Mati / 30 detik / 1 menit / 5 menit — di header kartu. Pilihan tersimpan di
+localStorage (`cms.storage-panel-refresh-ms`) sehingga bertahan antar sesi;
+mengganti interval langsung memuat ulang laporan. Polling tetap satu pemilik:
+hook bersama `useStorageUsage` yang sama dengan widget sidebar, kini dipakai
+panel dengan interval dinamis alih-alih selalu manual.
 
 ### 🛠 Added — Kesehatan pengiriman alert di panel Storage Upload
 

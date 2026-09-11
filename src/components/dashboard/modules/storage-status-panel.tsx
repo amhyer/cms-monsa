@@ -9,6 +9,8 @@
  *   - dampak referensi (kandidat yang masih dipakai konten → berisiko 404),
  *   - status alert terakhir (dari tabel StorageAlertState, ditulis cron
  *     /api/cron/storage-alert),
+ *   - pilihan interval muat-ulang otomatis (Mati/30d/1m/5m, persisten di
+ *     localStorage) + tombol muat-ulang manual,
  *   - tombol Uji Kirim Alert — POST /api/notifications/test-alert untuk
  *     memverifikasi jalur notifikasi admin (WA/TG) tanpa menunggu cron.
  *
@@ -16,7 +18,7 @@
  * pernah menggagalkan beranda (data dimuat terpisah dari /api/stats).
  */
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   HardDrive,
   BellRing,
@@ -38,6 +40,29 @@ import {
   useStorageUsage,
   type StorageUsageData,
 } from "@/hooks/use-storage-usage";
+
+/** Pilihan interval muat-ulang otomatis (ms). 0 = mati (manual saja). */
+const REFRESH_OPTIONS = [
+  { label: "Mati", value: 0 },
+  { label: "30d", value: 30_000 },
+  { label: "1m", value: 60_000 },
+  { label: "5m", value: 300_000 },
+] as const;
+
+/** Kunci localStorage preferensi interval panel storage. */
+const REFRESH_PREF_KEY = "cms.storage-panel-refresh-ms";
+
+/** Nilai interval tersimpan yang valid (false = tidak tersimpan/tidak valid). */
+function readStoredRefreshMs(): number | false {
+  try {
+    const raw = window.localStorage.getItem(REFRESH_PREF_KEY);
+    if (raw === null) return false;
+    const n = Number(raw);
+    return REFRESH_OPTIONS.some((o) => o.value === n) ? n : false;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Warna bar sesuai tingkat pemakaian. Literal penuh (bukan gabungan dinamis)
@@ -80,9 +105,24 @@ function StatLine({
 
 export function StorageStatusPanel() {
   const isAdmin = useAppStore((s) => s.user?.role === "SUPER_ADMIN");
-  // Interval 0 → tanpa auto-refresh (panel punya tombol muat-ulang sendiri);
-  // enabled=false untuk non-admin → tidak ada panggilan API sama sekali.
-  const { data, error, loading, refresh } = useStorageUsage(0, isAdmin);
+  // Interval dipilih pengguna (Mati/30d/1m/5m); enabled=false untuk
+  // non-admin → tidak ada panggilan API sama sekali.
+  const [refreshMs, setRefreshMs] = useState<number>(0);
+  // Preferensi dibaca setelah mount (SSR-safe, pola usePersistedPageSize) —
+  // menghindari ketidakcocokan hidrasi antara render server dan klien.
+  useEffect(() => {
+    const stored = readStoredRefreshMs();
+    if (stored !== false) setRefreshMs(stored);
+  }, []);
+  const { data, error, loading, refresh } = useStorageUsage(refreshMs, isAdmin);
+  const setRefreshInterval = useCallback((ms: number) => {
+    setRefreshMs(ms);
+    try {
+      window.localStorage.setItem(REFRESH_PREF_KEY, String(ms));
+    } catch {
+      // abaikan — preferensi hanya berlaku sesi ini.
+    }
+  }, []);
   const [testingAlert, setTestingAlert] = useState(false);
   const [alertResult, setAlertResult] = useState<string | null>(null);
   const [alertError, setAlertError] = useState<string | null>(null);
@@ -173,9 +213,32 @@ export function StorageStatusPanel() {
           <HardDrive className="size-4 text-gold-foreground" />
           Storage Upload
         </CardTitle>
-        <Button variant="ghost" size="sm" onClick={refresh} aria-label="Muat ulang laporan storage">
-          <RefreshCw className="size-3.5" />
-        </Button>
+        <div className="flex items-center gap-1.5">
+          <div
+            className="flex items-center overflow-hidden rounded-md border"
+            role="group"
+            aria-label="Interval muat-ulang otomatis"
+          >
+            {REFRESH_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                aria-pressed={refreshMs === opt.value}
+                onClick={() => setRefreshInterval(opt.value)}
+                className={`px-2 py-1 text-xs transition-colors ${
+                  refreshMs === opt.value
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <Button variant="ghost" size="sm" onClick={refresh} aria-label="Muat ulang laporan storage">
+            <RefreshCw className="size-3.5" />
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
         {/* Kuota — bar pemakaian (tanpa kuota: hanya total) */}
@@ -382,7 +445,11 @@ export function StorageStatusPanel() {
         )}
 
         <p className="text-[10px] text-muted-foreground">
-          Diperbarui {formatDateTime(data.timestamp)} · cron cleanup hapus
+          Diperbarui {formatDateTime(data.timestamp)} · muat-ulang otomatis{" "}
+          {refreshMs === 0
+            ? "mati"
+            : REFRESH_OPTIONS.find((o) => o.value === refreshMs)?.label}{" "}
+          · cron cleanup hapus
           file &gt; 90 hari, cron alert memberi tahu admin via WhatsApp/Telegram.
         </p>
       </CardContent>

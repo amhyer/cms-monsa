@@ -36,7 +36,7 @@ export type StorageUsageData = {
 
 /**
  * Muat /api/storage-usage (khusus SUPER_ADMIN — route menolak role lain) dan
- * muat ulang otomatis setiap `refreshMs` milidetik.
+ * muat ulang otomatis setiap `refreshMs` milidetik (0 = hanya manual).
  *
  * Aman dipasang di sidebar yang hidup di semua halaman admin: request
  * gagal (mis. sesi berakhir) tidak melempar error dan tidak mereset data

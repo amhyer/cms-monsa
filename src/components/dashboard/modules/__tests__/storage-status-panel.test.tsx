@@ -12,10 +12,14 @@
  *    hasil sukses/gagal tampil inline; sukses memicu refresh statistik.
  * 8. alertState.lastTestedAt → baris "Diuji:" + hint tombol berisi waktu
  *    uji terakhir; tanpa lastTestedAt → hint default.
+ * 9. Interval muat-ulang: pilihan Mati/30d/1m/5m; memilih interval persisten
+ *    ke localStorage; nilai tersimpan yang valid dipakai ulang saat mount;
+ *    nilai tidak valid diabaikan; perubahan interval memicu pengaturan ulang
+ *    timer (pengambilan data lebih cepat).
  */
 
-import { render, screen, act } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, act, within } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // fetch router + store mock dibangun di vi.hoisted agar bisa dioverride
 // per-tes (role non-admin) dari dalam tes.
@@ -93,6 +97,11 @@ async function flushAsync() {
 }
 
 describe("StorageStatusPanel", () => {
+  afterEach(() => {
+    window.localStorage.clear();
+    vi.useRealTimers();
+  });
+
   it("menampilkan kuota, kandidat, dampak, dan status alert", async () => {
     render(<StorageStatusPanel />);
     await flushAsync();
@@ -235,5 +244,108 @@ describe("StorageStatusPanel", () => {
     expect(
       (screen.getByRole("button", { name: /Uji Kirim Alert/ }) as HTMLButtonElement).disabled
     ).toBe(false);
+  });
+
+  it("interval: tombol Mati aktif saat mount tanpa preferensi; memilih 1m persisten ke localStorage", async () => {
+    render(<StorageStatusPanel />);
+    await flushAsync();
+
+    const group = screen.getByRole("group", { name: /Interval muat-ulang/ });
+    const opts = [
+      ...within(group).getAllByRole("button"),
+    ] as HTMLButtonElement[];
+    expect(opts.map((b) => b.textContent)).toEqual(["Mati", "30d", "1m", "5m"]);
+    // Default tanpa preferensi: Mati aktif (aria-pressed), lainnya tidak.
+    expect(opts.map((b) => b.getAttribute("aria-pressed"))).toEqual([
+      "true",
+      "false",
+      "false",
+      "false",
+    ]);
+
+    await act(async () => {
+      opts[2].click();
+    });
+
+    expect(opts[2].getAttribute("aria-pressed")).toBe("true");
+    expect(opts[0].getAttribute("aria-pressed")).toBe("false");
+    expect(window.localStorage.getItem("cms.storage-panel-refresh-ms")).toBe(
+      "60000"
+    );
+  });
+
+  it("interval tersimpan yang valid dipakai ulang saat mount; tidak valid diabaikan", async () => {
+    window.localStorage.setItem("cms.storage-panel-refresh-ms", "30000");
+
+    render(<StorageStatusPanel />);
+    await flushAsync();
+
+    const group = screen.getByRole("group", { name: /Interval muat-ulang/ });
+    const pressed = within(group)
+      .getAllByRole("button")
+      .map((b) => b.getAttribute("aria-pressed"));
+    expect(pressed).toEqual(["false", "true", "false", "false"]);
+  });
+
+  it("mengganti interval memicu fetch ulang segera lalu jadwal baru; Mati menghentikan timer", async () => {
+    vi.useFakeTimers();
+    try {
+      render(<StorageStatusPanel />);
+      // Mount + resolve fetch awal di bawah fake timers.
+      await act(async () => {});
+
+      const callsAt = () =>
+        (h.fetchMock.mock.calls as unknown as [string][]).filter(
+          ([url]) => url === "/api/storage-usage"
+        ).length;
+      const before = callsAt();
+      expect(before).toBeGreaterThanOrEqual(1);
+
+      // Default Mati: tanpa timer — 2 menit tidak memicu apa pun.
+      await act(async () => {
+        vi.advanceTimersByTime(120_000);
+      });
+      expect(callsAt()).toBe(before);
+
+      // Aktifkan interval 30 detik → fetch ulang segera (efek re-run pada
+      // perubahan refreshMs), lalu jadwal baru.
+      const opt30s = within(
+        screen.getByRole("group", { name: /Interval muat-ulang/ })
+      )
+        .getAllByRole("button")[1] as HTMLButtonElement;
+      await act(async () => {
+        opt30s.click();
+      });
+      expect(callsAt()).toBe(before + 1);
+
+      // Belum ada fetch lagi sebelum interval tercapai.
+      await act(async () => {
+        vi.advanceTimersByTime(29_999);
+      });
+      expect(callsAt()).toBe(before + 1);
+
+      // Tepat 30 detik setelah pemilihan → satu fetch dari interval.
+      await act(async () => {
+        vi.advanceTimersByTime(1);
+      });
+      expect(callsAt()).toBe(before + 2);
+
+      // Kembali ke Mati → fetch segera dari re-run efek, tanpa fetch
+      // terjadwal berikutnya.
+      const optOff = within(
+        screen.getByRole("group", { name: /Interval muat-ulang/ })
+      )
+        .getAllByRole("button")[0] as HTMLButtonElement;
+      await act(async () => {
+        optOff.click();
+      });
+      expect(callsAt()).toBe(before + 3);
+      await act(async () => {
+        vi.advanceTimersByTime(300_000);
+      });
+      expect(callsAt()).toBe(before + 3);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

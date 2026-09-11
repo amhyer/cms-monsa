@@ -7,6 +7,14 @@
 
 ## [Unreleased] - 2026-09-10
 
+### 🛠 Added — Kesehatan pengiriman alert di panel Storage Upload
+
+Panel **Storage Upload** di beranda dashboard kini menampilkan dua baris
+kesehatan pengiriman — "Kirim cron: …" dan "Uji manual: …" beserta hasil
+per kanal (WA/TG ok/gagal, atau "belum pernah") — memakai data yang sama
+(`alertState` dari `readStorageAlertState`) dengan kartu Alert Admin di
+Pengaturan; tanpa fetch tambahan.
+
 ### 🛠 Added — Pemisahan catatan uji manual dari kirim cron (StorageAlertState)
 
 Uji manual jalur alert kini tercatat pada kolom terpisah:

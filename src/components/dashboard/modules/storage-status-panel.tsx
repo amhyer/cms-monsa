@@ -303,6 +303,27 @@ export function StorageStatusPanel() {
           </div>
         </div>
 
+        {/* Kesehatan pengiriman alert — cron vs uji manual (readStorageAlertState,
+            data yang sama dengan kartu Alert Admin di Pengaturan) */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t pt-2 text-xs text-muted-foreground">
+          <span>
+            Kirim cron:{" "}
+            {alert?.lastSendAt
+              ? `${formatDateTime(alert.lastSendAt)} · WA ${
+                  alert.lastChannelsWhatsapp ? "ok" : "gagal"
+                }, TG ${alert.lastChannelsTelegram ? "ok" : "gagal"}`
+              : "belum pernah"}
+          </span>
+          <span>
+            Uji manual:{" "}
+            {alert?.lastTestSendAt
+              ? `${formatDateTime(alert.lastTestSendAt)} · WA ${
+                  alert.lastTestChannelsWhatsapp ? "ok" : "gagal"
+                }, TG ${alert.lastTestChannelsTelegram ? "ok" : "gagal"}`
+              : "belum pernah"}
+          </span>
+        </div>
+
         {/* Uji alert dari panel — verifikasi jalur WA/TG tanpa menunggu cron */}
         <div className="flex items-center justify-between gap-3 border-t pt-2">
           <p className="min-w-0 flex-1 text-xs text-muted-foreground">

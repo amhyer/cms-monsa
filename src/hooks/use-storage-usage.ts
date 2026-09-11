@@ -21,6 +21,11 @@ export type StorageUsageData = {
     aboveThreshold: boolean;
     lastAlertedAt: string | null;
     lastUsagePercent: number | null;
+    // Kirim cron terakhir (apa pun hasilnya) — dari /api/cron/storage-alert.
+    lastSendAt: string | null;
+    lastChannelsWhatsapp: boolean | null;
+    lastChannelsTelegram: boolean | null;
+    // Uji manual terakhir — dari /api/notifications/test-alert.
     lastTestedAt: string | null;
     lastTestSendAt: string | null;
     lastTestChannelsWhatsapp: boolean | null;

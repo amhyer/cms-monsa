@@ -50,7 +50,13 @@ const h = vi.hoisted(() => {
         aboveThreshold: true,
         lastAlertedAt: "2026-09-08T19:00:00.000Z",
         lastUsagePercent: 95.4,
+        lastSendAt: "2026-09-09T03:00:00.000Z",
+        lastChannelsWhatsapp: true,
+        lastChannelsTelegram: false,
         lastTestedAt: "2026-09-10T02:00:00.000Z",
+        lastTestSendAt: "2026-09-10T02:00:00.000Z",
+        lastTestChannelsWhatsapp: false,
+        lastTestChannelsTelegram: true,
       },
       timestamp: "2026-09-09T00:00:00.000Z",
     })
@@ -112,6 +118,10 @@ describe("StorageStatusPanel", () => {
     expect(screen.getByText(/Diuji:/)).toBeInTheDocument();
     // Hint tombol memakai waktu uji terakhir
     expect(screen.getByText(/Jalur terakhir diuji:/)).toBeInTheDocument();
+    // Kesehatan pengiriman: cron vs uji manual, hasil per kanal
+    expect(screen.getByText(/Kirim cron:/)).toBeInTheDocument();
+    expect(screen.getByText(/WA ok, TG gagal/)).toBeInTheDocument();
+    expect(screen.getByText(/Uji manual:/)).toBeInTheDocument();
   });
 
   it("impact null → tidak diketahui; alert belum jalan → belum pernah berjalan; tanpa kuota → petunjuk env", async () => {
@@ -136,6 +146,8 @@ describe("StorageStatusPanel", () => {
     expect(screen.getByText(/Tidak diketahui/)).toBeInTheDocument();
     expect(screen.getByText(/Belum pernah berjalan/)).toBeInTheDocument();
     expect(screen.getByText(/NEON_STORAGE_QUOTA_MB/)).toBeInTheDocument();
+    // Tanpa state sama sekali → kedua baris kesehatan "belum pernah"
+    expect(screen.getAllByText(/belum pernah/).length).toBeGreaterThanOrEqual(2);
     // Tanpa lastTestedAt → hint default (bukan "Jalur terakhir diuji")
     expect(
       screen.getByText(

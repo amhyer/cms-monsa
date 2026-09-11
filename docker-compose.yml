@@ -74,6 +74,13 @@ services:
       # start (idempotent). Set "false" bila ada >1 instance app agar hanya
       # satu yang bermigrasi.
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
+      # ⚠️ Footgun: REDIS_URL di .env DI-INTERPOLASI ke sini. Nilai dev
+      # redis://localhost:6379 tidak akan berfungsi di dalam container
+      # (localhost = container app sendiri): ioredis offline queue membuat
+      # request rate-limiter menggantung ~20 detik lalu gagal. Biarkan KOSONG
+      # di .env untuk single-instance (fallback in-memory), atau pakai
+      # hostname service compose saat memakai profile with-redis:
+      #   REDIS_URL=redis://redis:6379
       REDIS_URL: ${REDIS_URL:-}
       AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET wajib diisi di .env}
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://sdn-mongisidi1.sch.id}

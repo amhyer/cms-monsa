@@ -35,6 +35,15 @@ SENTRY_DSN=""
 SENTRY_AUTH_TOKEN=""
 
 # Redis (opsional, untuk rate limiting multi-instance)
+# ⚠️ JEBAKAN compose: nilai di file .env ini DI-INTERPOLASI ke dalam container
+# (REDIS_URL: ${REDIS_URL:-} di docker-compose.yml). Jangan pernah biarkan
+# redis://localhost:6379 dari setup dev — di dalam container, "localhost"
+# adalah container itu sendiri, bukan host atau service redis compose.
+# Gejala: setiap request yang menyentuh rate limiter (mis. login) menggantung
+# ~20 detik lalu error (offline queue ioredis mencoba ulang tanpa henti).
+# Self-host single-instance: biarkan KOSONG (fallback in-memory sudah cukup).
+# Multi-instance dengan compose profile "with-redis":
+#   REDIS_URL="redis://redis:6379"   (hostname service, BUKAN localhost)
 REDIS_URL=""
 
 # Loki (opsional, untuk log aggregation)

@@ -1,18 +1,37 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
 import { logger } from "@/lib/logger";
 
+/**
+ * GET /api/site-settings — fetch school settings (public, cached).
+ * Cache: 1 hour (public data, admin can update anytime).
+ */
 export async function GET() {
   try {
-    let settings = await db.siteSetting.findUnique({ where: { id: "singleton" } });
+    let settings = await db.siteSetting.findUnique({
+      where: { id: "singleton" },
+    });
     if (!settings) {
-      settings = await db.siteSetting.create({ data: { id: "singleton", vision: "", mission: "", history: "", principalWelcome: "", spmbInfo: "" } });
+      settings = await db.siteSetting.create({
+        data: {
+          id: "singleton",
+          vision: "",
+          mission: "",
+          history: "",
+          principalWelcome: "",
+          spmbInfo: "",
+        },
+      });
     }
     const res = NextResponse.json(settings);
-    res.headers.set("Cache-Control", "public, s-maxage=3600, stale-while-revalidate=7200");
+    // Public data, cached for 1 hour; stale-while-revalidate for 2 hours
+    res.headers.set(
+      "Cache-Control",
+      "public, s-maxage=3600, stale-while-revalidate=7200"
+    );
     return res;
   } catch (e) {
     logger.error({ err: e }, "[site-settings] GET error");
@@ -23,7 +42,10 @@ export async function GET() {
   }
 }
 
-export async function PUT(req: NextRequest) {
+/**
+ * PUT /api/site-settings — update school settings (admin only, no cache).
+ */
+export async function PUT(req: Request) {
   const csrfError = await requireCsrf(req);
   if (csrfError) return csrfError;
 
@@ -65,7 +87,12 @@ export async function PUT(req: NextRequest) {
       update: data,
     });
 
-    await logActivity(auth.user, "UPDATE", "SiteSetting", "Memperbarui pengaturan situs sekolah");
+    await logActivity(
+      auth.user,
+      "UPDATE",
+      "SiteSetting",
+      "Memperbarui pengaturan situs sekolah"
+    );
 
     return NextResponse.json(updated);
   } catch (e) {

@@ -6,6 +6,7 @@ Jembatan-Dapodik-*
 # Config files (contain sensitive data)
 jembatan-config.json
 
+
 # Cache
 .pkg-cache/
 .pkg-cache-*/
@@ -15,4 +16,5 @@ jembatan-config.json
 Thumbs.db
 
 # Logs
+
 *.log

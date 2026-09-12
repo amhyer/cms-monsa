@@ -9,6 +9,7 @@
 
 import http from "node:http";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
@@ -18,11 +19,34 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PORT = Number(process.env.JEMBATAN_PORT || 3847);
 const HOST = "127.0.0.1";
-// Saat executable di-compile (pkg/bun), __dirname menunjuk snapshot read-only
-// yang tidak ada di disk → simpan config di samping file executable agar
-// bertahan lintas restart.
-const BASE_DIR = fs.existsSync(__dirname) ? __dirname : path.dirname(process.execPath);
-const CONFIG_PATH = path.join(BASE_DIR, "jembatan-config.json");
+/**
+ * Folder tempat jembatan-config.json disimpan:
+ * - Mode Node.js/Bun biasa: folder tempat jembatan.mjs berada.
+ * - Mode exe (bun --compile / pkg): folder di samping file exe.
+ *   Di dalam exe, "folder script" adalah snapshot virtual (read-only),
+ *   sehingga penulisan harus dialihkan ke folder exe.
+ * - Jika dua-duanya tidak bisa ditulisi: %USERPROFILE%\Jembatan-Dapodik
+ */
+function resolveAppDir() {
+  const candidates = [
+    path.dirname(__filename),
+    path.dirname(process.execPath),
+    path.join(os.homedir(), "Jembatan-Dapodik"),
+  ];
+  for (const dir of candidates) {
+    try {
+      fs.accessSync(dir, fs.constants.R_OK | fs.constants.W_OK);
+      return dir;
+    } catch {
+      /* coba kandidat berikutnya */
+    }
+  }
+  fs.mkdirSync(candidates[2], { recursive: true });
+  return candidates[2];
+}
+
+const APP_DIR = resolveAppDir();
+const CONFIG_PATH = path.join(APP_DIR, "jembatan-config.json");
 
 const DEFAULTS = {
   cmsUrl: "https://sdn-mongisidi1.sch.id",

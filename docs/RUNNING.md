@@ -189,12 +189,21 @@ sekolah. Jangan buka port 5774 ke internet. Unduh aplikasi jembatan dari
 dashboard (kartu **Jembatan PC Sekolah**), jalankan di PC yang sama dengan
 Dapodik, lalu tempel kunci pairing:
 
-1. Dashboard → **Penarikan Dapodik** → **Unduh jembatan (.zip)**.
-2. **Buat kunci pairing** — salin kunci (`monsa_br_…`); hanya tampil sekali.
-3. Di PC sekolah: pasang [Node.js LTS](https://nodejs.org), buka zip,
-   double-klik `jalankan.bat`. Browser membuka `http://127.0.0.1:3847`.
-4. Isi URL CMS, kunci pairing, NPSN + token Web Service Dapodik.
-5. **Tes Dapodik**, **Tes CMS**, lalu **Tarik & Kirim**.
+1. **Buat kunci pairing** di dashboard → salin kunci (`monsa_br_…`);
+   hanya tampil sekali.
+2. Di PC sekolah: double-klik **`Jembatan-Dapodik.exe`** (dibagikan
+   terpisah, tanpa install apa pun). Browser membuka
+   `http://127.0.0.1:3847`.
+   Cadangan (jika exe tidak tersedia): dashboard → **Unduh jembatan
+   (.zip)**, pasang [Node.js LTS](https://nodejs.org), double-klik
+   `jalankan.bat`.
+3. Isi URL CMS, kunci pairing, NPSN + token Web Service Dapodik.
+4. **Tes Dapodik**, **Tes CMS**, lalu **Tarik & Kirim**.
+
+`Jembatan-Dapodik.exe` dibangun sekali dari folder `dapodik-jembatan/`
+dengan `.\build-exe.ps1` (butuh [Bun](https://bun.sh) — **jangan pakai
+vercel/pkg**, pkg tidak mendukung ES Module `.mjs`). Di mode exe, config
+tersimpan di `jembatan-config.json` pada folder yang sama dengan exe.
 
 Jembatan menarik data lewat HTTP lokal lalu `POST /api/dapodik/ingest`
 (Bearer token) ke CMS HTTPS. Kunci disimpan sebagai hash di

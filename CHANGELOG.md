@@ -24,7 +24,10 @@ benar-benar menunggu — bukan sekadar dua baris log: marker waktu ditulis ke
 cron.log sebelum jendela tunggu, siklus percobaan-1 → percobaan-2 harus ada
 setelah marker, dan jeda terukur antar keduanya diverifikasi ≥ nilai
 `RETRY_DELAY_SEC` yang di-claim runner (dengan batas atas agar siklus menit
-berikutnya tidak ikut terhitung).
+berikutnya tidak ikut terhitung). Baris laporan "laporan kegagalan terkirim"
+juga di-scope ke jendela marker dan diwajibkan SETELAH percobaan-2 siklus
+yang diamati (hanya dicari sampai siklus berikutnya dimulai) — delivery
+terikat ke siklus retry yang benar-benar diamati, bukan sisa log lama.
 
 ### 🛠 Added — E2E self-host kini login admin & memverifikasi angka storage-usage
 

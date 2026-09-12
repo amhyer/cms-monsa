@@ -229,27 +229,17 @@ async function main() {
     "backup .sql ada di /backups",
     backupsListed.replace(/\n/g, ", ")
   );
-  // Job selalu-gagal (menyasar endpoint yang tidak ada): runner harus
-  // menghabiskan 2 percobaan lalu melaporkan kegagalan ke app — baris log
-  // "laporan kegagalan terkirim" membuktikan POST cron-failure sukses
-  // (guard Bearer diterima app), artinya admin dinotifikasi end-to-end.
-  ok(
-    /\[always-fails\] percobaan-2 gagal/.test(cronLog),
-    "cron container: job selalu-gagal menghabiskan retry (2 percobaan)",
-    (cronLog.match(/\[always-fails\] percobaan-2 gagal.*$/) ?? [""])[0].slice(0, 160)
-  );
-  ok(
-    /\[always-fails\] laporan kegagalan terkirim ke app/.test(cronLog),
-    "cron container: kegagalan dilaporkan ke /api/cron/cron-failure",
-    (cronLog.match(/\[always-fails\] laporan kegagalan.*$/) ?? [""])[0].slice(0, 160)
-  );
-
-  // Uji timing retry: dua baris "percobaan gagal" saja tidak membuktikan
-  // retry — bisa jadi dua fire cron yang berbeda. Bukti sesungguhnya:
-  // (1) pasangan percobaan-1 → percobaan-2 ada SETELAH marker (dijalankan
-  // dalam jendela ini), dan (2) jeda terukur antara keduanya ≥ yang
-  // di-claim runner sendiri di baris "mengulang dalam N detik" — membuktikan
-  // proses benar-benar menunggu RETRY_DELAY_SEC, bukan langsung mencoba ulang.
+  // Job selalu-gagal (menyasar endpoint yang tidak ada) — SEMUA buktinya
+  // di-scope ke jendela marker: cron.log berisi siklus-siklus lama dari
+  // fire sebelumnya, jadi kecocokan regex global tidak membuktikan apa pun
+  // tentang JENDELA ini. Uji timing retry: dua baris "percobaan gagal" saja
+  // tidak membuktikan retry — bisa jadi dua fire cron yang berbeda. Bukti
+  // sesungguhnya: (1) pasangan percobaan-1 → percobaan-2 ada SETELAH marker
+  // (dijalankan dalam jendela ini), (2) laporan cron-failure terkirim SETELAH
+  // percobaan-2 di jendela yang sama — delivery terikat ke siklus yang
+  // diamati, bukan sisa log lama — dan (3) jeda terukur antara kedua
+  // percobaan ≥ yang di-claim runner sendiri di baris "mengulang dalam N
+  // detik" — membuktikan proses benar-benar menunggu RETRY_DELAY_SEC.
   // (Job lain bisa menyisipkan baris di antara; cari maju, jangan asumsikan
   // baris tetangga.)
   const lines = cronLog.split("\n");
@@ -264,6 +254,24 @@ async function main() {
     idx1 >= 0 && idx2 > idx1
       ? `${postMarker[idx1].slice(0, 90)} → ${postMarker[idx2].slice(0, 90)}`
       : `idx1=${idx1} idx2=${idx2}`
+  );
+  const postAttempt2 = idx2 >= 0 ? postMarker.slice(idx2 + 1) : [];
+  // Laporan harus milik siklus INI: cari hanya sampai siklus menit berikutnya
+  // dimulai (percobaan-1 berikutnya) — kalau laporan siklus ini gagal tapi
+  // siklus berikutnya sukses, pencarian tak terbatas akan lolos palsu.
+  const nextCycleIdx = postAttempt2.findIndex((l) =>
+    /\[always-fails\] percobaan-1 gagal/.test(l)
+  );
+  const thisCycle = nextCycleIdx >= 0 ? postAttempt2.slice(0, nextCycleIdx) : postAttempt2;
+  const idxReport = thisCycle.findIndex((l) =>
+    /\[always-fails\] laporan kegagalan terkirim ke app/.test(l)
+  );
+  ok(
+    idxReport >= 0,
+    "laporan kegagalan terkirim ke /api/cron/cron-failure (setelah percobaan-2, jendela marker)",
+    idxReport >= 0
+      ? thisCycle[idxReport].slice(0, 160)
+      : "tidak ada baris laporan antara percobaan-2 dan siklus berikutnya"
   );
   const logTs = (l: string) => {
     const m = l.match(/\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]/);

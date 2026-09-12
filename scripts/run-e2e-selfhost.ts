@@ -37,6 +37,9 @@ const COMPOSE_ENV = {
   REDIS_URL: "",
   POSTGRES_PASSWORD: "e2e-pass",
   CRON_SECRET: "e2e-cron-secret",
+  // Base compose hard-require ${AUTH_SECRET:?} — di mesin dev tersembunyi oleh
+  // .env, di CI tidak ada .env sehingga interpolasi gagal tanpa nilai eksplisit.
+  AUTH_SECRET: "e2e-auth-secret-not-production",
 } as NodeJS.ProcessEnv;
 
 /** Container stack produksi — E2E menolak jalan bila salah satu aktif. */

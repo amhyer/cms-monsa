@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { useAppStore } from "@/store/app";
 import { DAYS, type Day } from "@/lib/schedule-constants";
 import { SCHEDULE_TEMPLATES } from "@/lib/schedule-templates";
 import type { ScheduleEntryItem, ClassItem, TeacherItem } from "@/lib/types";
@@ -73,6 +74,11 @@ const EMPTY_FORM: FormState = {
 };
 
 export function ScheduleManager() {
+  const user = useAppStore((s) => s.user);
+  // Guru wali kelas terkunci ke kelasnya (API juga memaksa di server);
+  // guru mapel (tanpa kelas wali) tetap melihat semua kelas.
+  const waliClassId =
+    user?.role === "GURU" ? (user.guardianClassId ?? null) : null;
   const [entries, setEntries] = useState<ScheduleEntryItem[]>([]);
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [teachers, setTeachers] = useState<TeacherItem[]>([]);
@@ -94,8 +100,9 @@ export function ScheduleManager() {
   const fetchEntries = useCallback(async () => {
     setLoading(true);
     try {
+      const effectiveFilter = waliClassId ?? classFilter;
       const params = new URLSearchParams({ academicYear });
-      if (classFilter !== "all") params.set("classId", classFilter);
+      if (effectiveFilter !== "all") params.set("classId", effectiveFilter);
       const res = await fetch(`/api/schedule?${params}`, { cache: "no-store" });
       if (!res.ok) throw new Error();
       const data = await res.json();
@@ -107,7 +114,13 @@ export function ScheduleManager() {
     } finally {
       setLoading(false);
     }
-  }, [classFilter, academicYear]);
+  }, [waliClassId, classFilter, academicYear]);
+
+  // Kunci filter ke kelas wali begitu identitas guru termuat (user datang
+  // async setelah mount). Tanpa ini dropdown sempat di "Semua Kelas".
+  useEffect(() => {
+    if (waliClassId) setClassFilter(waliClassId);
+  }, [waliClassId]);
 
   const fetchClasses = useCallback(async () => {
     try {
@@ -365,15 +378,24 @@ export function ScheduleManager() {
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Kelas</Label>
-          <Select value={classFilter} onValueChange={setClassFilter}>
-            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Semua Kelas" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Kelas</SelectItem>
-              {classes.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {waliClassId ? (
+            <div
+              className="flex h-9 w-[180px] items-center rounded-md border bg-muted px-3 text-sm font-medium"
+              title="Guru wali hanya melihat jadwal kelasnya"
+            >
+              {classMap.get(waliClassId) ?? "Kelas wali Anda"}
+            </div>
+          ) : (
+            <Select value={classFilter} onValueChange={setClassFilter}>
+              <SelectTrigger className="w-[180px]"><SelectValue placeholder="Semua Kelas" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Kelas</SelectItem>
+                {classes.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Jam ke-</Label>

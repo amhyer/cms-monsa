@@ -29,6 +29,10 @@ describe("isGuruDeniedPath (GURU dashboard guard)", () => {
       expect(isGuruDeniedPath("/dashboard/schedule")).toBe(false);
     });
 
+    it("allows exact /dashboard/change-password (wajib — anti lockout wajib-ganti-password)", () => {
+      expect(isGuruDeniedPath("/dashboard/change-password")).toBe(false);
+    });
+
     it("denies /dashboard/profile/... sub-paths (only exact page allowed)", () => {
       expect(isGuruDeniedPath("/dashboard/profile/edit")).toBe(true);
       expect(isGuruDeniedPath("/dashboard/profilex")).toBe(true);

@@ -133,6 +133,13 @@ const mockPrisma = {
     deleteMany: vi.fn(),
     count: vi.fn(),
   },
+  scheduleEntry: {
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  },
   document: {
     findUnique: vi.fn(),
     findMany: vi.fn(),

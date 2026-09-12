@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireRole } from "@/lib/auth";
+import { getSession, requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
 import { DAYS } from "@/lib/schedule-constants";
@@ -14,6 +14,14 @@ export async function GET(req: NextRequest) {
   const where: Record<string, unknown> = {};
   if (classId) where.classId = classId;
   if (academicYear) where.academicYear = academicYear;
+
+  // Guru wali kelas hanya boleh melihat jadwal kelasnya sendiri —
+  // paksa filter walau query meminta kelas lain. Guru mapel (tanpa
+  // guardianClassId) dan peran lain tidak dibatasi.
+  const session = await getSession();
+  if (session?.role === "GURU" && session.guardianClassId) {
+    where.classId = session.guardianClassId;
+  }
 
   const items = await db.scheduleEntry.findMany({
     where,

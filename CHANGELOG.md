@@ -15,7 +15,10 @@ Runner cron self-host (`scripts/cron-job.sh`) kini melaporkan kegagalan total
 yang sudah ada (`notifyAdmin` → WhatsApp/Telegram) — jadi kegagalan cron
 (app down, 401, 5xx, timeout) tidak hanya terlihat di `/backups/cron.log`
 yang jarang dibaca. Laporan bersifat best-effort (tidak mengubah exit code
-job; bila app sendiri down, POST gagal dan cukup tercatat di log). Endpoint
+job; bila app sendiri down, POST gagal dan cukup tercatat di log). Stack uji
+E2E membawa kredensial kanal dummy (token tidak valid) sehingga jalur
+"percobaan terkirim tapi semua kanal gagal" terlatih end-to-end tanpa pesan
+sungguhan pernah sampai ke siapa pun. Endpoint
 tervalidasi ketat (job ≤ 100 char, attempts 1..10, detail dipotong 300
 byte), dikontrak-test 17 kasus, dan tercakup E2E: stack uji kini menjalankan
 job `always-fails` per menit yang harus menghabiskan retry lalu mencatat

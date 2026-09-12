@@ -343,8 +343,11 @@ menjalankan ulang manual. Jeda ulangan bisa diubah lewat env
 > **Uji E2E penuh sebelum go-live (opsional tapi disarankan):** override
 > `docker-compose.e2e.yml` menyalakan stack penuh (app + postgres + cron) di
 > port terpisah dengan jadwal cron per-menit, lalu script
-> `scripts/e2e-selfhost-assert.ts` men-seed file lama/baru dan memastikan
-> ketiga job cron (cleanup, storage-alert, backup) benar-benar berjalan.
+> `scripts/e2e-selfhost-assert.ts` men-seed file lama/baru, login sebagai
+> SUPER_ADMIN yang di-seed, dan memastikan ketiga job cron (cleanup,
+> storage-alert, backup) benar-benar berjalan — termasuk verifikasi angka
+> `/api/storage-usage` (fileCount/totalBytes/persen kuota/kandidat cleanup)
+> terhadap keadaan seed yang diketahui.
 > Cara termudah — satu perintah (preflight + build + up + assert + teardown):
 >
 > ```bash

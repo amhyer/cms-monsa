@@ -4,8 +4,14 @@
  * (deterministik, tanpa kredensial admin):
  *
  *   bun scripts/e2e-selfhost-assert.ts
+ *
+ * Seksi I juga login sebagai SUPER_ADMIN yang di-seed (password di-hash
+ * scrypt dengan parameter yang sama dengan src/lib/password.ts) dan
+ * memverifikasi /api/storage-usage: fileCount/totalBytes, persen kuota
+ * (1 desimal), dan kandidat cleanup — akurat terhadap seed yang diketahui.
  */
 import { execSync } from "node:child_process";
+import { randomBytes, scryptSync } from "node:crypto";
 
 const APP = "http://127.0.0.1:3100";
 const CRON_SECRET = "e2e-cron-secret";
@@ -35,6 +41,13 @@ type ApiBody = {
   aboveThreshold?: boolean;
   notified?: boolean;
   notifiedChannels?: { whatsapp: boolean; telegram: boolean };
+  fileCount?: number;
+  totalBytes?: number;
+  impact?: {
+    referencedCandidates: number;
+    safeCandidates: number;
+    byEntity: Record<string, number>;
+  } | null;
   timestamp?: string;
 };
 
@@ -114,7 +127,7 @@ async function main() {
      VALUES ('big1','big1.jpg','image/jpeg',600000,'\\x41', now());`
   );
   const sa2 = await cronGet("/api/cron/storage-alert");
-  ok(sa2.body?.notified === true, "58% ≥ 50% → notified=true", JSON.stringify(sa2.body).slice(0, 160));
+  ok(sa2.body?.notified === true, "62.9% ≥ 50% → notified=true", JSON.stringify(sa2.body).slice(0, 160));
   const stateRow = psql(
     `SELECT "aboveThreshold","lastChannelsWhatsapp","lastChannelsTelegram" FROM "StorageAlertState" WHERE id='singleton';`
   );
@@ -125,6 +138,17 @@ async function main() {
   // G. dedup — panggilan kedua tidak mengirim ulang
   const sa3 = await cronGet("/api/cron/storage-alert");
   ok(sa3.body?.notified === false, "dedup: panggilan kedua notified=false", `notified=${sa3.body?.notified}`);
+
+  // Pulihkan keadaan seed kanonik: file trigger 600 KB dihapus, sehingga
+  // seksi H/I bekerja pada keadaan pasca-cleanup yang deterministik
+  // (2 file × 30.000 B — tanpa pengaruh trigger seksi F).
+  psql(`DELETE FROM "UploadedFile" WHERE id='big1';`);
+  const restoreCount = psql(`SELECT count(*) FROM "UploadedFile";`);
+  ok(
+    restoreCount.trim() === "2",
+    "state dipulihkan: 2 file tersisa setelah trigger F dihapus",
+    restoreCount.trim()
+  );
 
   // H. cron container per-menit: tunggu ≥2 siklus, lalu cek log backup
   console.log("menunggu 130 detik untuk cron container (jadwal per-menit)…");
@@ -157,6 +181,87 @@ async function main() {
     "backup .sql ada di /backups",
     backupsListed.replace(/\n/g, ", ")
   );
+
+  // I. login SUPER_ADMIN (seeded) → /api/storage-usage akurat
+  // Seed state dikenal pasca-cleanup: 2 file × 30.000 B (new1, new2).
+  // Kuota E2E = 1 MB; usagePercent = round(total/quota*1000)/10 = 5.7.
+  console.log("login SUPER_ADMIN + verifikasi /api/storage-usage…");
+  const ADMIN_EMAIL = "e2e-admin@selfhost.test";
+  const ADMIN_PASSWORD = "e2e-admin-pass-1234";
+  // Hash scrypt “salt:hash” — parameter identik dengan src/lib/password.ts
+  // (N=131072, r=8, p=1, keylen 64, maxmem 256 MB) agar verifyPassword
+  // menerima seed ini.
+  const { salt, hash } = (() => {
+    const s = randomBytes(16).toString("hex");
+    const h = scryptSync(ADMIN_PASSWORD, s, 64, {
+      N: 131072,
+      r: 8,
+      p: 1,
+      maxmem: 256 * 1024 * 1024,
+    }).toString("hex");
+    return { salt: s, hash: h };
+  })();
+  psql(
+    `INSERT INTO "User" ("id","name","email","password","role","isActive","mustChangePassword","twoFactorEnabled","createdAt","updatedAt")
+     VALUES ('e2e-admin','E2E Admin','${ADMIN_EMAIL}','${salt}:${hash}','SUPER_ADMIN',true,false,false,now(),now())
+     ON CONFLICT ("email") DO UPDATE SET "password"=EXCLUDED."password", "role"='SUPER_ADMIN', "isActive"=true, "updatedAt"=now();`
+  );
+  const loginRes = await fetch(`${APP}/api/auth/login`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD }),
+  });
+  ok(loginRes.status === 200, "login SUPER_ADMIN seeded → 200", `HTTP ${loginRes.status}`);
+  const setCookies = loginRes.headers.getSetCookie();
+  const sessionCookie = setCookies.find((c) => c.startsWith("__Host-monsa_session="));
+  ok(
+    sessionCookie !== undefined,
+    "Set-Cookie sesi (__Host-monsa_session) diterbitkan",
+    `${setCookies.length} cookie`
+  );
+
+  if (sessionCookie) {
+    const cookiePair = sessionCookie.split(";")[0];
+    const su = await fetch(`${APP}/api/storage-usage`, {
+      headers: { cookie: cookiePair },
+    });
+    const suBody = await jq(su);
+    ok(su.status === 200, "storage-usage dengan sesi admin → 200", `HTTP ${su.status}`);
+
+    // Angka akurat terhadap seed: 2 file × 30.000 B = 60.000 B dari 1 MB
+    // → 60000/1048576*100 = 5.722… → 1 desimal = 5.7. Kandidat cleanup = 0
+    // (keduanya baru; retensi E2E 30 hari).
+    const expectedTotal = 60_000;
+    const expectedPct = Math.round((expectedTotal / (1024 * 1024)) * 1000) / 10; // 5.7
+    ok(
+      suBody?.fileCount === 2,
+      "fileCount akurat (2 setelah cleanup)",
+      `fileCount=${suBody?.fileCount}`
+    );
+    ok(
+      suBody?.totalBytes === expectedTotal,
+      "totalBytes akurat (60000)",
+      `totalBytes=${suBody?.totalBytes}`
+    );
+    ok(
+      suBody?.usagePercent === expectedPct,
+      `usagePercent akurat (${expectedPct}% dari kuota 1 MB)`,
+      `usagePercent=${suBody?.usagePercent}`
+    );
+    ok(
+      suBody?.cleanupCandidates === 0,
+      "cleanupCandidates akurat (0 — semua file baru)",
+      `cleanupCandidates=${suBody?.cleanupCandidates}`
+    );
+
+    // Impact lapangan diperiksa juga — object harus ada (route menghitung
+    // referensi konten; tanpa konten perujuk → 0/0/{}).
+    ok(
+      suBody?.impact !== null && suBody?.impact !== undefined,
+      "impact terisi (route menghitung referensi konten)",
+      JSON.stringify(suBody?.impact)
+    );
+  }
 
   console.log(failures === 0 ? "\nSEMUA PASS" : `\n${failures} ASSERT GAGAL`);
   process.exit(failures === 0 ? 0 : 1);

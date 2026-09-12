@@ -5,7 +5,18 @@
 
 ---
 
-## [Unreleased] - 2026-09-11
+## [Unreleased] - 2026-09-12
+
+### 🛠 Added — E2E self-host kini login admin & memverifikasi angka storage-usage
+
+`scripts/e2e-selfhost-assert.ts` menambah seksi I: men-seed SUPER_ADMIN
+(password scrypt dengan parameter identik `src/lib/password.ts`), login lewat
+`/api/auth/login`, menangkap cookie `__Host-monsa_session`, lalu memverifikasi
+`/api/storage-usage` mengembalikan angka akurat terhadap seed (fileCount,
+totalBytes, persen kuota 1 desimal, kandidat cleanup, lapangan `impact`).
+File trigger 600 KB dari uji ambang alert kini dihapus setelah dipakai, dan
+restorasi keadaan kanonik diverifikasi — angka seksi I tidak lagi tergantung
+urutan seksi. Label uji ambang dikoreksi 58% → 62.9% (660 KB/1 MB).
 
 ### 🛠 Added — E2E self-host sebagai satu perintah + job CI per-PR
 

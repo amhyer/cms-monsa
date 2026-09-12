@@ -356,7 +356,10 @@ tercatat di cron.log.
 > SUPER_ADMIN yang di-seed, dan memastikan ketiga job cron (cleanup,
 > storage-alert, backup) benar-benar berjalan — termasuk verifikasi angka
 > `/api/storage-usage` (fileCount/totalBytes/persen kuota/kandidat cleanup)
-> terhadap keadaan seed yang diketahui.
+> terhadap keadaan seed yang diketahui, pembuktian bahwa retry job gagal
+> benar-benar menunggu `RETRY_DELAY_SEC` (marker waktu + jeda terukur
+> antar percobaan di cron.log), dan laporan kegagalan total ke
+> /api/cron/cron-failure.
 > Cara termudah — satu perintah (preflight + build + up + assert + teardown):
 >
 > ```bash

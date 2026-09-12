@@ -41,6 +41,7 @@ type ApiBody = {
   aboveThreshold?: boolean;
   notified?: boolean;
   notifiedChannels?: { whatsapp: boolean; telegram: boolean };
+  channels?: { whatsapp: boolean; telegram: boolean };
   fileCount?: number;
   totalBytes?: number;
   impact?: {
@@ -75,6 +76,18 @@ async function cronGet(path: string) {
   return { status: res.status, body: await jq(res) };
 }
 
+async function cronPost(path: string, body: unknown, auth = true) {
+  const res = await fetch(`${APP}${path}`, {
+    method: "POST",
+    headers: {
+      ...(auth ? { authorization: `Bearer ${CRON_SECRET}` } : {}),
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  return { status: res.status, body: await jq(res) };
+}
+
 async function main() {
   console.log("== E2E self-host assert ==", new Date().toISOString());
 
@@ -85,6 +98,29 @@ async function main() {
     health.ok && healthBody?.status === "healthy",
     "app /api/health healthy",
     `HTTP ${health.status}`
+  );
+
+  // A2. endpoint laporan kegagalan cron (runner → notifyAdmin → admin)
+  const cfAnon = await cronPost("/api/cron/cron-failure", { job: "x", attempts: 1 }, false);
+  ok(cfAnon.status === 401, "cron-failure tanpa token → 401", `HTTP ${cfAnon.status}`);
+  const cfBad = await cronPost("/api/cron/cron-failure", { job: "", attempts: 99 });
+  ok(cfBad.status === 400, "cron-failure body tidak valid → 400", `HTTP ${cfBad.status}`);
+  const cfOk = await cronPost("/api/cron/cron-failure", {
+    job: "cleanup-uploads",
+    attempts: 2,
+    lastError: "e2e: simulated failure",
+    lastBody: "(body kosong)",
+  });
+  ok(
+    cfOk.status === 200 && cfOk.body?.ok === true,
+    "cron-failure laporan valid → 200 (notifyAdmin dijalankan)",
+    JSON.stringify(cfOk.body).slice(0, 140)
+  );
+  ok(
+    typeof cfOk.body?.channels?.whatsapp === "boolean" &&
+      typeof cfOk.body?.channels?.telegram === "boolean",
+    "cron-failure: channels dilaporkan (E2E tanpa kanal → false/false)",
+    JSON.stringify(cfOk.body?.channels)
   );
 
   // B. seed deterministik via psql — 5 lama (retensi e2e = 30 hari) + 2 baru
@@ -150,6 +186,18 @@ async function main() {
     restoreCount.trim()
   );
 
+  // Marker waktu: tulis ke /backups/cron.log SEKARANG, sebelum jendela
+  // tunggu H. Siklus retry yang terlihat SETELAH baris ini terbukti
+  // dijalankan selama jendela — bukan sisa log dari siklus sebelum marker.
+  const marker = `e2e-marker ${new Date().toISOString()}`;
+  // Kutip ganda di luar: execSync Windows (cmd.exe) memperlakukan kutip
+  // tunggal sebagai karakter biasa — pola yang sama dengan execSync lain
+  // di file ini.
+  execSync(
+    `docker exec ${CRON_CONTAINER} sh -c "echo '${marker}' >> /backups/cron.log"`,
+    { stdio: ["ignore", "pipe", "pipe"] }
+  );
+
   // H. cron container per-menit: tunggu ≥2 siklus, lalu cek log backup
   console.log("menunggu 130 detik untuk cron container (jadwal per-menit)…");
   await new Promise((r) => setTimeout(r, 130_000));
@@ -180,6 +228,63 @@ async function main() {
     /db-\d{8}-\d{6}\.sql/.test(backupsListed),
     "backup .sql ada di /backups",
     backupsListed.replace(/\n/g, ", ")
+  );
+  // Job selalu-gagal (menyasar endpoint yang tidak ada): runner harus
+  // menghabiskan 2 percobaan lalu melaporkan kegagalan ke app — baris log
+  // "laporan kegagalan terkirim" membuktikan POST cron-failure sukses
+  // (guard Bearer diterima app), artinya admin dinotifikasi end-to-end.
+  ok(
+    /\[always-fails\] percobaan-2 gagal/.test(cronLog),
+    "cron container: job selalu-gagal menghabiskan retry (2 percobaan)",
+    (cronLog.match(/\[always-fails\] percobaan-2 gagal.*$/) ?? [""])[0].slice(0, 160)
+  );
+  ok(
+    /\[always-fails\] laporan kegagalan terkirim ke app/.test(cronLog),
+    "cron container: kegagalan dilaporkan ke /api/cron/cron-failure",
+    (cronLog.match(/\[always-fails\] laporan kegagalan.*$/) ?? [""])[0].slice(0, 160)
+  );
+
+  // Uji timing retry: dua baris "percobaan gagal" saja tidak membuktikan
+  // retry — bisa jadi dua fire cron yang berbeda. Bukti sesungguhnya:
+  // (1) pasangan percobaan-1 → percobaan-2 ada SETELAH marker (dijalankan
+  // dalam jendela ini), dan (2) jeda terukur antara keduanya ≥ yang
+  // di-claim runner sendiri di baris "mengulang dalam N detik" — membuktikan
+  // proses benar-benar menunggu RETRY_DELAY_SEC, bukan langsung mencoba ulang.
+  // (Job lain bisa menyisipkan baris di antara; cari maju, jangan asumsikan
+  // baris tetangga.)
+  const lines = cronLog.split("\n");
+  const markerIdx = lines.findIndex((l) => l.includes("e2e-marker"));
+  ok(markerIdx >= 0, "marker waktu tertulis di cron.log", lines[markerIdx]?.slice(0, 80) ?? "");
+  const postMarker = markerIdx >= 0 ? lines.slice(markerIdx + 1) : [];
+  const idx1 = postMarker.findIndex((l) => /\[always-fails\] percobaan-1 gagal/.test(l));
+  const idx2 = postMarker.findIndex((l) => /\[always-fails\] percobaan-2 gagal/.test(l));
+  ok(
+    idx1 >= 0 && idx2 > idx1,
+    "siklus retry utuh setelah marker (percobaan-1 lalu percobaan-2)",
+    idx1 >= 0 && idx2 > idx1
+      ? `${postMarker[idx1].slice(0, 90)} → ${postMarker[idx2].slice(0, 90)}`
+      : `idx1=${idx1} idx2=${idx2}`
+  );
+  const logTs = (l: string) => {
+    const m = l.match(/\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]/);
+    // Keduanya diparse lokal — selisih tetap benar di zona waktu apa pun.
+    return m ? Date.parse(m[1].replace(" ", "T")) : NaN;
+  };
+  const claimed = Number(
+    postMarker
+      .slice(idx1 + 1)
+      .find((l) => /mengulang dalam (\d+) detik/.test(l))
+      ?.match(/mengulang dalam (\d+) detik/)?.[1] ?? NaN
+  );
+  const gapSec = Math.round((logTs(postMarker[idx2]) - logTs(postMarker[idx1])) / 1000);
+  // Batas atas claimed+65 detik: bila proses ulangan mati sebelum
+  // percobaan-2, crond menyalakan siklus MENIT berikutnya — gap maksimum
+  // legal ≈ 60−RETRY_DELAY+60k. Gap ≥ 5 menit berarti baris percobaan-2
+  // diambil dari fire yang salah (bentuk bug yang dulu pernah terjadi).
+  ok(
+    Number.isFinite(claimed) && gapSec >= claimed && gapSec < claimed + 65,
+    `retry benar-benar menunggu (jeda terukur ${gapSec}s ≥ ${claimed}s yang di-claim runner)`,
+    `gap=${gapSec}s, claimed=${claimed}s`
   );
 
   // I. login SUPER_ADMIN (seeded) → /api/storage-usage akurat

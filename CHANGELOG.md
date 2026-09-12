@@ -19,7 +19,12 @@ job; bila app sendiri down, POST gagal dan cukup tercatat di log). Endpoint
 tervalidasi ketat (job ≤ 100 char, attempts 1..10, detail dipotong 300
 byte), dikontrak-test 17 kasus, dan tercakup E2E: stack uji kini menjalankan
 job `always-fails` per menit yang harus menghabiskan retry lalu mencatat
-"laporan kegagalan terkirim" di cron.log.
+"laporan kegagalan terkirim" di cron.log. Uji E2E juga membuktikan retry
+benar-benar menunggu — bukan sekadar dua baris log: marker waktu ditulis ke
+cron.log sebelum jendela tunggu, siklus percobaan-1 → percobaan-2 harus ada
+setelah marker, dan jeda terukur antar keduanya diverifikasi ≥ nilai
+`RETRY_DELAY_SEC` yang di-claim runner (dengan batas atas agar siklus menit
+berikutnya tidak ikut terhitung).
 
 ### 🛠 Added — E2E self-host kini login admin & memverifikasi angka storage-usage
 

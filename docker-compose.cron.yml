@@ -55,7 +55,9 @@ services:
     volumes:
       - ./scripts/backup-db.sh:/app/scripts/backup-db.sh:ro
       # Runner job wget cron APP: 1 ulangan setelah 5 menit + log body respons
-      # (lihat scripts/cron-job.sh).
+      # (lihat scripts/cron-job.sh). Bila semua percobaan gagal, runner
+      # melaporkan ke POST /api/cron/cron-failure → app meneruskan peringatan
+      # ke admin via notifyAdmin (WhatsApp/Telegram).
       - ./scripts/cron-job.sh:/app/scripts/cron-job.sh:ro
       # Volume yang sama dengan service `app` (read-only) agar backup
       # ikut mengarsipkan upload gambar/PDF.

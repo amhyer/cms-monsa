@@ -340,6 +340,15 @@ bersama body/error respons — penyebab kegagalan kelihatan tanpa
 menjalankan ulang manual. Jeda ulangan bisa diubah lewat env
 `RETRY_DELAY_SEC` pada service cron.
 
+Bila **semua percobaan habis** (job tetap gagal setelah retry), runner
+melaporkan kegagalan ke `POST ${BASE_URL}/api/cron/cron-failure` (guard
+`Bearer $CRON_SECRET`); app meneruskan peringatan ke admin via kanal
+notifikasi yang sudah ada (`notifyAdmin` → WhatsApp/Telegram), jadi job cron
+yang gagal total didengar admin, bukan hanya terbaca di log. Laporan ini
+best-effort: ia tidak mengubah exit code job, dan bila app sendiri sedang
+down — penyebab kegagalan paling umum — POST-nya pasti gagal dan cukup
+tercatat di cron.log.
+
 > **Uji E2E penuh sebelum go-live (opsional tapi disarankan):** override
 > `docker-compose.e2e.yml` menyalakan stack penuh (app + postgres + cron) di
 > port terpisah dengan jadwal cron per-menit, lalu script

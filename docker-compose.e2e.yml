@@ -2,8 +2,10 @@
 # CMS MONSA - Local E2E Test Override (NOT for production)
 # ============================================
 # Menyalakan stack penuh (app + postgres + cron) di port terpisah dan dengan
-# jadwal cron MENITI (bukan harian) supaya ketiga job terbukti berjalan
-# secara live. Jangan pernah dipakai di produksi.
+# jadwal cron MENITI (bukan harian) supaya job cron terbukti berjalan secara
+# live — termasuk job `always-fails` (menyasar endpoint yang tidak ada) untuk
+# menguji laporan kegagalan ke /api/cron/cron-failure. Jangan pernah dipakai
+# di produksi.
 #
 # Usage:
 #   npm run e2e:selfhost    # orchestrator: up → assert → teardown
@@ -53,6 +55,10 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD wajib diisi}@postgres:5432/cms_mongisidi?schema=public
       CRON_SECRET: e2e-cron-secret
+      # Ulangan job 2 detik (bukan default 300) supaya job always-fails
+      # menghabiskan retry + melaporkan kegagalan dalam menit yang sama —
+      # terlihat oleh jendela tunggu 130 detik assert script.
+      RETRY_DELAY_SEC: "2"
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -60,7 +66,8 @@ services:
         * * * * * bash /app/scripts/backup-db.sh >> /backups/backup.log 2>&1
         * * * * * /bin/sh /app/scripts/cron-job.sh cleanup-uploads /api/cron/cleanup-uploads >> /backups/cron.log 2>&1
         * * * * * /bin/sh /app/scripts/cron-job.sh storage-alert /api/cron/storage-alert >> /backups/cron.log 2>&1
+        * * * * * /bin/sh /app/scripts/cron-job.sh always-fails /api/cron/tidak-ada >> /backups/cron.log 2>&1
         EOF
         touch /backups/backup.log /backups/cron.log
-        echo "[e2e-cron] semua job tiap menit"
+        echo "[e2e-cron] semua job tiap menit (+ always-fails untuk uji laporan kegagalan)"
         crond -f -l 2

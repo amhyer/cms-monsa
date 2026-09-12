@@ -7,6 +7,20 @@
 
 ## [Unreleased] - 2026-09-12
 
+### 🛠 Added — Admin dinotifikasi saat job cron self-host gagal total
+
+Runner cron self-host (`scripts/cron-job.sh`) kini melaporkan kegagalan total
+(semua percobaan habis) ke endpoint baru `POST /api/cron/cron-failure`
+(guard `Bearer $CRON_SECRET`). App meneruskan peringatan ke admin via kanal
+yang sudah ada (`notifyAdmin` → WhatsApp/Telegram) — jadi kegagalan cron
+(app down, 401, 5xx, timeout) tidak hanya terlihat di `/backups/cron.log`
+yang jarang dibaca. Laporan bersifat best-effort (tidak mengubah exit code
+job; bila app sendiri down, POST gagal dan cukup tercatat di log). Endpoint
+tervalidasi ketat (job ≤ 100 char, attempts 1..10, detail dipotong 300
+byte), dikontrak-test 17 kasus, dan tercakup E2E: stack uji kini menjalankan
+job `always-fails` per menit yang harus menghabiskan retry lalu mencatat
+"laporan kegagalan terkirim" di cron.log.
+
 ### 🛠 Added — E2E self-host kini login admin & memverifikasi angka storage-usage
 
 `scripts/e2e-selfhost-assert.ts` menambah seksi I: men-seed SUPER_ADMIN

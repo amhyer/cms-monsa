@@ -7,6 +7,13 @@
 # mencatat body respons ke log — sehingga kegagalan cron (401, 5xx, timeout)
 # kelihatan penyebabnya di /backups/cron.log tanpa menjalankan ulang manual.
 #
+# Bila SEMUA percobaan gagal, runner melaporkan kegagalan ke
+# POST ${BASE_URL}/api/cron/cron-failure (guard Bearer $CRON_SECRET) — app
+# meneruskan peringatan ke admin via kanal notifikasi yang ada (notifyAdmin
+# → WhatsApp/Telegram), jadi kegagalan cron tidak hanya terlihat di log yang
+# jarang dibaca. Laporan bersifat best-effort: bila app down (penyebab paling
+# umum) POST-nya pasti gagal dan cukup tercatat di cron.log.
+#
 # Pemakaian di crontab:
 #   30 2 * * * /bin/sh /app/scripts/cron-job.sh cleanup-uploads /api/cron/cleanup-uploads >> /backups/cron.log 2>&1
 #   0 3 * * * /bin/sh /app/scripts/cron-job.sh storage-alert /api/cron/storage-alert >> /backups/cron.log 2>&1
@@ -59,6 +66,25 @@ detail_of() {
   if [ -s "$ERR" ]; then tail -n1 "$ERR"; else echo "(tanpa detail)"; fi
 }
 
+# Laporkan kegagalan ke app → notifyAdmin (kanal admin). Best-effort: hasil
+# POST tidak mengubah exit code job. JSON string dibersihkan dari kutip,
+# backslash, dan newline agar body valid; dipotong 200 byte per field.
+report_failure() {
+  if [ -z "${CRON_SECRET:-}" ]; then
+    log "laporan kegagalan dilewati (CRON_SECRET kosong)"
+    return
+  fi
+  DETAIL=$(detail_of | tr -d '"\\\n\r' | head -c 200)
+  BODYJSON=$(body_of | tr -d '"\\\n\r' | head -c 200)
+  wget -qO- -T 15 \
+    --header "Authorization: Bearer ${CRON_SECRET:-}" \
+    --header "Content-Type: application/json" \
+    --post-data "{\"job\":\"$LABEL\",\"attempts\":$attempt_no,\"lastError\":\"$DETAIL\",\"lastBody\":\"$BODYJSON\"}" \
+    "${BASE_URL}/api/cron/cron-failure" >/dev/null 2>&1 \
+    && log "laporan kegagalan terkirim ke app (admin dinotifikasi)" \
+    || log "laporan kegagalan GAGAL terkirim (app down?)"
+}
+
 # 1 percobaan + 1 ulangan. Direct call (bukan `if attempt`) agar rc wget
 # benar-benar tertangkap — POSIX sh me-reset $? di akhir blok `if`.
 attempt_no=1
@@ -74,6 +100,7 @@ while :; do
   fi
   log "percobaan-${attempt_no} gagal (rc=${rc}) detail=$(detail_of) body=$(body_of)"
   if [ "$attempt_no" -ge "$max_attempt" ]; then
+    report_failure
     break
   fi
   log "mengulang dalam ${RETRY_DELAY_SEC} detik"

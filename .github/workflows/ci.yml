@@ -164,8 +164,8 @@ jobs:
           set +e
           (
             while true; do
-              echo "[diag $(date -u +%H:%M:%S)] $(free -m | tr '\n' '|') disk: $(df -h / | tail -1) load: $(cut -d' ' -f1-3 /proc/loadavg) top-rss: $(ps -eo rss=,comm= --sort=-rss | head -5 | tr '\n' ';')"
-              sleep 10
+              echo "[diag $(date -u +%H:%M:%S)] $(free -m | tr '\n' '|') rss: $(ps -eo rss=,comm= --sort=-rss | head -3 | tr -s ' ' | tr '\n' ';') srv: $(tail -c 260 /tmp/monsa-e2e-server-*.log 2>/dev/null | tr '\n' '~')"
+              sleep 3
             done
           ) &
           SAMPLER=$!

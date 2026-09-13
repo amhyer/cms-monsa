@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { basename } from "path";
+import { basename } from "node:path";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";

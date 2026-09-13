@@ -8,7 +8,7 @@
  * Format penyimpanan di DB: base64(iv + authTag + ciphertext)
  */
 
-import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
+import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 16;

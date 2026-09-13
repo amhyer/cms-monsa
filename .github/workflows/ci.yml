@@ -154,10 +154,21 @@ jobs:
       # E2E_TAIL_LINES / E2E_TAIL_LINES_ERR didefinisikan di env level
       # WORKFLOW (di atas) — step ini dan step "Check tail heading" memakai
       # nilai yang sama.
+      # BUNDLER DEV = WEBPACK (bukan Turbopack bawaan Next 16).
+      # Turbopack dev di Next 16.3 punya pertumbuhan memori tak terbatas saat
+      # banyak rute di-compile: sampler resource (run 34731221689 & 34731460769)
+      # mencatat RSS next-server 0,3 GB → 14,8 GB hanya untuk ~30 dari 143 rute
+      # warm-up, RAM 16 GB + swap 3 GB runner habis, mesin membeku, lalu runner
+      # di-shutdown ("The runner has received a shutdown signal") → step
+      # tercatat `cancelled` tanpa pernah menyentuh spec. Webpack dev stabil
+      # (ratusan MB) untuk rute yang sama, jadi server e2e memakai
+      # `bun run dev:webpack` (script = `next dev -p 3000 --webpack`).
+      # Dev lokal pengguna tetap Turbopack lewat `bun run dev`.
       - name: Run E2E tests
         run: bun run test:e2e
         env:
           E2E_SERVER_LOG: ./server-e2e.log
+          E2E_SERVER_CMD: bun run dev:webpack
 
       # Setiap mutasi API yang dilakukan spec harus dideklarasikan di pragma
       # // warmup: — membaca laporan dari fixture e2e/mutation-log.ts yang

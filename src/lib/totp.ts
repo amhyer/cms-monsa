@@ -5,7 +5,7 @@
  * `crypto` for backup code hashing.
  */
 import * as OTPAuth from "otpauth";
-import { createHash, randomBytes } from "crypto";
+import { createHash, randomBytes } from "node:crypto";
 
 const ISSUER = "CMS MONSA";
 const ALGORITHM = "SHA1";

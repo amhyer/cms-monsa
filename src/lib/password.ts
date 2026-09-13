@@ -1,4 +1,4 @@
-import { scryptSync, randomBytes, timingSafeEqual } from "crypto";
+import { scryptSync, randomBytes, timingSafeEqual } from "node:crypto";
 
 /**
  * OWASP-recommended scrypt parameters (M1):

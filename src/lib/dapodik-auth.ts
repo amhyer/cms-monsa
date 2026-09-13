@@ -1,4 +1,4 @@
-import { timingSafeEqual } from "crypto";
+import { timingSafeEqual } from "node:crypto";
 import { authenticateBridgeRequest } from "@/lib/dapodik-bridge";
 
 export type AuthResult = { ok: true } | { ok: false; status: number; error: string };

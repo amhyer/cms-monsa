@@ -1,4 +1,5 @@
 import { test, expect } from "./mutation-log";
+import { killProcessTree } from "../src/lib/proc-tree";
 import { ADMIN, login } from "./helpers";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -69,10 +70,20 @@ function portPids(): number[] {
  * pemilik port TIDAK cukup: `next dev` memulai ulang server child-nya
  * (observasi live: pid baru langsung mendengarkan ulang).
  *
- * Target = proses `next dev` itu sendiri (node.exe dengan cmdline berisi
- * "next" + "dev" namun BUKAN "start-server"): taskkill /T pada launcher
- * mematikan start-server child-nya sekaligus, dan karena launcher-nya mati,
- * tidak ada respawn.
+ * LINUX: memakai killProcessTree (src/lib/proc-tree.ts) — hanya root +
+ * keturunannya yang ditelusuri dari rantai ppid /proc, satu sinyal per PID,
+ * TERDALAM dulu. Sebelumnya di sini ada `process.kill(-portOwnerPid)` —
+ * sinyal ke SELURUH grup proses — padahal pid pemilik port dari `ss` BUKAN
+ * group leader; di container CI yang PID-nya padat sinyal itu menghantam
+ * grup milik runner GitHub Actions dan job mati sebagai `cancelled`
+ * ("The operation was canceled") TANPA log. Helper baru tidak pernah
+ * memakai pid negatif. `expectCmdline` = anti PID-reuse: pid basi (sudah
+ * dipakai proses lain) TIDAK disentuh.
+ *
+ * WINDOWS: jalur lama tidak diubah — target = proses `next dev` itu sendiri
+ * (node.exe dengan cmdline berisi "next" + "dev" namun BUKAN "start-server"):
+ * taskkill /T pada launcher mematikan start-server child-nya sekaligus, dan
+ * karena launcher-nya mati, tidak ada respawn.
  *
  * PENTING — JANGAN menyerang leluhur TERTINGGI: di bawah wrapper, rantai
  * dari port owner menembus keluarga wrapper itu sendiri (cmd.exe → bun →
@@ -81,17 +92,15 @@ function portPids(): number[] {
  * berhenti di [82/82]). Cari `next dev` dari BAWAH (terdekat port owner),
  * jadi kill tidak pernah menembus keluarga server.
  */
-function killServerTree(portOwnerPid: number): void {
+async function killServerTree(portOwnerPid: number): Promise<void> {
   if (!isWin) {
-    // PID dari `ss` belum tentu group leader — coba pid dulu, lalu process
-    // group (negatif) sebagai fallback. Keduanya diabaikan bila sudah mati.
-    for (const target of [portOwnerPid, -portOwnerPid]) {
-      try {
-        process.kill(target, "SIGTERM");
-      } catch {
-        // proses sudah tidak ada / bukan group leader
-      }
-    }
+    // Allowlist cmdline: server e2e selalu node/bun (next dev / next start).
+    // Ketidakcocokan → penolakan (dilog), bukan kill buta.
+    await killProcessTree(portOwnerPid, {
+      expectCmdline: /node|bun|next/,
+      graceMs: 3_000,
+      log: (m) => console.warn(`[restart] ${m}`),
+    });
     return;
   }
   // Catatan escaping: template literal TS — kutip ganda untuk -Filter TIDAK
@@ -279,7 +288,7 @@ test("dokumen BOS bertahan di disk lintas restart server (upload → restart →
   expect(pids.length).toBeGreaterThan(0);
   // Bunuh pohon utuh (bukan hanya pemilik port) — next dev merespawn
   // server child bila pemilik port saja yang dibunuh.
-  for (const pid of pids) killServerTree(pid);
+  for (const pid of pids) await killServerTree(pid);
   // Tunggu port benar-benar bebas; kalau masih ada listener (respawn edge),
   // bunuh pohonnya lagi — maks 3 putaran.
   let freed = false;
@@ -292,7 +301,7 @@ test("dokumen BOS bertahan di disk lintas restart server (upload → restart →
     if (left.length === 0) {
       freed = true;
     } else {
-      for (const pid of left) killServerTree(pid);
+      for (const pid of left) await killServerTree(pid);
     }
   }
   expect(freed).toBe(true);

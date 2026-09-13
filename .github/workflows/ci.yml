@@ -2,8 +2,21 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      # Gate juga berjalan pada push cabang feature — selama ini, gate CI
+      # hanya menyala via pull_request; push cabang biasa (arena/*, perf/*)
+      # tidak memicu apa pun sehingga kerusakan bisa menumpuk diam-diam
+      # sebelum PR dibuka. Pola disengaja (bukan "**"): hanya keluarga
+      # cabang feature yang nyata di repo ini (arena/* = worktree agen,
+      # perf/*, merge-pr/*) yang dilarikan; PR tetap sumber kebenaran
+      # untuk merge. Menit Actions gratis untuk repo publik, jadi ini
+      # tidak menghabiskan kuota.
+      - "arena/**"
+      - "perf/**"
+      - "merge-pr/**"
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read

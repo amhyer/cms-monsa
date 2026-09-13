@@ -5,7 +5,18 @@
 
 ---
 
-## [Unreleased] - 2026-09-12
+## [Unreleased] - 2026-09-13
+
+### 🛠 Added — Gate CI menyala juga pada push cabang feature
+
+`ci.yml` kini memicu `workflow_dispatch` (jalankan manual) dan push pada
+cabang feature (`arena/**`, `perf/**`, `merge-pr/**`), bukan hanya `main`
+dan `pull_request`. Sebelumnya, push ke cabang feature tidak memicu apa pun —
+semua gate (drift check, docker-build + boot smoke, selfhost-e2e, suite E2E)
+hanya menyala setelah PR dibuka, sehingga kerusakan bisa menumpuk diam-diam
+sebelum PR. Publikasi GHCR tetap terbatas pada push ke `main` (guard
+`github.ref == 'refs/heads/main'`), jadi push cabang hanya membangun dan
+menguji, tidak menyentuh registry.
 
 ### 🛠 Added — Admin dinotifikasi saat job cron self-host gagal total
 

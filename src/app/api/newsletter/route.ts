@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { randomBytes } from "crypto";
+import { randomBytes } from "node:crypto";
 import { rateLimitPublicForm } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 

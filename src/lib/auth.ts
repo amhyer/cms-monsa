@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { createHmac, timingSafeEqual } from "crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { db } from "@/lib/db";
 import type { Role, SessionUser } from "@/lib/types";
 import { logger } from "@/lib/logger";

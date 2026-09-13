@@ -19,7 +19,7 @@
  * di-cache immutable.
  */
 import { mkdir, writeFile, readFile, unlink, access } from "fs/promises";
-import { join } from "path";
+import { join } from "node:path";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 

@@ -150,6 +150,11 @@ describe("Cache-Control headers on public GET routes", () => {
     ],
     [
       "/api/site-settings",
+      // siteSettingsGET() takes no request argument (public singleton read —
+      // the mocked Prisma layer supplies the data). NOTE: do NOT pass a mock
+      // Request here: TS2554 ("Expected 0 arguments, but got 1") breaks
+      // `tsc --noEmit`, CI, and the Vercel production build (Sep 2026 outage:
+      // `as any` on the argument does NOT suppress arity checking).
       () => siteSettingsGET(),
       CACHE.siteSettings,
     ],

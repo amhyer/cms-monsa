@@ -7,6 +7,21 @@
 
 ## [Unreleased] - 2026-09-13
 
+### 🛠 Fixed — Job E2E Playwright di CI kini berjalan melawan server produksi
+
+Job "E2E (Playwright)" di `ci.yml` dijalankan terhadap server dev Turbopack
+dan terbunuh 6x beruntun (2026-09-12 s.d. 09-13, di cabang feature maupun
+`main`) selalu pada jendela setelah warmup selesai — saat chromium
+diluncurkan di atas kompilator on-demand yang rakus memori pada runner 7
+GB — dengan pesan "runner has received a shutdown signal" dan nol step yang
+gagal. Job kembar "E2E (Production Build)" di `playwright.yml`, yang memakai
+wrapper yang sama tetapi server produksi (`next start`, tanpa kompilator),
+tidak pernah terkena di pool runner yang identik. Job kini membangun
+produksi lebih dulu (`bun run build`) lalu menjalankan suite dengan
+`E2E_SERVER_CMD: "bun run start"` — sama persis dengan varian produksi.
+Assertion tidak diubah dan job tidak dilewati; hanya mode server yang
+disesuaikan dengan varian yang terbukti stabil.
+
 ### 🛠 Added — Gate CI menyala juga pada push cabang feature
 
 `ci.yml` kini memicu `workflow_dispatch` (jalankan manual) dan push pada

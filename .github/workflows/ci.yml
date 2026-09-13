@@ -408,18 +408,34 @@ jobs:
       - name: Install Playwright browsers
         run: bunx playwright install --with-deps chromium
 
-      # test:e2e = workflow scripts/run-e2e.ts: memulai dev server (bila
-      # belum ada), memanaskan rute utama, lalu menjalankan Playwright dengan
-      # reuseExistingServer aktif (PW_REUSE_SERVER=1).
+      # Production build — suite dijalankan terhadap server produksi
+      # (next start), bukan dev mode, PERSIS seperti job "E2E (Production
+      # Build)" di playwright.yml. Alasan: 6 kegagalan beruntun (2026-09-12
+      # s.d. 09-13, branch ini dan main) selalu terjadi di jendela setelah
+      # warmup selesai — saat chromium diluncurkan DI ATAS server dev
+      # Turbopack (kompilator on-demand, rakus memori) pada runner 7 GB,
+      # dan runner dilaporkan menerima "shutdown signal" eksternal. Varian
+      # produksi (next start, tanpa kompilator) memakai wrapper yang sama
+      # dan bertahan >26 menit di pool yang sama tanpa pernah terbunuh.
+      # Sukses job prod pada pool identik diulang eksperimen 5x sepanjang
+      # 2 hari — dev mode adalah satu-satunya variabel yang membedakan.
+      - name: Build (production)
+        run: bun run build
+
+      # test:e2e = workflow scripts/run-e2e.ts: memulai server dari
+      # E2E_SERVER_CMD (next start produksi), memanaskan rute utama, lalu
+      # menjalankan Playwright dengan reuseExistingServer aktif
+      # (PW_REUSE_SERVER=1).
       # E2E_SERVER_LOG: wrapper menyalin log server ke workspace saat selesai
       # (sekali, di akhir) agar bisa di-upload saat gagal — berguna untuk
       # mendiagnosis stall cold-compile Turbopack & masalah jaringan.
       # E2E_TAIL_LINES / E2E_TAIL_LINES_ERR didefinisikan di env level
       # WORKFLOW (di atas) — step ini dan step "Check tail heading" memakai
       # nilai yang sama.
-      - name: Run E2E tests
+      - name: Run E2E tests (production server)
         run: bun run test:e2e
         env:
+          E2E_SERVER_CMD: "bun run start"
           E2E_SERVER_LOG: ./server-e2e.log
 
       # Setiap mutasi API yang dilakukan spec harus dideklarasikan di pragma

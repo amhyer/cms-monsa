@@ -29,6 +29,7 @@
     "check:predeploy-db": "bunx tsx scripts/check-predeploy-db.ts",
     "triage:e2e": "bunx tsx scripts/triage-e2e.ts",
     "db:push": "prisma db push",
+    "db:seed:e2e": "bunx tsx prisma/seed-e2e.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma db push",
     "db:migrate:deploy": "prisma migrate deploy",

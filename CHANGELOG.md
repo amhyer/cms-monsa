@@ -7,6 +7,31 @@
 
 ## [Unreleased] - 2026-09-13
 
+### 🛠 Fixed — Database CI kosong membuat suite E2E gagal massal; seed E2E + CRON_SECRET ditambahkan
+
+Investigasi artifact run #93 (E2E Production Build, gagal 4j48m: 83
+failed / 68 passed) membuktikan akar masalah BUKAN infrastruktur:
+`prisma/seed.ts` sengaja no-op dan job CI hanya menjalankan `db:push`,
+sehingga database CI kosong — padahal `e2e/helpers.ts` menghardcode
+kredensial `admin@mongisidi1.sch.id` dll. Semua spec yang login mati
+(`waitForURL **/dashboard` timeout), spec konten publik gagal karena
+data kosong; secara lokal "lulus" karena suite menembak Neon produksi.
+
+- **`prisma/seed-e2e.ts`** (baru): seed idempoten (ID tetap `e2e-*`)
+  berisi pengguna sesuai kredensial helpers + konten dasar (kelas,
+  siswa, guru, berita, pengumuman, agenda, galeri, prestasi, struktur,
+  BOS, dokumen, album+foto). Pengaman ganda: wajib `E2E_SEED=1` dan
+  menolak host `*.neon.tech` — tidak mungkin menyentuh database produksi.
+- `db:seed:e2e` script; job E2E di `ci.yml` dan `playwright.yml` kini
+  menjalankan seed setelah `db:push`.
+- **`CRON_SECRET` di-set di env CI** — sebelumnya kosong sehingga 3 rute
+  cron merespons 503 saat warmup dan gate `check:server-log` gagal
+  permanen di CI (tertutupi secara lokal oleh `.env` dev).
+- Tervalidasi end-to-end lokal: Postgres 16 throwaway → `db:push` →
+  seed → `next dev` → login `admin@mongisidi1.sch.id` HTTP 200 dengan
+  sesi SUPER_ADMIN, `/dashboard` 200, API publik mengembalikan konten
+  seed; rerun seed idempoten.
+
 ### 🛠 Fixed — Job E2E Playwright di CI kini berjalan melawan server produksi
 
 Job "E2E (Playwright)" di `ci.yml` dijalankan terhadap server dev Turbopack

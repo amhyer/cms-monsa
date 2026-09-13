@@ -71,6 +71,7 @@ import {
   warmRoutes,
 } from "../e2e/warmup";
 import { E2E_MUTATION_REPORT } from "../e2e/mutation-log";
+import { killProcessTree } from "../src/lib/proc-tree";
 import { buildRunStats, computeRequestStats } from "./e2e-stats";
 
 const isWin = process.platform === "win32";
@@ -175,23 +176,31 @@ let artifactProducedThisRun = false;
 // dan di-append ke buildSummaryParts (konsol + step summary).
 let scaleWarnings: string[] = [];
 
-function killTree(pid: number): void {
-  if (isWin) {
-    // taskkill /T mematikan seluruh pohon proses (cmd → bunx → node/next).
-    // Timeout wajib: spawnSync PowerShell/taskkill bisa menggantung di mesin
-    // tertentu dan memblokir exit wrapper (pernah terjadi — server e2e
-    // selamat dari cleanup karena wrapper stuck di spawnSync).
-    spawnSync("taskkill", ["/pid", String(pid), "/T", "/F"], {
-      stdio: "ignore",
-      timeout: 15_000,
-    });
-  } else {
-    try {
-      process.kill(-pid, "SIGTERM"); // detached → pemimpin grup proses.
-    } catch {
-      // proses sudah tidak ada.
-    }
-  }
+/**
+ * Pid yang dipegang wrapper adalah pid SHELL yang kita spawn sendiri
+ * (`sh -c "<serverCmd>"`, detached) — jadi target kill selalu milik kita.
+ */
+function killTree(pid: number): Promise<void> {
+  // Dulu: `process.kill(-pid, "SIGTERM")` (sinyal ke SELURUH grup proses).
+  // PID itu awalnya pemimpin grup, TAPI setelah spec restart
+  // (e2e/zz-server-restart-persistence.spec.ts) menyalakan server barunya
+  // sendiri, pid yang tersimpan bisa sudah basi — dan di container CI yang
+  // PID-nya padat sinyal grup menghantam grup milik runner GitHub Actions,
+  // yang lalu menafsirkan SIGTERM sebagai perintah cancel: job `Run E2E
+  // tests` mati sebagai `cancelled` TANPA log. Helper proc-tree membunuh
+  // HANYA root + keturunannya lewat rantai ppid /proc, satu sinyal per PID,
+  // dan TIDAK PERNAH memakai pid negatif (lihat src/lib/proc-tree.ts).
+  return killProcessTree(pid, {
+    // Anti PID-reuse: pid yang sudah dipakai ulang proses lain (pola yang
+    // muncul pasca-restart server) tidak boleh disentuh.
+    expectCmdline: serverCmd,
+    log,
+  }).then((result) => {
+    log(
+      `tidak ada pid negatif dipakai · outcome=${result.outcome} · ` +
+        `${result.signaled.length} pid disinyal${result.reason ? ` · ${result.reason}` : ""}`
+    );
+  });
 }
 
 /** Matikan proses yang mendengarkan di port server e2e kita (fallback Windows). */
@@ -210,10 +219,10 @@ function killPortListeners(port: string): void {
   );
 }
 
-function cleanup(): void {
+async function cleanup(): Promise<void> {
   if (spawnedPid != null) {
     log("memberhentikan server e2e...");
-    killTree(spawnedPid);
+    await killTree(spawnedPid);
     // bunx bisa me-reparent proses server di luar pohon cmd (next/node tetap
     // hidup) — fallback: matikan langsung proses yang mendengarkan di port.
     killPortListeners(port);
@@ -226,8 +235,12 @@ for (const [sig, code] of [
   ["SIGTERM", 143],
 ] as const) {
   process.on(sig, () => {
-    cleanup();
-    process.exit(code);
+    // cleanup ASYNC (killProcessTree menelusuri /proc + mengeskalasi SIGKILL)
+    // — tunggu sampai selesai supaya server tidak jadi yatim, tapi exit tetap
+    // dijamin lewat finally (wrapper tidak boleh menggantung).
+    void cleanup()
+      .catch((err) => log(`cleanup gagal: ${String(err)}`))
+      .finally(() => process.exit(code));
   });
 }
 
@@ -1242,7 +1255,7 @@ async function main(): Promise<number> {
     const up = await waitForServer(target, { log, attempts: 30, intervalMs: 5_000 });
     if (!up) {
       await printServerLogTail("server tidak merespons setelah 150s — tail log:");
-      cleanup();
+      await cleanup();
       // Startup gagal = kegagalan juga: beri perlakuan verdict yang SAMA
       // dengan suite gagal (tail → auto-triage → step summary SATU section
       // yang menggabungkan tail + verdict). copyServerLog dipanggil DULU
@@ -1308,7 +1321,7 @@ async function main(): Promise<number> {
   // sama). Hasil dicetak di sini DAN di-append ke buildSummaryParts.
   await collectScaleWarnings(target);
 
-  cleanup();
+  await cleanup();
   if (code !== 0) {
     await printServerLogTail(`suite GAGAL (exit ${code}) — tail log server:`);
     // Bangun artifact merged DULU agar auto-triage men-scan artifact (bukan

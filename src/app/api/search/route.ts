@@ -34,9 +34,9 @@ export async function GET(req: NextRequest) {
       orderBy: { publishedAt: "desc" },
       take: Math.ceil(limit / 4),
     }),
-    db.announcement.findMany({
+    db.schoolAnnouncement.findMany({
       where: {
-        isActive: true,
+        isPublished: true,
         OR: [
           { title: { contains: search } },
           { content: { contains: search } },

@@ -119,7 +119,7 @@ describe("/api/bulk", () => {
 
     it("deletes multiple entities with correct model", async () => {
       mockRequireRole.mockResolvedValue({ ok: true, user: createMockUser() });
-      mockPrisma.announcement.deleteMany.mockResolvedValue({ count: 1 });
+      mockPrisma.schoolAnnouncement.deleteMany.mockResolvedValue({ count: 1 });
 
       const req = createMockRequest("http://localhost/api/bulk", {
         method: "POST",

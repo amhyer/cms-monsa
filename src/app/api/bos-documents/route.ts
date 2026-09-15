@@ -46,16 +46,43 @@ export async function GET(req: NextRequest) {
   const { cursor, limit } = parsePaginationParams(searchParams, 10, 100);
   const cursorId = decodeCursor(cursor);
   const baseWhere = year ? { year: Number(year) } : {};
+  // Keyset pagination butuh predikat yang KONSISTEN dengan orderBy
+  // (year DESC, createdAt DESC). Cukup `id > cursor` salah di bawah seri
+  // (ties): urutan antar-baris dengan (year, createdAt) identik tidak
+  // ditentukan, sehingga baris bisa dilewati/berulang dan halaman terakhir
+  // bisa kosong dengan next:null — pengguna kehilangan data. Predikat
+  // keyset composite menstabilkan urutan dengan id sebagai tiebreaker:
+  //   (year, createdAt, id) < (cursor.year, cursor.createdAt, cursor.id)
+  // dalam urutan sort (year/createdAt DESC, id ASC).
+  // Baris kursor sudah terhapus (penghapusan concurrent di tengah walk) →
+  // cursorDoc null → predikat kosong → walk mulai lagi dari halaman 1;
+  // fallback yang jinak (pengulangan, bukan kehilangan data).
+  const cursorDoc = cursorId
+    ? await db.bosDocument.findUnique({
+        where: { id: cursorId },
+        select: { year: true, createdAt: true },
+      })
+    : null;
   const where = {
     ...baseWhere,
-    ...(cursorId ? { id: { gt: cursorId } } : {}),
+    ...(cursorDoc
+      ? {
+          OR: [
+            { year: cursorDoc.year, createdAt: cursorDoc.createdAt, id: { gt: cursorId! } },
+            { year: cursorDoc.year, createdAt: { lt: cursorDoc.createdAt } },
+            { year: { lt: cursorDoc.year } },
+          ],
+        }
+      : {}),
   };
 
   const [total, rows, yearRows] = await Promise.all([
     db.bosDocument.count({ where: baseWhere }),
     db.bosDocument.findMany({
       where,
-      orderBy: [{ year: "desc" }, { createdAt: "desc" }],
+      // id asc sebagai kunci terakhir: urutan dalam grup seri menjadi
+      // deterministik dan cocok dengan tiebreak predikat keyset di atas.
+      orderBy: [{ year: "desc" }, { createdAt: "desc" }, { id: "asc" }],
       take: limit + 1,
       include: { uploadedBy: { select: { name: true } } },
     }),

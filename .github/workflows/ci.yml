@@ -447,6 +447,11 @@ jobs:
         env:
           E2E_SERVER_CMD: "bun run start"
           E2E_SERVER_LOG: ./server-e2e.log
+          # Penanda mode E2E untuk server (diwarisi proses anak): mematikan
+          # rate-limit public GET — browser uji navigasi cepat dari satu IP
+          # sah-sah menembus 30–60 req/menit dan 429 membuat fetch list
+          # dashboard kosong. Lihat src/lib/rate-limit.ts.
+          E2E_SUITE: "1"
 
       # Setiap mutasi API yang dilakukan spec harus dideklarasikan di pragma
       # // warmup: — membaca laporan dari fixture e2e/mutation-log.ts yang

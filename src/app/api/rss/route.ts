@@ -20,9 +20,9 @@ export async function GET() {
       },
     });
 
-    const announcements = await db.announcement.findMany({
-      where: { isActive: true },
-      orderBy: { createdAt: "desc" },
+    const announcements = await db.schoolAnnouncement.findMany({
+      where: { isPublished: true },
+      orderBy: { publishedAt: "desc" },
       take: 10,
       select: {
         title: true,

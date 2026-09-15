@@ -29,9 +29,9 @@ export async function GET() {
     db.news.count(),
     db.news.count({ where: { status: "PUBLISHED" } }),
     db.news.count({ where: { status: "DRAFT" } }),
-    db.announcement.count({
+    db.schoolAnnouncement.count({
       where: {
-        isActive: true,
+        isPublished: true,
         OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
       },
     }),

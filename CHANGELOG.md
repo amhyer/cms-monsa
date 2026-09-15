@@ -5,6 +5,67 @@
 
 ---
 
+## [Unreleased] - 2026-09-15
+
+### 🛠 Fixed — Keyset pagination bos-documents salah di bawah seri (baris hilang/terulang)
+
+Cursor pagination `id > cursor` dengan orderBy `(year DESC, createdAt DESC)`
+tidak konsisten: baris yang (year, createdAt)-nya identik (unggahan cepat
+berurutan berada di milidetik yang sama) melompati predikat `id >` dan
+kembali dalam urutan arbitrer — walk bisa mengulang baris dan berakhir di
+halaman KOSONG dengan `next:null` sementara `total` belum habis. Dibuktikan
+live: 15 baris / limit 10 → 3 halaman (9 duplikat, halaman terakhir kosong).
+
+- **`src/app/api/bos-documents/route.ts`**: predikat keyset komposit
+  `(year, createdAt, id)` konsisten dengan orderBy, plus `id asc` sebagai
+  kunci urutan terakhir; baris kursor yang terhapus mid-walk fallback jinak
+  ke halaman 1. Unit test regresi men-pin bentuk predikat.
+- **`src/components/dashboard/_shared.tsx` + bos-expenditures-manager**:
+  `useCursorPagination` menerima `loading` dan `CursorPagination` menerima
+  `disabled` — klik cepat saat fetch berjalan tidak lagi memakai cursor basi.
+
+### 🛠 Fixed — Kontrak API pengumuman: dua model DB, badge Aktif selalu salah, tombol aktif tersimpan tanpa efek
+
+Manager dashboard meminta `?scope=admin` (kontrak yang tidak ada di server)
+dan membaca `a.isActive`, sementara list memakai model `SchoolAnnouncement`
+(kolom `isPublished`) — badge selalu "Nonaktif" dan switch Aktif di dialog
+diam-diam dibuang oleh POST/PUT. Lebih parah: PUT/DELETE/delete-bulk/RSS/
+stats/search menulis/membaca model `Announcement` yang TIDAK PERNAH diisi
+oleh create route — edit dan hapus dari dashboard mengoperasikan tabel lain.
+
+- **`api/announcements`**: `items` + `isActive` (dipetakan dari
+  `isPublished`) adalah kontrak SEMUA consumer; `scope=admin` (kini ada,
+  butuh OPERATOR) hanya melebarkan baris: draft masuk, tanpa filter
+  kedaluwarsa. POST/PUT menerima `isActive` → `isPublished`.
+- **`api/announcements/[id]`, send-whatsapp, bulk, rss, stats, search**:
+  satu model (`schoolAnnouncement`) di seluruh permukaan pengumuman.
+- Unit tests: kontrak publik/admin + pemetaan isActive.
+
+### 🛠 Fixed — Rate-limit public GET meng throttling suite E2E sendiri (429 → list dashboard kosong)
+
+Navigasi cepat browser uji dari satu IP melampaui 60 req/menit dan fetch
+list dokumen dashboard mendapat 429 — manager menampilkan "Belum ada
+produk" padahal data ada (snapshot error-context: form kosong, list kosong
+setelah upload sukses).
+
+- **`src/lib/rate-limit.ts`**: `E2E_SUITE=1` (dari harness CI, diwarisi
+  server anak) mematikan pembatas public GET di mode E2E saja.
+- **`.github/workflows/ci.yml`**: job E2E menyetel `E2E_SUITE=1`.
+
+### 🛠 Fixed — Spec E2E: helper dark-mode terbalik, assertion hasil DELETE zz tidak valid
+
+- **dark-mode-mobile**: helper membaca aria-label sebelum toggle mounted
+  (placeholder disabled memakai label statis) dan menafsirkan label
+  "Aktifkan mode gelap" (halaman masih TERANG) sebagai "sudah gelap" — mode
+  gelap tidak pernah dinyalakan; probe warna lama menutupi ini karena
+  regex rgb() tidak pernah match terhadap lab(). Sekarang: tunggu enabled,
+  klik saat terang, konversi warna via canvas tetap dipertahankan.
+- **zz-server-restart**: `page.evaluate` tidak bisa mengembalikan Response
+  (tak terserialisasi) sehingga `delRes.status` selalu undefined — kembalikan
+  `{ status }` polos; kegagalan DELETE kini benar-benar menggagalkan test.
+- **transparansi 15MB**: asersi isi log server dilewatkan bila log wrapper
+  tidak tersedia (mode reuse lokal); CI tetap memeriksa log nyata.
+
 ## [Unreleased] - 2026-09-13
 
 ### 🛠 Fixed — Database CI kosong membuat suite E2E gagal massal; seed E2E + CRON_SECRET ditambahkan

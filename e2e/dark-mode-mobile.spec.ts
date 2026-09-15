@@ -16,11 +16,14 @@ async function enableDarkMode(page: import("@playwright/test").Page, path = "/")
   const toggle = page.getByRole("button", {
     name: /Aktifkan mode (gelap|terang)/,
   });
-  // It may already be in dark or light — check what aria-label it has.
+  await expect(toggle).toBeEnabled();
+  // Label komponen: isDark → "Aktifkan mode terang" (klik = ke terang),
+  // sehingga label "...gelap" berarti halaman masih TERANG dan harus
+  // diklik untuk masuk mode gelap.
   const label = await toggle.getAttribute("aria-label");
 
   // Only click if we're in light mode (need to switch to dark)
-  if (label === "Aktifkan mode gelap") {
+  if (label !== "Aktifkan mode gelap") {
     // Already dark
     return;
   }

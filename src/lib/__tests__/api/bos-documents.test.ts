@@ -90,4 +90,59 @@ describe("GET /api/bos-documents", () => {
     expect(data.hasMore).toBe(true);
     expect(data.nextCursor).toBeTruthy();
   });
+
+  it("cursor walk uses composite keyset predicate (no row loss under ties)", async () => {
+    mockPrisma.bosDocument.count.mockResolvedValue(30);
+    mockPrisma.bosDocument.findUnique.mockResolvedValue({
+      year: 2026,
+      createdAt: new Date("2026-01-01T00:00:00Z"),
+    });
+    mockPrisma.bosDocument.findMany.mockResolvedValueOnce([]);
+
+    const cursor = Buffer.from("doc-10").toString("base64url");
+    const req = createMockRequest(
+      `http://localhost/api/bos-documents?limit=10&cursor=${cursor}`
+    );
+    await GET(asNextRequest(req));
+
+    // Predikat harus keyset komposit (year, createdAt, id) — BUKAN id > cursor
+    // yang salah di bawah seri (baris bisa terulang/hilang antar halaman).
+    expect(mockPrisma.bosDocument.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          OR: [
+            {
+              year: 2026,
+              createdAt: new Date("2026-01-01T00:00:00Z"),
+              id: { gt: "doc-10" },
+            },
+            { year: 2026, createdAt: { lt: new Date("2026-01-01T00:00:00Z") } },
+            { year: { lt: 2026 } },
+          ],
+        },
+        orderBy: [
+          { year: "desc" },
+          { createdAt: "desc" },
+          { id: "asc" },
+        ],
+      })
+    );
+  });
+
+  it("deleted cursor row falls back to a clean first page", async () => {
+    mockPrisma.bosDocument.count.mockResolvedValue(30);
+    mockPrisma.bosDocument.findUnique.mockResolvedValue(null);
+    mockPrisma.bosDocument.findMany.mockResolvedValueOnce([]);
+
+    const cursor = Buffer.from("gone").toString("base64url");
+    const req = createMockRequest(
+      `http://localhost/api/bos-documents?limit=10&cursor=${cursor}`
+    );
+    const res = await GET(asNextRequest(req));
+    expect(res.status).toBe(200);
+    // Predikat kosong — walk mulai lagi dari halaman 1.
+    expect(mockPrisma.bosDocument.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: {} })
+    );
+  });
 });

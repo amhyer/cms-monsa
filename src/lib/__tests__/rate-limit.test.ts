@@ -198,6 +198,25 @@ describe("rate-limit utilities", () => {
       await isGetRateLimited(ip, 5, 60000);
       expect(await isGetRateLimited(ip, 5, 60000)).toBe(true);
     });
+
+    it("GET rate limiter is bypassed when E2E_SUITE=1", async () => {
+      const { isGetRateLimited } = await import("@/lib/rate-limit");
+      const ip = `get-e2e-${Date.now()}`;
+      process.env.E2E_SUITE = "1";
+      try {
+        // Jauh di atas batas — tetap diizinkan selama mode E2E aktif.
+        for (let i = 0; i < 8; i++) {
+          expect(await isGetRateLimited(ip, 5, 60000)).toBe(false);
+        }
+      } finally {
+        delete process.env.E2E_SUITE;
+      }
+      // Setelah env dihapus, pembatas berlaku normal lagi.
+      for (let i = 0; i < 5; i++) {
+        await isGetRateLimited(ip, 5, 60000);
+      }
+      expect(await isGetRateLimited(ip, 5, 60000)).toBe(true);
+    });
   });
 
   describe("isFormRateLimited", () => {

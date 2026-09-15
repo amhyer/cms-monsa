@@ -13,23 +13,26 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   const auth = await requireRole("OPERATOR");
   if (!auth.ok) return auth.response;
   const { id } = await params;
-  const existing = await db.announcement.findUnique({ where: { id } });
+  const existing = await db.schoolAnnouncement.findUnique({ where: { id } });
   if (!existing) {
     return NextResponse.json({ error: "Pengumuman tidak ditemukan." }, { status: 404 });
   }
   const body = await req.json();
-  const updated = await db.announcement.update({
+  const updated = await db.schoolAnnouncement.update({
     where: { id },
     data: {
       title: String(body.title ?? existing.title),
       content: String(body.content ?? existing.content),
       isPinned: Boolean(body.isPinned ?? existing.isPinned),
       expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
-      isActive: body.isActive !== undefined ? Boolean(body.isActive) : existing.isActive,
+      // Kontrak manager memakai isActive; kolom DB adalah isPublished.
+      isPublished:
+        body.isActive !== undefined ? Boolean(body.isActive) : existing.isPublished,
     },
   });
   await logActivity(auth.user, "UPDATE", "Announcement", `Memperbarui pengumuman: ${updated.title}`, id);
-  return NextResponse.json(updated);
+  // Balas dalam bentuk kontrak manager (isActive).
+  return NextResponse.json({ ...updated, isActive: updated.isPublished });
 }
 
 export async function DELETE(req: NextRequest, { params }: Ctx) {
@@ -39,11 +42,11 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
   const auth = await requireRole("OPERATOR");
   if (!auth.ok) return auth.response;
   const { id } = await params;
-  const existing = await db.announcement.findUnique({ where: { id } });
+  const existing = await db.schoolAnnouncement.findUnique({ where: { id } });
   if (!existing) {
     return NextResponse.json({ error: "Pengumuman tidak ditemukan." }, { status: 404 });
   }
-  await db.announcement.delete({ where: { id } });
+  await db.schoolAnnouncement.delete({ where: { id } });
   await logActivity(auth.user, "DELETE", "Announcement", `Menghapus pengumuman: ${existing.title}`, id);
   return NextResponse.json({ ok: true });
 }

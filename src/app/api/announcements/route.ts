@@ -14,10 +14,20 @@ export async function GET(req: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
     const category = searchParams.get("category");
     const pinned = searchParams.get("pinned") === "true";
+    // scope=admin → dashboard management list: semua status (termasuk draft),
+    // tanpa filter kedaluwarsa, dan `items` memuat isActive. Scope ini butuh
+    // sesi OPERATOR karena mengekspos draft; tanpa scope → list publik yang
+    // hanya berisi published + belum kedaluwarsa.
+    const isAdminScope = searchParams.get("scope") === "admin";
 
     const where: Record<string, unknown> = {
       isPublished: true,
     };
+    if (isAdminScope) {
+      const auth = await requireRole("OPERATOR");
+      if (!auth.ok) return auth.response;
+      delete where.isPublished;
+    }
 
     if (category) {
       where.category = category;
@@ -27,11 +37,13 @@ export async function GET(req: NextRequest) {
       where.isPinned = true;
     }
 
-    // Filter expired announcements
-    where.OR = [
-      { expiresAt: null },
-      { expiresAt: { gte: new Date() } },
-    ];
+    // Filter expired announcements (publik saja — admin melihat semuanya)
+    if (!isAdminScope) {
+      where.OR = [
+        { expiresAt: null },
+        { expiresAt: { gte: new Date() } },
+      ];
+    }
 
     const announcements = await db.schoolAnnouncement.findMany({
       where,
@@ -46,6 +58,7 @@ export async function GET(req: NextRequest) {
         priority: true,
         imageUrl: true,
         isPinned: true,
+        isPublished: true,
         publishedAt: true,
         expiresAt: true,
         viewCount: true,
@@ -62,10 +75,16 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json({
-      // `items` adalah kontrak yang dipakai semua consumer (manager dashboard
-      // + ticker berjalan); `announcements` dipertahankan untuk kompatibilitas
+      // `items` adalah kontrak SEMUA consumer (manager dashboard + ticker
+      // berjalan publik) — selalu ada, dengan isActive dipetakan dari kolom
+      // isPublished. scope=admin hanya melebarkan baris (draft tanpa filter
+      // kedaluwarsa), bukan bentuk respons.
+      items: announcements.map((a) => ({
+        ...a,
+        isActive: a.isPublished,
+      })),
+      // `announcements` dipertahankan untuk kompatibilitas
       // dengan announcement-system dan test unit lama.
-      items: announcements,
       announcements,
       categories: categories.map((c) => ({
         name: c.category,
@@ -102,6 +121,7 @@ export async function POST(req: NextRequest) {
       priority,
       imageUrl,
       isPinned,
+      isActive,
       expiresAt,
       targetAudience,
       publishedAt,
@@ -132,6 +152,10 @@ export async function POST(req: NextRequest) {
         priority: priority || "NORMAL",
         imageUrl: imageUrl?.trim() || null,
         isPinned: isPinned || false,
+        // Kontrak dashboard manager memakai isActive; kolom DB adalah
+        // isPublished. Default true supaya API tunggal (title+content)
+        // tetap membuat pengumuman yang langsung tayang.
+        isPublished: isActive !== undefined ? Boolean(isActive) : true,
         publishedAt: publishedAt ? new Date(publishedAt) : new Date(),
         expiresAt: expiresAt ? new Date(expiresAt) : null,
         targetAudience: targetAudience || "ALL",

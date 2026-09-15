@@ -630,9 +630,9 @@ jobs:
         env:
           E2E_PREV_STATS: ./prev-stats/e2e-stats.jsonl
 
-      # Guard data leak — pastikan judul E2E/AUDIT tidak bocor ke dataset
-      - name: Check test data leak
-        run: bun run check:data-leak
+      # (check:data-leak TIDAK dijalankan di job ini: database E2E memang
+      # diisi seed `e2e-*` secara disengaja — guard ini untuk mencegah data
+      # uji bocor ke dataset produksi/dev, dipakai di gate pre-commit.)
 
       # Stage state untuk job orphan-check: dump PostgreSQL e2e + file
       # upload BOS. Hanya file bos-*.pdf yang disalin (bukan seluruh

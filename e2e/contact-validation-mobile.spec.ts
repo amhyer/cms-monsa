@@ -1,4 +1,4 @@
-// warmup: /api/news /api/agenda /api/achievements /api/settings
+// warmup: /api/news /api/agenda /api/achievements /api/settings /api/contact
 import { test, expect } from "./mutation-log";
 
 const MOBILE = { width: 375, height: 667 };

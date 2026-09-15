@@ -100,9 +100,13 @@ export const test = base.extend({
               }
               record(specFile, method, url, query);
               // APIRequestContext tidak punya index signature — akses dinamis
-              // via Record<string, unknown> lalu panggil sebagai fungsi.
+              // via Record<string, unknown>. PENTING: method HARUS dipanggil
+              // dengan receiver `target` (fn.call(target, ...)) — internal
+              // Playwright memanggil this.fetch di dalam get()/post(), jadi
+              // tanpa receiver `this` = undefined → TypeError "Cannot read
+              // properties of undefined (reading 'fetch')".
               const fn = (target as unknown as Record<string, unknown>)[prop as string];
-              return (fn as (...a: unknown[]) => unknown)(...args);
+              return (fn as (...a: unknown[]) => unknown).apply(target, args);
             };
           }
           const v = Reflect.get(target, prop, receiver);

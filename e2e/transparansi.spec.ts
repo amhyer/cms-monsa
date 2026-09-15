@@ -17,13 +17,14 @@ function latestServerLog(): string {
   const logs = readdirSync(dir).filter(
     (f) => f.startsWith("monsa-e2e-server-") && f.endsWith(".log")
   );
-  const base = logs
-    // Urutkan berdasarkan mtime (bukan nama — nama memakai pid wrapper yang
-    // tidak berurutan antar run; sort leksikografis bisa memilih run lama).
-    .sort(
-      (a, b) =>
-        statSync(join(dir, b)).mtimeMs - statSync(join(dir, a)).mtimeMs
-    )[0];
+  const base = logs.sort(
+    (a, b) =>
+      statSync(join(dir, b)).mtimeMs - statSync(join(dir, a)).mtimeMs
+  )[0];
+  // Tidak ada log wrapper (mis. suite dijalankan melawan server yang sudah
+  // berjalan lewat mode reuse) → jangan crash; gate 5xx dinilai dari string
+  // kosong (tidak pernah match) sehingga asersi utama test tetap berlaku.
+  if (!base) return "";
   const out = readFileSync(join(dir, base), "utf8");
   const errFile = join(dir, `${base}.err`);
   const err = existsSync(errFile) ? readFileSync(errFile, "utf8") : "";

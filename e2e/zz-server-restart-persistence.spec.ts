@@ -315,20 +315,20 @@ test("dokumen BOS bertahan di disk lintas restart server (upload → restart →
   expect(listed).toBe(true);
 
   // --- CLEANUP: hapus via API (session + CSRF bertahan lintas restart) ---
-  await page.evaluate(async (t: string): Promise<void> => {
+  const delRes = await page.evaluate(async (t: string): Promise<Response> => {
     const csrf = await (await fetch("/api/csrf-token")).json();
     const r = await fetch("/api/bos-documents");
     const d = await r.json();
     const item = (d.items as { id: string; title: string }[]).find(
       (i) => i.title === t
     );
-    if (item) {
-      await fetch(`/api/bos-documents/${item.id}`, {
-        method: "DELETE",
-        headers: { "x-csrf-token": csrf.token },
-      });
-    }
+    if (!item) throw new Error(`dokumen ${t} tidak ditemukan di API`);
+    return fetch(`/api/bos-documents/${item.id}`, {
+      method: "DELETE",
+      headers: { "x-csrf-token": csrf.token },
+    });
   }, title);
+  expect(delRes.status).toBe(200);
 
   expect(existsSync(diskPath)).toBe(false);
   const old = await page.request.get(downloadUrl);

@@ -45,7 +45,11 @@ test("academic page: directory, kalender, dan halaman portofolio guru", async ({
     await expect(dialog).toBeVisible();
     await expect(dialog.getByRole("heading").first()).toBeVisible();
     // Assert nama guru ada di modal (dynamic, bukan hardcode seed).
-    await expect(dialog.getByText(new RegExp(firstTeacher.name))).toBeVisible();
+    // Heading-nya saja — bio guru bisa mengandung nama yang sama
+    // (strict-mode collision saat modal menampilkan keduanya).
+    await expect(
+      dialog.getByRole("heading", { name: new RegExp(firstTeacher.name) })
+    ).toBeVisible();
     // Assert bio ada jika tersedia.
     if (firstTeacher.bio) {
       await expect(dialog.getByText(new RegExp(firstTeacher.bio.slice(0, 20)))).toBeVisible();

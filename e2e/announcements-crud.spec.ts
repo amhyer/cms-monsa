@@ -13,7 +13,8 @@ test.describe("Announcements CRUD", () => {
   });
 
   test("should navigate to announcements management via the sidebar", async ({ page }) => {
-    await page.getByRole("button", { name: "Pengumuman" }).click();
+    // exact: tombol "Buat Pengumuman" di halaman juga match tanpa exact.
+    await page.getByRole("button", { name: "Pengumuman", exact: true }).click();
     await expect(
       page.getByRole("heading", { name: "Pengumuman", level: 2 })
     ).toBeVisible();
@@ -21,7 +22,7 @@ test.describe("Announcements CRUD", () => {
   });
 
   test("should create, read, edit and delete an announcement", async ({ page }) => {
-    await page.getByRole("button", { name: "Pengumuman" }).click();
+    await page.getByRole("button", { name: "Pengumuman", exact: true }).click();
     await expect(
       page.getByRole("heading", { name: "Pengumuman", level: 2 })
     ).toBeVisible();

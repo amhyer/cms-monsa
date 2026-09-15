@@ -105,11 +105,14 @@ export async function POST(req: NextRequest) {
     attemptedSize = file instanceof File ? file.size : 0;
 
     if (!file || !(file instanceof File)) {
-      logger.warn({
-        reason: "file-tidak-ada",
-        filename: attemptedName,
-        source,
-      });
+      logger.warn(
+        {
+          reason: "file-tidak-ada",
+          filename: attemptedName,
+          source,
+        },
+        "[bos-documents] unggahan ditolak"
+      );
       return NextResponse.json(
         { error: "File tidak ditemukan. Pilih file PDF yang akan diunggah." },
         { status: 400 }
@@ -122,12 +125,15 @@ export async function POST(req: NextRequest) {
     const maxMb = maxUploadMb(15);
     const MAX_SIZE = maxMb * 1024 * 1024;
     if (file.size > MAX_SIZE) {
-      logger.warn({
-        reason: "terlalu-besar",
-        filename: attemptedName,
-        size: file.size,
-        source,
-      });
+      logger.warn(
+        {
+          reason: "terlalu-besar",
+          filename: attemptedName,
+          size: file.size,
+          source,
+        },
+        "[bos-documents] unggahan ditolak"
+      );
       return NextResponse.json(
         { error: `Ukuran file maksimal ${maxMb} MB.` },
         { status: 400 }
@@ -139,12 +145,15 @@ export async function POST(req: NextRequest) {
     // bytes ("%PDF-") dan paksa ekstensi .pdf — yang lain ditolak.
     const bytes = new Uint8Array(await file.arrayBuffer());
     if (!detectPdf(bytes)) {
-      logger.warn({
-        reason: "bukan-pdf",
-        filename: attemptedName,
-        size: file.size,
-        source,
-      });
+      logger.warn(
+        {
+          reason: "bukan-pdf",
+          filename: attemptedName,
+          size: file.size,
+          source,
+        },
+        "[bos-documents] unggahan ditolak"
+      );
       return NextResponse.json(
         {
           error:
@@ -163,13 +172,16 @@ export async function POST(req: NextRequest) {
       }
     );
     if (!validation.ok) {
-      logger.warn({
-        reason: "validasi-gagal",
-        filename: attemptedName,
-        size: file.size,
-        source,
-        error: validation.error,
-      });
+      logger.warn(
+        {
+          reason: "validasi-gagal",
+          filename: attemptedName,
+          size: file.size,
+          source,
+          error: validation.error,
+        },
+        "[bos-documents] unggahan ditolak"
+      );
       return NextResponse.json({ error: validation.error }, { status: 400 });
     }
     const { year, title, description } = validation.data;

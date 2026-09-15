@@ -62,6 +62,10 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json({
+      // `items` adalah kontrak yang dipakai semua consumer (manager dashboard
+      // + ticker berjalan); `announcements` dipertahankan untuk kompatibilitas
+      // dengan announcement-system dan test unit lama.
+      items: announcements,
       announcements,
       categories: categories.map((c) => ({
         name: c.category,

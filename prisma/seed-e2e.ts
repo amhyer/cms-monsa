@@ -64,10 +64,17 @@ async function main() {
   console.log("🌱 Seed E2E — pengguna + konten dasar (idempoten, ID tetap e2e-*)");
 
   // ---- Pengguna (kredensial harus = e2e/helpers.ts) ----
+  // 7 akun non-SISWA: users-manager.spec menambah 4 akun dan butuh total
+  // > 10 (2 halaman pagination), sementara tab SISWA HARUS tetap kosong
+  // (assertion "Belum ada akun" pada uji isolasi role).
   const users = [
     { id: "e2e-user-admin", name: "Admin E2E", email: "admin@mongisidi1.sch.id", password: "admin123", role: "SUPER_ADMIN" },
     { id: "e2e-user-operator", name: "Operator E2E", email: "operator@mongisidi1.sch.id", password: "operator123", role: "OPERATOR" },
     { id: "e2e-user-guru", name: "Guru E2E", email: "guru@mongisidi1.sch.id", password: "guru123", role: "GURU" },
+    { id: "e2e-user-ortu-1", name: "Orang Tua E2E 1", email: "ortu1@mongisidi1.sch.id", password: "ortu123", role: "ORANG_TUA" },
+    { id: "e2e-user-ortu-2", name: "Orang Tua E2E 2", email: "ortu2@mongisidi1.sch.id", password: "ortu123", role: "ORANG_TUA" },
+    { id: "e2e-user-ortu-3", name: "Orang Tua E2E 3", email: "ortu3@mongisidi1.sch.id", password: "ortu123", role: "ORANG_TUA" },
+    { id: "e2e-user-ortu-4", name: "Orang Tua E2E 4", email: "ortu4@mongisidi1.sch.id", password: "ortu123", role: "ORANG_TUA" },
   ] as const;
   for (const u of users) {
     await db.user.upsert({
@@ -85,6 +92,16 @@ async function main() {
   for (const c of classes) {
     await db.class.upsert({ where: { name: c.name }, update: {}, create: c });
   }
+  // Siswa pertama (urut abjad) HARUS "Aisyah Putri Ramadhani" — students-
+  // manager.spec menautkan quick action "Buat akun SISWA" ke nama ini.
+  const studentNames = [
+    "Aisyah Putri Ramadhani",
+    "Budi Santoso",
+    "Citra Dewi Lestari",
+    "Dimas Prasetyo",
+    "Eka Fitriani",
+    "Fajar Nugroho",
+  ];
   for (let i = 1; i <= 6; i++) {
     await db.student.upsert({
       where: { nis: `E2E${String(i).padStart(3, "0")}` },
@@ -92,27 +109,53 @@ async function main() {
       create: {
         nis: `E2E${String(i).padStart(3, "0")}`,
         nisn: `00${String(i).padStart(8, "0")}`,
-        name: `Siswa E2E ${i}`,
+        name: studentNames[i - 1],
         gender: i % 2 === 0 ? "PEREMPUAN" : "LAKI_LAKI",
         parentName: `Orang Tua E2E ${i}`,
+        // Foto absolut (http) — marquee Galeri Siswa hanya menampilkan siswa
+        // berfoto (img[src^='http']).
+        photoUrl: `https://picsum.photos/seed/e2e-siswa-${i}/400/400`,
         classId: i <= 3 ? "e2e-class-1a" : "e2e-class-2a",
       },
     });
   }
 
-  // ---- Guru (direktori /academic + modal profil: bio & kontak) ----
-  for (let i = 1; i <= 4; i++) {
+  // ---- Guru (direktori /academic + modal profil + kartu identitas admin) ----
+  // Nama PAKAI kata akhir unik — JANGAN prefiks numerik ("Guru E2E 1" adalah
+  // substring "Guru E2E 10/11/12", dan locator filter hasText memakai
+  // substring match → strict-mode violation di specs kartu identitas).
+  const teacherNames = [
+    "Guru Peminpi Ana",
+    "Guru Peminpi Beno",
+    "Guru Peminpi Cica",
+    "Guru Peminpi Dodi",
+    "Guru Peminpi Euis",
+    "Guru Peminpi Fani",
+    "Guru Peminpi Gita",
+    "Guru Peminpi Hani",
+    "Guru Peminpi Iwan",
+    "Guru Peminpi Joko",
+    "Guru Peminpi Kira",
+    "Guru Peminpi Lala",
+  ];
+  for (let i = 1; i <= 12; i++) {
     await db.teacher.upsert({
       where: { id: `e2e-teacher-${i}` },
       update: {},
       create: {
         id: `e2e-teacher-${i}`,
-        name: `Guru E2E ${i}`,
+        name: teacherNames[i - 1],
         position: i === 1 ? "Kepala Sekolah" : "Guru Kelas",
         subject: i === 1 ? null : "Kelas " + i,
         education: "S1 PGSD",
-        riwayat: `Bio singkat Guru E2E ${i} untuk modal profil.`,
+        riwayat: `Bio singkat ${teacherNames[i - 1]} untuk modal profil.`,
         email: `guru${i}@mongisidi1.sch.id`,
+        // Identitas dari Dapodik — kartu admin menampilkan NUPTK/NIP/NIK.
+        nuptk: String(1000000000 + i * 111111),
+        nip: `19800101200${String(i).padStart(2, "0")}101001`,
+        nik: `73710101019000${String(i).padStart(3, "0")}`,
+        order: i,
+        isActive: true,
       },
     });
   }
@@ -203,8 +246,41 @@ async function main() {
         position: ["Kepala Sekolah", "Guru Kelas 1A", "Guru Kelas 2A", "Operator", "Bendahara"][i - 1],
         bio: `Bio pengurus E2E ${i}.`,
         contact: `pengurus${i}@mongisidi1.sch.id`,
+        nuptk: String(2000000000 + i * 111111),
+        nip: `19850505201${String(i).padStart(2, "0")}102001`,
+        nik: `73710105058500${String(i).padStart(3, "0")}`,
         order: i,
         isActive: true,
+      },
+    });
+  }
+
+  // ---- Pengumuman sekolah (SchoolAnnouncement — sumber ticker berjalan) ----
+  for (let i = 1; i <= 3; i++) {
+    await db.schoolAnnouncement.upsert({
+      where: { id: `e2e-schoolann-${i}` },
+      update: {},
+      create: {
+        id: `e2e-schoolann-${i}`,
+        title: `Pengumuman Sekolah E2E ${i}`,
+        content: `Isi pengumuman sekolah E2E ${i}.`,
+        isPublished: true,
+        publishedAt: day(-i),
+        createdById: "e2e-user-admin",
+      },
+    });
+  }
+
+  // ---- Ticker berita (news-ticker home) ----
+  for (let i = 1; i <= 3; i++) {
+    await db.newsTicker.upsert({
+      where: { id: `e2e-ticker-${i}` },
+      update: {},
+      create: {
+        id: `e2e-ticker-${i}`,
+        content: `Info terkini E2E ${i} — kegiatan sekolah berjalan lancar.`,
+        isActive: true,
+        priority: i,
       },
     });
   }

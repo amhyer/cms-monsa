@@ -404,11 +404,13 @@ nav button,
   transition: all 0.15s ease-in-out;
 }
 
-nav a:hover,
-nav button:hover,
-.sidebar-item:hover {
-  background-color: var(--sidebar-accent);
-  color: var(--sidebar-accent-foreground);
+@layer base {
+  nav a:hover,
+  nav button:hover,
+  .sidebar-item:hover {
+    background-color: var(--sidebar-accent);
+    color: var(--sidebar-accent-foreground);
+  }
 }
 
 /* Badge hover effect */

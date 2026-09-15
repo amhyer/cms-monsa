@@ -7,8 +7,11 @@ test.describe("Activity Logs", () => {
     await page.goto("/dashboard/logs");
     await page.waitForLoadState("networkidle");
 
-    // Should show the page heading
-    await expect(page.getByText("Log Aktivitas")).toBeVisible();
+    // Should show the page heading (heading level, bukan semua kemunculan
+    // teks — teksnya juga ada di tombol sidebar dan heading section).
+    await expect(
+      page.getByRole("heading", { name: "Log Aktivitas", level: 1 })
+    ).toBeVisible();
     await expect(
       page.getByText("Catatan ini merekam semua aktivitas")
     ).toBeVisible();

@@ -7,6 +7,27 @@
 
 ## [Unreleased] - 2026-09-15
 
+### ✨ Added — Seed demo dev (prisma/seed.ts) + `--purge-e2e`
+
+`bun run db:seed` mengisi database lokal dengan data sekolah SD Indonesia
+yang realistis (5 akun per role `@sekolahdemo.id` / `demo123`, 7 guru dengan
+NUPTK/NIP/NIK, 6 kelas + wali, 18 siswa, berita, pengumuman, agenda, galeri,
+prestasi, BOS + 3 PDF demo yang dibuat otomatis, dokumen publik, pesan,
+pengaduan, SPMB) sehingga halaman publik dan dashboard langsung "hidup" —
+bukan halaman kosong maupun fixture E2E.
+
+- Idempoten (upsert ID tetap `demo-*` / email `@sekolahdemo.id`), aman
+  dijalankan ulang; tidak menyentuh data lain.
+- Menolak `DATABASE_URL` kosong/tidak valid/Neon (proteksi produksi); memuat
+  `.env` + `.env.local` sendiri dengan precedensi Next.js.
+- `bunx tsx prisma/seed.ts --purge-e2e` membersihkan sisa data seed E2E
+  (ID `e2e-*`) — kelas yang masih dirujuk siswa lama diganti nama lalu
+  dihapus setelah siswa demo berpindah, sehingga tidak ada fixture uji
+  yang tersisa di dev.
+- `package.json`: script `db:seed` + konfigurasi `prisma.seed`; docs/RUNNING.md
+  kini mengarahkan dev ke seed demo (bukan seed E2E) dan tabel akun login
+  diperbarui ke kredensial demo.
+
 ### 🛠 Fixed — Keyset pagination bos-documents salah di bawah seri (baris hilang/terulang)
 
 Cursor pagination `id > cursor` dengan orderBy `(year DESC, createdAt DESC)`

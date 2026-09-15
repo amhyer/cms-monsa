@@ -2,10 +2,9 @@
  * Seed khusus E2E (CI / self-host test) — BUKAN seed produksi.
  *
  * Latar belakang: suite Playwright mengasumsikan pengguna & konten dasar
- * ada (lihat e2e/helpers.ts: admin/operator/guru), tetapi `prisma/seed.ts`
- * sengaja no-op dan database CI hanya berisi schema (`db:push`). Akibatnya
- * semua spec yang login gagal massal di CI (83 gagal pada run #93) sementara
- * secara lokal "lulus" karena E2E menembak database produksi Neon.
+ * ada (lihat e2e/helpers.ts: admin/operator/guru). `prisma/seed.ts` berisi
+ * data demo dev yang TIDAK cocok dengan asumsi locator E2E (nama/kredensial
+ * berbeda), sehingga database CI memakai seed khusus ini (`db:push` + seed).
  *
  * Seed ini idempoten (semua baris memakai ID tetap berawalan `e2e-`,
  * upsert by id) sehingga aman dijalankan ulang per run CI.

@@ -127,12 +127,19 @@ dulu ada varian SQLite untuk dev, dikonsolidasi agar dev = produksi.
 ```bash
 bun run db:push      # push schema ke DATABASE_URL (dev/DB kosong)
 bun run db:generate  # generate Prisma client (biasanya otomatis via postinstall)
-E2E_SEED=1 bunx tsx prisma/seed-e2e.ts   # data demo dev (ID berawalan "e2e-")
+bun run db:seed      # data demo dev realistis (ID berawalan "demo-")
 ```
 
-Seed di atas mengisi pengguna (admin/operator/guru/ortu) + konten contoh
-sehingga login dan halaman publik langsung bisa dicoba. Idempoten — aman
-dijalankan ulang. Tanpa seed, database hanya berisi struktur schema.
+Seed demo mengisi pengguna (admin/operator/guru/ortu/siswa), guru, kelas,
+siswa, berita, pengumuman, agenda, galeri, prestasi, BOS, dokumen, pesan,
+dan SPMB — halaman publik dan dashboard langsung "hidup" dengan data
+sekolah contoh, bukan fixture uji. Idempoten (upsert by unique key — aman
+dijalankan ulang), menolak `DATABASE_URL` yang menunjuk Neon (proteksi
+produksi), dan menulis PDF demo ke `public/uploads/` (di-gitignore).
+
+> Seed E2E (`E2E_SEED=1 bunx tsx prisma/seed-e2e.ts`, ID "e2e-", kredensial
+> `@mongisidi1.sch.id`) **hanya** untuk menjalankan suite Playwright —
+> datanya sengaja dibuat berpola dan tidak pantas tampil di dev sehari-hari.
 
 ### Produksi (Vercel + Neon)
 
@@ -168,14 +175,19 @@ Ganti port jika 3000 terpakai: `next dev -p 3100`.
 
 ---
 
-## 6. Akun Login Default (hasil seed)
+## 6. Akun Login Default (hasil seed demo)
 
 | Role | Email | Password |
 |------|-------|----------|
-| Super Admin | `admin@mongisidi1.sch.id` | `admin123` |
-| Operator | `operator@mongisidi1.sch.id` | `operator123` |
+| Super Admin | `admin@sekolahdemo.id` | `demo123` |
+| Operator | `operator@sekolahdemo.id` | `demo123` |
+| Guru (wali kelas 1A) | `guru@sekolahdemo.id` | `demo123` |
+| Orang Tua | `ortu@sekolahdemo.id` | `demo123` |
+| Siswa (portal) | `siswa@sekolahdemo.id` | `demo123` |
 
-> **Ganti password segera setelah login pertama** (menu Pengaturan/Users).
+> Ini kredensial database DEMO lokal — jangan pernah dipakai di produksi.
+> Buat akun asli lewat menu Pengaturan/Users dan **ganti password segera
+> setelah login pertama**.
 
 ---
 

@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { readStorageAlertState } from "@/lib/upload-stats";
 
 /**
  * GET status kesehatan semua channel notifikasi + log aktivitas terakhir.
  * Menampilkan apakah SMTP / Fonnte / Telegram terkonfigurasi, beserta
- * info singkat tanpa membocorkan secret/token.
+ * info singkat tanpa membocorkan secret/token. Termasuk hasil pengiriman
+ * alert kuota terakhir (StorageAlertState — ditulis cron
+ * /api/cron/storage-alert) untuk kartu "Alert Admin (cron)" di Pengaturan.
  */
 export async function GET() {
   const auth = await requireRole("OPERATOR");
@@ -48,6 +51,11 @@ export async function GET() {
       : null;
   }
 
+  // --- Hasil kirim alert kuota terakhir (StorageAlertState, ditulis cron) ---
+  // Fail-soft: bila tabel belum bermigrasi/DB bermasalah → null, kesehatan
+  // kanal lain tetap tampil.
+  const storageAlert = await readStorageAlertState();
+
   return NextResponse.json({
     smtp: {
       configured: smtpConfigured,
@@ -63,6 +71,20 @@ export async function GET() {
       configured: telegramConfigured,
     },
     lastLogs,
+    storageAlert: storageAlert
+      ? {
+          aboveThreshold: storageAlert.aboveThreshold,
+          // Kirim cron terakhir (ditulis /api/cron/storage-alert).
+          lastSendAt: storageAlert.lastSendAt,
+          lastChannelsWhatsapp: storageAlert.lastChannelsWhatsapp,
+          lastChannelsTelegram: storageAlert.lastChannelsTelegram,
+          // Uji manual terakhir (ditulis /api/notifications/test-alert) —
+          // terpisah agar kartu kesehatan bisa membedakan keduanya.
+          lastTestSendAt: storageAlert.lastTestSendAt,
+          lastTestChannelsWhatsapp: storageAlert.lastTestChannelsWhatsapp,
+          lastTestChannelsTelegram: storageAlert.lastTestChannelsTelegram,
+        }
+      : null,
   });
 }
 

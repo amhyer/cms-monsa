@@ -227,6 +227,55 @@ export async function notifyComplaintToAdmin(
 }
 
 // ---------------------------------------------------------------------------
+// Admin Alert (storage quota, dll.)
+// ---------------------------------------------------------------------------
+
+/**
+ * Kirim satu pesan peringatan ke admin via WhatsApp (ADMIN_PHONE) dan/atau
+ * Telegram (TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID). Fire-and-forget — tidak
+ * pernah melempar, pengiriman gagal hanya dicatat di log.
+ *
+ * Dipakai oleh cron /api/cron/storage-alert (peringatan kuota storage).
+ */
+export async function notifyAdmin(
+  message: string
+): Promise<{ whatsapp: boolean; telegram: boolean }> {
+  let whatsapp = false;
+  const adminPhone = process.env.ADMIN_PHONE;
+  if (adminPhone) {
+    try {
+      const result = await sendWhatsApp(adminPhone, message, {
+        timeoutMs: 10_000,
+      });
+      whatsapp = result.ok;
+      if (!result.ok) {
+        logger.warn(
+          { detail: result.message },
+          "[notifications] WhatsApp admin alert gagal"
+        );
+      }
+    } catch (e) {
+      logger.warn(
+        { err: e },
+        "[notifications] WhatsApp admin alert error"
+      );
+    }
+  }
+
+  let telegram = false;
+  try {
+    telegram = await sendTelegram(message, { timeoutMs: 10_000 });
+  } catch (e) {
+    logger.warn(
+      { err: e },
+      "[notifications] Telegram admin alert error"
+    );
+  }
+
+  return { whatsapp, telegram };
+}
+
+// ---------------------------------------------------------------------------
 // Contact Message Notification
 // ---------------------------------------------------------------------------
 

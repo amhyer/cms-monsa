@@ -16,11 +16,14 @@ async function enableDarkMode(page: import("@playwright/test").Page, path = "/")
   const toggle = page.getByRole("button", {
     name: /Aktifkan mode (gelap|terang)/,
   });
-  // It may already be in dark or light — check what aria-label it has.
+  await expect(toggle).toBeEnabled();
+  // Label komponen: isDark → "Aktifkan mode terang" (klik = ke terang),
+  // sehingga label "...gelap" berarti halaman masih TERANG dan harus
+  // diklik untuk masuk mode gelap.
   const label = await toggle.getAttribute("aria-label");
 
   // Only click if we're in light mode (need to switch to dark)
-  if (label === "Aktifkan mode gelap") {
+  if (label !== "Aktifkan mode gelap") {
     // Already dark
     return;
   }
@@ -101,17 +104,24 @@ test.describe("Dark mode — mobile (375px)", () => {
         return getComputedStyle(document.body).backgroundColor;
       });
 
-      // Dark mode background is noticeably darker than light mode
-      // oklch(0.17 0.02 264) ≈ rgb(22, 22, 37) — parse the rgb values
-      const match = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-      expect(match).toBeTruthy();
-      if (match) {
-        const [, r, g, b] = match.map(Number);
-        // Dark background: all channels should be below ~80
-        expect(r).toBeLessThan(80);
-        expect(g).toBeLessThan(80);
-        expect(b).toBeLessThan(80);
-      }
+      // Dark mode background is noticeably darker than light mode.
+      // Format-agnostic: Chromium dapat menyerialisasi oklch() sebagai
+      // rgb(), lab(), atau oklch() tergantung versi — konversi ke RGB
+      // nyata lewat canvas, lalu wajibkan gelap (semua channel < 80).
+      const rgb = await page.evaluate((cssColor: string): number[] => {
+        const c = document.createElement("canvas");
+        c.width = 1;
+        c.height = 1;
+        const ctx = c.getContext("2d");
+        if (!ctx) return [255, 255, 255];
+        ctx.fillStyle = cssColor;
+        ctx.fillRect(0, 0, 1, 1);
+        return [...ctx.getImageData(0, 0, 1, 1).data.slice(0, 3)];
+      }, bgColor);
+      // Dark background: all channels should be below ~80
+      expect(rgb[0]).toBeLessThan(80);
+      expect(rgb[1]).toBeLessThan(80);
+      expect(rgb[2]).toBeLessThan(80);
     });
 
     test("heading text is visible in dark mode", async ({ page }) => {

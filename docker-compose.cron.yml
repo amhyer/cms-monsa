@@ -4,8 +4,16 @@
 # Usage:
 #   docker compose -f docker-compose.yml -f docker-compose.cron.yml up -d
 #
-# Menambahkan service `cron` yang menjalankan backup otomatis tiap hari
-# 02.00 (zona waktu Asia/Makassar) via busybox crond di dalam container.
+# Menambahkan service `cron` yang menjalankan:
+#   - backup otomatis tiap hari 02.00 (zona waktu Asia/Makassar) via
+#     busybox crond di dalam container,
+#   - cron APP /api/cron/cleanup-uploads (02.30) & /api/cron/storage-alert
+#     (03.00) — dipanggil via runner scripts/cron-job.sh (1 ulangan setelah
+#     5 menit bila gagal + body respons dicatat ke log) ke service `app`
+#     dengan header `Authorization: Bearer $CRON_SECRET`, persis semantik
+#     Vercel Cron.
+#     Jadi alert kuota storage & cleanup upload tetap jalan setelah migrasi
+#     dari Vercel (lihat docs/MIGRATION-VERCEL-TO-SELFHOST.md §5.1).
 #
 # PERBAIKAN (audit deployment 2026-08-28):
 #   - Sebelumnya service ini membangun image dari Dockerfile aplikasi
@@ -27,9 +35,17 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      # Job wget menyasar service `app` — tunggu sehat agar job hari pertama
+      # tidak gagal karena app belum listen.
+      app:
+        condition: service_healthy
     environment:
       # pg_dump terhubung ke service `postgres` lewat network internal.
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD wajib diisi di .env}@postgres:5432/cms_mongisidi?schema=public
+      # Token cron — WAJIB sama dengan CRON_SECRET yang diterima service app
+      # (header Authorization job wget di bawah). Wajib diisi agar job
+      # cleanup/alert tidak sekadar mencatat 401 di log.
+      CRON_SECRET: ${CRON_SECRET:?CRON_SECRET wajib diisi di .env (sama dengan service app)}
       # Lokasi output backup (volume) & sumber uploads (volume app, read-only)
       BACKUP_DIR: /backups
       UPLOADS_DIR: /uploads
@@ -38,6 +54,11 @@ services:
       TZ: ${TZ:-Asia/Makassar}
     volumes:
       - ./scripts/backup-db.sh:/app/scripts/backup-db.sh:ro
+      # Runner job wget cron APP: 1 ulangan setelah 5 menit + log body respons
+      # (lihat scripts/cron-job.sh). Bila semua percobaan gagal, runner
+      # melaporkan ke POST /api/cron/cron-failure → app meneruskan peringatan
+      # ke admin via notifyAdmin (WhatsApp/Telegram).
+      - ./scripts/cron-job.sh:/app/scripts/cron-job.sh:ro
       # Volume yang sama dengan service `app` (read-only) agar backup
       # ikut mengarsipkan upload gambar/PDF.
       - uploads-data:/uploads:ro
@@ -47,9 +68,11 @@ services:
       - |
         cat > /etc/crontabs/root <<'EOF'
         0 2 * * * bash /app/scripts/backup-db.sh >> /backups/backup.log 2>&1
+        30 2 * * * /bin/sh /app/scripts/cron-job.sh cleanup-uploads /api/cron/cleanup-uploads >> /backups/cron.log 2>&1
+        0 3 * * * /bin/sh /app/scripts/cron-job.sh storage-alert /api/cron/storage-alert >> /backups/cron.log 2>&1
         EOF
-        touch /backups/backup.log
-        echo "[cron] backup database + uploads tiap 02.00 ($${TZ:-Asia/Makassar})"
+        touch /backups/backup.log /backups/cron.log
+        echo "[cron] backup 02.00 + cleanup-uploads 02.30 + storage-alert 03.00 ($${TZ:-Asia/Makassar})"
         crond -f -l 2
 
 # ============================================

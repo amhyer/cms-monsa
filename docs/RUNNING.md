@@ -86,7 +86,7 @@ Minimal isi di `.env`:
 
 | Variable | Contoh (dev) | Keterangan |
 |----------|--------------|------------|
-| `DATABASE_URL` | `postgresql://mons:mons@localhost:5432/cms_mongisidi_dev?schema=public` | PostgreSQL (dev = produksi, satu skema) |
+| `DATABASE_URL` | `postgresql://mons:mons@127.0.0.1:55433/cms_mongisidi_dev?schema=public` | PostgreSQL lokal via Docker (dev = produksi, satu skema) |
 | `AUTH_SECRET` | *random 64 hex* | wajib — logout/sesi tidak aman tanpa ini |
 | `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` | SEO & email |
 
@@ -96,14 +96,24 @@ Generate secret aman:
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-Database dev — dua pilihan:
+Database dev — dua pilihan (lokal adalah default yang dianjurkan):
 
-1. **Neon branch `dev` (termudah, tanpa instalasi lokal):** di Console Neon
-   → project → *Branches* → buat branch `dev` → salin connection string
-   (DIRECT) ke `.env`.
-2. **PostgreSQL lokal via Docker (offline):**
+1. **PostgreSQL lokal via Docker (default):**
    `docker compose -f docker-compose.dev.yml up -d` lalu pakai contoh URL
-   di tabel atas.
+   di tabel atas. Port host 55433 (bukan 5432) sengaja dipilih — banyak
+   mesin Windows punya service PostgreSQL NATIVE di 0.0.0.0:5432 sehingga
+   koneksi `localhost:5432` bisa mendarat ke server native, bukan container
+   (gejala: error autentikasi `P1000` yang misterius).
+2. **Neon branch `dev` (opt-in, data remote):** di Console Neon → project →
+   *Branches* → buat branch `dev` → salin connection string (DIRECT) ke
+   `.env`.
+
+   ⚠️ **db-write-guard** — di development, `DATABASE_URL` yang menunjuk host
+   remote (Neon, RDS, Supabase, dll) otomatis memblokir SEMUA operasi tulis
+   Prisma (baca tetap boleh), sehingga `npm run dev` tidak pernah mengubah
+   data remote secara tidak sengaja. Untuk seed/migrasi yang memang disengaja
+   ke branch dev remote: `ALLOW_REMOTE_DB_WRITES=1 bun run db:push`.
+   **Jangan pernah** mengarahkan `.env` ke branch produksi Neon.
 
 Jangan pernah commit `.env` — sudah diblokir oleh pre-commit hook.
 
@@ -117,7 +127,19 @@ dulu ada varian SQLite untuk dev, dikonsolidasi agar dev = produksi.
 ```bash
 bun run db:push      # push schema ke DATABASE_URL (dev/DB kosong)
 bun run db:generate  # generate Prisma client (biasanya otomatis via postinstall)
+bun run db:seed      # data demo dev realistis (ID berawalan "demo-")
 ```
+
+Seed demo mengisi pengguna (admin/operator/guru/ortu/siswa), guru, kelas,
+siswa, berita, pengumuman, agenda, galeri, prestasi, BOS, dokumen, pesan,
+dan SPMB — halaman publik dan dashboard langsung "hidup" dengan data
+sekolah contoh, bukan fixture uji. Idempoten (upsert by unique key — aman
+dijalankan ulang), menolak `DATABASE_URL` yang menunjuk Neon (proteksi
+produksi), dan menulis PDF demo ke `public/uploads/` (di-gitignore).
+
+> Seed E2E (`E2E_SEED=1 bunx tsx prisma/seed-e2e.ts`, ID "e2e-", kredensial
+> `@mongisidi1.sch.id`) **hanya** untuk menjalankan suite Playwright —
+> datanya sengaja dibuat berpola dan tidak pantas tampil di dev sehari-hari.
 
 ### Produksi (Vercel + Neon)
 
@@ -140,6 +162,12 @@ bun run dev
 
 Buka **http://localhost:3000**.
 
+> **Catatan db-write-guard:** bila `.env`/`.env.local` menunjuk database
+> remote (mis. `.env.local` hasil `vercel env pull`), semua operasi tulis
+> Prisma diblokir di development dengan pesan yang menjelaskan cara keluar
+> (`ALLOW_REMOTE_DB_WRITES=1`). Ini mencegah perubahan data produksi lewat
+> server dev — gunakan database lokal untuk mencoba alur tulis.
+
 - Website publik: `/` (beranda), `news`, `gallery`, `academic`, ...
 - Dashboard admin: **/dashboard** (login dulu)
 
@@ -147,14 +175,19 @@ Ganti port jika 3000 terpakai: `next dev -p 3100`.
 
 ---
 
-## 6. Akun Login Default (hasil seed)
+## 6. Akun Login Default (hasil seed demo)
 
 | Role | Email | Password |
 |------|-------|----------|
-| Super Admin | `admin@mongisidi1.sch.id` | `admin123` |
-| Operator | `operator@mongisidi1.sch.id` | `operator123` |
+| Super Admin | `admin@sekolahdemo.id` | `demo123` |
+| Operator | `operator@sekolahdemo.id` | `demo123` |
+| Guru (wali kelas 1A) | `guru@sekolahdemo.id` | `demo123` |
+| Orang Tua | `ortu@sekolahdemo.id` | `demo123` |
+| Siswa (portal) | `siswa@sekolahdemo.id` | `demo123` |
 
-> **Ganti password segera setelah login pertama** (menu Pengaturan/Users).
+> Ini kredensial database DEMO lokal — jangan pernah dipakai di produksi.
+> Buat akun asli lewat menu Pengaturan/Users dan **ganti password segera
+> setelah login pertama**.
 
 ---
 

@@ -23,11 +23,13 @@ test.describe("Data Siswa — dashboard admin (kartu identitas)", () => {
     ).toBeVisible();
 
     // Ambil siswa pertama dari API (bukan hardcode seed).
-    const firstStudent = await page.evaluate<{ name: string; nis: string; nisn?: string }>(
-      async () => {
+    const firstStudent = await page.evaluate(
+      async (): Promise<{ name: string; nis: string; nisn?: string } | null> => {
         const d = await (await fetch("/api/students?limit=1")).json();
         const s = d.items?.[0];
-        return s ? { name: s.name, nis: s.nis, nisn: s.nisn } : null;
+        return s
+          ? { name: s.name as string, nis: s.nis as string, nisn: s.nisn as string | undefined }
+          : null;
       }
     );
     if (!firstStudent) return;
@@ -104,8 +106,10 @@ test.describe("Data Siswa — dashboard admin (kartu identitas)", () => {
 
     // Verifikasi lewat API: role SISWA + studentId menunjuk ke Aisyah.
     // Paginate untuk Dapodik scale — akun baru berada di halaman terakhir.
-    const created = await page.evaluate<{ id: string; role: string; studentId: string | null } | null>(
-      async (em) => {
+    const created = await page.evaluate(
+      async (
+        em: string
+      ): Promise<{ id: string; role: string; studentId: string | null } | null> => {
         let pg = 1;
         let hasMore = true;
         while (hasMore) {
@@ -125,7 +129,7 @@ test.describe("Data Siswa — dashboard admin (kartu identitas)", () => {
     expect(created?.studentId).toBeTruthy();
 
     // CLEANUP: hapus akun uji lewat API (CSRF).
-    await page.evaluate(async (id) => {
+    await page.evaluate(async (id: string) => {
       const csrf = await (await fetch("/api/csrf-token")).json();
       await fetch(`/api/users/${id}`, {
         method: "DELETE",

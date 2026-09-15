@@ -1,4 +1,4 @@
-import { test, expect, type APIRequest } from "./mutation-log";
+import { test, expect, type APIRequestContext } from "./mutation-log";
 import { ADMIN, login } from "./helpers";
 
 // warmup: /api/org-structure /api/teachers /api/auth/login /api/csrf-token
@@ -11,7 +11,7 @@ const IDENTITY_KEYS = ["nuptk", "nip", "nik"] as const;
  * jadi test tidak perlu navigasi dulu (page.evaluate melawan about:blank
  * akan resolve ke origin yang salah).
  */
-async function publicGet(request: APIRequest, path: string) {
+async function publicGet(request: APIRequestContext, path: string) {
   const res = await request.get(path);
   return { status: res.status(), json: await res.json() };
 }

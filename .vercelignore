@@ -3,6 +3,10 @@ CMS MONSA.zip
 graphify-out/
 e2e-stats.jsonl
 
+# Downloads folder - executables too large for Vercel
+# Download from GitHub Releases instead
+public/downloads/
+
 # Test artifacts
 playwright-report/
 test-results/

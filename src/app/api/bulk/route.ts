@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     { model: DeleteModel; requiredRole: string; nameLabel: string }
   > = {
     news: { model: db.news, requiredRole: "OPERATOR", nameLabel: "title" },
-    announcements: { model: db.announcement, requiredRole: "OPERATOR", nameLabel: "title" },
+    announcements: { model: db.schoolAnnouncement, requiredRole: "OPERATOR", nameLabel: "title" },
     gallery: { model: db.galleryItem, requiredRole: "OPERATOR", nameLabel: "title" },
     teachers: { model: db.teacher, requiredRole: "OPERATOR", nameLabel: "name" },
     achievements: { model: db.achievement, requiredRole: "OPERATOR", nameLabel: "title" },

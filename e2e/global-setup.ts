@@ -32,7 +32,8 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
   }
 
   const { routes, synthetic, declared, apiRoutes } = await buildWarmupRoutes({
-    testDir: config.testDir ?? "./e2e",
+    // testDir adalah properti project ter-resolve (bukan FullConfig).
+    testDir: config.projects[0]?.testDir ?? "./e2e",
     apiDir: process.env.E2E_API_DIR ?? DEFAULT_API_DIR,
   });
   log(

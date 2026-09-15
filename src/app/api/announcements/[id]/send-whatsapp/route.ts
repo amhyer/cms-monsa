@@ -25,7 +25,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   if (!auth.ok) return auth.response;
 
   const { id } = await params;
-  const announcement = await db.announcement.findUnique({ where: { id } });
+  const announcement = await db.schoolAnnouncement.findUnique({ where: { id } });
   if (!announcement) {
     return NextResponse.json(
       { error: "Pengumuman tidak ditemukan." },

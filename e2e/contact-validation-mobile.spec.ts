@@ -1,4 +1,4 @@
-// warmup: /api/news /api/agenda /api/achievements /api/settings
+// warmup: /api/news /api/agenda /api/achievements /api/settings /api/contact
 import { test, expect } from "./mutation-log";
 
 const MOBILE = { width: 375, height: 667 };
@@ -7,6 +7,17 @@ const MOBILE = { width: 375, height: 667 };
  * Navigate to the contact page at mobile viewport.
  * The form is on /contact with heading "Hubungi Kami & SPMB".
  */
+/**
+ * Cari pesan validasi berdasar teksnya. Field merender <p role="alert">
+ * dengan aria-label = teks pesan, tapi Playwright: getByRole("alert",
+ * { name }) menuntut nama aksesibel — bergantung pada browser, sebuah
+ * alert yang hanya berisi konten bisa tidak punya nama ( Chromium tidak
+ * menerapkan name-from-content pada role "alert"). getByText selalu cocok.
+ */
+function alertByText(page: import("@playwright/test").Page, text: string) {
+  return page.getByRole("alert").filter({ hasText: text });
+}
+
 async function goToContact(page: import("@playwright/test").Page) {
   await page.setViewportSize(MOBILE);
   await page.goto("/contact", { waitUntil: "networkidle" });
@@ -28,16 +39,16 @@ test.describe("Contact form validation — mobile (375px)", () => {
 
       // All required field errors should appear
       await expect(
-        page.getByRole("alert", { name: "Nama wajib diisi." })
+        alertByText(page, "Nama wajib diisi.")
       ).toBeVisible();
       await expect(
-        page.getByRole("alert", { name: "Email wajib diisi." })
+        alertByText(page, "Email wajib diisi.")
       ).toBeVisible();
       await expect(
-        page.getByRole("alert", { name: "Subjek wajib diisi." })
+        alertByText(page, "Subjek wajib diisi.")
       ).toBeVisible();
       await expect(
-        page.getByRole("alert", { name: "Pesan wajib diisi." })
+        alertByText(page, "Pesan wajib diisi.")
       ).toBeVisible();
     });
 
@@ -87,7 +98,7 @@ test.describe("Contact form validation — mobile (375px)", () => {
       // Submit to trigger validation
       await page.getByRole("button", { name: "Kirim Pesan" }).click();
       await expect(
-        page.getByRole("alert", { name: "Nama wajib diisi." })
+        alertByText(page, "Nama wajib diisi.")
       ).toBeVisible();
 
       // Fill in the name — error should clear
@@ -96,7 +107,7 @@ test.describe("Contact form validation — mobile (375px)", () => {
       // Re-submit: name error should be gone
       await page.getByRole("button", { name: "Kirim Pesan" }).click();
       await expect(
-        page.getByRole("alert", { name: "Nama wajib diisi." })
+        alertByText(page, "Nama wajib diisi.")
       ).toBeHidden();
     });
 
@@ -108,7 +119,7 @@ test.describe("Contact form validation — mobile (375px)", () => {
       // Submit to trigger validation
       await page.getByRole("button", { name: "Kirim Pesan" }).click();
       await expect(
-        page.getByRole("alert", { name: "Email wajib diisi." })
+        alertByText(page, "Email wajib diisi.")
       ).toBeVisible();
 
       // Type invalid email, then blur to trigger onBlur validation
@@ -117,9 +128,7 @@ test.describe("Contact form validation — mobile (375px)", () => {
 
       // Format error should appear
       await expect(
-        page.getByRole("alert", {
-          name: "Format email tidak valid (contoh: nama@contoh.com).",
-        })
+        alertByText(page, "Format email tidak valid (contoh: nama@contoh.com).")
       ).toBeVisible();
 
       // Fix the email
@@ -128,9 +137,7 @@ test.describe("Contact form validation — mobile (375px)", () => {
 
       // Error should be cleared
       await expect(
-        page.getByRole("alert", {
-          name: "Format email tidak valid (contoh: nama@contoh.com).",
-        })
+        alertByText(page, "Format email tidak valid (contoh: nama@contoh.com).")
       ).toBeHidden();
     });
 
@@ -140,7 +147,7 @@ test.describe("Contact form validation — mobile (375px)", () => {
       // Submit to trigger validation
       await page.getByRole("button", { name: "Kirim Pesan" }).click();
       await expect(
-        page.getByRole("alert", { name: "Subjek wajib diisi." })
+        alertByText(page, "Subjek wajib diisi.")
       ).toBeVisible();
 
       // Fill subject
@@ -149,7 +156,7 @@ test.describe("Contact form validation — mobile (375px)", () => {
       // Re-submit: subject error should be gone
       await page.getByRole("button", { name: "Kirim Pesan" }).click();
       await expect(
-        page.getByRole("alert", { name: "Subjek wajib diisi." })
+        alertByText(page, "Subjek wajib diisi.")
       ).toBeHidden();
     });
 
@@ -161,7 +168,7 @@ test.describe("Contact form validation — mobile (375px)", () => {
       // Submit to trigger validation
       await page.getByRole("button", { name: "Kirim Pesan" }).click();
       await expect(
-        page.getByRole("alert", { name: "Pesan wajib diisi." })
+        alertByText(page, "Pesan wajib diisi.")
       ).toBeVisible();
 
       // Type a short message (< 10 chars)
@@ -172,9 +179,7 @@ test.describe("Contact form validation — mobile (375px)", () => {
       // Re-submit: should show the "too short" error
       await page.getByRole("button", { name: "Kirim Pesan" }).click();
       await expect(
-        page.getByRole("alert", {
-          name: "Pesan terlalu singkat (minimal 10 karakter).",
-        })
+        alertByText(page, "Pesan terlalu singkat (minimal 10 karakter).")
       ).toBeVisible();
 
       // Fix the message to be long enough
@@ -185,12 +190,10 @@ test.describe("Contact form validation — mobile (375px)", () => {
 
       // Message error should be cleared
       await expect(
-        page.getByRole("alert", { name: "Pesan wajib diisi." })
+        alertByText(page, "Pesan wajib diisi.")
       ).toBeHidden();
       await expect(
-        page.getByRole("alert", {
-          name: "Pesan terlalu singkat (minimal 10 karakter).",
-        })
+        alertByText(page, "Pesan terlalu singkat (minimal 10 karakter).")
       ).toBeHidden();
     });
   });
@@ -256,16 +259,16 @@ test.describe("Contact form validation — mobile (375px)", () => {
 
       // All 4 errors should be visible simultaneously
       await expect(
-        page.getByRole("alert", { name: "Nama wajib diisi." })
+        alertByText(page, "Nama wajib diisi.")
       ).toBeVisible();
       await expect(
-        page.getByRole("alert", { name: "Email wajib diisi." })
+        alertByText(page, "Email wajib diisi.")
       ).toBeVisible();
       await expect(
-        page.getByRole("alert", { name: "Subjek wajib diisi." })
+        alertByText(page, "Subjek wajib diisi.")
       ).toBeVisible();
       await expect(
-        page.getByRole("alert", { name: "Pesan wajib diisi." })
+        alertByText(page, "Pesan wajib diisi.")
       ).toBeVisible();
 
       // Fill all required fields
@@ -282,16 +285,16 @@ test.describe("Contact form validation — mobile (375px)", () => {
       // All errors should be cleared (form will try to POST — may fail with
       // network error, but field-level validation errors should be gone)
       await expect(
-        page.getByRole("alert", { name: "Nama wajib diisi." })
+        alertByText(page, "Nama wajib diisi.")
       ).toBeHidden();
       await expect(
-        page.getByRole("alert", { name: "Email wajib diisi." })
+        alertByText(page, "Email wajib diisi.")
       ).toBeHidden();
       await expect(
-        page.getByRole("alert", { name: "Subjek wajib diisi." })
+        alertByText(page, "Subjek wajib diisi.")
       ).toBeHidden();
       await expect(
-        page.getByRole("alert", { name: "Pesan wajib diisi." })
+        alertByText(page, "Pesan wajib diisi.")
       ).toBeHidden();
     });
   });
@@ -311,9 +314,7 @@ test.describe("Contact form validation — mobile (375px)", () => {
 
       // Format error should appear (from onBlur handler)
       await expect(
-        page.getByRole("alert", {
-          name: "Format email tidak valid (contoh: nama@contoh.com).",
-        })
+        alertByText(page, "Format email tidak valid (contoh: nama@contoh.com).")
       ).toBeVisible();
     });
 
@@ -330,9 +331,7 @@ test.describe("Contact form validation — mobile (375px)", () => {
 
       // No format error should appear
       await expect(
-        page.getByRole("alert", {
-          name: "Format email tidak valid (contoh: nama@contoh.com).",
-        })
+        alertByText(page, "Format email tidak valid (contoh: nama@contoh.com).")
       ).toBeHidden();
     });
 
@@ -348,9 +347,7 @@ test.describe("Contact form validation — mobile (375px)", () => {
 
       // No error should appear (onBlur checks `form.email && !EMAIL_RE.test(...)`)
       await expect(
-        page.getByRole("alert", {
-          name: "Format email tidak valid (contoh: nama@contoh.com).",
-        })
+        alertByText(page, "Format email tidak valid (contoh: nama@contoh.com).")
       ).toBeHidden();
     });
   });
@@ -372,9 +369,7 @@ test.describe("Contact form validation — mobile (375px)", () => {
       await page.getByRole("button", { name: "Kirim Pesan" }).click();
 
       // No phone-related error should appear (phone is optional)
-      await expect(
-        page.getByRole("alert", { name: /telepon/i })
-      ).toBeHidden();
+      await expect(alertByText(page, "telepon")).toBeHidden();
     });
   });
 
@@ -390,7 +385,7 @@ test.describe("Contact form validation — mobile (375px)", () => {
 
       // Wait for errors to render
       await expect(
-        page.getByRole("alert", { name: "Nama wajib diisi." })
+        alertByText(page, "Nama wajib diisi.")
       ).toBeVisible();
 
       // No horizontal overflow
@@ -426,7 +421,7 @@ test.describe("Contact form validation — mobile (375px)", () => {
         "Subjek wajib diisi.",
         "Pesan wajib diisi.",
       ]) {
-        const alert = page.getByRole("alert", { name: errorText });
+        const alert = alertByText(page, errorText);
         await alert.scrollIntoViewIfNeeded();
         await expect(alert).toBeVisible();
       }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Save,
   Loader2,
@@ -14,11 +14,13 @@ import {
   BarChart3,
   Megaphone,
   Mail,
+  BellRing,
   Send,
   MessageCircle,
   Smartphone,
   CircleCheck,
   CircleX,
+  Info,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -33,6 +35,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ImageUpload } from "@/components/shared/image-upload";
+import { formatDateTime } from "@/lib/format";
 import { TwoFactorSettings } from "./two-factor-settings";
 import { useAppStore } from "@/store/app";
 import type { SiteSettingItem } from "@/lib/types";
@@ -83,11 +86,23 @@ export function SettingsManager() {
   const [tgResult, setTgResult] = useState<string | null>(null);
   const [tgError, setTgError] = useState<string | null>(null);
   const [tgChatId, setTgChatId] = useState("");
+  const [testingAlert, setTestingAlert] = useState(false);
+  const [alertResult, setAlertResult] = useState<string | null>(null);
+  const [alertError, setAlertError] = useState<string | null>(null);
   const [healthStatus, setHealthStatus] = useState<{
     smtp: { configured: boolean; host: string; port: number; userPreview: string | null };
     whatsapp: { configured: boolean; hasAdminPhone: boolean };
     telegram: { configured: boolean };
     lastLogs: Record<string, { action: string; detail: string; at: string } | null>;
+    storageAlert: {
+      aboveThreshold: boolean;
+      lastSendAt: string | null;
+      lastChannelsWhatsapp: boolean | null;
+      lastChannelsTelegram: boolean | null;
+      lastTestSendAt: string | null;
+      lastTestChannelsWhatsapp: boolean | null;
+      lastTestChannelsTelegram: boolean | null;
+    } | null;
   } | null>(null);
 
   useEffect(() => {
@@ -135,22 +150,25 @@ export function SettingsManager() {
     };
   }, []);
 
-  // Fetch notification health status (independent dari site-settings)
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const res = await fetch("/api/notifications/health");
-        if (!res.ok) return;
-        const data = (await res.json()) as typeof healthStatus;
-        if (alive) setHealthStatus(data);
-      } catch {
-      }
-    })();
-    return () => {
-      alive = false;
-    };
+  // Fetch notification health status (independent dari site-settings).
+  // Diekstrak ke callback agar bisa dipanggil ulang setelah uji kirim —
+  // chip hasil kirim terakhir di kartu Alert Admin ikut ter-update.
+  const loadHealth = useCallback(async () => {
+    try {
+      const res = await fetch("/api/notifications/health");
+      if (!res.ok) return;
+      const data = (await res.json()) as NonNullable<
+        typeof healthStatus
+      >;
+      setHealthStatus(data);
+    } catch {
+      // health bersifat tambahan — kegagalan fetch diabaikan diam-diam.
+    }
   }, []);
+
+  useEffect(() => {
+    void loadHealth();
+  }, [loadHealth]);
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -264,6 +282,37 @@ export function SettingsManager() {
       toast.error(msg);
     } finally {
       setTestingTelegram(false);
+    }
+  }
+
+  // Uji jalur alert admin (notifyAdmin) — jalur persis yang dipakai cron
+  // alert kuota storage: satu pesan ke SEMUA kanal terkonfigurasi sekaligus.
+  async function handleAlertTest() {
+    setTestingAlert(true);
+    setAlertResult(null);
+    setAlertError(null);
+    try {
+      const res = await fetch("/api/notifications/test-alert", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Gagal mengirim alert uji");
+      }
+      setAlertResult(json.message);
+      toast.success(json.message);
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "Gagal mengirim alert uji";
+      setAlertError(msg);
+      toast.error(msg);
+    } finally {
+      setTestingAlert(false);
+      // Refresh kesehatan — chip "hasil kirim terakhir" di kartu ini
+      // mencerminkan attempt terbaru (test-alert tidak menulis ke
+      // StorageAlertState; itu catatan kirim cron).
+      void loadHealth();
     }
   }
 
@@ -790,6 +839,121 @@ export function SettingsManager() {
               </span>
             )}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Alert Admin — uji jalur cron alert (notifyAdmin) ke semua kanal */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <BellRing className="size-4 text-gold-foreground" /> Alert Admin
+            (cron)
+          </CardTitle>
+          <CardDescription>
+            Uji jalur alert yang dipakai cron (mis. peringatan kuota storage):
+            satu pesan ke semua kanal terkonfigurasi sekaligus, dengan routing
+            env yang sama — bukan uji per-kanal seperti kartu di bawah.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleAlertTest}
+              disabled={testingAlert}
+            >
+              {testingAlert ? (
+                <Loader2 className="mr-1 size-3 animate-spin" />
+              ) : (
+                <BellRing className="mr-1 size-3" />
+              )}
+              Uji Kirim Alert
+            </Button>
+            {alertResult && (
+              <span className="text-xs font-medium text-emerald-600">
+                {alertResult}
+              </span>
+            )}
+            {alertError && (
+              <span className="text-xs font-medium text-destructive">
+                {alertError}
+              </span>
+            )}
+          </div>
+
+          {/* Hasil kirim alert terakhir dari CRON (StorageAlertState) —
+              terpisah dari hasil uji manual di chip kedua di bawah. */}
+          {healthStatus?.storageAlert && (
+            <div
+              className={`flex items-center gap-2 rounded-md border px-3 py-2 text-xs ${
+                healthStatus.storageAlert.lastSendAt === null
+                  ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                  : (healthStatus.storageAlert.lastChannelsWhatsapp ||
+                      healthStatus.storageAlert.lastChannelsTelegram)
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                    : "border-destructive/30 bg-destructive/10 text-destructive"
+              }`}
+            >
+              {healthStatus.storageAlert.lastSendAt === null ? (
+                <Info className="size-3.5 shrink-0" />
+              ) : (healthStatus.storageAlert.lastChannelsWhatsapp ||
+                healthStatus.storageAlert.lastChannelsTelegram) ? (
+                <CircleCheck className="size-3.5 shrink-0" />
+              ) : (
+                <CircleX className="size-3.5 shrink-0" />
+              )}
+              <span className="font-medium">Kirim cron terakhir:</span>
+              <span>
+                {healthStatus.storageAlert.lastSendAt === null
+                  ? "belum pernah berjalan (cron alert belum mengirim)"
+                  : `${formatDateTime(healthStatus.storageAlert.lastSendAt)} · WhatsApp ${
+                      healthStatus.storageAlert.lastChannelsWhatsapp
+                        ? "ok"
+                        : "gagal/lewati"
+                    }, Telegram ${
+                      healthStatus.storageAlert.lastChannelsTelegram
+                        ? "ok"
+                        : "gagal/lewati"
+                    }`}
+              </span>
+            </div>
+          )}
+
+          {/* Uji manual terakhir (StorageAlertState.lastTest*) — dari tombol
+              Uji Kirim Alert di atas, terpisah dari kirim cron. */}
+          {healthStatus?.storageAlert &&
+            healthStatus.storageAlert.lastTestSendAt !== null && (
+              <div
+                className={`flex items-center gap-2 rounded-md border px-3 py-2 text-xs ${
+                  healthStatus.storageAlert.lastTestChannelsWhatsapp ||
+                  healthStatus.storageAlert.lastTestChannelsTelegram
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                    : "border-destructive/30 bg-destructive/10 text-destructive"
+                }`}
+              >
+                {healthStatus.storageAlert.lastTestChannelsWhatsapp ||
+                healthStatus.storageAlert.lastTestChannelsTelegram ? (
+                  <CircleCheck className="size-3.5 shrink-0" />
+                ) : (
+                  <CircleX className="size-3.5 shrink-0" />
+                )}
+                <span className="font-medium">Uji manual terakhir:</span>
+                <span>
+                  {`${formatDateTime(
+                    healthStatus.storageAlert.lastTestSendAt
+                  )} · WhatsApp ${
+                    healthStatus.storageAlert.lastTestChannelsWhatsapp
+                      ? "ok"
+                      : "gagal"
+                  }, Telegram ${
+                    healthStatus.storageAlert.lastTestChannelsTelegram
+                      ? "ok"
+                      : "gagal"
+                  }`}
+                </span>
+              </div>
+            )}
         </CardContent>
       </Card>
 

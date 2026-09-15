@@ -46,16 +46,43 @@ export async function GET(req: NextRequest) {
   const { cursor, limit } = parsePaginationParams(searchParams, 10, 100);
   const cursorId = decodeCursor(cursor);
   const baseWhere = year ? { year: Number(year) } : {};
+  // Keyset pagination butuh predikat yang KONSISTEN dengan orderBy
+  // (year DESC, createdAt DESC). Cukup `id > cursor` salah di bawah seri
+  // (ties): urutan antar-baris dengan (year, createdAt) identik tidak
+  // ditentukan, sehingga baris bisa dilewati/berulang dan halaman terakhir
+  // bisa kosong dengan next:null — pengguna kehilangan data. Predikat
+  // keyset composite menstabilkan urutan dengan id sebagai tiebreaker:
+  //   (year, createdAt, id) < (cursor.year, cursor.createdAt, cursor.id)
+  // dalam urutan sort (year/createdAt DESC, id ASC).
+  // Baris kursor sudah terhapus (penghapusan concurrent di tengah walk) →
+  // cursorDoc null → predikat kosong → walk mulai lagi dari halaman 1;
+  // fallback yang jinak (pengulangan, bukan kehilangan data).
+  const cursorDoc = cursorId
+    ? await db.bosDocument.findUnique({
+        where: { id: cursorId },
+        select: { year: true, createdAt: true },
+      })
+    : null;
   const where = {
     ...baseWhere,
-    ...(cursorId ? { id: { gt: cursorId } } : {}),
+    ...(cursorDoc
+      ? {
+          OR: [
+            { year: cursorDoc.year, createdAt: cursorDoc.createdAt, id: { gt: cursorId! } },
+            { year: cursorDoc.year, createdAt: { lt: cursorDoc.createdAt } },
+            { year: { lt: cursorDoc.year } },
+          ],
+        }
+      : {}),
   };
 
   const [total, rows, yearRows] = await Promise.all([
     db.bosDocument.count({ where: baseWhere }),
     db.bosDocument.findMany({
       where,
-      orderBy: [{ year: "desc" }, { createdAt: "desc" }],
+      // id asc sebagai kunci terakhir: urutan dalam grup seri menjadi
+      // deterministik dan cocok dengan tiebreak predikat keyset di atas.
+      orderBy: [{ year: "desc" }, { createdAt: "desc" }, { id: "asc" }],
       take: limit + 1,
       include: { uploadedBy: { select: { name: true } } },
     }),
@@ -105,11 +132,14 @@ export async function POST(req: NextRequest) {
     attemptedSize = file instanceof File ? file.size : 0;
 
     if (!file || !(file instanceof File)) {
-      logger.warn({
-        reason: "file-tidak-ada",
-        filename: attemptedName,
-        source,
-      });
+      logger.warn(
+        {
+          reason: "file-tidak-ada",
+          filename: attemptedName,
+          source,
+        },
+        "[bos-documents] unggahan ditolak"
+      );
       return NextResponse.json(
         { error: "File tidak ditemukan. Pilih file PDF yang akan diunggah." },
         { status: 400 }
@@ -122,12 +152,15 @@ export async function POST(req: NextRequest) {
     const maxMb = maxUploadMb(15);
     const MAX_SIZE = maxMb * 1024 * 1024;
     if (file.size > MAX_SIZE) {
-      logger.warn({
-        reason: "terlalu-besar",
-        filename: attemptedName,
-        size: file.size,
-        source,
-      });
+      logger.warn(
+        {
+          reason: "terlalu-besar",
+          filename: attemptedName,
+          size: file.size,
+          source,
+        },
+        "[bos-documents] unggahan ditolak"
+      );
       return NextResponse.json(
         { error: `Ukuran file maksimal ${maxMb} MB.` },
         { status: 400 }
@@ -139,12 +172,15 @@ export async function POST(req: NextRequest) {
     // bytes ("%PDF-") dan paksa ekstensi .pdf — yang lain ditolak.
     const bytes = new Uint8Array(await file.arrayBuffer());
     if (!detectPdf(bytes)) {
-      logger.warn({
-        reason: "bukan-pdf",
-        filename: attemptedName,
-        size: file.size,
-        source,
-      });
+      logger.warn(
+        {
+          reason: "bukan-pdf",
+          filename: attemptedName,
+          size: file.size,
+          source,
+        },
+        "[bos-documents] unggahan ditolak"
+      );
       return NextResponse.json(
         {
           error:
@@ -163,13 +199,16 @@ export async function POST(req: NextRequest) {
       }
     );
     if (!validation.ok) {
-      logger.warn({
-        reason: "validasi-gagal",
-        filename: attemptedName,
-        size: file.size,
-        source,
-        error: validation.error,
-      });
+      logger.warn(
+        {
+          reason: "validasi-gagal",
+          filename: attemptedName,
+          size: file.size,
+          source,
+          error: validation.error,
+        },
+        "[bos-documents] unggahan ditolak"
+      );
       return NextResponse.json({ error: validation.error }, { status: 400 });
     }
     const { year, title, description } = validation.data;

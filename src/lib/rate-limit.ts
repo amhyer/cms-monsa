@@ -173,6 +173,11 @@ export async function rateLimitPublicForm(req: RequestLike, max?: number, window
 // --- Public GET Rate Limiter ---
 
 export async function isGetRateLimited(ip: string, max = 30, windowMs = 60000): Promise<boolean> {
+  // Mode E2E (ditandai env E2E_SUITE=1 dari harness CI): browser uji navigasi
+  // cepat dari satu IP (localhost) dan sah-sah menembus 30–60 req/menit —
+  // matikan pembatas publik di mode ini saja. Produksi tidak pernah set env
+  // ini, sehingga proteksi scraper tetap utuh.
+  if (process.env.E2E_SUITE === "1") return false;
   const k = `get-limit:${ip}`;
   if (!redis) {
     const now = Date.now();

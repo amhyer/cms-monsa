@@ -243,11 +243,11 @@ test("dokumen BOS bertahan di disk lintas restart server (upload → restart →
   await page.getByRole("button", { name: "Upload PDF" }).click();
   await expect(page.getByText("Dokumen diunggah dan dipublikasikan.")).toBeVisible();
 
-  const fileUrl = await page.evaluate<string | null>(async (t) => {
+  const fileUrl = await page.evaluate(async (t: string) => {
     const r = await fetch("/api/bos-documents");
     const d = await r.json();
     const item = d.items.find((i: { title: string }) => i.title === t);
-    return item ? item.fileUrl : null;
+    return item ? (item.fileUrl as string) : null;
   }, title);
   expect(fileUrl).toMatch(/^\/uploads\/bos-[\w-]+\.pdf$/);
   const diskPath = join(
@@ -261,11 +261,11 @@ test("dokumen BOS bertahan di disk lintas restart server (upload → restart →
   // Baseline SEBELUM restart — unduh via endpoint, byte identik + header
   // Content-Disposition attachment (kontrak unduh yang sama dengan
   // bos-document-cycle.spec.ts).
-  const docId = await page.evaluate<string | null>(async (t) => {
+  const docId = await page.evaluate(async (t: string) => {
     const r = await fetch("/api/bos-documents");
     const d = await r.json();
     const item = d.items.find((i: { title: string }) => i.title === t);
-    return item ? item.id : null;
+    return item ? (item.id as string) : null;
   }, title);
   expect(docId).toBeTruthy();
   const downloadUrl = `/api/bos-documents/${docId}`;
@@ -307,7 +307,7 @@ test("dokumen BOS bertahan di disk lintas restart server (upload → restart →
   expect(afterBytes.equals(pdf)).toBe(true);
 
   // API juga masih memuat dokumennya (server baru, DB yang sama).
-  const listed = await page.evaluate<boolean>(async (t) => {
+  const listed = await page.evaluate(async (t: string): Promise<boolean> => {
     const r = await fetch("/api/bos-documents");
     const d = await r.json();
     return (d.items as { title: string }[]).some((i) => i.title === t);
@@ -315,20 +315,26 @@ test("dokumen BOS bertahan di disk lintas restart server (upload → restart →
   expect(listed).toBe(true);
 
   // --- CLEANUP: hapus via API (session + CSRF bertahan lintas restart) ---
-  await page.evaluate(async (t) => {
-    const csrf = await (await fetch("/api/csrf-token")).json();
-    const r = await fetch("/api/bos-documents");
-    const d = await r.json();
-    const item = (d.items as { id: string; title: string }[]).find(
-      (i) => i.title === t
-    );
-    if (item) {
-      await fetch(`/api/bos-documents/${item.id}`, {
+  // page.evaluate tidak bisa mengembalikan Response (tak terserialisasi) —
+  // balas objek polos { status } supaya hasil DELETE benar-benar diuji.
+  const delRes = await page.evaluate(
+    async (t: string): Promise<{ status: number }> => {
+      const csrf = await (await fetch("/api/csrf-token")).json();
+      const r = await fetch("/api/bos-documents");
+      const d = await r.json();
+      const item = (d.items as { id: string; title: string }[]).find(
+        (i) => i.title === t
+      );
+      if (!item) throw new Error(`dokumen ${t} tidak ditemukan di API`);
+      const res = await fetch(`/api/bos-documents/${item.id}`, {
         method: "DELETE",
         headers: { "x-csrf-token": csrf.token },
       });
-    }
-  }, title);
+      return { status: res.status };
+    },
+    title
+  );
+  expect(delRes.status).toBe(200);
 
   expect(existsSync(diskPath)).toBe(false);
   const old = await page.request.get(downloadUrl);

@@ -11,6 +11,7 @@
  * setelah server kembali menyala (interval dihitung sejak sync terakhir).
  */
 import { db } from "@/lib/db";
+import { withDbRetry } from "@/lib/db-retry";
 import { runSync } from "@/lib/dapodik-sync";
 import { logger } from "@/lib/logger";
 
@@ -116,7 +117,8 @@ const EMPTY_STATUS: AutoSyncStatus = {
 
 /** Baca status auto-sync (konfigurasi default bila belum pernah disimpan). */
 export async function getAutoSyncStatus(): Promise<AutoSyncStatus> {
-  const cfg = await db.dapodikConfig.findUnique({ where: { id: "singleton" } });
+  // Retry: dashboard ini sering jadi request pertama setelah cold-start Vercel.
+  const cfg = await withDbRetry(() => db.dapodikConfig.findUnique({ where: { id: "singleton" } }));
   if (!cfg) return EMPTY_STATUS;
   return toStatus(cfg);
 }
@@ -127,23 +129,25 @@ export async function setAutoSyncSettings(opts: {
   intervalHours: number;
 }): Promise<AutoSyncStatus> {
   const intervalHours = sanitizeIntervalHours(opts.intervalHours);
-  await db.dapodikConfig.upsert({
-    where: { id: "singleton" },
-    create: {
-      id: "singleton",
-      npsn: "",
-      token: "",
-      host: "localhost",
-      port: 5774,
-      protocol: "http",
-      autoSyncEnabled: opts.enabled,
-      autoSyncIntervalHours: intervalHours,
-    },
-    update: {
-      autoSyncEnabled: opts.enabled,
-      autoSyncIntervalHours: intervalHours,
-    },
-  });
+  await withDbRetry(() =>
+    db.dapodikConfig.upsert({
+      where: { id: "singleton" },
+      create: {
+        id: "singleton",
+        npsn: "",
+        token: "",
+        host: "localhost",
+        port: 5774,
+        protocol: "http",
+        autoSyncEnabled: opts.enabled,
+        autoSyncIntervalHours: intervalHours,
+      },
+      update: {
+        autoSyncEnabled: opts.enabled,
+        autoSyncIntervalHours: intervalHours,
+      },
+    })
+  );
   return getAutoSyncStatus();
 }
 
@@ -171,7 +175,7 @@ async function tick() {
   if (st.running) return; // masih ada sinkronisasi berjalan — jangan dobel
   st.running = true;
   try {
-    const cfg = await db.dapodikConfig.findUnique({ where: { id: "singleton" } });
+    const cfg = await withDbRetry(() => db.dapodikConfig.findUnique({ where: { id: "singleton" } }));
     // Hanya jalan kalau: ada config, auto-sync aktif, dan kredensial terisi.
     if (!cfg || !cfg.autoSyncEnabled || !cfg.npsn.trim() || !cfg.token.trim()) return;
     // Acuan jadwal = sync terakhir sukses ATAU percobaan terakhir (sukses/gagal),
@@ -197,21 +201,23 @@ async function tick() {
         { siswa: `${c.updated}+${c.created} (${c.errors} err)`, guru: `${g.updated}+${g.created} (${g.errors} err)`, rombel: `${r.updated}+${r.created} (${r.errors} err)` },
         "[dapodik-auto-sync] selesai"
       );
-      await db.dapodikConfig.update({
-        where: { id: "singleton" },
-        data: { autoSyncLastRunAt: new Date(), autoSyncLastStatus: "OK", autoSyncLastError: null },
-      });
+      await withDbRetry(() =>
+        db.dapodikConfig.update({
+          where: { id: "singleton" },
+          data: { autoSyncLastRunAt: new Date(), autoSyncLastStatus: "OK", autoSyncLastError: null },
+        })
+      );
     } catch (e) {
       const message = e instanceof Error ? e.message : "Gagal sinkronisasi otomatis";
       logger.error({ message }, "[dapodik-auto-sync] GAGAL");
-      await db.dapodikConfig
-        .update({
+      await withDbRetry(() =>
+        db.dapodikConfig.update({
           where: { id: "singleton" },
           data: { autoSyncLastRunAt: new Date(), autoSyncLastStatus: "ERROR", autoSyncLastError: message },
         })
-        .catch((e) => {
-          logger.error({ err: e }, "[dapodik-auto-sync] Failed to persist sync status");
-        });
+      ).catch((e) => {
+        logger.error({ err: e }, "[dapodik-auto-sync] Failed to persist sync status");
+      });
     }
   } finally {
     st.running = false;

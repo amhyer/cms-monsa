@@ -61,11 +61,11 @@ test.describe("Dokumen BOS — siklus upload → unduh → hapus (cleanup)", () 
     await expect(page.getByText(title)).toBeVisible();
 
     // --- UPLOAD: file benar-benar tertulis ke disk (public/uploads) ---
-    const fileUrl = await page.evaluate<string | null>(async (t) => {
+    const fileUrl = await page.evaluate(async (t: string) => {
       const r = await fetch("/api/bos-documents");
       const d = await r.json();
       const item = d.items.find((i: { title: string }) => i.title === t);
-      return item ? item.fileUrl : null;
+      return item ? (item.fileUrl as string) : null;
     }, title);
     expect(fileUrl).toMatch(/^\/uploads\/bos-[\w-]+\.pdf$/);
     const diskPath = join(
@@ -77,11 +77,11 @@ test.describe("Dokumen BOS — siklus upload → unduh → hapus (cleanup)", () 
     expect(existsSync(diskPath)).toBe(true);
 
     // --- UNDUH via endpoint: Content-Disposition attachment + byte identik ---
-    const docId = await page.evaluate<string | null>(async (t) => {
+    const docId = await page.evaluate(async (t: string) => {
       const r = await fetch("/api/bos-documents");
       const d = await r.json();
       const item = d.items.find((i: { title: string }) => i.title === t);
-      return item ? item.id : null;
+      return item ? (item.id as string) : null;
     }, title);
     expect(docId).toBeTruthy();
     const downloadUrl = `/api/bos-documents/${docId}`;

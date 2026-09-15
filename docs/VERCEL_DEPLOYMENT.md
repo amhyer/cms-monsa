@@ -98,6 +98,19 @@ vercel link
 # Run migrations
 vercel env pull .env.local
 npx prisma migrate deploy
+
+> **Automated path**: pushing to `main` runs the GitHub workflow
+> `deploy-vercel.yml`, which first checks migrations ↔ `schema.prisma` drift
+> (`bun run check:schema-migrations` against an ephemeral shadow Postgres)
+> and then runs `prisma migrate deploy` + seed against Neon. The manual
+> commands above are only for ad-hoc deployments; the drift check is the
+> reason a `prisma db push`-only schema change will fail CI.
+>
+> **First run against an existing db-pushed database?** If `migrate deploy`
+> fails with `P3005` ("The database schema is not empty"), the production DB
+> was created via `db push` and must be baselined once before migrations can
+> take over — follow `docs/RUNBOOK-BASELINE-NEON.md` (validated end-to-end,
+> no downtime, no data changes).
 #   ^ also applies prisma/migrations/*_add_dapodik_allow_insecure/
 #     (adds the allowInsecureInProduction column to DapodikConfig)
 
@@ -156,6 +169,40 @@ platform 413. Override with env `MAX_UPLOAD_MB` (single value for all
 upload kinds). For larger PDFs, deploy self-hosted (Docker) or implement
 direct-to-storage uploads.
 
+**Storage quota**: uploads live in the `UploadedFile` table (bytea on Neon),
+so they consume the Neon storage quota. A daily cron
+(`/api/cron/cleanup-uploads`, `30 18 * * *` UTC = 02.30 WITA — Vercel Cron
+`CRON_SECRET`-protected) deletes uploads older than `UPLOAD_RETENTION_DAYS`
+(default **90 days**; set `0` to disable). Files referenced by old content
+(berita/galeri/dokumen) will 404 after expiry — 90 days is deliberately
+generous.
+
+**Monitoring**: `GET /api/storage-usage` (SUPER_ADMIN) reports file count,
+total bytes, per-MIME breakdown, quota usage (set `NEON_STORAGE_QUOTA_MB` to
+compare against your Neon plan), how many files are due for the next
+cleanup run, and the **cleanup impact**: of those candidates, how many are
+still referenced by content (news/gallery/documents — per entity) and would
+404 after deletion. The same report is available from the CLI:
+`NEON_STORAGE_QUOTA_MB=512 bun run storage:usage`.
+
+**Alerting**: a daily cron (`/api/cron/storage-alert`, `0 19 * * *` UTC =
+03.00 WITA, after cleanup — Vercel Cron `CRON_SECRET`-protected) checks
+usage against `NEON_STORAGE_QUOTA_MB` and sends a WhatsApp (Fonnte) and/or
+Telegram message to the admin **once per crossing** of
+`STORAGE_ALERT_THRESHOLD_PCT` (default 80%). It won't re-notify every day
+while usage stays above the threshold: the state is persisted in the
+`StorageAlertState` table (created by migration
+`20260908000000_add_storage_alert_state`) and only resets after usage drops
+below `threshold − STORAGE_ALERT_HYSTERESIS_PCT` (default 10 points).
+Requires the notification env vars (`ADMIN_PHONE` + `FONNTE_TOKEN` for
+WhatsApp, `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` for Telegram);
+unconfigured channels are skipped silently. To verify the exact alert
+pipeline without waiting for the cron, use the **"Uji Kirim Alert"**
+button — available on the dashboard home inside the **Storage Upload**
+panel (SUPER_ADMIN) and on the settings page (notifications section). It
+calls `POST /api/notifications/test-alert` and reports the per-channel
+result.
+
 Migration: the `UploadedFile` table is created by migration
 `20260828120000_add_uploaded_file` (applied by `prisma migrate deploy`).
 For your dev database (Neon `dev` branch or local Docker Postgres), run
@@ -172,6 +219,10 @@ For your dev database (Neon `dev` branch or local Docker Postgres), run
 | `NEXT_PUBLIC_SITE_URL` | Yes | Full site URL with https:// |
 | `APP_DEBUG` | No | Debug flag (default: false) |
 | `ALLOWED_ORIGINS` | No | CORS origins (comma-separated) |
+| `UPLOAD_RETENTION_DAYS` | No | Umur maksimum upload (hari) sebelum dihapus cron harian (default: 90; `0` = nonaktif) |
+| `NEON_STORAGE_QUOTA_MB` | No | Kuota storage Neon (MB) untuk laporan pemakaian & alert (wajib untuk alert) |
+| `STORAGE_ALERT_THRESHOLD_PCT` | No | Ambang alert storage (persen kuota; default: 80; `<= 0` nonaktif) |
+| `STORAGE_ALERT_HYSTERESIS_PCT` | No | Selisih turun untuk me-reset alert (persen; default: 10) |
 | `SMTP_HOST` | No | Email SMTP host |
 | `SMTP_PORT` | No | Email SMTP port |
 | `SMTP_USER` | No | Email SMTP username |

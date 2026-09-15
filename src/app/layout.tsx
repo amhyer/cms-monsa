@@ -110,7 +110,9 @@ export default async function RootLayout({
             <SonnerToaster richColors position="top-right" />
           </NextIntlClientProvider>
         </ThemeProvider>
-        <Analytics />
+        {/* Vercel Analytics hanya relevan di deploy Vercel — di self-host
+            (cPanel) script /_vercel/insights.js 404 dan mengotori console. */}
+        {process.env.VERCEL === "1" && <Analytics />}
       </body>
     </html>
   );

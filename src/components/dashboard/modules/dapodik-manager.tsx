@@ -48,6 +48,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EmptyState } from "../_shared";
+import { DapodikDownloadSection } from "./dapodik-download-section";
 
 type DapodikData = {
   sekolah?: {
@@ -473,30 +474,21 @@ export function DapodikManager() {
         </div>
       )}
 
+      <DapodikDownloadSection />
+      
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Cable className="size-4" />
-            Jembatan PC Sekolah
+            Kunci Pairing
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            CMS di cloud tidak bisa menjangkau Dapodik di <code>localhost:5774</code>.
-            Unduh aplikasi jembatan, jalankan di komputer yang sama dengan Dapodik,
-            lalu tempel kunci pairing. Port 5774 tetap tertutup dari internet.
+            Kunci pairing menghubungkan aplikasi jembatan di PC sekolah dengan CMS ini.
+            Buat kunci dan tempel di aplikasi jembatan.
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm" asChild>
-              <a href="/jembatan/Jembatan-Dapodik.exe" download target="_blank" rel="noreferrer">
-                <Download className="mr-1 size-3" />
-                Unduh Jembatan Dapodik (.exe)
-              </a>
-            </Button>
-            <Button variant="outline" size="sm" onClick={downloadJembatan} disabled={downloading}>
-              {downloading ? <Loader2 className="mr-1 size-3 animate-spin" /> : <Download className="mr-1 size-3" />}
-              Unduh jembatan (.zip)
-            </Button>
             <Button variant="outline" size="sm" onClick={generateBridgeKey} disabled={generatingKey}>
               {generatingKey ? <Loader2 className="mr-1 size-3 animate-spin" /> : <KeyRound className="mr-1 size-3" />}
               {hasBridgeToken ? "Buat ulang kunci" : "Buat kunci pairing"}
@@ -508,13 +500,6 @@ export function DapodikManager() {
               </Button>
             )}
           </div>
-          <p className="text-xs text-muted-foreground">
-            <span className="font-medium">exe</span> (disarankan): Windows 10/11 x64, langsung jalan
-            tanpa install Node.js — double-klik, lalu browser membuka <code>http://127.0.0.1:3847</code>.
-            Peringatan SmartScreen? <em>More info</em> → <em>Run anyway</em>.
-            <span className="font-medium"> .zip</span>: paket source (butuh Node.js LTS) —
-            double-klik <code>MULAI-JEMBATAN.vbs</code>.
-          </p>
           {hasBridgeToken ? (
             <p className="text-xs text-muted-foreground">
               Kunci aktif: <span className="font-mono text-foreground">{bridgePrefix || "monsa_br_"}…</span>

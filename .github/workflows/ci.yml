@@ -2,8 +2,21 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      # Gate juga berjalan pada push cabang feature — selama ini, gate CI
+      # hanya menyala via pull_request; push cabang biasa (arena/*, perf/*)
+      # tidak memicu apa pun sehingga kerusakan bisa menumpuk diam-diam
+      # sebelum PR dibuka. Pola disengaja (bukan "**"): hanya keluarga
+      # cabang feature yang nyata di repo ini (arena/* = worktree agen,
+      # perf/*, merge-pr/*) yang dilarikan; PR tetap sumber kebenaran
+      # untuk merge. Menit Actions gratis untuk repo publik, jadi ini
+      # tidak menghabiskan kuota.
+      - "arena/**"
+      - "perf/**"
+      - "merge-pr/**"
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -36,13 +49,50 @@ jobs:
   validate:
     name: Typecheck, Lint, Test & Build
     runs-on: ubuntu-latest
+    # Dua service Postgres untuk step "Check schema/migrations drift":
+    # postgres (DB "ci_dummy" — juga dipakai PrismaClient build-time) dan
+    # postgres-shadow (DB "shadow_ci" kosong untuk `prisma migrate diff`).
+    # Dua kontainer, bukan satu, supaya diff tidak menyentuh DB utama job.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ci_dummy
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres-shadow:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: shadow_ci
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
       # PrismaClient membaca DATABASE_URL saat konstruksi (sitemap.ts
       # di-prerender saat build). Test unit memakai mock penuh, jadi DB
       # dummy cukup — tidak ada koneksi nyata yang dibutuhkan (query
       # prerender gagal tertangani try/catch di sitemap). Skema tunggal
-      # PostgreSQL — dummy URL harus berprotokol postgresql://.
-      DATABASE_URL: "postgresql://ci:ci@127.0.0.1:5432/ci_dummy"
+      # PostgreSQL — dummy URL harus berprotokol postgresql://. Sejak
+      # drift check, DB ini BENAR-BENAR ADA (service postgres di atas) dan
+      # dipakai step drift; test unit tetap full-mock (tidak menyentuh DB).
+      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/ci_dummy?schema=public"
+      # Shadow DB untuk prisma migrate diff — kosong tanpa tabel; script
+      # check-schema-migrations yang menerapkan migrasi ke sana. Umur =
+      # umur job (kontainer mati bersama runner).
+      SHADOW_DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5433/shadow_ci"
       # AUTH_SECRET tidak wajib saat build, tapi diset untuk menghindari
       # peringatan dari src/lib/auth.ts. Ganti dengan secret asli di
       # production (jangan pernah commit secret di sini).
@@ -70,7 +120,18 @@ jobs:
 
       # (Check schema sync DIHAPUS 2026-08-28 — skema tunggal PostgreSQL,
       # tidak ada lagi pasangan schema.prisma/schema.postgres.prisma yang
-      # perlu dijaga sinkron.)
+      # perlu dijaga sinkron. Step drift di bawah adalah check BERBEDA:
+      # keselarasan RIWAYAT MIGRASI vs schema.prisma.)
+
+      # Drift guard: `prisma migrate deploy` (deploy-vercel.yml, entrypoint
+      # Docker) membangun skema dari FILE migrasi, sedangkan `prisma db
+      # push` mengubah DB tanpa mencatat migrasi — selisih keduanya membuat
+      # database fresh mendapat skema yang salah (kasus nyata 2026-09-08:
+      # migrasi tertinggal 519 baris, login P2022 di DB fresh). Step ini
+      # menjalankan prisma migrate diff migrasi→schema dan GAGAL bila
+      # tidak kosong; lihat scripts/check-schema-migrations.ts.
+      - name: Check schema/migrations drift
+        run: bun run check:schema-migrations
 
       # Guard klasifikasi scope publik (public-scope.test.ts): setiap kolom
       # model Teacher/OrgStructure harus terklasifikasi sadar (daftar PUTIH
@@ -86,6 +147,208 @@ jobs:
 
       - name: Build
         run: bun run build
+
+  # ── Docker image gate ────────────────────────────────────────────────────────
+  # Membangun image produksi (Dockerfile) + smoke boot pada setiap PR & push
+  # main — jalur deploy self-host (docker compose up → entrypoint `prisma
+  # migrate deploy` → server) digate sama seperti jalur Vercel (job validate
+  # + deploy-vercel.yml). Tanpa job ini, Dockerfile bisa rusak di PR tanpa
+  # ada yang menyadarinya sampai deployment self-host berikutnya.
+  #
+  # Smoke boot membuktikan per PERILAKU (bukan sekadar image terkompilasi):
+  #   1. entrypoint menjalankan `prisma migrate deploy` di DB KOSONG
+  #      (service postgres di atas) — seluruh migrasi masuk tanpa gagal;
+  #   2. server produksi (node server.js, output standalone) listen di :3000;
+  #   3. /api/health 200 dengan checks.db ok (DB nyata, bukan mock).
+  # Tag memakai github.run_id — unik per run, tak perlu tahu nomor PR.
+  docker-build:
+    name: Docker build, boot smoke & publish
+    runs-on: ubuntu-latest
+    # packages:write — push image ke GHCR saat push ke main (tag sha + latest).
+    # PR/push cabang lain hanya build + smoke, TIDAK push.
+    permissions:
+      contents: read
+      packages: write
+    # Service postgres untuk smoke boot — DB "docker_smoke" sengaja KOSONG:
+    # entrypoint container membangun skema dari nol via `prisma migrate
+    # deploy` (persis jalur produksi self-host pada boot pertama).
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: docker_smoke
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Cache GHA: layer deps (bun install + prisma generate) dan build
+      # Next di-cache antar run — build ulang hanya mengompilasi layer yang
+      # berubah, bukan dari nol. mode=max agar layer stage builder ikut
+      # tersimpan (bukan hanya layer terakhir).
+      - name: Build production image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: cms-monsa:ci-${{ github.run_id }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # --network host: container app memakai jaringan host runner (pola
+      # sama dengan job orphan-check — pg_dump via 127.0.0.1), sehingga
+      # DATABASE_URL menunjuk service postgres job ini, bukan ke dalam
+      # container app sendiri.
+      - name: Boot container against fresh DB (entrypoint migrate)
+        run: |
+          docker run -d --name monsa-smoke --network host \
+            -e DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/docker_smoke?schema=public" \
+            -e AUTH_SECRET="ci-insecure-smoke-secret" \
+            cms-monsa:ci-${{ github.run_id }}
+
+      # Sehat = migrate deploy sukses + server standalone listen + health
+      # 200 dengan checks.db ok (route health mem-query DB nyata dan 503
+      # bila gagal). Poll 120 detik — start-period healthcheck image 60s.
+      - name: Smoke — wait for /api/health healthy
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:3000/api/health | grep -q '"status":"healthy"'; then
+              echo "Container healthy setelah ~$((i * 2)) detik."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Container tidak healthy dalam 120 detik — log di bawah."
+          docker logs monsa-smoke
+          exit 1
+
+      # Bukti migrate path dari SISI DATABASE (bukan hanya health): skema
+      # dibangun oleh entrypoint `prisma migrate deploy`, bukan db push —
+      #   1. ada migrasi yang diterapkan (entrypoint benar-benar jalan);
+      #   2. tidak ada migrasi gagal / di-rollback;
+      #   3. tabel User punya kolom mustChangePassword — REGRESI drift
+      #      2026-09-08: kolom ini hilang di DB hasil migrate deploy sehingga
+      #      login error P2022. Hilang lagi = gate ini merah sebelum deploy.
+      - name: Smoke — verify migrate deploy result via psql
+        run: |
+          psqlq() {
+            docker run --rm --network host -e PGPASSWORD=postgres postgres:16-alpine \
+              psql -h 127.0.0.1 -U postgres -d docker_smoke -tAc "$1"
+          }
+          FAIL=0
+          TOTAL=$(psqlq "select count(*) from \"_prisma_migrations\"")
+          FAILED=$(psqlq "select count(*) from \"_prisma_migrations\" where finished_at is null or rolled_back_at is not null")
+          USERCOL=$(psqlq "select count(*) from information_schema.columns where table_name='User' and column_name='mustChangePassword'")
+          TOTAL=${TOTAL:-0}; FAILED=${FAILED:-"?"}; USERCOL=${USERCOL:-0}
+          if [ "$TOTAL" -ge 1 ]; then
+            echo "✓ migrate deploy diterapkan ($TOTAL migrasi)."
+          else
+            echo "::error::Tidak ada migrasi diterapkan — entrypoint tidak jalan? Log:"; docker logs monsa-smoke; FAIL=1
+          fi
+          if [ "$FAILED" = 0 ]; then
+            echo "✓ tidak ada migrasi gagal/rollback."
+          else
+            echo "::error::$FAILED migrasi gagal/rollback di _prisma_migrations."; FAIL=1
+          fi
+          if [ "$USERCOL" -eq 1 ]; then
+            echo "✓ kolom mustChangePassword ada di tabel User."
+          else
+            echo "::error::Kolom mustChangePassword hilang di User — drift migrations↔schema (kasus 2026-09-08) kembali terjadi."; FAIL=1
+          fi
+          exit $FAIL
+
+      - name: Dump container logs on failure
+        if: failure()
+        run: docker logs monsa-smoke
+
+      - name: Remove smoke container
+        if: always()
+        run: docker rm -f monsa-smoke
+
+      # ── Publikasi GHCR (hanya push ke refs/heads/main) ────────────────
+      # Image yang di-push = PERSIS image yang lulus boot smoke di atas:
+      # tag lokal di-rename lalu di-push, bukan build ulang — jadi yang
+      # masuk registry dijamin sudah melewati migrate deploy + health 200
+      # + assert psql. PR & push cabang lain tidak menyentuh registry.
+      - name: Compute GHCR image name (harus lowercase)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        id: image
+        run: echo "name=ghcr.io/$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push image to GHCR (sha + latest)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          IMAGE="${{ steps.image.outputs.name }}"
+          LOCAL="cms-monsa:ci-${{ github.run_id }}"
+          docker tag "$LOCAL" "$IMAGE:sha-${{ github.sha }}"
+          docker tag "$LOCAL" "$IMAGE:latest"
+          docker push "$IMAGE:sha-${{ github.sha }}"
+          docker push "$IMAGE:latest"
+          echo "✓ Ter-push: $IMAGE:sha-${{ github.sha }} dan $IMAGE:latest"
+
+  # ── Self-host E2E penuh (compose up → assert → teardown) ─────────────
+  # Membuktikan stack Docker self-host (app + postgres + cron per-menit)
+  # benar-benar bekerja end-to-end di setiap PR: image produksi dibangun,
+  # entrypoint menjalankan migrate deploy, ketiga cron job (cleanup,
+  # storage-alert, backup) terbukti memukul endpoint app dan menulis
+  # hasilnya (assert via scripts/e2e-selfhost-assert.ts). Menggunakan
+  # cache GHA yang sama dengan job docker-build agar build murah.
+  selfhost-e2e:
+    name: Self-host E2E (compose up → assert → teardown)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup repo (Node + Bun + install)
+        uses: ./.github/actions/setup-repo
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build image cms-monsa:e2e dengan cache GHA — sama namespace cache
+      # dengan job docker-build, jadi layer deps & Next build di-reuse.
+      - name: Build image for E2E stack
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: cms-monsa:e2e
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Orchestrator melakukan preflight (port bebas, tanpa clash), compose
+      # up project monsa-e2e, poll health, jalankan assert script, dan
+      # teardown down -v selalu. E2E_SKIP_BUILD=1 — image sudah dibangun
+      # di atas dengan cache.
+      - name: Run self-host E2E (up → assert → teardown)
+        run: bun run e2e:selfhost
+        env:
+          E2E_SKIP_BUILD: "1"
+
+      - name: Dump compose ps on failure
+        if: failure()
+        run: docker ps -a --format 'table {{.Names}}\t{{.Status}}'
 
   # Gate pre-commit EXACT — SUMBER TUNGGAL di hooks-gate.yml (reusable
   # workflow, dipakai juga playwright.yml) supaya tidak ada drift antara
@@ -125,6 +388,10 @@ jobs:
       # proses Next.js 500 "Can't reach database server".
       DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/ci_e2e?schema=public"
       AUTH_SECRET: "ci-insecure-build-secret"
+      # Cron routes menolak (503) bila CRON_SECRET kosong — dengan secret,
+      # warmup GET tanpa header menghasilkan 401 (bukan 5xx) sehingga gate
+      # check:server-log tetap bersih; tanpa ini ia selalu gagal di CI.
+      CRON_SECRET: "ci-insecure-cron-secret"
       NEXT_PUBLIC_SITE_URL: "https://sdn-mongisidi1.sch.id"
       NODE_OPTIONS: "--dns-result-order=ipv4first"
     steps:
@@ -142,22 +409,49 @@ jobs:
         run: |
           bun run db:push
 
+      # Database CI kosong (db:push hanya schema) — seed pengguna & konten
+      # dasar yang diasumsikan suite (kredensial = e2e/helpers.ts). Seed
+      # berpengaman ganda (E2E_SEED=1 + penolakan host Neon) dan idempoten.
+      - name: Seed E2E data
+        run: E2E_SEED=1 bun run db:seed:e2e
+
       - name: Install Playwright browsers
         run: bunx playwright install --with-deps chromium
 
-      # test:e2e = workflow scripts/run-e2e.ts: memulai dev server (bila
-      # belum ada), memanaskan rute utama, lalu menjalankan Playwright dengan
-      # reuseExistingServer aktif (PW_REUSE_SERVER=1).
+      # Production build — suite dijalankan terhadap server produksi
+      # (next start), bukan dev mode, PERSIS seperti job "E2E (Production
+      # Build)" di playwright.yml. Alasan: 6 kegagalan beruntun (2026-09-12
+      # s.d. 09-13, branch ini dan main) selalu terjadi di jendela setelah
+      # warmup selesai — saat chromium diluncurkan DI ATAS server dev
+      # Turbopack (kompilator on-demand, rakus memori) pada runner 7 GB,
+      # dan runner dilaporkan menerima "shutdown signal" eksternal. Varian
+      # produksi (next start, tanpa kompilator) memakai wrapper yang sama
+      # dan bertahan >26 menit di pool yang sama tanpa pernah terbunuh.
+      # Sukses job prod pada pool identik diulang eksperimen 5x sepanjang
+      # 2 hari — dev mode adalah satu-satunya variabel yang membedakan.
+      - name: Build (production)
+        run: bun run build
+
+      # test:e2e = workflow scripts/run-e2e.ts: memulai server dari
+      # E2E_SERVER_CMD (next start produksi), memanaskan rute utama, lalu
+      # menjalankan Playwright dengan reuseExistingServer aktif
+      # (PW_REUSE_SERVER=1).
       # E2E_SERVER_LOG: wrapper menyalin log server ke workspace saat selesai
       # (sekali, di akhir) agar bisa di-upload saat gagal — berguna untuk
       # mendiagnosis stall cold-compile Turbopack & masalah jaringan.
       # E2E_TAIL_LINES / E2E_TAIL_LINES_ERR didefinisikan di env level
       # WORKFLOW (di atas) — step ini dan step "Check tail heading" memakai
       # nilai yang sama.
-      - name: Run E2E tests
+      - name: Run E2E tests (production server)
         run: bun run test:e2e
         env:
+          E2E_SERVER_CMD: "bun run start"
           E2E_SERVER_LOG: ./server-e2e.log
+          # Penanda mode E2E untuk server (diwarisi proses anak): mematikan
+          # rate-limit public GET — browser uji navigasi cepat dari satu IP
+          # sah-sah menembus 30–60 req/menit dan 429 membuat fetch list
+          # dashboard kosong. Lihat src/lib/rate-limit.ts.
+          E2E_SUITE: "1"
 
       # Setiap mutasi API yang dilakukan spec harus dideklarasikan di pragma
       # // warmup: — membaca laporan dari fixture e2e/mutation-log.ts yang
@@ -336,9 +630,9 @@ jobs:
         env:
           E2E_PREV_STATS: ./prev-stats/e2e-stats.jsonl
 
-      # Guard data leak — pastikan judul E2E/AUDIT tidak bocor ke dataset
-      - name: Check test data leak
-        run: bun run check:data-leak
+      # (check:data-leak TIDAK dijalankan di job ini: database E2E memang
+      # diisi seed `e2e-*` secara disengaja — guard ini untuk mencegah data
+      # uji bocor ke dataset produksi/dev, dipakai di gate pre-commit.)
 
       # Stage state untuk job orphan-check: dump PostgreSQL e2e + file
       # upload BOS. Hanya file bos-*.pdf yang disalin (bukan seluruh

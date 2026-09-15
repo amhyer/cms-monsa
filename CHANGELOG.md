@@ -5,6 +5,413 @@
 
 ---
 
+## [Unreleased] - 2026-09-15
+
+### ✨ Added — Seed demo dev (prisma/seed.ts) + `--purge-e2e`
+
+`bun run db:seed` mengisi database lokal dengan data sekolah SD Indonesia
+yang realistis (5 akun per role `@sekolahdemo.id` / `demo123`, 7 guru dengan
+NUPTK/NIP/NIK, 6 kelas + wali, 18 siswa, berita, pengumuman, agenda, galeri,
+prestasi, BOS + 3 PDF demo yang dibuat otomatis, dokumen publik, pesan,
+pengaduan, SPMB) sehingga halaman publik dan dashboard langsung "hidup" —
+bukan halaman kosong maupun fixture E2E.
+
+- Idempoten (upsert ID tetap `demo-*` / email `@sekolahdemo.id`), aman
+  dijalankan ulang; tidak menyentuh data lain.
+- Menolak `DATABASE_URL` kosong/tidak valid/Neon (proteksi produksi); memuat
+  `.env` + `.env.local` sendiri dengan precedensi Next.js.
+- `bunx tsx prisma/seed.ts --purge-e2e` membersihkan sisa data seed E2E
+  (ID `e2e-*`) — kelas yang masih dirujuk siswa lama diganti nama lalu
+  dihapus setelah siswa demo berpindah, sehingga tidak ada fixture uji
+  yang tersisa di dev.
+- `package.json`: script `db:seed` + konfigurasi `prisma.seed`; docs/RUNNING.md
+  kini mengarahkan dev ke seed demo (bukan seed E2E) dan tabel akun login
+  diperbarui ke kredensial demo.
+
+### 🛠 Fixed — Keyset pagination bos-documents salah di bawah seri (baris hilang/terulang)
+
+Cursor pagination `id > cursor` dengan orderBy `(year DESC, createdAt DESC)`
+tidak konsisten: baris yang (year, createdAt)-nya identik (unggahan cepat
+berurutan berada di milidetik yang sama) melompati predikat `id >` dan
+kembali dalam urutan arbitrer — walk bisa mengulang baris dan berakhir di
+halaman KOSONG dengan `next:null` sementara `total` belum habis. Dibuktikan
+live: 15 baris / limit 10 → 3 halaman (9 duplikat, halaman terakhir kosong).
+
+- **`src/app/api/bos-documents/route.ts`**: predikat keyset komposit
+  `(year, createdAt, id)` konsisten dengan orderBy, plus `id asc` sebagai
+  kunci urutan terakhir; baris kursor yang terhapus mid-walk fallback jinak
+  ke halaman 1. Unit test regresi men-pin bentuk predikat.
+- **`src/components/dashboard/_shared.tsx` + bos-expenditures-manager**:
+  `useCursorPagination` menerima `loading` dan `CursorPagination` menerima
+  `disabled` — klik cepat saat fetch berjalan tidak lagi memakai cursor basi.
+
+### 🛠 Fixed — Kontrak API pengumuman: dua model DB, badge Aktif selalu salah, tombol aktif tersimpan tanpa efek
+
+Manager dashboard meminta `?scope=admin` (kontrak yang tidak ada di server)
+dan membaca `a.isActive`, sementara list memakai model `SchoolAnnouncement`
+(kolom `isPublished`) — badge selalu "Nonaktif" dan switch Aktif di dialog
+diam-diam dibuang oleh POST/PUT. Lebih parah: PUT/DELETE/delete-bulk/RSS/
+stats/search menulis/membaca model `Announcement` yang TIDAK PERNAH diisi
+oleh create route — edit dan hapus dari dashboard mengoperasikan tabel lain.
+
+- **`api/announcements`**: `items` + `isActive` (dipetakan dari
+  `isPublished`) adalah kontrak SEMUA consumer; `scope=admin` (kini ada,
+  butuh OPERATOR) hanya melebarkan baris: draft masuk, tanpa filter
+  kedaluwarsa. POST/PUT menerima `isActive` → `isPublished`.
+- **`api/announcements/[id]`, send-whatsapp, bulk, rss, stats, search**:
+  satu model (`schoolAnnouncement`) di seluruh permukaan pengumuman.
+- Unit tests: kontrak publik/admin + pemetaan isActive.
+
+### 🛠 Fixed — Rate-limit public GET meng throttling suite E2E sendiri (429 → list dashboard kosong)
+
+Navigasi cepat browser uji dari satu IP melampaui 60 req/menit dan fetch
+list dokumen dashboard mendapat 429 — manager menampilkan "Belum ada
+produk" padahal data ada (snapshot error-context: form kosong, list kosong
+setelah upload sukses).
+
+- **`src/lib/rate-limit.ts`**: `E2E_SUITE=1` (dari harness CI, diwarisi
+  server anak) mematikan pembatas public GET di mode E2E saja.
+- **`.github/workflows/ci.yml`**: job E2E menyetel `E2E_SUITE=1`.
+
+### 🛠 Fixed — Spec E2E: helper dark-mode terbalik, assertion hasil DELETE zz tidak valid
+
+- **dark-mode-mobile**: helper membaca aria-label sebelum toggle mounted
+  (placeholder disabled memakai label statis) dan menafsirkan label
+  "Aktifkan mode gelap" (halaman masih TERANG) sebagai "sudah gelap" — mode
+  gelap tidak pernah dinyalakan; probe warna lama menutupi ini karena
+  regex rgb() tidak pernah match terhadap lab(). Sekarang: tunggu enabled,
+  klik saat terang, konversi warna via canvas tetap dipertahankan.
+- **zz-server-restart**: `page.evaluate` tidak bisa mengembalikan Response
+  (tak terserialisasi) sehingga `delRes.status` selalu undefined — kembalikan
+  `{ status }` polos; kegagalan DELETE kini benar-benar menggagalkan test.
+- **transparansi 15MB**: asersi isi log server dilewatkan bila log wrapper
+  tidak tersedia (mode reuse lokal); CI tetap memeriksa log nyata.
+
+## [Unreleased] - 2026-09-13
+
+### 🛠 Fixed — Database CI kosong membuat suite E2E gagal massal; seed E2E + CRON_SECRET ditambahkan
+
+Investigasi artifact run #93 (E2E Production Build, gagal 4j48m: 83
+failed / 68 passed) membuktikan akar masalah BUKAN infrastruktur:
+`prisma/seed.ts` sengaja no-op dan job CI hanya menjalankan `db:push`,
+sehingga database CI kosong — padahal `e2e/helpers.ts` menghardcode
+kredensial `admin@mongisidi1.sch.id` dll. Semua spec yang login mati
+(`waitForURL **/dashboard` timeout), spec konten publik gagal karena
+data kosong; secara lokal "lulus" karena suite menembak Neon produksi.
+
+- **`prisma/seed-e2e.ts`** (baru): seed idempoten (ID tetap `e2e-*`)
+  berisi pengguna sesuai kredensial helpers + konten dasar (kelas,
+  siswa, guru, berita, pengumuman, agenda, galeri, prestasi, struktur,
+  BOS, dokumen, album+foto). Pengaman ganda: wajib `E2E_SEED=1` dan
+  menolak host `*.neon.tech` — tidak mungkin menyentuh database produksi.
+- `db:seed:e2e` script; job E2E di `ci.yml` dan `playwright.yml` kini
+  menjalankan seed setelah `db:push`.
+- **`CRON_SECRET` di-set di env CI** — sebelumnya kosong sehingga 3 rute
+  cron merespons 503 saat warmup dan gate `check:server-log` gagal
+  permanen di CI (tertutupi secara lokal oleh `.env` dev).
+- Tervalidasi end-to-end lokal: Postgres 16 throwaway → `db:push` →
+  seed → `next dev` → login `admin@mongisidi1.sch.id` HTTP 200 dengan
+  sesi SUPER_ADMIN, `/dashboard` 200, API publik mengembalikan konten
+  seed; rerun seed idempoten.
+
+### 🛠 Fixed — Job E2E Playwright di CI kini berjalan melawan server produksi
+
+Job "E2E (Playwright)" di `ci.yml` dijalankan terhadap server dev Turbopack
+dan terbunuh 6x beruntun (2026-09-12 s.d. 09-13, di cabang feature maupun
+`main`) selalu pada jendela setelah warmup selesai — saat chromium
+diluncurkan di atas kompilator on-demand yang rakus memori pada runner 7
+GB — dengan pesan "runner has received a shutdown signal" dan nol step yang
+gagal. Job kembar "E2E (Production Build)" di `playwright.yml`, yang memakai
+wrapper yang sama tetapi server produksi (`next start`, tanpa kompilator),
+tidak pernah terkena di pool runner yang identik. Job kini membangun
+produksi lebih dulu (`bun run build`) lalu menjalankan suite dengan
+`E2E_SERVER_CMD: "bun run start"` — sama persis dengan varian produksi.
+Assertion tidak diubah dan job tidak dilewati; hanya mode server yang
+disesuaikan dengan varian yang terbukti stabil.
+
+### 🛠 Added — Gate CI menyala juga pada push cabang feature
+
+`ci.yml` kini memicu `workflow_dispatch` (jalankan manual) dan push pada
+cabang feature (`arena/**`, `perf/**`, `merge-pr/**`), bukan hanya `main`
+dan `pull_request`. Sebelumnya, push ke cabang feature tidak memicu apa pun —
+semua gate (drift check, docker-build + boot smoke, selfhost-e2e, suite E2E)
+hanya menyala setelah PR dibuka, sehingga kerusakan bisa menumpuk diam-diam
+sebelum PR. Publikasi GHCR tetap terbatas pada push ke `main` (guard
+`github.ref == 'refs/heads/main'`), jadi push cabang hanya membangun dan
+menguji, tidak menyentuh registry.
+
+### 🛠 Added — Admin dinotifikasi saat job cron self-host gagal total
+
+Runner cron self-host (`scripts/cron-job.sh`) kini melaporkan kegagalan total
+(semua percobaan habis) ke endpoint baru `POST /api/cron/cron-failure`
+(guard `Bearer $CRON_SECRET`). App meneruskan peringatan ke admin via kanal
+yang sudah ada (`notifyAdmin` → WhatsApp/Telegram) — jadi kegagalan cron
+(app down, 401, 5xx, timeout) tidak hanya terlihat di `/backups/cron.log`
+yang jarang dibaca. Laporan bersifat best-effort (tidak mengubah exit code
+job; bila app sendiri down, POST gagal dan cukup tercatat di log). Stack uji
+E2E membawa kredensial kanal dummy (token tidak valid) sehingga jalur
+"percobaan terkirim tapi semua kanal gagal" terlatih end-to-end tanpa pesan
+sungguhan pernah sampai ke siapa pun. Endpoint
+tervalidasi ketat (job ≤ 100 char, attempts 1..10, detail dipotong 300
+byte), dikontrak-test 17 kasus, dan tercakup E2E: stack uji kini menjalankan
+job `always-fails` per menit yang harus menghabiskan retry lalu mencatat
+"laporan kegagalan terkirim" di cron.log. Uji E2E juga membuktikan retry
+benar-benar menunggu — bukan sekadar dua baris log: marker waktu ditulis ke
+cron.log sebelum jendela tunggu, siklus percobaan-1 → percobaan-2 harus ada
+setelah marker, dan jeda terukur antar keduanya diverifikasi ≥ nilai
+`RETRY_DELAY_SEC` yang di-claim runner (dengan batas atas agar siklus menit
+berikutnya tidak ikut terhitung). Baris laporan "laporan kegagalan terkirim"
+juga di-scope ke jendela marker dan diwajibkan SETELAH percobaan-2 siklus
+yang diamati (hanya dicari sampai siklus berikutnya dimulai) — delivery
+terikat ke siklus retry yang benar-benar diamati, bukan sisa log lama.
+
+### 🛠 Added — E2E self-host kini login admin & memverifikasi angka storage-usage
+
+`scripts/e2e-selfhost-assert.ts` menambah seksi I: men-seed SUPER_ADMIN
+(password scrypt dengan parameter identik `src/lib/password.ts`), login lewat
+`/api/auth/login`, menangkap cookie `__Host-monsa_session`, lalu memverifikasi
+`/api/storage-usage` mengembalikan angka akurat terhadap seed (fileCount,
+totalBytes, persen kuota 1 desimal, kandidat cleanup, lapangan `impact`).
+File trigger 600 KB dari uji ambang alert kini dihapus setelah dipakai, dan
+restorasi keadaan kanonik diverifikasi — angka seksi I tidak lagi tergantung
+urutan seksi. Label uji ambang dikoreksi 58% → 62.9% (660 KB/1 MB).
+
+### 🛠 Added — E2E self-host sebagai satu perintah + job CI per-PR
+
+`npm run e2e:selfhost` kini menjalankan seluruh siklus validasi stack
+self-host: preflight (engine hidup, port 3100/55432 bebas, tanpa clash
+dengan stack produksi), compose up project `monsa-e2e`, poll health,
+seed + assert end-to-end (`scripts/e2e-selfhost-assert.ts`), dan teardown
+`down -v` yang selalu jalan — log container dibuang ke direktori log
+sebelum dihapus bila assert gagal. Job CI baru `selfhost-e2e` menjalankan
+ini di setiap PR (image dibangun dengan cache GHA yang sama dengan job
+docker-build). Container E2E kini bernama `*-e2e` sehingga stack uji tidak
+pernah menabrak stack produksi berjalan di host yang sama.
+
+### 🛠 Added — Interval muat-ulang otomatis yang dapat dikonfigurasi di panel Storage Upload
+
+Panel **Storage Upload** kini punya pilihan interval muat-ulang otomatis —
+Mati / 30 detik / 1 menit / 5 menit — di header kartu. Pilihan tersimpan di
+localStorage (`cms.storage-panel-refresh-ms`) sehingga bertahan antar sesi;
+mengganti interval langsung memuat ulang laporan. Polling tetap satu pemilik:
+hook bersama `useStorageUsage` yang sama dengan widget sidebar, kini dipakai
+panel dengan interval dinamis alih-alih selalu manual.
+
+### 🛠 Added — Kesehatan pengiriman alert di panel Storage Upload
+
+Panel **Storage Upload** di beranda dashboard kini menampilkan dua baris
+kesehatan pengiriman — "Kirim cron: …" dan "Uji manual: …" beserta hasil
+per kanal (WA/TG ok/gagal, atau "belum pernah") — memakai data yang sama
+(`alertState` dari `readStorageAlertState`) dengan kartu Alert Admin di
+Pengaturan; tanpa fetch tambahan.
+
+### 🛠 Added — Pemisahan catatan uji manual dari kirim cron (StorageAlertState)
+
+Uji manual jalur alert kini tercatat pada kolom terpisah:
+`lastTestSendAt` + `lastTestChannelsWhatsapp/Telegram` diisi
+`/api/notifications/test-alert` pada SETIAP percobaan (apa pun hasilnya),
+paralel dengan `lastSendAt` + `lastChannels*` milik cron — sehingga kartu
+"Alert Admin" di Pengaturan menampilkan dua chip berbeda: "Kirim cron
+terakhir" dan "Uji manual terakhir". `lastTestedAt` tetap berarti uji
+manual terakhir yang SUKSES (penanda "Diuji: …" di panel Storage Upload).
+Migrasi `20260911000001_add_storage_alert_last_test_send` (kolom opsional,
+prosedur biasa); gerbang drift CI hijau.
+
+### 🛠 Added — Penanda uji manual jalur alert (StorageAlertState.lastTestedAt)
+
+Tombol **Uji Kirim Alert** kini mencatat verifikasi manual: saat minimal
+satu kanal (WhatsApp/Telegram) benar-benar terkirim, kolom baru
+`lastTestedAt` di `StorageAlertState` diisi lewat
+`markStorageAlertTested()` (fail-soft) — kasus tanpa kanal dan semua-kanal
+gagal tidak mengubahnya. Panel **Storage Upload** menampilkan baris
+"Diuji: …" di blok status alert, hint tombol uji kirim berubah menjadi
+"Jalur terakhir diuji: …", dan panel memuat ulang statistik setelah uji
+sukses agar penanda langsung tampil. Tersedia via `/api/storage-usage`
+(`alertState.lastTestedAt`). Migrasi baru
+`20260911000000_add_storage_alert_last_tested` (kolom opsional — aman
+untuk DB produksi yang baru di-baseline sebagian); gerbang drift CI
+hijau.
+
+### 🛠 Added — Guard pra-deploy P3005 di workflow deploy Neon
+
+`deploy-vercel.yml` kini menjalankan `check:predeploy-db`
+(`scripts/check-predeploy-db.ts`) sebelum `prisma migrate deploy`: bila
+database produksi berisi tabel tetapi tidak punya buku besar
+`_prisma_migrations` (kondisi P3005 — hasil `prisma db push` yang belum
+di-baseline), job GAGAL di sini dengan petunjuk ke
+`docs/RUNBOOK-BASELINE-NEON.md` (backup → gerbang paritas → resolve),
+bukan error Prisma samar di tengah deploy. Status sebagian/seluruhnya
+ter-baseline diteruskan (dengan info jumlah migrasi pending); database
+tak terjangkau juga menggagalkan deploy dengan pesan jelas.
+Divalidasi live terhadap 5 keadaan Postgres nyata (P3005, partial-baseline
+12/16 — cermin kondisi produksi hasil dry-run 2026-09-11, fresh, tak
+terjangkau, tanpa env) plus kontrol negatif `migrate deploy`.
+
+### 🛠 Added — Publikasi image produksi ke GHCR dari CI
+<arg_value><b88a6f17>Job `docker-build` kini juga mem-push image produksi ke GitHub Container
+Registry saat push ke `main` — tag `ghcr.io/<owner>/<repo>:sha-<commit>`
+dan `:latest`. Yang di-push = persis image yang lulus boot smoke (migrate
+deploy + health 200 + assert psql): image di-rename dari tag lokal lalu
+di-push, bukan build ulang. PR & push cabang lain tetap hanya build +
+smoke tanpa menyentuh registry (`packages: write` hanya di job ini).
+Jalur publish divalidasi live: tag + login + push dua tag ke registry
+berauth, kedua tag menghasilkan digest identik.
+
+### 🛠 Added — Runner cron dengan retry & log body respons
+
+Job wget cron container (cleanup-uploads 02.30, storage-alert 03.00) kini
+berjalan lewat `scripts/cron-job.sh`: bila request gagal (app down, 401,
+5xx), job diulang **satu kali setelah 5 menit** (`RETRY_DELAY_SEC`, default
+300) dan setiap percobaan mencatat hasil ke `/backups/cron.log` — body
+respons saat sukses, baris error wget saat gagal (mis. `HTTP/1.1 401
+Unauthorized`, `Connection refused`) — sehingga cron yang gagal bisa
+did diagnosis dari log, tanpa menjalankan ulang manual. Runner
+divalidasi live di container cron (sukses, 401+retry, connection
+refused+retry, argumen kurang) dan oleh suite E2E per-menit.
+
+### 🧪 Added — Validasi E2E stack self-host (compose override + assert script)
+
+`docker-compose.e2e.yml` (lokal saja) menyalakan stack penuh — app, Postgres,
+cron — di port terpisah (app 3100, db 55432) dengan jadwal cron per-menit,
+sedangkan `scripts/e2e-selfhost-assert.ts` men-seed file upload lama/baru via
+psql lalu memastikan end-to-end: health app, guard auth kedua endpoint cron,
+cleanup hanya menghapus file di atas retensi (jumlah + bytes dibebaskan),
+storage-alert melewati ambang + dedup + pencatatan state, dan ketiga job cron
+container tercatat di `/backups/cron.log` + `backup.log` (pg_dump benar
+menghasilkan `.sql`). Terbukti 15/15 assertion PASS terhadap stack nyata;
+prosedur didokumentasikan di docs/MIGRATION-VERCEL-TO-SELFHOST.md §5.1.
+
+### 🛠 Added — Widget kuota storage di sidebar dashboard
+
+Admin (SUPER_ADMIN) kini melihat pemakaian kuota storage dari sidebar
+dashboard di semua halaman admin, bukan hanya di beranda. Widget mini
+menampilkan bar pemakaian berwarna sesuai tingkat (≥80% merah), total
+bytes, jumlah file, dan kandidat cleanup; klik widget menuju beranda
+(section **Storage Upload**) untuk rincian referensi, status alert, dan
+aksi (uji alert). Auto-refresh tiap 2 menit; gagal memuat tidak
+tampilkan apa-apa di sidebar (tanpa kotak error). Panel beranda dan
+widget kini memakai satu hook bersama (`useStorageUsage`) — satu pemilik
+logika fetch `/api/storage-usage`.
+
+### 🛠 Added — Riwayat kirim alert kuota di kartu Alert Admin
+
+Cron alert kuota storage kini mencatat hasil pengiriman terakhirnya di
+`StorageAlertState` (`lastSendAt` + hasil per kanal WhatsApp/Telegram,
+migrasi `20260910000000`). Kartu **Alert Admin (cron)** di Pengaturan
+menampilkan chip status: waktu kirim cron terakhir + hasil per kanal
+(amber = cron belum pernah berjalan, hijau = minimal satu kanal terkirim,
+merah = semua kanal gagal). Data disajikan oleh `/api/notifications/health`
+(fail-soft — tabel belum bermigrasi tetap tidak menggagalkan kesehatan
+kanal lain); chip di-refresh otomatis setelah tombol **Uji Kirim Alert**
+ditekan. Catatan: tombol uji tidak menulis ke `StorageAlertState` — chip
+selalu mencerminkan pengiriman cron sungguhan.
+
+### 📖 Added — Runbook baseline database db-pushed
+
+`docs/RUNBOOK-BASELINE-NEON.md`: prosedur aman menyerahkan database Neon
+produksi yang dibangun lewat `prisma db push` kepada `prisma migrate deploy`
+(baseline `prisma migrate resolve`, tanpa downtime, tanpa perubahan data).
+Prosedur tervalidasi end-to-end terhadap Postgres 16 nyata — termasuk gerbang
+paritas `migrate diff` (wajib lulus sebelum resolve, karena `resolve` tidak
+memvalidasi apa pun) dan pemulihan salah baseline (DELETE buku besar —
+`resolve --rolled-back` terbukti ditolak dengan P3012). Dirujuk dari
+dokumen deployment saat `P3005` ditemui.
+
+### 🛠 Added — Gate CI untuk image Docker produksi
+
+Job `docker-build` baru di `.github/workflows/ci.yml` membangun image
+produksi (Dockerfile) pada setiap PR & push main, lalu melakukan smoke boot
+perilaku: container dijalankan terhadap Postgres service CI yang kosong agar
+entrypoint `prisma migrate deploy` benar-benar dieksekusi, menunggu
+`/api/health` healthy, dan memverifikasi hasil migrasi dari sisi database
+(`_prisma_migrations` terisi tanpa rollback, kolom `mustChangePassword` ada di
+tabel `User` — regresi drift 2026-09-08). Jalur self-host kini digate sama
+seperti jalur Vercel.
+
+Perbaikan yang ditemukan gate ini sejak run pertamanya (Dockerfile sebelumnya
+tidak bisa di-build dari nol):
+
+- `corepack prepare bun@latest` ditolak corepack versi baru (bun bukan
+  package manager yang didukung corepack) — bun kini di-copy sebagai binary
+  tunggal dari `oven/bun:1-alpine`.
+- Postinstall `prisma generate` gagal di stage deps karena schema tidak ada —
+  `prisma/schema.prisma` kini ikut di-copy.
+- CLI Prisma di runner kehilangan dependensi runtime (`effect`, dll.) karena
+  penyalinan node_modules piecemeal — kini dipasang di stage `prisma-cli`
+  tersendiri dengan versi yang dibaca dari builder.
+
+## [Unreleased] - 2026-09-09
+
+### 🛠 Added — Panel status storage di beranda dashboard
+
+Kartu **Storage Upload** (khusus SUPER_ADMIN) di beranda dashboard
+menampilkan laporan `/api/storage-usage` tanpa membuka endpoint: bar
+pemakaian kuota (warna sesuai tingkat; indikasi ambang 80%), jumlah kandidat
+cleanup, dampak referensi (kandidat yang masih dipakai konten → berisiko
+404, plus entitas perujuk), dan status alert terakhir dari tabel
+`StorageAlertState`. `/api/storage-usage` kini menyertakan `alertState`
+(fail-soft — null bila tabel belum bermigrasi atau cron belum pernah jalan).
+Panel gagal-muat tidak menggagalkan beranda (tombol coba lagi); fetch
+hanya dilakukan admin.
+
+---
+
+## [Unreleased] - 2026-09-08
+
+### 🐛 Fixed — Drift migrasi vs schema.prisma (ditemukan validasi live Postgres)
+
+`prisma migrate deploy` di database **baru** menghasilkan skema yang tidak
+cocok dengan `schema.prisma` — `User` tanpa `mustChangePassword`/2FA,
+tabel `TeacherSection`/`StudentAchievement`/`SchoolEvent`/dll. tidak ada —
+karena skema berevolusi lewat `prisma db push` sementara direktori migrasi
+tertinggal. Ditambahkan migrasi rekonsiliasi idempoten
+`20260908000001_reconcile_schema_drift` (hanya aditif: ADD COLUMN / CREATE
+TABLE / CREATE INDEX, semua dijaga `IF NOT EXISTS`) yang menjembatani
+seluruh selisih. Terverifikasi: `migrate deploy` di DB fresh → zero drift;
+idempoten di DB yang sudah bermigrasi/db-push.
+
+### 🛠 Added — Cron alert kuota di self-host (Docker)
+
+Container cron self-host (`docker-compose.cron.yml`) kini menjadwalkan SEMUA
+cron app yang relevan, bukan hanya backup: `/api/cron/cleanup-uploads`
+(02.30) dan `/api/cron/storage-alert` (03.00, TZ Asia/Makassar) dipanggil
+via wget ke service `app` dengan header `Authorization: Bearer $CRON_SECRET`
+— semantik persis Vercel Cron, tanpa duplikasi logika dedup/hysteresis.
+Service `app` kini menerima `CRON_SECRET` + env kuota/alert
+(`NEON_STORAGE_QUOTA_MB`, `STORAGE_ALERT_THRESHOLD_PCT`,
+`STORAGE_ALERT_HYSTERESIS_PCT`, `UPLOAD_RETENTION_DAYS`) dari compose;
+`CRON_SECRET` wajib di .env saat memakai container cron (compose gagal
+jalan bila kosong). Panduan: docs/MIGRATION-VERCEL-TO-SELFHOST.md §5.1.
+
+### 🛠 Added — Tombol "Uji Kirim Alert" di pengaturan notifikasi
+
+Kartu **Alert Admin (cron)** di halaman Pengaturan — dan kini juga tombol
+dengan nama sama di panel **Storage Upload** beranda dashboard — mengirim
+pesan uji via
+`notifyAdmin` (src/lib/notifications.ts) — jalur persis yang dipakai cron
+alert kuota storage: satu pesan ke semua kanal terkonfigurasi sekaligus
+(WhatsApp via `ADMIN_PHONE` + `FONNTE_TOKEN`, Telegram via
+`TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID`), tanpa menunggu cron. Endpoint
+`POST /api/notifications/test-alert` (CSRF + role OPERATOR+) mengembalikan
+hasil per-kanal, mencatat `AdminNotification` di log aktivitas, dan tetap
+sukses bila hanya sebagian kanal yang terkirim.
+
+### 🛠 Added — Check drift migrasi (regression guard)
+
+`bun run check:schema-migrations` (scripts/check-schema-migrations.ts)
+membandingkan riwayat migrasi dengan `prisma/schema.prisma` via
+`prisma migrate diff` dan gagal bila ada selisih — mencegah drift terulang.
+Fail-soft bila database tidak terjangkau (gate lokal tidak patah); butuh
+`DATABASE_URL` asli + shadow DB.
+
+**Terpasang otomatis di CI**: job `validate` di `.github/workflows/ci.yml`
+menjalankannya di setiap PR (dua service Postgres: DB utama + shadow), dan
+`.github/workflows/deploy-vercel.yml` menjalankannya lagi SEBELUM
+`prisma migrate deploy` ke Neon — deploy gagal cepat bila riwayat migrasi
+tidak selaras, bukan setelah skema setengah jadi terlanjur diterapkan.
+
+---
+
 ## [Unreleased] - 2026-08-28
 
 ### ✨ Added — Jembatan Dapodik sebagai EXE (tanpa install Node.js)
@@ -127,6 +534,152 @@ lagi dual-schema drift / "miskomunikasi" dev vs prod.
 - Model Prisma `UploadedFile` + migrasi `20260828120000_add_uploaded_file`.
 - `src/lib/file-storage.ts` + route serve `/uploads/[...path]`.
 - 19 unit test baru: `src/lib/__tests__/file-storage.test.ts`.
+
+---
+
+## [Unreleased] - 2026-08-28
+
+### 💥 Changed — Konsolidasi ke SATU skema PostgreSQL (dev = produksi)
+
+SQLite dev **dihapus**; `prisma/schema.prisma` kini ber-provider
+`postgresql` dan menjadi satu-satunya skema (file
+`schema.postgres.prisma` dihapus; riwayat migrasi SQLite lama tetap di
+`prisma/migrations_sqlite_backup/`). Motivasi: dev = produksi — tidak ada
+lagi dual-schema drift / "miskomunikasi" dev vs prod.
+
+- **Dev lokal** (pilih satu):
+  - Branch `dev` di akun Neon (termudah — salin connection string ke `.env`);
+  - atau `docker compose -f docker-compose.dev.yml up -d` (PostgreSQL lokal).
+  - Setup awal: `bun run db:push && bun run db:seed`.
+- `package.json`: `postinstall`/`db:migrate:*` tanpa flag `--schema`;
+  `check:schema` dihapus (guard sinkronisasi dua skema tidak relevan lagi;
+  script `scripts/check-schema-sync.mjs` dihapus).
+- `Dockerfile`/`docker-entrypoint.sh`/`vercel.json`/`scripts/deploy-vercel.sh`:
+  tanpa flag `--schema` (skema tunggal).
+- `.zscripts/dev.sh` tidak lagi memaksa `DATABASE_URL` SQLite (kini dari `.env`).
+- CI: job e2e memakai service container `postgres:16-alpine` (bukan file
+  SQLite sekali pakai); job orphan-check me-restore dump `pg_dump` dari
+  artifact. Validasi: 565+19 test lulus tanpa perubahan perilaku.
+- Follow-up CI setelah patch postgres (E2E 9e20ade masih merah, 5xx):
+  `DATABASE_URL` memakai `127.0.0.1` + `NODE_OPTIONS=--dns-result-order=ipv4first`
+  (hindari resolve `localhost` → `::1` yang tidak di-listen Postgres);
+  `serverExternalPackages` untuk `@prisma/client` agar engine tidak di-bundle
+  Next; leftover `file:./hooks.db` di hooks-gate diganti dummy postgresql;
+  composite action `comment-e2e-failure` tidak lagi memuat ekspresi
+  `job.check_run_id` di *description* (konteks `job` tidak ada saat action
+  di-load → step komentar PR gagal). Spec restart BOS kini bisa baca PID
+  listener di Linux (`ss`).
+- Backup (`backup-db.sh`/`.ps1`): PostgreSQL saja.
+- Fix test bawaan: `users.test.ts` kini hermetic — menghapus
+  `NEXT_PUBLIC_SITE_URL` selama test (CI men-set env itu, assertion link
+  portal WhatsApp gagal di CI meski lulus lokal).
+- `.env.example` ditulis ulang (panduan Neon dev branch vs produksi).
+
+### 🔧 Fixed — Kesiapan Deployment (audit `docs/DEPLOYMENT_GAP_AUDIT.md`)
+
+#### CI (rusak sejak c92ca77 di main — blokir semua deploy)
+- **Semua workflow gagal instan** — composite action lokal
+  `.github/actions/setup-repo` dipakai sebagai step pertama job tanpa
+  checkout; runner me-resolve action lokal dari workspace kosong
+  ("Can't find 'action.yml' under setup-repo"). Fix: `actions/checkout@v4`
+  eksplisit sebelum tiap pemakaian action lokal (7 titik di 5 workflow),
+  checkout internal composite dihapus.
+
+#### Jalur Docker (self-host)
+- **`docker build` gagal** — `.dockerignore` mengecualikan `scripts/` seluruhnya
+  padahal Dockerfile men-COPY-nya; kini pola `scripts/*` + pengecualian untuk
+  `backup-db.sh` & `docker-entrypoint.sh`.
+- **`docker build` gagal (kedua)** — stage builder menjalankan `bun run build`
+  tanpa bun ter-install (bun hanya di-activate di stage deps); kini corepack
+  bun di-install juga di stage builder.
+- **Migrasi DB otomatis** — entrypoint baru `scripts/docker-entrypoint.sh`
+  menjalankan `prisma migrate deploy` sebelum server start (env `RUN_MIGRATIONS`,
+  default true). Sebelumnya klaim "migrasi otomatis oleh container" di
+  dokumentasi tidak sesuai kode.
+- **`docker-compose.ssl.yml`** — `depends_on: db` tidak ada service-nya (benar:
+  `postgres`), dependensi sirkular app↔caddy dihapus, network tak terdefinisi
+  dihapus.
+- **`docker-compose.cron.yml`** — ditulis ulang: service `db`→`postgres`,
+  volume `postgres_data`/`uploads_data` (tak terdefinisi) diganti benar,
+  mount data-dir Postgres ke container cron (risiko korupsi) dihapus, image
+  kini `postgres:16-alpine` sehingga `pg_dump` + `crond` tersedia (sebelumnya
+  backup selalu gagal), jadwal 02.00 Asia/Makassar via `TZ`.
+- **Upload persist** — named volume `uploads-data:/app/public/uploads` di
+  service app (sebelumnya semua upload hilang saat container di-recreate).
+- **Keamanan compose** — `POSTGRES_PASSWORD`/`AUTH_SECRET` wajib (compose gagal
+  dengan pesan jelas bila `.env` lupa diisi; sebelumnya fallback password
+  `"postgres"`), port Postgres/Redis hanya bind `127.0.0.1`.
+- **Dockerfile builder** — men-set `DATABASE_URL`/`AUTH_SECRET` dummy saat
+  build agar konsisten dengan CI (prerender sitemap mengonstruksi PrismaClient).
+
+#### Jalur Vercel + Neon
+- **Upload file berfungsi di Vercel** — storage abstraction baru
+  `src/lib/file-storage.ts`: di Vercel (filesystem ephemeral) upload otomatis
+  disimpan ke tabel baru `UploadedFile` (bytea Neon) dan diserve lewat route
+  `/uploads/[...path]` dengan cache immutable; di self-host tetap ke disk.
+  Route upload gambar, upload PDF BOS, unduhan & hapus dokumen BOS diadaptasi.
+- **Batas ukuran sadar-platform** — Vercel membatasi request body 4,5 MB di
+  level platform: batas route otomatis 4 MB di Vercel (pesan 400 jelas),
+  5 MB gambar / 15 MB PDF di self-host; override via `MAX_UPLOAD_MB`.
+- **`vercel.json`** — header `X-Frame-Options: DENY` (kontradiktif dengan CSP
+  frame-ancestors di next.config.ts) & `X-XSS-Protection` (deprecated) dan
+  rewrite no-op dihapus; cron backup dipindah ke `0 18 * * *` (02.00 WITA,
+  sebelumnya 02.00 UTC = 09.00 WITA).
+- **Pembersihan upload otomatis** — cron harian baru
+  `/api/cron/cleanup-uploads` (`30 18 * * *` UTC = 02.30 WITA, tetap 1×/hari
+  sehingga aman di Hobby) menghapus upload lama dari tabel `UploadedFile`
+  (bytea Neon) agar kuota storage gratis tidak cepat penuh; retensi default
+  90 hari, override `UPLOAD_RETENTION_DAYS` (nilai `<= 0` = nonaktif).
+  File yang direferensikan konten lama akan 404 setelah kedaluwarsa.
+
+#### Lainnya
+- `scripts/backup-db.sh` mengenali env `BACKUP_DIR`/`UPLOADS_DIR`/`RETENTION`
+  (dipakai container cron) + perbaikan path fallback SQLite.
+- `scripts/cleanup-orphan-files.ts` mendukung kedua backend storage
+  (disk + `UploadedFile`).
+- `.env.example`: var baru `UPLOAD_STORAGE`/`MAX_UPLOAD_MB`, password seed
+  tidak lagi ber-default lemah, catatan jadwal cron WITA.
+- README (bagian Deployment) & docs deploy diperbarui sesuai mekanisme baru.
+
+### ✨ Added
+- Model Prisma `UploadedFile` + migrasi `20260828120000_add_uploaded_file`.
+- `src/lib/file-storage.ts` + route serve `/uploads/[...path]`.
+- `src/lib/upload-cleanup.ts` + cron route `/api/cron/cleanup-uploads`
+  (pembersihan upload lama harian).
+- `src/lib/upload-stats.ts` + route `/api/storage-usage` (SUPER_ADMIN) +
+  script `bun run storage:usage` — laporan pemakaian storage `UploadedFile`
+  (jumlah file, total byte, rincian per mimeType, persen kuota bila
+  `NEON_STORAGE_QUOTA_MB` diset, dan kandidat cleanup berikutnya).
+- Refactor: semantik retensi upload satu owner — helper `retentionCutoff()`
+  di `upload-cleanup.ts` dipakai juga oleh `upload-stats`; script
+  `storage:usage` mengimpor lib (duplikasi query dihapus); env
+  `UPLOAD_RETENTION_DAYS` kosong kini dianggap tidak diset (default 90),
+  bukan menonaktifkan cleanup diam-diam.
+- Laporan dampak cleanup di `/api/storage-usage` + `storage:usage`:
+  berapa file kandidat hapus yang masih direferensikan konten (berita,
+  galeri, dokumen, dll. — rincian per entity via satu query UNION ALL),
+  sehingga admin tahu berapa konten yang akan 404 bila cron cleanup
+  dijalankan.
+- 19 unit test baru: `src/lib/__tests__/file-storage.test.ts`.
+- 7 unit test baru: `src/lib/__tests__/upload-cleanup.test.ts`.
+- 6 unit test baru: `src/lib/__tests__/upload-stats.test.ts`.
+
+### ✨ Added — Alert kuota storage (WhatsApp/Telegram)
+- Cron `/api/cron/storage-alert` (`0 19 * * *` UTC = 03.00 WITA, setelah
+  cleanup — Vercel Cron `CRON_SECRET`-protected) mengirim notifikasi ke
+  admin saat pemakaian storage `UploadedFile` melewati ambang persen dari
+  kuota Neon (`STORAGE_ALERT_THRESHOLD_PCT`, default 80).
+- `src/lib/storage-alert.ts`: logika ambang + hysteresis
+  (`STORAGE_ALERT_HYSTERESIS_PCT`, default 10) + dedup — notifikasi
+  terkirim SEKALI per persilangan, state durabel di tabel baru
+  `StorageAlertState` (migrasi `20260908000000_add_storage_alert_state`)
+  agar tidak terulang tiap cron walau instance Vercel cold-start.
+- `notifyAdmin()` baru di `src/lib/notifications.ts` — memakai kanal
+  yang sudah ada: WhatsApp Fonnte (`ADMIN_PHONE` + `FONNTE_TOKEN`) dan
+  Telegram (`TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID`); fire-and-forget,
+  kanal yang tidak dikonfigurasi dilewati.
+- 10 unit test baru: `src/lib/__tests__/storage-alert.test.ts` (8) +
+  `src/lib/__tests__/notifications.test.ts` (+2 untuk `notifyAdmin`).
 
 ---
 

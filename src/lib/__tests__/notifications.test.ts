@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
+  notifyAdmin,
   notifyComplaintToAdmin,
   buildPriorityComplaintMessage,
 } from "@/lib/notifications";
@@ -9,6 +10,8 @@ import {
 vi.mock("@/lib/whatsapp", () => ({
   sendWhatsApp: vi.fn(() => Promise.resolve({ ok: true, message: "sent" })),
 }));
+
+import { sendWhatsApp } from "@/lib/whatsapp";
 
 const fetchMock = vi.fn();
 
@@ -117,5 +120,59 @@ describe("notifyComplaintToAdmin — prioritas TINGGI", () => {
     await notifyComplaintToAdmin({ ...base, priority: "NORMAL" });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("notifyAdmin — alert storage/quota", () => {
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+    vi.mocked(sendWhatsApp).mockReset();
+    vi.mocked(sendWhatsApp).mockResolvedValue({ ok: true });
+    process.env.TELEGRAM_BOT_TOKEN = "test-bot-token";
+    process.env.TELEGRAM_CHAT_ID = "12345";
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete process.env.TELEGRAM_BOT_TOKEN;
+    delete process.env.TELEGRAM_CHAT_ID;
+    delete process.env.ADMIN_PHONE;
+  });
+
+  it("mengirim ke WhatsApp (ADMIN_PHONE) dan Telegram", async () => {
+    fetchMock.mockResolvedValue(telegramOk());
+    process.env.ADMIN_PHONE = "6281234567890";
+
+    const result = await notifyAdmin("🚨 PERINGATAN STORAGE");
+
+    expect(result).toEqual({ whatsapp: true, telegram: true });
+    expect(sendWhatsApp).toHaveBeenCalledTimes(1);
+    expect(sendWhatsApp).toHaveBeenCalledWith(
+      "6281234567890",
+      expect.stringContaining("PERINGATAN STORAGE"),
+      expect.objectContaining({ timeoutMs: 10_000 })
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("tanpa ADMIN_PHONE hanya Telegram", async () => {
+    fetchMock.mockResolvedValue(telegramOk());
+
+    const result = await notifyAdmin("alert");
+
+    expect(result).toEqual({ whatsapp: false, telegram: true });
+    expect(sendWhatsApp).not.toHaveBeenCalled();
+  });
+
+  it("WhatsApp gagal → whatsapp false, tidak melempar, Telegram tetap terkirim", async () => {
+    fetchMock.mockResolvedValue(telegramOk());
+    process.env.ADMIN_PHONE = "6281234567890";
+    vi.mocked(sendWhatsApp).mockResolvedValue({ ok: false, message: "token invalid" });
+
+    const result = await notifyAdmin("alert");
+
+    expect(result.whatsapp).toBe(false);
+    expect(result.telegram).toBe(true);
   });
 });

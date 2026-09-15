@@ -74,6 +74,13 @@ services:
       # start (idempotent). Set "false" bila ada >1 instance app agar hanya
       # satu yang bermigrasi.
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
+      # ⚠️ Footgun: REDIS_URL di .env DI-INTERPOLASI ke sini. Nilai dev
+      # redis://localhost:6379 tidak akan berfungsi di dalam container
+      # (localhost = container app sendiri): ioredis offline queue membuat
+      # request rate-limiter menggantung ~20 detik lalu gagal. Biarkan KOSONG
+      # di .env untuk single-instance (fallback in-memory), atau pakai
+      # hostname service compose saat memakai profile with-redis:
+      #   REDIS_URL=redis://redis:6379
       REDIS_URL: ${REDIS_URL:-}
       AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET wajib diisi di .env}
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://sdn-mongisidi1.sch.id}
@@ -96,6 +103,21 @@ services:
       FONNTE_TOKEN: ${FONNTE_TOKEN:-}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      # Token otorisasi cron /api/cron/* (header Authorization Bearer).
+      # WAJIB diisi di .env bila memakai container cron self-host
+      # (docker-compose.cron.yml) — nilainya sama dengan CRON_SECRET yang
+      # dipakai job wget di sana. Vercel mengelola header ini otomatis.
+      CRON_SECRET: ${CRON_SECRET:-}
+      # Pemantauan kuota storage upload + alert (nama env NEON_* dipertahankan
+      # agar dashboard & alert konsisten dengan deployment Vercel — di
+      # self-host berarti "referensi kuota", bukan kuota Neon).
+      NEON_STORAGE_QUOTA_MB: ${NEON_STORAGE_QUOTA_MB:-}
+      STORAGE_ALERT_THRESHOLD_PCT: ${STORAGE_ALERT_THRESHOLD_PCT:-}
+      STORAGE_ALERT_HYSTERESIS_PCT: ${STORAGE_ALERT_HYSTERESIS_PCT:-}
+      # Umur maksimum upload (hari) — default 90; 0 menonaktifkan cleanup.
+      # Self-host: lihat docs/MIGRATION-VERCEL-TO-SELFHOST.md §5.2 sebelum
+      # menyalakan (file lama harus diekspor ke disk dulu).
+      UPLOAD_RETENTION_DAYS: ${UPLOAD_RETENTION_DAYS:-}
       LOKI_URL: ${LOKI_URL:-}
     volumes:
       - ./logs:/app/logs

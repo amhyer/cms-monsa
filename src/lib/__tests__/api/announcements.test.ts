@@ -58,6 +58,74 @@ describe("/api/announcements", () => {
       expect(res.status).toBe(200);
       expect(data.announcements).toHaveLength(0);
     });
+
+    it("exposes items with isActive on every scope (kontrak ticker + manager)", async () => {
+      mockPrisma.schoolAnnouncement.findMany.mockResolvedValue([
+        {
+          id: "1",
+          title: "Publik",
+          isPublished: true,
+          isPinned: false,
+          expiresAt: null,
+        },
+      ]);
+      mockPrisma.schoolAnnouncement.groupBy.mockResolvedValue([]);
+
+      const req = createMockRequest("http://localhost/api/announcements");
+      const res = await GET(asNextRequest(req));
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data.items).toHaveLength(1);
+      expect(data.items[0].isActive).toBe(true);
+    });
+
+    it("scope=admin returns drafts with isActive mapping for OPERATOR", async () => {
+      mockRequireRole.mockResolvedValue({ ok: true, user: createMockUser() });
+      mockPrisma.schoolAnnouncement.findMany.mockResolvedValue([
+        {
+          id: "1",
+          title: "Publik",
+          isPublished: true,
+          isPinned: false,
+          expiresAt: null,
+        },
+        {
+          id: "2",
+          title: "Draft",
+          isPublished: false,
+          isPinned: false,
+          expiresAt: null,
+        },
+      ]);
+      mockPrisma.schoolAnnouncement.groupBy.mockResolvedValue([]);
+
+      const req = createMockRequest(
+        "http://localhost/api/announcements?scope=admin"
+      );
+      const res = await GET(asNextRequest(req));
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data.items).toHaveLength(2);
+      expect(data.items[0].isActive).toBe(true);
+      expect(data.items[1].isActive).toBe(false);
+    });
+
+    it("scope=admin requires OPERATOR role", async () => {
+      mockRequireRole.mockResolvedValue({
+        ok: false,
+        response: new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+        }),
+      });
+
+      const req = createMockRequest(
+        "http://localhost/api/announcements?scope=admin"
+      );
+      const res = await GET(asNextRequest(req));
+      expect(res.status).toBe(403);
+    });
   });
 
   describe("POST /api/announcements", () => {
@@ -101,6 +169,28 @@ describe("/api/announcements", () => {
 
       expect(res.status).toBe(201);
       expect(data.title).toBe("New Announcement");
+    });
+
+    it("maps isActive=false to unpublished draft", async () => {
+      const user = createMockUser();
+      mockRequireRole.mockResolvedValue({ ok: true, user });
+      mockPrisma.schoolAnnouncement.create.mockResolvedValue({
+        id: "draft-id",
+        title: "Draft",
+        isPublished: false,
+      });
+
+      const req = createMockRequest("http://localhost/api/announcements", {
+        method: "POST",
+        body: { title: "Draft", content: "Isi", isActive: false },
+      });
+      const res = await POST(asNextRequest(req));
+      expect(res.status).toBe(201);
+      expect(mockPrisma.schoolAnnouncement.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ isPublished: false }),
+        })
+      );
     });
   });
 });

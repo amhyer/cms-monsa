@@ -1,0 +1,460 @@
+"use client";
+
+/**
+ * Panel status storage upload (khusus SUPER_ADMIN) untuk beranda dashboard.
+ *
+ * Menampilkan laporan dari /api/storage-usage (getUploadStorageStats):
+ *   - pemakaian kuota (bar + persen, dari NEON_STORAGE_QUOTA_MB),
+ *   - kandidat cleanup (file yang akan dihapus cron cleanup-uploads),
+ *   - dampak referensi (kandidat yang masih dipakai konten → berisiko 404),
+ *   - status alert terakhir (dari tabel StorageAlertState, ditulis cron
+ *     /api/cron/storage-alert),
+ *   - pilihan interval muat-ulang otomatis (Mati/30d/1m/5m, persisten di
+ *     localStorage) + tombol muat-ulang manual,
+ *   - tombol Uji Kirim Alert — POST /api/notifications/test-alert untuk
+ *     memverifikasi jalur notifikasi admin (WA/TG) tanpa menunggu cron.
+ *
+ * Gagal memuat → kartu error ringkas dengan tombol coba lagi; panel tidak
+ * pernah menggagalkan beranda (data dimuat terpisah dari /api/stats).
+ */
+
+import { useCallback, useEffect, useState } from "react";
+import {
+  HardDrive,
+  BellRing,
+  Trash2,
+  LinkIcon,
+  CircleCheck,
+  CircleX,
+  AlertTriangle,
+  RefreshCw,
+  Loader2,
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { useAppStore } from "@/store/app";
+import { toast } from "sonner";
+import { formatBytes, formatDateTime } from "@/lib/format";
+import {
+  useStorageUsage,
+  type StorageUsageData,
+} from "@/hooks/use-storage-usage";
+
+/** Pilihan interval muat-ulang otomatis (ms). 0 = mati (manual saja). */
+const REFRESH_OPTIONS = [
+  { label: "Mati", value: 0 },
+  { label: "30d", value: 30_000 },
+  { label: "1m", value: 60_000 },
+  { label: "5m", value: 300_000 },
+] as const;
+
+/** Kunci localStorage preferensi interval panel storage. */
+const REFRESH_PREF_KEY = "cms.storage-panel-refresh-ms";
+
+/** Nilai interval tersimpan yang valid (false = tidak tersimpan/tidak valid). */
+function readStoredRefreshMs(): number | false {
+  try {
+    const raw = window.localStorage.getItem(REFRESH_PREF_KEY);
+    if (raw === null) return false;
+    const n = Number(raw);
+    return REFRESH_OPTIONS.some((o) => o.value === n) ? n : false;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Warna bar sesuai tingkat pemakaian. Literal penuh (bukan gabungan dinamis)
+ * agar Tailwind menemukan kandidat kelas di file ini.
+ */
+function usageToneClass(percent: number): string {
+  if (percent >= 80) return "[&_[data-slot=progress-indicator]]:bg-destructive";
+  if (percent >= 60)
+    return "[&_[data-slot=progress-indicator]]:bg-amber-500";
+  return "[&_[data-slot=progress-indicator]]:bg-emerald-500";
+}
+
+function StatLine({
+  icon: Icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  tone?: "danger" | "warning" | "muted";
+}) {
+  const toneClass =
+    tone === "danger"
+      ? "text-destructive"
+      : tone === "warning"
+        ? "text-amber-600 dark:text-amber-400"
+        : "text-foreground";
+  return (
+    <div className="flex items-start gap-2 text-sm">
+      <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+      <div className="min-w-0 flex-1">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className={`font-medium ${toneClass}`}>{value}</p>
+      </div>
+    </div>
+  );
+}
+
+export function StorageStatusPanel() {
+  const isAdmin = useAppStore((s) => s.user?.role === "SUPER_ADMIN");
+  // Interval dipilih pengguna (Mati/30d/1m/5m); enabled=false untuk
+  // non-admin → tidak ada panggilan API sama sekali.
+  const [refreshMs, setRefreshMs] = useState<number>(0);
+  // Preferensi dibaca setelah mount (SSR-safe, pola usePersistedPageSize) —
+  // menghindari ketidakcocokan hidrasi antara render server dan klien.
+  useEffect(() => {
+    const stored = readStoredRefreshMs();
+    if (stored !== false) setRefreshMs(stored);
+  }, []);
+  const { data, error, loading, refresh } = useStorageUsage(refreshMs, isAdmin);
+  const setRefreshInterval = useCallback((ms: number) => {
+    setRefreshMs(ms);
+    try {
+      window.localStorage.setItem(REFRESH_PREF_KEY, String(ms));
+    } catch {
+      // abaikan — preferensi hanya berlaku sesi ini.
+    }
+  }, []);
+  const [testingAlert, setTestingAlert] = useState(false);
+  const [alertResult, setAlertResult] = useState<string | null>(null);
+  const [alertError, setAlertError] = useState<string | null>(null);
+
+  // Uji jalur alert admin (notifyAdmin) langsung dari panel — endpoint yang
+  // sama dengan tombol di Pengaturan. CSRF ditambahkan interceptor global
+  // (src/lib/csrf-client.ts), jadi cukup POST polos. Route mengembalikan
+  // HTTP 200 dengan success:false untuk kegagalan logis (mis. tanpa kanal).
+  async function handleTestAlert() {
+    setTestingAlert(true);
+    setAlertResult(null);
+    setAlertError(null);
+    try {
+      const res = await fetch("/api/notifications/test-alert", {
+        method: "POST",
+      });
+      const json = (await res.json()) as {
+        success?: boolean;
+        message?: string;
+        error?: string;
+      };
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Gagal mengirim alert uji");
+      }
+      setAlertResult(json.message ?? "Alert uji terkirim.");
+      toast.success(json.message ?? "Alert uji terkirim.");
+      // Muat ulang statistik agar baris "Diuji: …" (lastTestedAt yang baru
+      // tersimpan) tampil tanpa menunggu refresh manual.
+      refresh();
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "Gagal mengirim alert uji";
+      setAlertError(msg);
+      toast.error(msg);
+    } finally {
+      setTestingAlert(false);
+    }
+  }
+
+  if (!isAdmin) return null;
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <HardDrive className="size-4 text-gold-foreground" />
+            Storage Upload
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="py-3 text-sm text-muted-foreground">Memuat…</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <HardDrive className="size-4 text-gold-foreground" />
+            Storage Upload
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">
+            Gagal memuat laporan storage.
+          </p>
+          <Button variant="outline" size="sm" onClick={refresh}>
+            <RefreshCw className="mr-1 size-3" /> Coba lagi
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const pct = data.usagePercent;
+  const impact = data.impact;
+  const alert = data.alertState;
+  const riskyCandidates = impact?.referencedCandidates ?? null;
+
+  return (
+    <Card>
+      <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <HardDrive className="size-4 text-gold-foreground" />
+          Storage Upload
+        </CardTitle>
+        <div className="flex items-center gap-1.5">
+          <div
+            className="flex items-center overflow-hidden rounded-md border"
+            role="group"
+            aria-label="Interval muat-ulang otomatis"
+          >
+            {REFRESH_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                aria-pressed={refreshMs === opt.value}
+                onClick={() => setRefreshInterval(opt.value)}
+                className={`px-2 py-1 text-xs transition-colors ${
+                  refreshMs === opt.value
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <Button variant="ghost" size="sm" onClick={refresh} aria-label="Muat ulang laporan storage">
+            <RefreshCw className="size-3.5" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {/* Kuota — bar pemakaian (tanpa kuota: hanya total) */}
+        {pct !== null && data.quotaBytes !== null ? (
+          <div>
+            <div className="mb-1 flex items-baseline justify-between text-sm">
+              <span className="font-semibold">
+                {pct.toFixed(1)}%
+                <span className="ml-1 text-xs font-normal text-muted-foreground">
+                  dari kuota
+                </span>
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {formatBytes(data.totalBytes)} / {formatBytes(data.quotaBytes)}
+              </span>
+            </div>
+            <Progress
+              value={Math.min(pct, 100)}
+              className={`h-2 ${usageToneClass(pct)}`}
+            />
+            {pct >= 80 && (
+              <p className="mt-1 flex items-center gap-1 text-xs text-destructive">
+                <AlertTriangle className="size-3" /> Melewati ambang alert
+                default (80%).
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm">
+            <span className="font-semibold">{formatBytes(data.totalBytes)}</span>
+            <span className="text-muted-foreground"> · {data.fileCount} file</span>
+            <span className="block text-xs text-muted-foreground">
+              Set NEON_STORAGE_QUOTA_MB untuk melihat persentase kuota.
+            </span>
+          </p>
+        )}
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {/* Kandidat cleanup */}
+          <StatLine
+            icon={Trash2}
+            label="Kandidat cleanup"
+            value={
+              data.cleanupCandidates === null
+                ? "Cleanup nonaktif"
+                : `${data.cleanupCandidates} file`
+            }
+            tone={
+              data.cleanupCandidates !== null && data.cleanupCandidates > 0
+                ? "warning"
+                : undefined
+            }
+          />
+          {/* Dampak referensi */}
+          <StatLine
+            icon={LinkIcon}
+            label="Kandidat masih dipakai konten"
+            value={
+              impact === null
+                ? "Tidak diketahui"
+                : riskyCandidates === 0
+                  ? "0 — aman dihapus"
+                  : `${riskyCandidates} file berisiko 404`
+            }
+            tone={
+              impact !== null && (riskyCandidates ?? 0) > 0
+                ? "danger"
+                : impact !== null
+                  ? "muted"
+                  : undefined
+            }
+          />
+          {/* Status alert terakhir */}
+          <div className="flex items-start gap-2 text-sm">
+            {alert === null ? (
+              <>
+                <BellRing className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Alert kuota</p>
+                  <p className="text-muted-foreground">Belum pernah berjalan</p>
+                </div>
+              </>
+            ) : alert.aboveThreshold ? (
+              <>
+                <CircleX className="mt-0.5 size-4 shrink-0 text-destructive" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Alert kuota</p>
+                  <p className="font-medium text-destructive">
+                    Di atas ambang
+                    {alert.lastUsagePercent !== null
+                      ? ` · ${alert.lastUsagePercent}%`
+                      : ""}
+                  </p>
+                  {alert.lastAlertedAt && (
+                    <p className="text-xs text-muted-foreground">
+                      Notif: {formatDateTime(alert.lastAlertedAt)}
+                    </p>
+                  )}
+                  {alert.lastTestedAt && (
+                    <p className="text-xs text-muted-foreground">
+                      Diuji: {formatDateTime(alert.lastTestedAt)}
+                    </p>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <CircleCheck className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Alert kuota</p>
+                  <p className="font-medium">Di bawah ambang</p>
+                  {alert.lastAlertedAt && (
+                    <p className="text-xs text-muted-foreground">
+                      Notif terakhir: {formatDateTime(alert.lastAlertedAt)}
+                    </p>
+                  )}
+                  {alert.lastTestedAt && (
+                    <p className="text-xs text-muted-foreground">
+                      Diuji: {formatDateTime(alert.lastTestedAt)}
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Kesehatan pengiriman alert — cron vs uji manual (readStorageAlertState,
+            data yang sama dengan kartu Alert Admin di Pengaturan) */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t pt-2 text-xs text-muted-foreground">
+          <span>
+            Kirim cron:{" "}
+            {alert?.lastSendAt
+              ? `${formatDateTime(alert.lastSendAt)} · WA ${
+                  alert.lastChannelsWhatsapp ? "ok" : "gagal"
+                }, TG ${alert.lastChannelsTelegram ? "ok" : "gagal"}`
+              : "belum pernah"}
+          </span>
+          <span>
+            Uji manual:{" "}
+            {alert?.lastTestSendAt
+              ? `${formatDateTime(alert.lastTestSendAt)} · WA ${
+                  alert.lastTestChannelsWhatsapp ? "ok" : "gagal"
+                }, TG ${alert.lastTestChannelsTelegram ? "ok" : "gagal"}`
+              : "belum pernah"}
+          </span>
+        </div>
+
+        {/* Uji alert dari panel — verifikasi jalur WA/TG tanpa menunggu cron */}
+        <div className="flex items-center justify-between gap-3 border-t pt-2">
+          <p className="min-w-0 flex-1 text-xs text-muted-foreground">
+            {alertError ? (
+              <span className="text-destructive">{alertError}</span>
+            ) : alertResult ? (
+              <span className="text-emerald-600 dark:text-emerald-400">
+                {alertResult}
+              </span>
+            ) : alert?.lastTestedAt ? (
+              `Jalur terakhir diuji: ${formatDateTime(alert.lastTestedAt)} — klik untuk menguji ulang.`
+            ) : (
+              "Kirim pesan uji ke admin via WhatsApp/Telegram yang terkonfigurasi."
+            )}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void handleTestAlert()}
+            disabled={testingAlert}
+          >
+            {testingAlert ? (
+              <Loader2 className="mr-1 size-3 animate-spin" />
+            ) : (
+              <BellRing className="mr-1 size-3" />
+            )}
+            {testingAlert ? "Mengirim…" : "Uji Kirim Alert"}
+          </Button>
+        </div>
+
+        {/* Rincian jenis file + entitas perujuk */}
+        {(data.byMimeType.length > 0 || (impact && riskyCandidates ? true : false)) && (
+          <div className="grid grid-cols-1 gap-2 border-t pt-2 text-xs text-muted-foreground sm:grid-cols-2">
+            {data.byMimeType.length > 0 && (
+              <p className="truncate">
+                {data.byMimeType
+                  .slice(0, 3)
+                  .map(
+                    (m) => `${m.mimeType.replace("application/", "")}: ${m.count}`
+                  )
+                  .join(" · ")}
+                {data.byMimeType.length > 3
+                  ? ` · +${data.byMimeType.length - 3} lainnya`
+                  : ""}
+              </p>
+            )}
+            {impact && riskyCandidates ? (
+              <p className="truncate">
+                Dirujuk oleh:{" "}
+                {Object.entries(impact.byEntity)
+                  .map(([entity, n]) => `${entity} (${n})`)
+                  .join(", ")}
+              </p>
+            ) : null}
+          </div>
+        )}
+
+        <p className="text-[10px] text-muted-foreground">
+          Diperbarui {formatDateTime(data.timestamp)} · muat-ulang otomatis{" "}
+          {refreshMs === 0
+            ? "mati"
+            : REFRESH_OPTIONS.find((o) => o.value === refreshMs)?.label}{" "}
+          · cron cleanup hapus
+          file &gt; 90 hari, cron alert memberi tahu admin via WhatsApp/Telegram.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default StorageStatusPanel;

@@ -3,7 +3,13 @@ import Redis from "ioredis";
 import { logger } from "@/lib/logger";
 
 // Ambil URL Redis dari environment variables.
-// Pastikan Anda menambahkan REDIS_URL="redis://localhost:6379" ke file .env Anda.
+// PENTING di Docker/compose: jangan pernah memakai "localhost" di sini —
+// nilai .env DI-INTERPOLASI ke dalam container, di mana localhost adalah
+// container itu sendiri (bukan host), sehingga koneksi tidak pernah berhasil
+// dan offline queue ioredis membuat request rate-limiter menggantung ~20
+// detik lalu gagal. Self-host single-instance: biarkan kosong. Profile
+// with-redis: redis://redis:6379 (hostname service compose).
+// Detail: docs/DEPLOYMENT_CHECKLIST.md §1.
 const redisUrl = process.env.REDIS_URL;
 
 if (!redisUrl) {

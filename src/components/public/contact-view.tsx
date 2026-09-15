@@ -404,7 +404,11 @@ function Field({
         ? React.cloneElement(children as React.ReactElement<{ id?: string }>, { id })
         : children}
       {error && (
-        <p className="text-xs font-medium text-destructive" role="alert">
+        <p
+          className="text-xs font-medium text-destructive"
+          role="alert"
+          aria-label={error}
+        >
           {error}
         </p>
       )}

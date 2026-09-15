@@ -148,6 +148,17 @@ export function SiteHeader() {
         {/* Actions — kanan */}
         <div className="flex shrink-0 items-center gap-2">
           <LanguageSwitcher className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground" />
+          {/* Portal admin — setiap halaman publik butuh jalur masuk yang
+              eksplisit (kontrak e2e header & mobile sheet). */}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="hidden border-sidebar-border bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 hover:text-sidebar-foreground sm:inline-flex"
+            onClick={() => router.push("/login")}
+          >
+            Login
+          </Button>
           <ThemeToggle className="inline-flex text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground" />
           <Button
             type="button"
@@ -226,6 +237,17 @@ export function SiteHeader() {
               </nav>
               <div className="mt-auto flex flex-col gap-2 p-4">
                 <ThemeToggle className="inline-flex w-full justify-center text-foreground hover:bg-muted" />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="text-foreground hover:bg-muted"
+                  onClick={() => {
+                    setOpen(false);
+                    router.push("/login");
+                  }}
+                >
+                  Login
+                </Button>
                 <Button
                   type="button"
                   className="bg-gold text-gold-foreground hover:bg-gold/90"

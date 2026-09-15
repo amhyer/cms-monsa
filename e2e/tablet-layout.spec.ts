@@ -206,7 +206,12 @@ test.describe("Tablet layout — iPad (768px)", () => {
       // md:grid-cols-3 should be active — all 3 sections render
       await expect(footer.getByText("Mongisidi").first()).toBeVisible();
       await expect(footer.getByText("Tautan Cepat")).toBeVisible();
-      await expect(footer.getByText("Sosial Media")).toBeVisible();
+      // Heading-nya saja — teks "Sosial media" juga muncul di paragraf
+      // deskripsi footer ("Ikuti kami di media sosial…") saat ada/link
+      // sosial di seed.
+      await expect(
+        footer.getByRole("heading", { name: "Sosial Media" })
+      ).toBeVisible();
     });
 
     test("footer quick links are accessible", async ({ page }) => {

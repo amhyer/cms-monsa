@@ -91,7 +91,7 @@ export function BosExpendituresManager() {
   const [expPageSize, setExpPageSize] = usePersistedPageSize("bos-expenditures", EXP_LIMIT, [10, 25, 50]);
   const [expTotal, setExpTotal] = useState(0);
   const [expNextCursor, setExpNextCursor] = useState<string | null>(null);
-  const expCp = useCursorPagination({ limit: expPageSize, total: expTotal, nextCursor: expNextCursor });
+  const expCp = useCursorPagination({ limit: expPageSize, total: expTotal, nextCursor: expNextCursor, loading });
   // reset stabil (useCallback [] di _shared.tsx) — didestructure agar bisa masuk
   // deps useEffect tanpa memicu re-run tiap render (objek hook dibuat ulang).
   const { reset: resetExpCp } = expCp;
@@ -107,7 +107,7 @@ export function BosExpendituresManager() {
   const [docPageSize, setDocPageSize] = usePersistedPageSize("bos-documents", DOC_LIMIT, [10, 25, 50]);
   const [docTotal, setDocTotal] = useState(0);
   const [docNextCursor, setDocNextCursor] = useState<string | null>(null);
-  const docCp = useCursorPagination({ limit: docPageSize, total: docTotal, nextCursor: docNextCursor });
+  const docCp = useCursorPagination({ limit: docPageSize, total: docTotal, nextCursor: docNextCursor, loading: docsLoading });
   const { reset: resetDocCp } = docCp;
   const [uploading, setUploading] = useState(false);
   const [docForm, setDocForm] = useState(EMPTY_DOC);
@@ -457,6 +457,7 @@ export function BosExpendituresManager() {
               onPrev={expCp.goPrev}
               onNext={expCp.goNext}
               pageSize={expPageSize}
+              disabled={loading}
               onPageSizeChange={(s) => {
                 setExpPageSize(s);
                 expCp.reset();
@@ -638,6 +639,7 @@ export function BosExpendituresManager() {
               onPrev={docCp.goPrev}
               onNext={docCp.goNext}
               pageSize={docPageSize}
+              disabled={docsLoading}
               onPageSizeChange={(s) => {
                 setDocPageSize(s);
                 docCp.reset();

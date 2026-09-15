@@ -35,10 +35,28 @@ SENTRY_DSN=""
 SENTRY_AUTH_TOKEN=""
 
 # Redis (opsional, untuk rate limiting multi-instance)
+# ⚠️ JEBAKAN compose: nilai di file .env ini DI-INTERPOLASI ke dalam container
+# (REDIS_URL: ${REDIS_URL:-} di docker-compose.yml). Jangan pernah biarkan
+# redis://localhost:6379 dari setup dev — di dalam container, "localhost"
+# adalah container itu sendiri, bukan host atau service redis compose.
+# Gejala: setiap request yang menyentuh rate limiter (mis. login) menggantung
+# ~20 detik lalu error (offline queue ioredis mencoba ulang tanpa henti).
+# Self-host single-instance: biarkan KOSONG (fallback in-memory sudah cukup).
+# Multi-instance dengan compose profile "with-redis":
+#   REDIS_URL="redis://redis:6379"   (hostname service, BUKAN localhost)
 REDIS_URL=""
 
 # Loki (opsional, untuk log aggregation)
 LOKI_URL=""
+
+# Upload (opsional — default 90 hari; 0 = nonaktifkan pembersihan otomatis)
+# UPLOAD_RETENTION_DAYS="90"
+# Kuota storage Neon (MB) untuk laporan /api/storage-usage & storage:usage
+# NEON_STORAGE_QUOTA_MB="512"
+# Ambang alert storage (persen kuota; default 80; <= 0 nonaktif) — cron /api/cron/storage-alert
+# STORAGE_ALERT_THRESHOLD_PCT="80"
+# Selisih turun untuk me-reset alert (persen; default 10)
+# STORAGE_ALERT_HYSTERESIS_PCT="10"
 ```
 
 ### 2. Database Setup
@@ -93,8 +111,15 @@ ls -la .next/
 - [ ] PostgreSQL database sudah dibuat
 - [ ] `prisma migrate deploy` sudah dijalankan
   (jalur Docker: otomatis via entrypoint container — `RUN_MIGRATIONS`)
+  - DB lama yang dibuat via `db push` → `deploy` gagal `P3005`; baseline sekali
+    dulu: [docs/RUNBOOK-BASELINE-NEON.md](RUNBOOK-BASELINE-NEON.md)
+- [ ] Drift check lulus — riwayat migrasi selaras dengan `schema.prisma`
+  (CI `ci.yml` + pre-deploy `deploy-vercel.yml` menjalankan
+  `check:schema-migrations` otomatis; jalur manual: `bun run
+  check:schema-migrations` dengan `DATABASE_URL` + `SHADOW_DATABASE_URL`)
 - [ ] Seed data sudah di-import (jika diperlukan)
 - [ ] Database backup schedule sudah diatur
+  (`docker-compose.cron.yml` atau `scripts/backup-db.sh` dari crontab)
 - [ ] `DATABASE_URL` menggunakan connection pooling (jika high traffic)
 
 ---
@@ -108,7 +133,19 @@ ls -la .next/
 - [ ] Docker/self-host: volume uploads terpasang
   (`uploads-data:/app/public/uploads` — sudah default di docker-compose.yml)
 - [ ] Docker/self-host: backup ikut mengarsipkan uploads
-  (`docker-compose.cron.yml` atau `scripts/backup-db.sh` dari crontab)
+- [ ] Alert kuota diverifikasi dengan tombol **Uji Kirim Alert**
+  (dashboard → panel **Storage Upload**, atau Pengaturan → Alert Admin
+  (cron)) — mengirim pesan uji via `notifyAdmin` ke kanal yang
+  dikonfigurasi tanpa menunggu cron
+- [ ] Panel **Storage Upload** di beranda dashboard (SUPER_ADMIN)
+  menampilkan pemakaian kuota, kandidat cleanup, dampak referensi, dan
+  tombol **Uji Kirim Alert** — pemantauan harian tanpa membuka
+  `/api/storage-usage` langsung
+- [ ] Self-host: cron alert kuota tetap jalan setelah migrasi —
+  `docker-compose.cron.yml` memanggil `/api/cron/cleanup-uploads` (02.30)
+  dan `/api/cron/storage-alert` (03.00, TZ Asia/Makassar) dengan header
+  `Authorization: Bearer $CRON_SECRET`; butuh `CRON_SECRET` di .env dan
+  `NEON_STORAGE_QUOTA_MB` ter-set (lihat §5.1 panduan migrasi)
 - [ ] Setelah migrasi skema baru: jalankan `bun run db:push` untuk DB dev
   agar tabel `UploadedFile` tersedia lokal
 

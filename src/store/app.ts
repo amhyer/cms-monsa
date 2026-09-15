@@ -33,17 +33,26 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
   login: async (email, password) => {
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      return { ok: false, error: data.error || "Login gagal." };
+    // Gagal jaringan/500 HTML harus jadi pesan error, bukan exception yang
+    // membuat spinner login berputar selamanya (views tidak try/catch).
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return { ok: false, error: data.error || "Login gagal." };
+      }
+      set({ user: data.user });
+      return { ok: true };
+    } catch {
+      return {
+        ok: false,
+        error: "Tidak dapat menghubungi server. Periksa koneksi lalu coba lagi.",
+      };
     }
-    set({ user: data.user });
-    return { ok: true };
   },
   logout: async () => {
     await fetch("/api/auth/logout", { method: "POST" });

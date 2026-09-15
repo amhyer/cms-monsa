@@ -148,11 +148,16 @@ export function useCursorPagination({
   limit,
   total,
   nextCursor,
+  loading = false,
 }: {
   limit: number;
   total: number;
   /** Latest nextCursor from API response. Update after each fetch. */
   nextCursor: string | null;
+  /** Saat fetch halaman berjalan, klik navigasi diabaikan (cegah cursor
+   * basi: klik ganda sebelum fetch selesai memakai cursor lama sehingga
+   * counter halaman melewati data). */
+  loading?: boolean;
 }) {
   const [page, setPage] = useState(1);
   const cursorStackRef = useRef<string[]>([]);
@@ -162,20 +167,20 @@ export function useCursorPagination({
   const totalPages = Math.max(1, Math.ceil(total / limit));
 
   const goNext = useCallback(() => {
-    if (!nextCursor) return;
+    if (loading || !nextCursor) return;
     cursorStackRef.current.push(currentCursor ?? "");
     setCurrentCursor(nextCursor);
     setPage((p) => p + 1);
     setCanGoBack(true);
-  }, [nextCursor, currentCursor]);
+  }, [nextCursor, currentCursor, loading]);
 
   const goPrev = useCallback(() => {
-    if (cursorStackRef.current.length === 0) return;
+    if (loading || cursorStackRef.current.length === 0) return;
     const prev = cursorStackRef.current.pop()!;
     setCurrentCursor(prev || null);
     setPage((p) => Math.max(1, p - 1));
     setCanGoBack(cursorStackRef.current.length > 0);
-  }, []);
+  }, [loading]);
 
   const reset = useCallback(() => {
     cursorStackRef.current = [];
@@ -285,6 +290,7 @@ export function CursorPagination({
   pageSize,
   pageSizes = [10, 25, 50],
   onPageSizeChange,
+  disabled = false,
 }: {
   page: number;
   totalPages: number;
@@ -296,6 +302,9 @@ export function CursorPagination({
   pageSize?: number;
   pageSizes?: number[];
   onPageSizeChange?: (size: number) => void;
+  /** True saat daftar sedang memuat — tombol nonaktif agar klik cepat
+   * tidak memakai cursor basi (lihat useCursorPagination). */
+  disabled?: boolean;
 }) {
   if (totalPages <= 1) return null;
   return (
@@ -329,7 +338,7 @@ export function CursorPagination({
         <Button
           variant="outline"
           size="sm"
-          disabled={!canGoBack}
+          disabled={!canGoBack || disabled}
           onClick={onPrev}
         >
           Sebelumnya
@@ -337,7 +346,7 @@ export function CursorPagination({
         <Button
           variant="outline"
           size="sm"
-          disabled={!canGoForward}
+          disabled={!canGoForward || disabled}
           onClick={onNext}
         >
           Berikutnya

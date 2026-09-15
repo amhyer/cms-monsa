@@ -1,0 +1,814 @@
+{
+  "total_count": 6,
+  "jobs": [
+    {
+      "id": 103537116138,
+      "run_id": 34687563164,
+      "workflow_name": "CI",
+      "head_branch": "arena/01a07050-cms-monsa",
+      "run_url": "https://api.github.com/repos/amhyer/cms-monsa/actions/runs/34687563164",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOUAd68M8AAAAYG0sD6g",
+      "head_sha": "5d83fbd8f6b5c3aea6019556820f8a7cb87b2a2a",
+      "url": "https://api.github.com/repos/amhyer/cms-monsa/actions/jobs/103537116138",
+      "html_url": "https://github.com/amhyer/cms-monsa/actions/runs/34687563164/job/103537116138",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-09-12T10:06:17Z",
+      "started_at": "2026-09-12T10:06:19Z",
+      "completed_at": "2026-09-12T10:09:04Z",
+      "name": "Typecheck, Lint, Test & Build",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-09-12T10:06:20Z",
+          "completed_at": "2026-09-12T10:06:21Z"
+        },
+        {
+          "name": "Initialize containers",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-09-12T10:06:21Z",
+          "completed_at": "2026-09-12T10:06:48Z"
+        },
+        {
+          "name": "Checkout",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-09-12T10:06:48Z",
+          "completed_at": "2026-09-12T10:06:51Z"
+        },
+        {
+          "name": "Setup repo (Node + Bun + install)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-09-12T10:06:51Z",
+          "completed_at": "2026-09-12T10:07:12Z"
+        },
+        {
+          "name": "Typecheck",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-09-12T10:07:12Z",
+          "completed_at": "2026-09-12T10:07:26Z"
+        },
+        {
+          "name": "Lint (ESLint)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-09-12T10:07:26Z",
+          "completed_at": "2026-09-12T10:07:41Z"
+        },
+        {
+          "name": "Lint (Markdown)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-09-12T10:07:41Z",
+          "completed_at": "2026-09-12T10:07:42Z"
+        },
+        {
+          "name": "Check schema/migrations drift",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-09-12T10:07:42Z",
+          "completed_at": "2026-09-12T10:07:44Z"
+        },
+        {
+          "name": "Check public-scope classification",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-09-12T10:07:44Z",
+          "completed_at": "2026-09-12T10:07:45Z"
+        },
+        {
+          "name": "Test (unit)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10,
+          "started_at": "2026-09-12T10:07:45Z",
+          "completed_at": "2026-09-12T10:08:23Z"
+        },
+        {
+          "name": "Build",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11,
+          "started_at": "2026-09-12T10:08:23Z",
+          "completed_at": "2026-09-12T10:09:00Z"
+        },
+        {
+          "name": "Post Setup repo (Node + Bun + install)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 20,
+          "started_at": "2026-09-12T10:09:00Z",
+          "completed_at": "2026-09-12T10:09:01Z"
+        },
+        {
+          "name": "Post Checkout",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 21,
+          "started_at": "2026-09-12T10:09:01Z",
+          "completed_at": "2026-09-12T10:09:01Z"
+        },
+        {
+          "name": "Stop containers",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 22,
+          "started_at": "2026-09-12T10:09:01Z",
+          "completed_at": "2026-09-12T10:09:02Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 23,
+          "started_at": "2026-09-12T10:09:02Z",
+          "completed_at": "2026-09-12T10:09:02Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/amhyer/cms-monsa/check-runs/103537116138",
+      "labels": [
+        "ubuntu-latest"
+      ],
+      "runner_id": 1000000756,
+      "runner_name": "GitHub Actions 1000000756",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 103537116242,
+      "run_id": 34687563164,
+      "workflow_name": "CI",
+      "head_branch": "arena/01a07050-cms-monsa",
+      "run_url": "https://api.github.com/repos/amhyer/cms-monsa/actions/runs/34687563164",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOUAd68M8AAAAYG0sEUg",
+      "head_sha": "5d83fbd8f6b5c3aea6019556820f8a7cb87b2a2a",
+      "url": "https://api.github.com/repos/amhyer/cms-monsa/actions/jobs/103537116242",
+      "html_url": "https://github.com/amhyer/cms-monsa/actions/runs/34687563164/job/103537116242",
+      "status": "completed",
+      "conclusion": "failure",
+      "created_at": "2026-09-12T10:06:17Z",
+      "started_at": "2026-09-12T10:06:19Z",
+      "completed_at": "2026-09-12T10:08:42Z",
+      "name": "E2E (Playwright)",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-09-12T10:06:20Z",
+          "completed_at": "2026-09-12T10:06:22Z"
+        },
+        {
+          "name": "Initialize containers",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-09-12T10:06:22Z",
+          "completed_at": "2026-09-12T10:06:41Z"
+        },
+        {
+          "name": "Checkout",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-09-12T10:06:41Z",
+          "completed_at": "2026-09-12T10:06:44Z"
+        },
+        {
+          "name": "Setup repo (Node + Bun + install)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-09-12T10:06:44Z",
+          "completed_at": "2026-09-12T10:07:05Z"
+        },
+        {
+          "name": "Setup database (schema)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-09-12T10:07:05Z",
+          "completed_at": "2026-09-12T10:07:09Z"
+        },
+        {
+          "name": "Install Playwright browsers",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-09-12T10:07:09Z",
+          "completed_at": "2026-09-12T10:07:32Z"
+        },
+        {
+          "name": "Run E2E tests",
+          "status": "completed",
+          "conclusion": "cancelled",
+          "number": 7,
+          "started_at": "2026-09-12T10:07:32Z",
+          "completed_at": "2026-09-12T10:08:38Z"
+        },
+        {
+          "name": "Check warmup declarations",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 8,
+          "started_at": "2026-09-12T10:08:38Z",
+          "completed_at": "2026-09-12T10:08:38Z"
+        },
+        {
+          "name": "Check server log for 5xx / upload failures",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 9,
+          "started_at": "2026-09-12T10:08:38Z",
+          "completed_at": "2026-09-12T10:08:38Z"
+        },
+        {
+          "name": "Check tail heading matches E2E_TAIL_LINES",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 10,
+          "started_at": "2026-09-12T10:08:38Z",
+          "completed_at": "2026-09-12T10:08:38Z"
+        },
+        {
+          "name": "Get triage verdict",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 11,
+          "started_at": "2026-09-12T10:08:38Z",
+          "completed_at": "2026-09-12T10:08:38Z"
+        },
+        {
+          "name": "Flag cache-flake (cold-compile / warmup-failed)",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 12,
+          "started_at": "2026-09-12T10:08:38Z",
+          "completed_at": "2026-09-12T10:08:38Z"
+        },
+        {
+          "name": "Upload Playwright report on failure",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 13,
+          "started_at": "2026-09-12T10:08:38Z",
+          "completed_at": "2026-09-12T10:08:38Z"
+        },
+        {
+          "name": "Link playwright-report artifact in step summary",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 14,
+          "started_at": "2026-09-12T10:08:38Z",
+          "completed_at": "2026-09-12T10:08:38Z"
+        },
+        {
+          "name": "Upload server log",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 15,
+          "started_at": "2026-09-12T10:08:38Z",
+          "completed_at": "2026-09-12T10:08:38Z"
+        },
+        {
+          "name": "Upload e2e-stats",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 16,
+          "started_at": "2026-09-12T10:08:38Z",
+          "completed_at": "2026-09-12T10:08:38Z"
+        },
+        {
+          "name": "Find previous e2e-stats run",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 17,
+          "started_at": "2026-09-12T10:08:38Z",
+          "completed_at": "2026-09-12T10:08:38Z"
+        },
+        {
+          "name": "Download previous e2e-stats",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 18,
+          "started_at": "2026-09-12T10:08:38Z",
+          "completed_at": "2026-09-12T10:08:38Z"
+        },
+        {
+          "name": "Check non-2xx trend",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 19,
+          "started_at": "2026-09-12T10:08:38Z",
+          "completed_at": "2026-09-12T10:08:38Z"
+        },
+        {
+          "name": "Check test data leak",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 20,
+          "started_at": "2026-09-12T10:08:38Z",
+          "completed_at": "2026-09-12T10:08:38Z"
+        },
+        {
+          "name": "Stage e2e state for orphan check",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 21,
+          "started_at": "2026-09-12T10:08:38Z",
+          "completed_at": "2026-09-12T10:08:38Z"
+        },
+        {
+          "name": "Upload e2e orphan state",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 22,
+          "started_at": "2026-09-12T10:08:38Z",
+          "completed_at": "2026-09-12T10:08:38Z"
+        },
+        {
+          "name": "Comment failure links on PR",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 23,
+          "started_at": "2026-09-12T10:08:38Z",
+          "completed_at": "2026-09-12T10:08:38Z"
+        },
+        {
+          "name": "Clean up failure comment on pass",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 24,
+          "started_at": "2026-09-12T10:08:38Z",
+          "completed_at": "2026-09-12T10:08:38Z"
+        },
+        {
+          "name": "Post Setup repo (Node + Bun + install)",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 46,
+          "started_at": "2026-09-12T10:08:38Z",
+          "completed_at": "2026-09-12T10:08:38Z"
+        },
+        {
+          "name": "Post Checkout",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 47,
+          "started_at": "2026-09-12T10:08:38Z",
+          "completed_at": "2026-09-12T10:08:38Z"
+        },
+        {
+          "name": "Stop containers",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 48,
+          "started_at": "2026-09-12T10:08:38Z",
+          "completed_at": "2026-09-12T10:08:38Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 49,
+          "started_at": "2026-09-12T10:08:38Z",
+          "completed_at": "2026-09-12T10:08:39Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/amhyer/cms-monsa/check-runs/103537116242",
+      "labels": [
+        "ubuntu-latest"
+      ],
+      "runner_id": 1000000757,
+      "runner_name": "GitHub Actions 1000000757",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 103537116270,
+      "run_id": 34687563164,
+      "workflow_name": "CI",
+      "head_branch": "arena/01a07050-cms-monsa",
+      "run_url": "https://api.github.com/repos/amhyer/cms-monsa/actions/runs/34687563164",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOUAd68M8AAAAYG0sEbg",
+      "head_sha": "5d83fbd8f6b5c3aea6019556820f8a7cb87b2a2a",
+      "url": "https://api.github.com/repos/amhyer/cms-monsa/actions/jobs/103537116270",
+      "html_url": "https://github.com/amhyer/cms-monsa/actions/runs/34687563164/job/103537116270",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-09-12T10:06:17Z",
+      "started_at": "2026-09-12T10:06:19Z",
+      "completed_at": "2026-09-12T10:07:07Z",
+      "name": "Docker build, boot smoke & publish",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-09-12T10:06:19Z",
+          "completed_at": "2026-09-12T10:06:21Z"
+        },
+        {
+          "name": "Initialize containers",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-09-12T10:06:21Z",
+          "completed_at": "2026-09-12T10:06:40Z"
+        },
+        {
+          "name": "Checkout",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-09-12T10:06:40Z",
+          "completed_at": "2026-09-12T10:06:41Z"
+        },
+        {
+          "name": "Set up Docker Buildx",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-09-12T10:06:41Z",
+          "completed_at": "2026-09-12T10:06:45Z"
+        },
+        {
+          "name": "Build production image",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-09-12T10:06:45Z",
+          "completed_at": "2026-09-12T10:07:00Z"
+        },
+        {
+          "name": "Boot container against fresh DB (entrypoint migrate)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-09-12T10:07:00Z",
+          "completed_at": "2026-09-12T10:07:00Z"
+        },
+        {
+          "name": "Smoke — wait for /api/health healthy",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-09-12T10:07:00Z",
+          "completed_at": "2026-09-12T10:07:03Z"
+        },
+        {
+          "name": "Smoke — verify migrate deploy result via psql",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-09-12T10:07:03Z",
+          "completed_at": "2026-09-12T10:07:04Z"
+        },
+        {
+          "name": "Dump container logs on failure",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 9,
+          "started_at": "2026-09-12T10:07:04Z",
+          "completed_at": "2026-09-12T10:07:04Z"
+        },
+        {
+          "name": "Remove smoke container",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10,
+          "started_at": "2026-09-12T10:07:04Z",
+          "completed_at": "2026-09-12T10:07:04Z"
+        },
+        {
+          "name": "Compute GHCR image name (harus lowercase)",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 11,
+          "started_at": "2026-09-12T10:07:04Z",
+          "completed_at": "2026-09-12T10:07:04Z"
+        },
+        {
+          "name": "Log in to GitHub Container Registry",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 12,
+          "started_at": "2026-09-12T10:07:04Z",
+          "completed_at": "2026-09-12T10:07:04Z"
+        },
+        {
+          "name": "Push image to GHCR (sha + latest)",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 13,
+          "started_at": "2026-09-12T10:07:04Z",
+          "completed_at": "2026-09-12T10:07:04Z"
+        },
+        {
+          "name": "Post Build production image",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 23,
+          "started_at": "2026-09-12T10:07:04Z",
+          "completed_at": "2026-09-12T10:07:05Z"
+        },
+        {
+          "name": "Post Set up Docker Buildx",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 24,
+          "started_at": "2026-09-12T10:07:05Z",
+          "completed_at": "2026-09-12T10:07:05Z"
+        },
+        {
+          "name": "Post Checkout",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 25,
+          "started_at": "2026-09-12T10:07:05Z",
+          "completed_at": "2026-09-12T10:07:06Z"
+        },
+        {
+          "name": "Stop containers",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 26,
+          "started_at": "2026-09-12T10:07:06Z",
+          "completed_at": "2026-09-12T10:07:06Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 27,
+          "started_at": "2026-09-12T10:07:06Z",
+          "completed_at": "2026-09-12T10:07:06Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/amhyer/cms-monsa/check-runs/103537116270",
+      "labels": [
+        "ubuntu-latest"
+      ],
+      "runner_id": 1000000759,
+      "runner_name": "GitHub Actions 1000000759",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 103537116278,
+      "run_id": 34687563164,
+      "workflow_name": "CI",
+      "head_branch": "arena/01a07050-cms-monsa",
+      "run_url": "https://api.github.com/repos/amhyer/cms-monsa/actions/runs/34687563164",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOUAd68M8AAAAYG0sEdg",
+      "head_sha": "5d83fbd8f6b5c3aea6019556820f8a7cb87b2a2a",
+      "url": "https://api.github.com/repos/amhyer/cms-monsa/actions/jobs/103537116278",
+      "html_url": "https://github.com/amhyer/cms-monsa/actions/runs/34687563164/job/103537116278",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-09-12T10:06:17Z",
+      "started_at": "2026-09-12T10:06:19Z",
+      "completed_at": "2026-09-12T10:09:49Z",
+      "name": "Self-host E2E (compose up → assert → teardown)",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-09-12T10:06:20Z",
+          "completed_at": "2026-09-12T10:06:21Z"
+        },
+        {
+          "name": "Checkout",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-09-12T10:06:21Z",
+          "completed_at": "2026-09-12T10:06:23Z"
+        },
+        {
+          "name": "Setup repo (Node + Bun + install)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-09-12T10:06:23Z",
+          "completed_at": "2026-09-12T10:06:40Z"
+        },
+        {
+          "name": "Set up Docker Buildx",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-09-12T10:06:40Z",
+          "completed_at": "2026-09-12T10:06:44Z"
+        },
+        {
+          "name": "Build image for E2E stack",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-09-12T10:06:44Z",
+          "completed_at": "2026-09-12T10:07:00Z"
+        },
+        {
+          "name": "Run self-host E2E (up → assert → teardown)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-09-12T10:07:00Z",
+          "completed_at": "2026-09-12T10:09:45Z"
+        },
+        {
+          "name": "Dump compose ps on failure",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 7,
+          "started_at": "2026-09-12T10:09:45Z",
+          "completed_at": "2026-09-12T10:09:45Z"
+        },
+        {
+          "name": "Post Build image for E2E stack",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11,
+          "started_at": "2026-09-12T10:09:45Z",
+          "completed_at": "2026-09-12T10:09:46Z"
+        },
+        {
+          "name": "Post Set up Docker Buildx",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 12,
+          "started_at": "2026-09-12T10:09:46Z",
+          "completed_at": "2026-09-12T10:09:47Z"
+        },
+        {
+          "name": "Post Setup repo (Node + Bun + install)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13,
+          "started_at": "2026-09-12T10:09:47Z",
+          "completed_at": "2026-09-12T10:09:47Z"
+        },
+        {
+          "name": "Post Checkout",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 14,
+          "started_at": "2026-09-12T10:09:47Z",
+          "completed_at": "2026-09-12T10:09:47Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 15,
+          "started_at": "2026-09-12T10:09:47Z",
+          "completed_at": "2026-09-12T10:09:47Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/amhyer/cms-monsa/check-runs/103537116278",
+      "labels": [
+        "ubuntu-latest"
+      ],
+      "runner_id": 1000000758,
+      "runner_name": "GitHub Actions 1000000758",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 103537116320,
+      "run_id": 34687563164,
+      "workflow_name": "CI",
+      "head_branch": "arena/01a07050-cms-monsa",
+      "run_url": "https://api.github.com/repos/amhyer/cms-monsa/actions/runs/34687563164",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOUAd68M8AAAAYG0sEoA",
+      "head_sha": "5d83fbd8f6b5c3aea6019556820f8a7cb87b2a2a",
+      "url": "https://api.github.com/repos/amhyer/cms-monsa/actions/jobs/103537116320",
+      "html_url": "https://github.com/amhyer/cms-monsa/actions/runs/34687563164/job/103537116320",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-09-12T10:06:17Z",
+      "started_at": "2026-09-12T10:06:20Z",
+      "completed_at": "2026-09-12T10:08:10Z",
+      "name": "hooks-gate / Pre-commit gate (hooks:check)",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-09-12T10:06:21Z",
+          "completed_at": "2026-09-12T10:06:22Z"
+        },
+        {
+          "name": "Checkout",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-09-12T10:06:22Z",
+          "completed_at": "2026-09-12T10:06:24Z"
+        },
+        {
+          "name": "Setup repo (Node + Bun + install)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-09-12T10:06:24Z",
+          "completed_at": "2026-09-12T10:06:46Z"
+        },
+        {
+          "name": "Run pre-commit gate (hooks:check)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-09-12T10:06:46Z",
+          "completed_at": "2026-09-12T10:08:07Z"
+        },
+        {
+          "name": "Post Setup repo (Node + Bun + install)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-09-12T10:08:07Z",
+          "completed_at": "2026-09-12T10:08:07Z"
+        },
+        {
+          "name": "Post Checkout",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-09-12T10:08:07Z",
+          "completed_at": "2026-09-12T10:08:07Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-09-12T10:08:07Z",
+          "completed_at": "2026-09-12T10:08:07Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/amhyer/cms-monsa/check-runs/103537116320",
+      "labels": [
+        "ubuntu-latest"
+      ],
+      "runner_id": 1000000760,
+      "runner_name": "GitHub Actions 1000000760",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 103537396854,
+      "run_id": 34687563164,
+      "workflow_name": "CI",
+      "head_branch": "arena/01a07050-cms-monsa",
+      "run_url": "https://api.github.com/repos/amhyer/cms-monsa/actions/runs/34687563164",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOUAd68M8AAAAYG09Mdg",
+      "head_sha": "5d83fbd8f6b5c3aea6019556820f8a7cb87b2a2a",
+      "url": "https://api.github.com/repos/amhyer/cms-monsa/actions/jobs/103537396854",
+      "html_url": "https://github.com/amhyer/cms-monsa/actions/runs/34687563164/job/103537396854",
+      "status": "completed",
+      "conclusion": "skipped",
+      "created_at": "2026-09-12T10:08:42Z",
+      "started_at": "2026-09-12T10:08:42Z",
+      "completed_at": "2026-09-12T10:08:42Z",
+      "name": "Check orphaned BOS files",
+      "steps": [
+
+      ],
+      "check_run_url": "https://api.github.com/repos/amhyer/cms-monsa/check-runs/103537396854",
+      "labels": [
+        "ubuntu-latest"
+      ],
+      "runner_id": null,
+      "runner_name": null,
+      "runner_group_id": null,
+      "runner_group_name": null
+    }
+  ]
+}

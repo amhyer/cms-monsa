@@ -54,6 +54,7 @@ import {
   DashboardSearch,
   useDashboardSearchHotkey,
 } from "@/components/dashboard/dashboard-search";
+import { StorageQuotaWidget } from "@/components/dashboard/storage-quota-widget";
 
 const ADMIN_PATHS = new Set<string>([
   "/dashboard/users",
@@ -71,7 +72,14 @@ function currentTitle(pathname: string): string {
   return match?.label ?? "Dashboard";
 }
 
-function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
+function SidebarNav({
+  onNavigate,
+  showStorageWidget = false,
+}: {
+  onNavigate?: () => void;
+  /** Widget kuota storage hanya di sidebar desktop (bukan Sheet mobile). */
+  showStorageWidget?: boolean;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const user = useAppStore((s) => s.user);
@@ -188,6 +196,7 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <nav className="flex flex-col gap-5 px-3 py-4" aria-label="Navigasi Dashboard">
+      {showStorageWidget && isAdmin && <StorageQuotaWidget />}
       <div className="space-y-1">
         <p className="px-3 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/50">
           Ringkasan
@@ -446,7 +455,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               <span className="text-[11px] text-sidebar-foreground/70">Panel CMS</span>
             </span>
           </div>
-          <SidebarNav />
+          <SidebarNav showStorageWidget />
         </aside>
 
         {/* Main */}

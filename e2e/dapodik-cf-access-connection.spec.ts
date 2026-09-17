@@ -1,0 +1,173 @@
+import { test, expect } from "./mutation-log";
+import { ADMIN, login } from "./helpers";
+import type { Page } from "@playwright/test";
+
+// warmup: /api/dapodik/config
+
+/**
+ * Uji end-to-end koneksi Dapodik lewat Cloudflare Access (service token).
+ *
+ * Tidak ada tunnel Cloudflare nyata di lingkungan e2e, jadi "upstream ber-
+ * Cloudflare Access" diemulasi: server HTTP lokal yang meniru perilakunya —
+ * 403 bila CF-Access-Client-Id/Secret tidak cocok, 401 bila Bearer token
+ * Web Service salah, dan 200 + payload getSekolah bila kedua lapisan lolos.
+ *
+ * Yang dibuktikan jalan benar-benar (bukan hanya unit test):
+ *   1. Simpan kredensial via form → tersimpan terenkripsi di DB.
+ *   2. POST /api/dapodik/test-connection membangkitkan DapodikClient dari
+ *      DB, mendekripsi token + secret, dan mengirimnya sebagai header.
+ *   3. Happy path → "Koneksi berhasil" + nama sekolah dari upstream.
+ *   4. Secret CF salah → 403 diteruskan sebagai kegagalan koneksi.
+ *   5. Bearer token salah → 401 diteruskan (4xx tidak di-retry).
+ *
+ * Config singleton dipotret sekali lalu dipulihkan di afterEach; emulator
+ * listen di port acak (0) per test sehingga tidak ada bentrok port.
+ */
+
+const CF_ID = "e2e-cf.access.example";
+const CF_SECRET = "e2e-cf-secret-123";
+const WS_TOKEN = "e2e-ws-token-456";
+
+type Upstream = {
+  port: number;
+  close: () => Promise<void>;
+};
+
+async function startCfAccessUpstream(opts: {
+  clientId: string;
+  clientSecret: string;
+  wsToken: string;
+}): Promise<Upstream> {
+  const http = await import("node:http");
+  const server = http.createServer((req, res) => {
+    const cid = req.headers["cf-access-client-id"];
+    const csec = req.headers["cf-access-client-secret"];
+    const auth = req.headers["authorization"];
+
+    if (cid !== opts.clientId || csec !== opts.clientSecret) {
+      res.writeHead(403, { "content-type": "text/html" });
+      res.end("<html><body>Access denied</body></html>");
+      return;
+    }
+    if (auth !== `Bearer ${opts.wsToken}`) {
+      res.writeHead(401, { "content-type": "text/html" });
+      res.end("<html><body>Access denied</body></html>");
+      return;
+    }
+    const url = new URL(req.url ?? "/", "http://localhost");
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(
+      JSON.stringify({
+        rows: [
+          {
+            nama: "SDN E2E Via CF Access",
+            npsn: url.searchParams.get("npsn") ?? "",
+            alamat_jalan: "Jl. Emulator 123",
+          },
+        ],
+      })
+    );
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const addr = server.address();
+  const port = typeof addr === "object" && addr ? addr.port : 0;
+  return { port, close: () => new Promise((r) => server.close(() => r())) };
+}
+
+async function openConfig(page: Page) {
+  await page.goto("/dashboard/dapodik");
+  await page.getByRole("button", { name: "Konfigurasi", exact: true }).click();
+  await expect(page.getByLabel("NPSN")).toBeVisible();
+}
+
+async function saveCredentials(page: Page, port: number) {
+  await page.getByLabel("NPSN").fill("40313912");
+  await page.getByLabel("Token").fill(WS_TOKEN);
+  await page.getByLabel("Host").fill("127.0.0.1");
+  await page.getByLabel("Port").fill(String(port));
+  await page.getByLabel("CF Access Client ID").fill(CF_ID);
+  await page.getByLabel("CF Access Client Secret").fill(CF_SECRET);
+  await page.getByRole("button", { name: "Simpan Konfigurasi" }).click();
+  await expect(page.getByText("Konfigurasi tersimpan!")).toBeVisible();
+  // Simpan menutup panel konfigurasi — buka lagi untuk menjangkau
+  // tombol "Cek Koneksi" yang ada di dalam panel.
+  await page.getByRole("button", { name: "Konfigurasi", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Cek Koneksi" })).toBeVisible();
+}
+
+test.describe("Dapodik koneksi via Cloudflare Access (emulasi upstream)", () => {
+  let snapshot: Record<string, unknown> | null = null;
+
+  test.beforeEach(async ({ page }) => {
+    await login(page, ADMIN.email, ADMIN.password);
+    if (snapshot === null) {
+      const res = await page.request.get("/api/dapodik/config");
+      if (res.ok()) {
+        const json = await res.json();
+        snapshot = (json.config as Record<string, unknown> | null) ?? null;
+      }
+    }
+  });
+
+  test.afterEach(async ({ page }) => {
+    if (!snapshot) return;
+    await page.request.post("/api/dapodik/config", {
+      data: {
+        npsn: String(snapshot.npsn ?? ""),
+        host: String(snapshot.host ?? "localhost"),
+        port: Number(snapshot.port ?? 5774),
+        protocol: String(snapshot.protocol ?? "http"),
+        cfAccessClientId: snapshot.cfAccessClientId
+          ? String(snapshot.cfAccessClientId)
+          : "",
+      },
+    });
+  });
+
+  test("simpan kredensial CF Access → test-connection lolos kedua lapisan", async ({ page }) => {
+    const upstream = await startCfAccessUpstream({
+      clientId: CF_ID,
+      clientSecret: CF_SECRET,
+      wsToken: WS_TOKEN,
+    });
+
+    await openConfig(page);
+    await saveCredentials(page, upstream.port);
+    await page.getByRole("button", { name: "Cek Koneksi" }).click();
+
+    await expect(page.getByText(/Koneksi berhasil/)).toBeVisible({ timeout: 20_000 });
+    // Nama sekolah dari payload upstream — bukti respons utuh sampai UI.
+    await expect(page.getByText(/SDN E2E Via CF Access/)).toBeVisible({ timeout: 20_000 });
+    await upstream.close();
+  });
+
+  test("secret CF salah di upstream → test-connection gagal (403 diteruskan)", async ({ page }) => {
+    const upstream = await startCfAccessUpstream({
+      clientId: CF_ID,
+      clientSecret: "secret-lain-999",
+      wsToken: WS_TOKEN,
+    });
+
+    await openConfig(page);
+    await saveCredentials(page, upstream.port);
+    await page.getByRole("button", { name: "Cek Koneksi" }).click();
+
+    await expect(page.getByText(/Koneksi gagal/)).toBeVisible({ timeout: 20_000 });
+    await upstream.close();
+  });
+
+  test("Bearer token salah → gagal fail-fast (401 tidak di-retry)", async ({ page }) => {
+    const upstream = await startCfAccessUpstream({
+      clientId: CF_ID,
+      clientSecret: CF_SECRET,
+      wsToken: "token-lain-888",
+    });
+
+    await openConfig(page);
+    await saveCredentials(page, upstream.port);
+    await page.getByRole("button", { name: "Cek Koneksi" }).click();
+
+    await expect(page.getByText(/Koneksi gagal/)).toBeVisible({ timeout: 20_000 });
+    await upstream.close();
+  });
+});

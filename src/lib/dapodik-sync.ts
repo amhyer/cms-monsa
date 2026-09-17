@@ -377,8 +377,12 @@ export async function saveDapodikConfig(data: {
     rawCfSecret && encryptionKey && (cfSecretFromRequest || !isEncrypted(rawCfSecret))
       ? encrypt(rawCfSecret)
       : rawCfSecret;
+  // Client ID: field yang DIKIRKan (termasuk string kosong) berarti set/hapus;
+  // yang tidak dikirim sama sekali (undefined) berarti pertahankan nilai DB.
   const cfClientIdToSave =
-    normalize(data.cfAccessClientId) || existing?.cfAccessClientId || null;
+    data.cfAccessClientId !== undefined
+      ? normalize(data.cfAccessClientId)
+      : existing?.cfAccessClientId ?? null;
 
   return db.dapodikConfig.upsert({
     where: { id: "singleton" },

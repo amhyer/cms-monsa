@@ -137,8 +137,10 @@ async function readJson(res: Response): Promise<Record<string, unknown>> {
 }
 
 export function DapodikManager() {
-  const [config, setConfig] = useState({ npsn: "", token: "", host: "localhost", port: "5774", protocol: "http", archiveUnlisted: true as boolean, allowInsecureInProduction: false as boolean });
+  const [config, setConfig] = useState({ npsn: "", token: "", host: "localhost", port: "5774", protocol: "http", archiveUnlisted: true as boolean, allowInsecureInProduction: false as boolean, cfAccessClientId: "", cfAccessClientSecret: "" });
   const [hasExistingToken, setHasExistingToken] = useState(false);
+  const [hasExistingCfSecret, setHasExistingCfSecret] = useState(false);
+  const [cfSecretMasked, setCfSecretMasked] = useState<string | null>(null);
   const [configLoaded, setConfigLoaded] = useState(false);
   const [data, setData] = useState<DapodikData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -176,8 +178,12 @@ export function DapodikManager() {
             protocol: json.config.protocol || "http",
             archiveUnlisted: json.config.archiveUnlisted !== false,
             allowInsecureInProduction: json.config.allowInsecureInProduction === true,
+            cfAccessClientId: json.config.cfAccessClientId || "",
+            cfAccessClientSecret: "",
           });
           setHasExistingToken(Boolean(json.config.hasToken ?? json.config.token));
+          setHasExistingCfSecret(Boolean(json.config.cfAccessClientSecret));
+          setCfSecretMasked(json.config.cfAccessClientSecret || null);
           setHasBridgeToken(Boolean(json.config.hasBridgeToken));
           setBridgePrefix(json.config.bridgeTokenPrefix || null);
           setBridgeCreatedAt(json.config.bridgeTokenCreatedAt || null);
@@ -205,6 +211,12 @@ export function DapodikManager() {
           protocol: config.protocol,
           archiveUnlisted: config.archiveUnlisted,
           allowInsecureInProduction: config.allowInsecureInProduction,
+          cfAccessClientId: config.cfAccessClientId,
+          // Secret hanya dikirim bila diisi — kosong = pertahankan secret
+          // tersimpan (backend mem-fallback ke nilai DB, tidak ter-wipe).
+          ...(config.cfAccessClientSecret
+            ? { cfAccessClientSecret: config.cfAccessClientSecret }
+            : {}),
         }),
       });
       const json = await res.json();
@@ -521,6 +533,33 @@ export function DapodikManager() {
                   value={config.token}
                   onChange={(e) => setConfig((p) => ({ ...p, token: e.target.value }))}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="dapodik-cf-client-id">CF Access Client ID</Label>
+                <Input
+                  id="dapodik-cf-client-id"
+                  placeholder="Kosongkan jika tidak memakai Cloudflare Access"
+                  value={config.cfAccessClientId}
+                  onChange={(e) => setConfig((p) => ({ ...p, cfAccessClientId: e.target.value }))}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Service token Cloudflare Access bila Web Service Dapodik berada di balik CF — opsional.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="dapodik-cf-secret">CF Access Client Secret</Label>
+                <Input
+                  id="dapodik-cf-secret"
+                  type="password"
+                  placeholder={hasExistingCfSecret ? "Kosongkan jika tidak ingin mengubah secret" : "Secret service token (opsional)"}
+                  value={config.cfAccessClientSecret}
+                  onChange={(e) => setConfig((p) => ({ ...p, cfAccessClientSecret: e.target.value }))}
+                />
+                {hasExistingCfSecret && cfSecretMasked && (
+                  <p className="text-xs text-muted-foreground">
+                    Secret tersimpan: <span className="font-mono">{cfSecretMasked}</span>
+                  </p>
+                )}
               </div>
               <div className="flex items-center justify-between gap-3 rounded-md border p-3 md:col-span-2">
                 <div>

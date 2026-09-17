@@ -248,6 +248,37 @@ describe("saveDapodikConfig — enkripsi token (path terenkripsi)", () => {
     expect(saved.update.cfAccessClientId).toBe("client.baru.access");
   });
 
+  it("cfAccessClientId dikirim kosong → dihapus (bukan fallback); secret tetap dipertahankan", async () => {
+    const storedCipher = encrypt("rahasia-cf-456");
+    mockDapodikConfig.findUnique.mockResolvedValue({
+      id: "singleton",
+      npsn: "40313912",
+      token: "token-tersimpan",
+      host: "localhost",
+      port: 5774,
+      protocol: "http",
+      cfAccessClientId: "client.access.example",
+      cfAccessClientSecret: storedCipher,
+    });
+    mockDapodikConfig.upsert.mockResolvedValue({ id: "singleton" });
+
+    await saveDapodikConfig({
+      npsn: "40313912",
+      token: "",
+      host: "10.0.0.5",
+      port: 5774,
+      protocol: "http",
+      cfAccessClientId: "", // field DIKIRIM kosong → hapus, bukan pertahankan
+    });
+
+    const saved = mockDapodikConfig.upsert.mock.calls[0][0] as {
+      update: { cfAccessClientSecret: string | null; cfAccessClientId: string | null };
+    };
+    expect(saved.update.cfAccessClientId).toBeNull();
+    // Secret tidak terpengaruh oleh penghapusan Client ID.
+    expect(saved.update.cfAccessClientSecret).toBe(storedCipher);
+  });
+
   it("tanpa secret lama & tanpa secret baru → tetap null (bukan string kosong)", async () => {
     mockDapodikConfig.findUnique.mockResolvedValue(null);
     mockDapodikConfig.upsert.mockResolvedValue({ id: "singleton" });

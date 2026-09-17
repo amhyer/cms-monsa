@@ -42,7 +42,14 @@ export async function POST(req: Request) {
       archiveUnlisted: typeof archiveUnlisted === "boolean" ? archiveUnlisted : true,
       allowInsecureInProduction:
         typeof allowInsecureInProduction === "boolean" ? allowInsecureInProduction : false,
-      cfAccessClientId: cfAccessClientId ? String(cfAccessClientId).trim() : null,
+      // "key" in body membedakan field tidak dikirim (pertahankan nilai DB)
+      // vs dikirim kosong (hapus). Secret kosong TETAP berarti pertahankan —
+      // konvensi write-only sama dengan token (UI tidak mengirimnya bila
+      // kosong; menghapus kredensial secret dilakukan lewat API).
+      cfAccessClientId:
+        "cfAccessClientId" in body
+          ? cfAccessClientId ? String(cfAccessClientId).trim() : null
+          : undefined,
       cfAccessClientSecret: cfAccessClientSecret ? String(cfAccessClientSecret).trim() : null,
     });
   } catch (err) {

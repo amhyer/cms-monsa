@@ -17,7 +17,17 @@
  *    bisa melihat data.
  *
  * Cara keluar yang disengaja (opt-in eksplisit per proses):
- *   ALLOW_REMOTE_DB_WRITES=1 npm run dev
+ *   ALLOW_REMOTE_DB_WRITES=1 npm run dev            ← semua host diizinkan
+ *   DEV_DB_SAFE_HOSTS=ep-dev.xxx.aws.neon.tech npm run dev
+ *                                                    ← hanya host tsb
+ *
+ * DEV_DB_SAFE_HOSTS adalah allow-list host yang dianggap aman untuk tulis
+ * di development (mis. Neon branch khusus dev). Semantik tiap entri:
+ *   - "ep-dev.xxx.aws.neon.tech" → cocok PERSIS hostname itu saja.
+ *   - ".aws.neon.tech" (awalan titik) → cocok SEMUA subdomain domain itu
+ *     (gaya cookie-domain), tapi BUKAN domain telanjangnya.
+ * Guard tetap terpasang untuk host remote lain yang tidak terdaftar —
+ * berbeda dari ALLOW_REMOTE_DB_WRITES=1 yang mematikan guard sepenuhnya.
  */
 
 /** Hostname domain database-managed yang dianggap "remote/produksi". */
@@ -31,6 +41,30 @@ function hostnameOf(databaseUrl: string | undefined): string {
   } catch {
     return "";
   }
+}
+
+/**
+ * Parse isi DEV_DB_SAFE_HOSTS: dipisah koma, lowercase, buang entri kosong
+ * dan titik tertinggal. Entri berawalan titik = suffix-match domain.
+ */
+export function parseSafeHosts(raw: string | undefined): string[] {
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((s) => s.trim().toLowerCase().replace(/\.+$/, ""))
+    .filter((s) => s.length > 0);
+}
+
+/**
+ * True bila `host` terdaftar di allow-list: cocok persis, atau (untuk entri
+ * berawalan titik) berakhiran `.entry`.
+ */
+export function isHostAllowListed(host: string, allowList: string[]): boolean {
+  if (!host) return false;
+  const h = host.toLowerCase();
+  return allowList.some((entry) =>
+    entry.startsWith(".") ? h.endsWith(entry) : h === entry
+  );
 }
 
 /** True bila URL menunjuk host database remote yang dikenal. */
@@ -53,10 +87,17 @@ export function isWriteGuardActive(env: {
   NODE_ENV?: string;
   DATABASE_URL?: string;
   ALLOW_REMOTE_DB_WRITES?: string;
+  DEV_DB_SAFE_HOSTS?: string;
 } = process.env): boolean {
   if (env.NODE_ENV === "production") return false;
   if (env.ALLOW_REMOTE_DB_WRITES === "1") return false;
-  return isRemoteDatabaseHost(env.DATABASE_URL);
+  const host = hostnameOf(env.DATABASE_URL);
+  if (!isRemoteDatabaseHost(env.DATABASE_URL)) return false;
+  // Host yang terdaftar eksplisit di allow-list boleh ditulis — guard tetap
+  // aktif untuk host remote lain.
+  if (isHostAllowListed(host, parseSafeHosts(env.DEV_DB_SAFE_HOSTS)))
+    return false;
+  return true;
 }
 
 /** Aksi Prisma yang mengubah data — semuanya diblokir saat guard aktif. */
@@ -82,7 +123,8 @@ export function writeGuardErrorMessage(action: string): string {
     `[db-write-guard] Operasi tulis "${action}" ke database remote diblokir ` +
     `di development (DATABASE_URL menunjuk host remote — kemungkinan produksi). ` +
     `Pakai database lokal (docker compose -f docker-compose.dev.yml up -d), ` +
-    `atau set ALLOW_REMOTE_DB_WRITES=1 untuk mengizinkan tulis remote secara eksplisit.`
+    `daftarkan host dev di DEV_DB_SAFE_HOSTS (mis. Neon branch), atau set ` +
+    `ALLOW_REMOTE_DB_WRITES=1 untuk mengizinkan tulis remote secara eksplisit.`
   );
 }
 
@@ -91,11 +133,16 @@ export function describeWriteGuard(env: {
   NODE_ENV?: string;
   DATABASE_URL?: string;
   ALLOW_REMOTE_DB_WRITES?: string;
+  DEV_DB_SAFE_HOSTS?: string;
 } = process.env): string {
   if (env.NODE_ENV === "production") return "db-write-guard: nonaktif (produksi)";
   if (env.ALLOW_REMOTE_DB_WRITES === "1")
     return "db-write-guard: nonaktif (ALLOW_REMOTE_DB_WRITES=1 — tulis remote diizinkan)";
-  if (isRemoteDatabaseHost(env.DATABASE_URL))
+  if (isRemoteDatabaseHost(env.DATABASE_URL)) {
+    const host = hostnameOf(env.DATABASE_URL);
+    if (isHostAllowListed(host, parseSafeHosts(env.DEV_DB_SAFE_HOSTS)))
+      return `db-write-guard: nonaktif untuk ${host} (terdaftar di DEV_DB_SAFE_HOSTS — tulis diizinkan)`;
     return "db-write-guard: AKTIF (database remote — tulis diblokir, baca diizinkan)";
+  }
   return "db-write-guard: nonaktif (database lokal)";
 }

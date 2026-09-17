@@ -113,6 +113,10 @@ Database dev — dua pilihan (lokal adalah default yang dianjurkan):
    Prisma (baca tetap boleh), sehingga `npm run dev` tidak pernah mengubah
    data remote secara tidak sengaja. Untuk seed/migrasi yang memang disengaja
    ke branch dev remote: `ALLOW_REMOTE_DB_WRITES=1 bun run db:push`.
+   Alternatif yang lebih aman — allow-list host (guard tetap menjaga host
+   remote lain): `DEV_DB_SAFE_HOSTS=ep-dev-abc123.aws.neon.tech` di `.env`
+   (entri polos = hostname persis; entri berawalan titik seperti
+   `.aws.neon.tech` = semua subdomain domain itu).
    **Jangan pernah** mengarahkan `.env` ke branch produksi Neon.
 
 Jangan pernah commit `.env` — sudah diblokir oleh pre-commit hook.

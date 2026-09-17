@@ -204,7 +204,10 @@ CMS bisa menarik data guru/staf & siswa langsung dari server Dapodik sekolah:
 3. Klik **Konfigurasi**, isi NPSN, token Web Service, host (mis. `ip-server`
    atau `localhost`), dan port (default `5774`). Token hanya wajib diisi
    pada simpan pertama — simpan berikutnya boleh dikosongkan agar token
-   lama tetap dipakai.
+   lama tetap dipakai. Field **CF Access Client ID/Secret** (opsional)
+   untuk Web Service Dapodik di balik Cloudflare Access mengikuti aturan
+   yang sama: secret kosong berarti "tetap dipakai", bukan dihapus.
+   Rincian kontraknya ada di [DAPODIK-CREDENTIAL-PROTOCOL.md](DAPODIK-CREDENTIAL-PROTOCOL.md).
 4. Opsi **Nonaktifkan data yang tidak ada di Dapodik** (default aktif):
    siswa/guru yang tidak terdaftar di Dapodik diarsipkan (bukan dihapus).
    Matikan opsi ini jika data lama di CMS ingin tetap aktif.

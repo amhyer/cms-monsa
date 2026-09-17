@@ -159,7 +159,6 @@ export function DapodikManager() {
   const [tokenDialogOpen, setTokenDialogOpen] = useState(false);
   const [generatingKey, setGeneratingKey] = useState(false);
   const [revokingKey, setRevokingKey] = useState(false);
-  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     fetch("/api/dapodik/config")
@@ -339,31 +338,6 @@ export function DapodikManager() {
       toast.error(err instanceof Error ? err.message : "Gagal sinkronisasi");
     } finally {
       setSyncing(false);
-    }
-  }, []);
-
-  const downloadJembatan = useCallback(async () => {
-    setDownloading(true);
-    try {
-      const res = await fetch("/api/dapodik/download");
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        throw new Error(json.error || `HTTP ${res.status}`);
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "jembatan-dapodik-monsa.zip";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      toast.success("Paket jembatan diunduh. Jalankan di PC yang sama dengan Dapodik.");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Gagal mengunduh");
-    } finally {
-      setDownloading(false);
     }
   }, []);
 

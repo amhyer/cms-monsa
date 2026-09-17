@@ -96,15 +96,27 @@ lighthouse-report*.json
 
 # kredensial lokal aplikasi jembatan Dapodik (PC sekolah)
 dapodik-jembatan/jembatan-config.json
+dapodik-jembatan/config.json
+
+# scraper Dapodik lokal: dump debug HTML & folder output CSV (bisa berisi
+# data siswa/guru asli — jangan pernah commit)
+dapodik-debug.html
+/csv_files/
 
 # misc local files
 local-*
+# hasil grep/log investigasi ad-hoc (triage CI, eksperimen lokal) — bukan source
+.tmp-*
 .claude
 .z-ai-config
 test
 prompt
 # arsip project lokal (CMS MONSA.zip — zip source, bukan bagian dari repo)
 /CMS MONSA.zip
+# snapshot zip static & script audit satu kali (regenerable, sering berisi
+# build lama — jangan commit)
+/cms-monsa-static*.zip
+/verify_zip.ps1
 # artefak audit satu kali (seed avatar) — bukan bagian dari app & jangan di-serve
 /public/avatar-audit.html
 .zscripts/dev.pid

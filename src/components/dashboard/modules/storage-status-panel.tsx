@@ -36,10 +36,7 @@ import { Progress } from "@/components/ui/progress";
 import { useAppStore } from "@/store/app";
 import { toast } from "sonner";
 import { formatBytes, formatDateTime } from "@/lib/format";
-import {
-  useStorageUsage,
-  type StorageUsageData,
-} from "@/hooks/use-storage-usage";
+import { useStorageUsage } from "@/hooks/use-storage-usage";
 
 /** Pilihan interval muat-ulang otomatis (ms). 0 = mati (manual saja). */
 const REFRESH_OPTIONS = [

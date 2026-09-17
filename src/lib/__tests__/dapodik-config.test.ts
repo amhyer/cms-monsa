@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock db minimal — cukup dapodikConfig untuk getDapodikClient/saveDapodikConfig.
 // vi.hoisted: objek mock harus tersedia SEBELUM import @/lib/dapodik-sync dijalankan
@@ -27,6 +27,13 @@ const baseDbConfig = {
 };
 
 describe("getDapodikClient — allowInsecureInProduction diteruskan dari konfigurasi DB", () => {
+  beforeEach(() => {
+    // Test harus hermetik: token disimpan sebagai plaintext saat key kosong.
+    // Tanpa stub ini, DAPODIK_ENCRYPTION_KEY dari env host (mis. .env.local)
+    // membuat saveDapodikConfig mengenkripsi token dan assertion gagal.
+    vi.stubEnv("DAPODIK_ENCRYPTION_KEY", "");
+  });
+
   afterEach(() => {
     vi.clearAllMocks();
     vi.unstubAllEnvs();
@@ -83,8 +90,14 @@ describe("getDapodikClient — allowInsecureInProduction diteruskan dari konfigu
 });
 
 describe("saveDapodikConfig — allowInsecureInProduction disimpan ke DB", () => {
+  beforeEach(() => {
+    // Hermetik: matikan enkripsi token yang bergantung env host.
+    vi.stubEnv("DAPODIK_ENCRYPTION_KEY", "");
+  });
+
   afterEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllEnvs();
   });
 
   it("meneruskan flag true ke create & update upsert", async () => {

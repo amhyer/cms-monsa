@@ -6,6 +6,8 @@
  * 2. Tanpa kuota (NEON_STORAGE_QUOTA_MB) → tanpa persen, total saja.
  * 3. Gagal fetch → tidak merender apa pun (sidebar tidak berisik).
  * 4. Klik widget → menuju beranda (rincian + aksi di panel beranda).
+ * 5. Warna bar mengikuti tingkat pemakaian: <60% emerald, ≥60% amber,
+ *    ≥80% merah (destructive) — konsisten dengan panel beranda.
  */
 
 import { render, screen, act } from "@testing-library/react";
@@ -67,6 +69,45 @@ describe("StorageQuotaWidget", () => {
       screen.getByRole("progressbar", { name: /Pemakaian storage 25%/ })
     ).toBeInTheDocument();
   });
+
+  const toneCases: [number, string][] = [
+    [25, "bg-emerald-500"],
+    [59, "bg-emerald-500"],
+    [60, "bg-amber-500"],
+    [79, "bg-amber-500"],
+    [80, "bg-destructive"],
+    [100, "bg-destructive"],
+  ];
+
+  it.each(toneCases)(
+    "bar kuota %i%% berwarna sesuai tingkat (%s)",
+    async (percent, expectedClass) => {
+      h.fetchMock.mockImplementationOnce(async () =>
+        okResponse({
+          ok: true,
+          fileCount: 12,
+          totalBytes: 262_144,
+          byMimeType: [],
+          quotaBytes: 1_048_576,
+          usagePercent: percent,
+          cleanupCandidates: 0,
+          impact: null,
+          alertState: null,
+          timestamp: "2026-09-10T00:00:00.000Z",
+        })
+      );
+
+      render(<StorageQuotaWidget />);
+      await flushAsync();
+
+      const bar = screen.getByRole("progressbar", {
+        name: new RegExp(`^Pemakaian storage ${percent}%$`),
+      });
+      // tone() menempel kelas warna via arbitrary variant pada root Progress,
+      // jadi verifikasi substring kelasnya (bukan token kelas utuh).
+      expect(bar.className).toContain(expectedClass);
+    }
+  );
 
   it("tanpa kuota → tanpa persen, hanya total + jumlah file", async () => {
     h.fetchMock.mockImplementationOnce(async () =>

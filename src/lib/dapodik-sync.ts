@@ -345,17 +345,40 @@ export async function saveDapodikConfig(data: {
   cfAccessClientSecret?: string | null;
 }) {
   const existing = await db.dapodikConfig.findUnique({ where: { id: "singleton" } });
-  const rawToken = normalize(data.token) || existing?.token || null;
+  // Token dari form selalu plaintext; fallback existing bisa berupa ciphertext
+  // (sudah terenkripsi saat disimpan sebelumnya).
+  const tokenFromRequest = normalize(data.token);
+  const rawToken = tokenFromRequest || existing?.token || null;
   if (!rawToken) {
     throw new Error("Token Dapodik wajib diisi pada konfigurasi pertama.");
   }
 
-  // Enkripsi token & cfAccessClientSecret sebelum simpan ke DB
+  // Enkripsi token & cfAccessClientSecret sebelum simpan ke DB.
+  // Hanya enkripsi saat input memang plaintext yang belum terenkripsi: token
+  // yang diambil dari existing dan sudah berformat ciphertext TIDAK boleh
+  // dienkripsi ulang — double encryption membuat dekripsi sekali di
+  // getDapodikClient menghasilkan ciphertext (bukan plaintext), sehingga
+  // Web Service Dapodik gagal auth.
   const encryptionKey = process.env.DAPODIK_ENCRYPTION_KEY;
-  const tokenToSave = encryptionKey ? encrypt(rawToken) : rawToken;
-  const cfSecretToSave = data.cfAccessClientSecret && encryptionKey
-    ? encrypt(data.cfAccessClientSecret)
-    : data.cfAccessClientSecret ?? null;
+  const tokenToSave =
+    encryptionKey && (tokenFromRequest || !isEncrypted(rawToken))
+      ? encrypt(rawToken)
+      : rawToken;
+  // CF Access — perilaku sama dengan token: secret dari form selalu
+  // plaintext, fallback existing bisa berupa ciphertext. Bila request tidak
+  // mengirim secret (UI form tidak punya field CF Access → route mengirim
+  // null), pertahankan nilai DB agar secret tidak ter-wipe setiap kali
+  // konfigurasi disimpan. Guard isEncrypted mencegah enkripsi ganda pada
+  // ciphertext fallback. cfAccessClientId ikut dipertahankan agar pasangan
+  // CF Access tetap konsisten.
+  const cfSecretFromRequest = normalize(data.cfAccessClientSecret);
+  const rawCfSecret = cfSecretFromRequest || existing?.cfAccessClientSecret || null;
+  const cfSecretToSave =
+    rawCfSecret && encryptionKey && (cfSecretFromRequest || !isEncrypted(rawCfSecret))
+      ? encrypt(rawCfSecret)
+      : rawCfSecret;
+  const cfClientIdToSave =
+    normalize(data.cfAccessClientId) || existing?.cfAccessClientId || null;
 
   return db.dapodikConfig.upsert({
     where: { id: "singleton" },
@@ -370,7 +393,7 @@ export async function saveDapodikConfig(data: {
       ...(typeof data.allowInsecureInProduction === "boolean"
         ? { allowInsecureInProduction: data.allowInsecureInProduction }
         : {}),
-      cfAccessClientId: data.cfAccessClientId ?? null,
+      cfAccessClientId: cfClientIdToSave,
       cfAccessClientSecret: cfSecretToSave,
     },
     update: {
@@ -383,7 +406,7 @@ export async function saveDapodikConfig(data: {
       ...(typeof data.allowInsecureInProduction === "boolean"
         ? { allowInsecureInProduction: data.allowInsecureInProduction }
         : {}),
-      cfAccessClientId: data.cfAccessClientId ?? null,
+      cfAccessClientId: cfClientIdToSave,
       cfAccessClientSecret: cfSecretToSave,
     },
   });

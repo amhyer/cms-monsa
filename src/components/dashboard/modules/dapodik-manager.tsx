@@ -223,6 +223,15 @@ export function DapodikManager() {
       if (!res.ok) throw new Error(json.error);
       toast.success("Konfigurasi tersimpan!");
       if (config.token) setHasExistingToken(true);
+      // Secret write-only: bila user mengisi field, secret tersimpan berubah —
+      // kosongkan field dan tampilkan hint mask baru tanpa menunggu reload.
+      // Bila field dikosongkan (tidak dikirim), secret DB dipertahankan dan
+      // hint mask lama tetap valid.
+      if (config.cfAccessClientSecret) {
+        setConfig((p) => ({ ...p, cfAccessClientSecret: "" }));
+        setHasExistingCfSecret(true);
+        setCfSecretMasked("****");
+      }
       setShowConfig(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Gagal menyimpan");

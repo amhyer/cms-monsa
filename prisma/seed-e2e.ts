@@ -84,12 +84,21 @@ async function main() {
   }
 
   // ---- Kelas & siswa ----
+  // Kelas di-upsert by NAME (nama = unique key). Di database yang sudah
+  // berisi seed demo (seed.ts membuat "Kelas 1A" dengan id demo-class-1),
+  // upsert by name mengadopsi baris demo — id-nya BUKAN "e2e-class-1a".
+  // Karena itu id kelas SELALU dibaca dari hasil upsert untuk create siswa:
+  // create dengan id ter-hardcode meledak FK (P2003 Student_classId_fkey)
+  // di DB yang baris kelasnya diadopsi. Di DB CI bersih hasilnya identik
+  // (upsert create memakai id e2e-class-* seperti sebelumnya).
   const classes = [
     { id: "e2e-class-1a", name: "Kelas 1A", grade: "1", academicYear: "2025/2026" },
     { id: "e2e-class-2a", name: "Kelas 2A", grade: "2", academicYear: "2025/2026" },
   ];
+  const classIdByName = new Map<string, string>();
   for (const c of classes) {
-    await db.class.upsert({ where: { name: c.name }, update: {}, create: c });
+    const cls = await db.class.upsert({ where: { name: c.name }, update: {}, create: c });
+    classIdByName.set(c.name, cls.id);
   }
   // Siswa pertama (urut abjad) HARUS "Aisyah Putri Ramadhani" — students-
   // manager.spec menautkan quick action "Buat akun SISWA" ke nama ini.
@@ -114,7 +123,7 @@ async function main() {
         // Foto absolut (http) — marquee Galeri Siswa hanya menampilkan siswa
         // berfoto (img[src^='http']).
         photoUrl: `https://picsum.photos/seed/e2e-siswa-${i}/400/400`,
-        classId: i <= 3 ? "e2e-class-1a" : "e2e-class-2a",
+        classId: classIdByName.get(i <= 3 ? "Kelas 1A" : "Kelas 2A")!,
       },
     });
   }

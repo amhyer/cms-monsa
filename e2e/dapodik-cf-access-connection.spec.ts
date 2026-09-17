@@ -37,6 +37,8 @@ async function startCfAccessUpstream(opts: {
   clientId: string;
   clientSecret: string;
   wsToken: string;
+  /** Bila true, upstream membalas { rows: [] } — ala Dapodik untuk NPSN tak dikenal. */
+  emptyRows?: boolean;
 }): Promise<Upstream> {
   const http = await import("node:http");
   const server = http.createServer((req, res) => {
@@ -55,6 +57,13 @@ async function startCfAccessUpstream(opts: {
       return;
     }
     const url = new URL(req.url ?? "/", "http://localhost");
+    if (opts.emptyRows) {
+      // Dapodik membalas 200 + rows kosong untuk NPSN yang tidak terdaftar —
+      // bukan 401/403. Sambut dengan JSON valid agar sampai ke requestSingle.
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ rows: [] }));
+      return;
+    }
     res.writeHead(200, { "content-type": "application/json" });
     res.end(
       JSON.stringify({
@@ -168,6 +177,28 @@ test.describe("Dapodik koneksi via Cloudflare Access (emulasi upstream)", () => 
     await page.getByRole("button", { name: "Cek Koneksi" }).click();
 
     await expect(page.getByText(/Koneksi gagal/)).toBeVisible({ timeout: 20_000 });
+    await upstream.close();
+  });
+
+  test("service token valid tapi NPSN salah → gagal dengan pesan yang jelas", async ({ page }) => {
+    // Kedua lapisan upstream (CF Access + Bearer) menerima — kegagalan murni
+    // dari NPSN yang tidak dikenal server Dapodik (rows kosong, HTTP 200).
+    const upstream = await startCfAccessUpstream({
+      clientId: CF_ID,
+      clientSecret: CF_SECRET,
+      wsToken: WS_TOKEN,
+      emptyRows: true,
+    });
+
+    await openConfig(page);
+    await saveCredentials(page, upstream.port);
+    await page.getByRole("button", { name: "Cek Koneksi" }).click();
+
+    await expect(page.getByText(/Koneksi gagal/)).toBeVisible({ timeout: 20_000 });
+    // Pesan menyebut NPSN — hasil perbaikan requestSingle, bukan
+    // "nama undefined" yang samar dari getSekolah mengembalikan undefined.
+    // .first(): pesan sama muncul di toast sonner DAN kartu error.
+    await expect(page.getByText(/NPSN tidak terdaftar/).first()).toBeVisible({ timeout: 20_000 });
     await upstream.close();
   });
 });

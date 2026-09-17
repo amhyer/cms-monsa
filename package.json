@@ -40,6 +40,7 @@
     "storage:usage": "bunx tsx scripts/upload-storage-stats.ts",
     "backup:db": "powershell -ExecutionPolicy Bypass -File scripts/backup-db.ps1",
     "health:check": "bunx tsx scripts/health-check.ts",
+    "health:daily": "bunx tsx scripts/daily-health-check.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {

@@ -2,7 +2,7 @@ import { test, expect } from "./mutation-log";
 import { ADMIN, login } from "./helpers";
 import type { Page } from "@playwright/test";
 
-// warmup: /api/dapodik/config
+// warmup: /api/dapodik/config /api/auth/login
 
 /**
  * Alur simpan konfigurasi Dapodik dengan field CF Access.

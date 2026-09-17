@@ -104,6 +104,23 @@ async function saveCredentials(page: Page, port: number) {
   await expect(page.getByRole("button", { name: "Cek Koneksi" })).toBeVisible();
 }
 
+/**
+ * POST /api/dapodik/config dengan CSRF yang valid — POST API tanpa header
+ * x-csrf-token selalu 403 secara diam (requireCsrf), yang dulu membuat
+ * restore afterEach tidak pernah jalan. Gagal restore meledak keras.
+ */
+async function postConfig(page: Page, data: Record<string, unknown>) {
+  const tokenRes = await page.request.get("/api/csrf-token");
+  expect(tokenRes.ok()).toBeTruthy();
+  const { token } = (await tokenRes.json()) as { token: string };
+  const res = await page.request.post("/api/dapodik/config", {
+    data,
+    headers: { "x-csrf-token": token },
+  });
+  expect(res.ok()).toBeTruthy();
+  return res;
+}
+
 test.describe("Dapodik koneksi via Cloudflare Access (emulasi upstream)", () => {
   let snapshot: Record<string, unknown> | null = null;
 
@@ -120,16 +137,15 @@ test.describe("Dapodik koneksi via Cloudflare Access (emulasi upstream)", () => 
 
   test.afterEach(async ({ page }) => {
     if (!snapshot) return;
-    await page.request.post("/api/dapodik/config", {
-      data: {
-        npsn: String(snapshot.npsn ?? ""),
-        host: String(snapshot.host ?? "localhost"),
-        port: Number(snapshot.port ?? 5774),
-        protocol: String(snapshot.protocol ?? "http"),
-        cfAccessClientId: snapshot.cfAccessClientId
-          ? String(snapshot.cfAccessClientId)
-          : "",
-      },
+    await postConfig(page, {
+      npsn: String(snapshot.npsn ?? ""),
+      host: String(snapshot.host ?? "localhost"),
+      port: Number(snapshot.port ?? 5774),
+      protocol: String(snapshot.protocol ?? "http"),
+      cfAccessClientId: snapshot.cfAccessClientId
+        ? String(snapshot.cfAccessClientId)
+        : "",
+      // token & cfAccessClientSecret tidak dikirim → dipertahankan.
     });
   });
 

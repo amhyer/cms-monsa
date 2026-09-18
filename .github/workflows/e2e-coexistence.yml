@@ -52,7 +52,7 @@ jobs:
     # pembatalan" (if: cancelled(), dijalankan pada masa grace saat SIGTERM)
     # menulis output eksplisit yang dibaca job retry.
     outputs:
-      externally_cancelled: ${{ steps.cancelmark.outputs.cancelled }}
+      e2e_step_conclusion: ${{ steps.e2e.conclusion }}
     # PostgreSQL service container — skema tunggal, sama dengan playwright.yml.
     services:
       postgres:
@@ -78,16 +78,6 @@ jobs:
       NEXT_PUBLIC_SITE_URL: "https://sdn-mongisidi1.sch.id"
       NODE_OPTIONS: "--dns-result-order=ipv4first"
     steps:
-      # Marker pembatalan eksternal — POSISI PALING AWAL: saat runner menerima
-      # sinyal shutdown (SIGTERM), step ber-if: cancelled() dijalankan pada
-      # fase pembatalan dengan masa grace TERBATAS; menaruhnya pertama memberi
-      # peluang terbesar selesai sebelum grace habis. Output-nya dibaca job
-      # retry (outputs.externally_cancelled).
-      - name: Tandai pembatalan eksternal
-        id: cancelmark
-        if: cancelled()
-        run: echo "cancelled=true" >> "$GITHUB_OUTPUT"
-
       # Checkout WAJIB sebelum action lokal ./.github/actions/setup-repo
       # (runner me-resolve path dari workspace yang masih kosong tanpa ini).
       - name: Checkout
@@ -109,7 +99,13 @@ jobs:
       # artifact log merged ke E2E_SERVER_LOG). Kedua seed idempoten — aman
       # diulang; DB akhirnya berisi coexistence demo×e2e persis seperti dev
       # lokal yang di-seed lengkap.
-      - name: Run E2E tests (seeded coexistence DB)
+      # id: e2e — conclusion STEP ini (bukan conclusion job!) dibaca job
+      # retry sebagai deteksi pembatalan: GitHub men-conclude JOB 'failure'
+      # saat STEP-nya yang dibatalkan runner (hard-cancel TANPA fase grace —
+      # bukti run #3: step if: cancelled() ter-skip), tapi conclusion step
+      # sendiri tercatat 'cancelled' dan tetap terbaca via steps.<id>.
+      - id: e2e
+        name: Run E2E tests (seeded coexistence DB)
         run: bun run test:e2e:demo
         env:
           E2E_SERVER_LOG: ./server-e2e.log
@@ -169,7 +165,7 @@ jobs:
     needs: e2e-coexistence
     if: >-
       always() &&
-      needs.e2e-coexistence.outputs.externally_cancelled == 'true' &&
+      needs.e2e-coexistence.outputs.e2e_step_conclusion == 'cancelled' &&
       github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:

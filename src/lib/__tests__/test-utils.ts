@@ -196,7 +196,21 @@ const mockPrisma = {
     count: vi.fn(),
     groupBy: vi.fn(),
   },
-  $transaction: vi.fn((calls: unknown[]) => Promise.resolve(calls)),
+  // Mendukung KEDUA bentuk $transaction Prisma:
+  //   - array   : $transaction([p1, p2], options?)  → dipakai attendances/bulk
+  //               dan students/bulk
+  //   - callback: $transaction(async (tx) => {...}) → dipakai dapodik-sync
+  // Implementasi lama hanya menangani bentuk array dan mengembalikan array
+  // berisi promise yang TIDAK di-await, sehingga penolakan (rejection) di
+  // dalamnya tidak pernah muncul sebagai error — tidak seperti Prisma asli.
+  $transaction: vi.fn(
+    async (arg: unknown[] | ((tx: unknown) => Promise<unknown>)) => {
+      // Argumen opsi (maxWait/timeout/isolationLevel) sengaja diabaikan —
+      // fungsi JS menerima argumen ekstra tanpa perlu mendeklarasikannya.
+      if (typeof arg === "function") return arg(mockPrisma);
+      return Promise.all(arg as unknown[]);
+    }
+  ),
 };
 
 vi.mock("@/lib/db", () => ({

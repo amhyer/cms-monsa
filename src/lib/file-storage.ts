@@ -127,6 +127,14 @@ export async function loadUpload(
 
   // 1) Disk (self-host: static file biasanya sudah diserve Next; pembacaan
   //    di sini adalah fallback bila file ada tapi tidak terserve static).
+  //
+  // CATATAN (temuan review L4): di jalur DISK ini mimeType diturunkan dari
+  // EKSTENSI filename, bukan dari metadata hasil deteksi magic bytes — berbeda
+  // dari jalur DB di bawah yang menyimpan mimeType asli. Aman karena
+  // isSafeUploadFilename() membatasi ekstensi ke whitelist dan nama file
+  // selalu dibuat server-side, tetapi komentar di route /uploads/[...path]
+  // yang mengklaim "Content-Type diambil dari metadata tersimpan" hanya benar
+  // untuk backend db.
   try {
     const diskPath = join(UPLOAD_DIR, filename);
     await access(diskPath);

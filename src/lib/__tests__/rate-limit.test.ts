@@ -16,11 +16,61 @@ describe("rate-limit utilities", () => {
   });
 
   describe("getClientIp", () => {
-    it("extracts IP from x-forwarded-for header", () => {
+    it("mengambil entri TERKANAN dari x-forwarded-for (hop proxy tepercaya)", () => {
+      // Temuan review M1: entri paling KIRI adalah nilai kiriman klien dan
+      // bebas dipalsukan. Dengan TRUSTED_PROXY_HOPS=1 (default), proxy
+      // tepercaya menambahkan satu entri di kanan — itulah IP klien nyata.
       const req = new Request("http://localhost", {
         headers: { "x-forwarded-for": "1.2.3.4, 5.6.7.8" },
       });
+      expect(getClientIp(req)).toBe("5.6.7.8");
+    });
+
+    it("XFF tunggal tetap mengembalikan IP itu (jalur Caddy/self-host)", () => {
+      const req = new Request("http://localhost", {
+        headers: { "x-forwarded-for": "1.2.3.4" },
+      });
       expect(getClientIp(req)).toBe("1.2.3.4");
+    });
+
+    it("XFF kosong/berisi koma saja tidak menghasilkan kunci bucket kosong", () => {
+      const req = new Request("http://localhost", {
+        headers: { "x-forwarded-for": " , " },
+      });
+      expect(getClientIp(req)).toBe("unknown");
+    });
+
+    it("memakai x-vercel-forwarded-for saat berjalan di Vercel", () => {
+      const prev = process.env.VERCEL;
+      process.env.VERCEL = "1";
+      try {
+        const req = new Request("http://localhost", {
+          headers: {
+            // Klien memalsukan x-real-ip; di Vercel header itu TIDAK dipercaya.
+            "x-real-ip": "6.6.6.6",
+            "x-forwarded-for": "6.6.6.6, 203.0.113.9",
+            "x-vercel-forwarded-for": "203.0.113.9",
+          },
+        });
+        expect(getClientIp(req)).toBe("203.0.113.9");
+      } finally {
+        if (prev === undefined) delete process.env.VERCEL;
+        else process.env.VERCEL = prev;
+      }
+    });
+
+    it("menghormati TRUSTED_PROXY_HOPS untuk rantai CDN + reverse proxy", () => {
+      const prev = process.env.TRUSTED_PROXY_HOPS;
+      process.env.TRUSTED_PROXY_HOPS = "2";
+      try {
+        const req = new Request("http://localhost", {
+          headers: { "x-forwarded-for": "spoofed.by.client, 203.0.113.9, 10.0.0.1" },
+        });
+        expect(getClientIp(req)).toBe("203.0.113.9");
+      } finally {
+        if (prev === undefined) delete process.env.TRUSTED_PROXY_HOPS;
+        else process.env.TRUSTED_PROXY_HOPS = prev;
+      }
     });
 
     it("extracts IP from x-real-ip header", () => {

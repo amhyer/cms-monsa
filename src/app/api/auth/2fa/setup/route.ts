@@ -5,8 +5,9 @@
  * Returns the otpauth:// URI for QR code generation and the backup codes.
  * The secret is NOT yet enabled — user must verify first via /api/auth/2fa/verify.
  */
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { requireCsrf } from "@/lib/csrf";
 import { db } from "@/lib/db";
 import {
   generateTOTPSecret,
@@ -17,8 +18,11 @@ import {
 } from "@/lib/totp";
 import { logger } from "@/lib/logger";
 
-export async function POST() {
+export async function POST(req: NextRequest) {
   try {
+    const csrfError = await requireCsrf(req);
+    if (csrfError) return csrfError;
+
     const auth = await requireAuth();
     if (!auth.ok) return auth.response;
 

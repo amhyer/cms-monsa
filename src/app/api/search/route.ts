@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { rateLimitPublicGet } from "@/lib/rate-limit";
 
 export async function GET(req: NextRequest) {
+  // Rate limit (temuan review M3): endpoint publik ini menjalankan EMPAT query
+  // `contains` paralel. Di Postgres, `contains` = LIKE '%…%' yang tidak bisa
+  // memakai index → sequential scan. Tanpa pembatas, satu loop curl cukup
+  // untuk membebani database. Disamakan dengan endpoint publik lain (30/menit).
+  const rateLimited = await rateLimitPublicGet(req, 30, 60000);
+  if (rateLimited) return rateLimited;
+
   const { searchParams } = new URL(req.url);
   const query = searchParams.get("q") || "";
   const limit = Math.min(50, Math.max(1, Number(searchParams.get("limit") || "10")));
@@ -137,9 +145,14 @@ export async function GET(req: NextRequest) {
     return 0;
   });
 
+  // `total` sebelumnya melaporkan items.length SEBELUM dipotong, sehingga bisa
+  // lebih besar dari jumlah item yang benar-benar dikembalikan (temuan L3/M3).
+  // Endpoint ini tidak dipaginasi, jadi total = jumlah hasil yang dikirim.
+  const limited = items.slice(0, limit);
+
   return NextResponse.json({
-    items: items.slice(0, limit),
-    total: items.length,
+    items: limited,
+    total: limited.length,
     query: search,
   });
 }

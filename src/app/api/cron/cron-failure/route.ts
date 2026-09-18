@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { bearerMatches } from "@/lib/cron-auth";
 import { notifyAdmin } from "@/lib/notifications";
 import { logger } from "@/lib/logger";
 
@@ -59,7 +60,7 @@ export async function POST(req: Request) {
   }
 
   const auth = req.headers.get("authorization");
-  if (auth !== `Bearer ${secret}`) {
+  if (!bearerMatches(auth, secret)) {
     return NextResponse.json({ ok: false, error: "Unauthorized." }, { status: 401 });
   }
 

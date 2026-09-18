@@ -1,6 +1,20 @@
 import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
 import nextTypescript from "eslint-config-next/typescript";
 
+// CATATAN VERSI (temuan review M6):
+// `eslint-plugin-react-hooks` datang sebagai dependency transitif dari
+// `eslint-config-next` dengan range longgar `^7.0.0`. Versi 7.1.x
+// mengaktifkan/memperketat rule `react-hooks/set-state-in-effect` dan
+// `react-hooks/immutability` sehingga install baru menghasilkan ~65 error
+// di 30+ file (kebanyakan src/components/dashboard/modules/*.tsx).
+//
+// package.json mengunci versi ini lewat field `overrides` (dihormati npm
+// maupun bun) agar CI tidak mendadak merah saat lockfile di-regenerate.
+//
+// Ini penundaan, bukan penyelesaian. Utang teknisnya: perbaiki pola
+// setState-sinkron-di-useEffect tersebut, lalu lepas pin-nya dan naikkan
+// ke 7.1.x secara sadar.
+
 const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
   rules: {
     // TypeScript rules

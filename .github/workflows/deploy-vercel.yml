@@ -51,10 +51,14 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      # Wajib: secret DATABASE_URL di GitHub. Script memvalidasi bahwa ini
-      # PostgreSQL (Neon). Bila secret kosong/belum diset, script keluar
-      # dengan error yang jelas.
+      # Wajib: secret DATABASE_URL di GitHub. Step "Pastikan secret database
+      # tersedia" di bawah memvalidasi keberadaannya dan GAGAL dengan pesan
+      # eksplisit bila kosong (temuan review H1).
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # Koneksi DIRECT (non-pooler) untuk operasi DDL/migrasi. Opsional —
+      # scripts/deploy-vercel.sh fallback ke DATABASE_URL bila tidak diset,
+      # tetapi sangat disarankan untuk Neon.
+      DATABASE_URL_DIRECT: ${{ secrets.DATABASE_URL_DIRECT }}
       # Postgres service di atas (bukan secret). 127.0.0.1 eksplisit —
       # konsisten dengan komentar job e2e di ci.yml (localhost → ::1).
     steps:
@@ -68,15 +72,46 @@ jobs:
       - name: Setup repo (Node + Bun + install)
         uses: ./.github/actions/setup-repo
 
+      # FAIL LOUD bila secret tidak ada (temuan review H1).
+      #
+      # Sebelum perbaikan ini, secret DATABASE_URL yang kosong menyebabkan:
+      #   - dua guard di bawah ter-SKIP diam-diam (if: env.DATABASE_URL != '')
+      #   - lalu scripts/deploy-vercel.sh exit 1 di langkah TERAKHIR
+      # Hasilnya job merah 3x berturut-turut (13/15/17 Sep 2026) dengan pesan
+      # "Run deploy script" yang tidak menyebut akar masalahnya — dan, lebih
+      # parah, drift guard + P3005 guard pasca-insiden 2026-09-08 tidak
+      # pernah jalan sementara CI utama tetap hijau.
+      #
+      # Step ini memindahkan kegagalan ke depan dengan pesan yang eksplisit.
+      - name: Pastikan secret database tersedia
+        run: |
+          if [ -z "${DATABASE_URL:-}" ]; then
+            echo "::error::Secret DATABASE_URL tidak di-set di repository ini."
+            echo "Set di: Settings → Secrets and variables → Actions → New repository secret"
+            echo "  - DATABASE_URL        → Neon POOLED connection string (runtime)"
+            echo "  - DATABASE_URL_DIRECT → Neon DIRECT connection string (DDL/migrasi)"
+            echo "Tanpa secret ini, drift guard dan P3005 guard di bawah akan ter-skip"
+            echo "sehingga skema produksi tidak terlindungi."
+            exit 1
+          fi
+          case "$DATABASE_URL" in
+            postgresql://*|postgres://*) ;;
+            *)
+              echo "::error::DATABASE_URL bukan connection string PostgreSQL."
+              exit 1
+              ;;
+          esac
+          echo "DATABASE_URL tersedia (${DATABASE_URL%%:*})."
+          if [ -z "${DATABASE_URL_DIRECT:-}" ]; then
+            echo "::warning::DATABASE_URL_DIRECT tidak di-set — migrasi akan fallback ke koneksi pooled. Disarankan mengesetnya untuk operasi DDL."
+          fi
+
       # Drift guard SEBELUM migrate deploy: jalankan prisma migrate diff
       # (migrasi → schema.prisma) pada shadow DB. Bila riwayat migrasi
       # tidak selaras dengan schema.prisma, deploy GAGAL di sini — bukan
       # setelah `migrate deploy` menghasilkan skema setengah jadi di Neon
       # (kasus nyata 2026-09-08: drift 519 baris, login P2022 di DB fresh).
-      # Tanpa secret DATABASE_URL (mis. fork), step dilewati — migrate
-      # deploy di bawah yang akan gagal dengan pesan script yang jelas.
       - name: Check schema/migrations drift
-        if: env.DATABASE_URL != ''
         env:
           SHADOW_DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5433/shadow_ci"
         run: bun run check:schema-migrations      # Guard pra-deploy: deteksi kondisi P3005 di database SEBELUM migrate
@@ -85,19 +120,15 @@ jobs:
       # Guard gagal dengan petunjuk runbook baseline
       # (docs/RUNBOOK-BASELINE-NEON.md), bukan error Prisma yang samar.
       # Memakai DATABASE_URL_DIRECT bila secret-nya ada (konsisten dengan
-      # scripts/deploy-vercel.sh); tanpa secret DATABASE_URL (mis. fork),
-      # step dilewati seperti drift check di atas.
+      # scripts/deploy-vercel.sh).
       - name: Check pre-deploy DB state (P3005 guard)
-        if: env.DATABASE_URL != ''
-        env:
-          DATABASE_URL_DIRECT: ${{ secrets.DATABASE_URL_DIRECT }}
         run: bun run check:predeploy-db
 
       # `bash scripts/...` (bukan ./scripts/...) agar tidak bergantung pada
 
       # executable bit di git — aman dari repo yang di-commit di Windows.
-      # Script menjalankan: prisma generate → migrate deploy → seed (semua
-      # memakai skema tunggal prisma/schema.prisma — PostgreSQL). Seed
-      # idempotent (skip bila DB terisi).
-      - name: Run deploy script (migrate + seed)
+      # Script menjalankan: prisma generate → migrate deploy. (TIDAK ada
+      # langkah seed — nama step ini dulu menyebut "migrate + seed" dan
+      # menyesatkan; seed dijalankan terpisah via `bun run db:seed`.)
+      - name: Run deploy script (migrate)
         run: bash scripts/deploy-vercel.sh

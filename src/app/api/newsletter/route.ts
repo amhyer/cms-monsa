@@ -81,11 +81,23 @@ export async function POST(req: NextRequest) {
 /**
  * DELETE /api/newsletter
  * Public: unsubscribe from newsletter
+ *
+ * Token diterima dari body ATAU query string. Query string dipertahankan demi
+ * kompatibilitas dengan tautan unsubscribe di email, tetapi body lebih
+ * disukai: nilai di query string terekam di access log proxy/CDN (temuan L3).
  */
 export async function DELETE(req: NextRequest) {
+  // Sebelumnya tidak ada pembatas sama sekali di jalur ini (temuan review L3).
+  const rateLimited = await rateLimitPublicForm(req);
+  if (rateLimited) return rateLimited;
+
   try {
     const { searchParams } = new URL(req.url);
-    const token = searchParams.get("token");
+    // Body opsional — DELETE tanpa body harus tetap berfungsi.
+    const body = (await req.json().catch(() => null)) as { token?: unknown } | null;
+    const token =
+      (typeof body?.token === "string" && body.token.trim()) ||
+      searchParams.get("token");
 
     if (!token) {
       return NextResponse.json(

@@ -34,6 +34,27 @@ const securityHeaders = [
   // 'unsafe-eval' is needed ONLY for Next.js dev mode (HMR) and is removed in
   // production. frame-ancestors in production is restricted to the school
   // domain only (z.ai / space-z.ai preview panels are dev-only).
+  //
+  // ⚠️ UTANG TEKNIS (temuan review H3) — `script-src 'unsafe-inline'` masih ada
+  // di production, yang berarti CSP saat ini TIDAK memberi proteksi XSS sama
+  // sekali untuk script. Menghapusnya tidak bisa dilakukan sebaris: Next.js
+  // menyuntik inline script sendiri, jadi butuh nonce per-request.
+  //
+  // Rencana perbaikan (harus diverifikasi di browser, bukan hanya build):
+  //   1. Di src/proxy.ts, generate nonce: `crypto.randomUUID()` → base64.
+  //   2. Hapus Content-Security-Policy dari `headers()` di file ini dan set
+  //      header-nya di proxy.ts dengan `script-src 'self' 'nonce-<n>'
+  //      'strict-dynamic'`. (Menyetel CSP di dua tempat akan menghasilkan
+  //      dua header yang digabung browser dengan aturan paling ketat.)
+  //   3. Next.js otomatis memakai nonce dari header CSP untuk inline
+  //      script-nya; pastikan juga <Script> dan Sentry client config
+  //      tidak butuh penyesuaian.
+  //   4. Lewati CSP saat `process.env.NODE_ENV !== "production"` — HMR
+  //      Turbopack butuh 'unsafe-eval' dan inline script.
+  //   5. Uji dengan Report-Only dulu (`Content-Security-Policy-Report-Only`)
+  //      untuk mengumpulkan pelanggaran sebelum menegakkannya.
+  // `style-src 'unsafe-inline'` boleh dibiarkan (risikonya jauh lebih rendah
+  // dan shadcn/Tailwind memang membutuhkannya).
   {
     key: "Content-Security-Policy",
     value: [
@@ -47,8 +68,11 @@ const securityHeaders = [
       "media-src 'self' https:",
       // Frames: allow youtube embeds for gallery videos.
       "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com",
-      // Connect: same-origin API + dev websocket for HMR + Sentry error tracking.
-      "connect-src 'self' ws: wss: https://*.sentry.io",
+      // Connect: same-origin API + Sentry error tracking.
+      // Skema wildcard ws:/wss: HANYA untuk development (HMR Turbopack).
+      // Di production keduanya dibuang — sebelumnya ikut terbawa, yang
+      // mengizinkan fetch/XHR ke host WebSocket MANA PUN (temuan review H3).
+      `connect-src 'self'${isProd ? "" : " ws: wss:"} https://*.sentry.io`,
       // Manifest: allow self + Vercel SSO proxy for PWA manifest.
       "manifest-src 'self' https:",
       // No plugins.
@@ -68,8 +92,17 @@ const nextConfig: NextConfig = {
   // Standalone hanya untuk self-host; nonaktif saat di Vercel.
   output: isVercel ? undefined : "standalone",
 
-  // Source maps di production untuk debugging (Lighthouse advisory).
-  productionBrowserSourceMaps: true,
+  // Source maps production DIMATIKAN (temuan review H4).
+  //
+  // Dulu true dengan alasan "Lighthouse advisory" — alasan itu tidak valid:
+  // source map tidak memengaruhi skor Lighthouse. Yang terjadi justru
+  // seluruh source code tersaji publik di /_next/static/**/*.map dan bisa
+  // direkonstruksi siapa pun.
+  //
+  // Sentry tetap mendapat source map lengkap: withSentryConfig di bawah
+  // meng-upload-nya saat build (widenClientFileUpload: true) dan
+  // hideSourceMaps: true memastikan artefaknya tidak ikut ter-deploy.
+  productionBrowserSourceMaps: false,
 
   // Prisma (native query engine) jangan di-bundle webpack/turbopack —
   // tanpa ini `next start` di CI sering 500 "Query engine library not found"

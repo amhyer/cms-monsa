@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateIngestRequest } from "@/lib/dapodik-auth";
-import { archiveDapodikUnlisted } from "@/lib/dapodik-sync";
+import { archiveDapodikUnlisted, ArchiveSafetyError } from "@/lib/dapodik-sync";
 import { rateLimitPublicForm } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -11,9 +11,15 @@ export const maxDuration = 60;
  * chunk sync berhasil dikirim. Autentikasi sama dengan /api/dapodik/ingest
  * (x-api-key ATAU Bearer kunci pairing).
  *
- * Body: { pesertaDidikIds: string[], gtkIds: string[] }
+ * Body: { pesertaDidikIds: string[], gtkIds: string[], force?: boolean }
  *   - pesertaDidikIds: daftar lengkap peserta_didik_id yang ADA di Dapodik
  *   - gtkIds: daftar lengkap NUPTK/NIP yang ADA di Dapodik
+ *   - force: opsional, lewati pagar rasio arsip massal (lihat di bawah)
+ *
+ * PAGAR PENGAMAN (temuan review H2): daftar kosong selalu ditolak (409), dan
+ * panggilan yang akan mengarsipkan >10% data aktif ditolak kecuali force:true.
+ * Ini mencegah jembatan yang crash di tengah sync — lalu tetap memanggil
+ * endpoint ini dengan data terpotong — menonaktifkan seluruh siswa & guru.
  *
  * Response cepat (2-3 query) — aman di bawah batas waktu Vercel Hobby.
  */
@@ -35,15 +41,27 @@ export async function POST(req: NextRequest) {
     ? body.pesertaDidikIds.map(String)
     : [];
   const gtkIds = Array.isArray(body.gtkIds) ? body.gtkIds.map(String) : [];
+  // Opt-in eksplisit untuk arsip massal yang disengaja. Default false — pagar
+  // pengaman di archiveDapodikUnlisted aktif (temuan review H2).
+  const force = (body as { force?: unknown }).force === true;
 
   try {
-    const result = await archiveDapodikUnlisted({ pesertaDidikIds, gtkIds });
+    const result = await archiveDapodikUnlisted({ pesertaDidikIds, gtkIds, force });
     return NextResponse.json({
       success: true,
       ...result,
       message: `Diarsipkan: ${result.siswaArchived} siswa, ${result.gtkArchived} guru.`,
     });
   } catch (err) {
+    // Pagar pengaman arsip → 409 Conflict: ini keputusan pengaman yang harus
+    // dibaca operator, bukan kegagalan gateway. 502 akan membuatnya tampak
+    // seperti masalah koneksi ke Dapodik dan memicu retry buta.
+    if (err instanceof ArchiveSafetyError) {
+      return NextResponse.json(
+        { success: false, code: err.code, error: err.message },
+        { status: 409 }
+      );
+    }
     const message = err instanceof Error ? err.message : "Gagal mengarsipkan data.";
     return NextResponse.json({ success: false, error: message }, { status: 502 });
   }

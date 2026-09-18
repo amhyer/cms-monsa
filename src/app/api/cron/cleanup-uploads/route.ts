@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { bearerMatches } from "@/lib/cron-auth";
 import { cleanupOldUploads } from "@/lib/upload-cleanup";
 import { logger } from "@/lib/logger";
 
@@ -32,7 +33,7 @@ export async function GET(req: Request) {
 
   // Vercel Cron mengirim `Authorization: Bearer $CRON_SECRET` otomatis.
   const auth = req.headers.get("authorization");
-  if (auth !== `Bearer ${secret}`) {
+  if (!bearerMatches(auth, secret)) {
     return NextResponse.json({ ok: false, error: "Unauthorized." }, { status: 401 });
   }
 

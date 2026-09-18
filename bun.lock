@@ -1,6 +1,5 @@
 {
   "lockfileVersion": 1,
-  "configVersion": 1,
   "workspaces": {
     "": {
       "name": "nextjs_tailwind_shadcn_ts",
@@ -73,6 +72,9 @@
         "vitest": "^4.1.11",
       },
     },
+  },
+  "overrides": {
+    "eslint-plugin-react-hooks": "7.0.1",
   },
   "packages": {
     "@adobe/css-tools": ["@adobe/css-tools@4.5.0", "", {}, "sha512-6OzddxPio9UiWTCemp4N8cYLV2ZN1ncRnV1cVGtve7dhPOtRkleRyx32GQCYSwDYgaHU3USMm84tNsvKzRCa1Q=="],

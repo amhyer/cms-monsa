@@ -102,11 +102,12 @@ test.describe("Dapodik config — CF Access", () => {
   });
 
   test("secret kosong saat simpan → dipertahankan; mengisi field → rotasi", async ({ page }) => {
-    // Prasyarat: secret A tersimpan oleh test sebelumnya (suite berurutan,
-    // workers: 1). Test ini tetap mandiri bila dijalankan sendirian —
-    // langsung buat secret A dulu bila belum ada.
+    // Prasyarat: secret tersimpan — ditandai hint mask. Suite berurutan
+    // (workers: 1) biasanya sudah membuatnya, tapi restore afterEach kini
+    // menghapus Client ID → test ini TIDAK boleh bergantung pada sisa test
+    // sebelumnya: self-seed mandiri bila mask belum ada.
     await openConfig(page);
-    if ((await page.getByText(MASKED_HINT).count()) === 0) {
+    if (!(await page.getByText(MASKED_HINT).isVisible())) {
       await page.getByLabel("CF Access Client ID").fill(CF_CLIENT_ID);
       await page.getByLabel("CF Access Client Secret").fill(CF_SECRET_A);
       await page.getByRole("button", { name: "Simpan Konfigurasi" }).click();
@@ -120,9 +121,9 @@ test.describe("Dapodik config — CF Access", () => {
     await expect(page.getByText("Konfigurasi tersimpan!")).toBeVisible();
 
     // Buka ulang: hint mask masih ada → secret TIDAK ter-wipe oleh simpanan
-    // tanpa secret (regresi utama yang diperbaiki).
+    // tanpa secret (regresi utama yang diperbaiki). Client ID tidak diasertakan
+    // di sini — restore afterEach bisa saja menghapusnya di antara test.
     await openConfig(page);
-    await expect(page.getByLabel("CF Access Client ID")).toHaveValue(CF_CLIENT_ID);
     await expect(page.getByText(MASKED_HINT)).toBeVisible();
 
     // --- Rotasi: isi secret B → tersimpan, field kembali kosong ---
@@ -138,6 +139,14 @@ test.describe("Dapodik config — CF Access", () => {
 
   test("Client ID dikosongkan → dihapus setelah simpan; secret tetap ada", async ({ page }) => {
     await openConfig(page);
+    // Pastikan ada secret tersimpan (mask terlihat) agar asersi "secret tetap
+    // ada" bermakna — suite ini juga harus lulus bila dijalankan sendirian.
+    if (!(await page.getByText(MASKED_HINT).isVisible())) {
+      await page.getByLabel("CF Access Client Secret").fill(CF_SECRET_A);
+      await page.getByRole("button", { name: "Simpan Konfigurasi" }).click();
+      await expect(page.getByText("Konfigurasi tersimpan!")).toBeVisible();
+      await openConfig(page);
+    }
     await page.getByLabel("CF Access Client ID").fill("");
     await page.getByRole("button", { name: "Simpan Konfigurasi" }).click();
     await expect(page.getByText("Konfigurasi tersimpan!")).toBeVisible();

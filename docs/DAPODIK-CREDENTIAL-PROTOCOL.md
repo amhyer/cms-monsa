@@ -14,6 +14,8 @@ Sumber implementasi:
 - `src/components/dashboard/modules/dapodik-manager.tsx` — form dashboard
 - Test: `src/lib/__tests__/dapodik-config-encryption.test.ts` (unit) dan
   `e2e/dapodik-config-cf-access.spec.ts` (e2e)
+- Fixture e2e: `prisma/seed-e2e.ts` — kredensial akun uji + protokol CSRF yang
+  wajib diikuti setiap spec yang mem-POST lewat `page.request`
 
 ---
 
@@ -196,3 +198,60 @@ Saat menambah field kredensial baru di `DapodikConfig`:
 4. Di form: selalu kosongkan setelah muat; kirim hanya bila diisi (untuk
    field rahasia) atau selalu kirim (untuk pengenal).
 5. Tambahkan kasusnya ke tabel pengujian di atas.
+
+---
+
+## Kredensial E2E (`prisma/seed-e2e.ts`)
+
+Suite Playwright tidak memakai seed demo. Spec membaca kredensial dari
+`e2e/helpers.ts`, yang wajib sinkron dengan `prisma/seed-e2e.ts`:
+
+| Akun (`e2e/helpers.ts`) | Email | Password |
+| --- | --- | --- |
+| `ADMIN` | `admin@mongisidi1.sch.id` | `admin123` |
+| `OPERATOR` | `operator@mongisidi1.sch.id` | `operator123` |
+| `GURU` | `guru@mongisidi1.sch.id` | `guru123` |
+
+Catatan penting:
+
+- Akun `@mongisidi1.sch.id` **hanya dibuat seed E2E** (`E2E_SEED=1 bun run
+  db:seed:e2e`). Seed demo (`bun run db:seed`) memakai domain
+  `@sekolahdemo.id` / password `demo123` — login spec akan 401 bila database
+  belum di-seed E2E.
+- Semua baris seed E2E ber-ID/nis prefiks `e2e-` dan idempoten (upsert), aman
+  dijalankan ulang per run, dan bisa hidup berdampingan dengan seed demo.
+- Seed E2E punya dua pengaman: wajib `E2E_SEED=1`, dan menolak
+  `DATABASE_URL` yang mengarah ke Neon (produksi).
+- Bersihkan sisa fixture dari database dev murni dengan
+  `bunx tsx prisma/seed.ts --purge-e2e` (dua fase, mengikuti urutan FK;
+  kelas yang masih dirujuk diganti nama, bukan dihapus).
+
+## Protokol CSRF untuk fixture `page.request` di e2e
+
+`requireCsrf` berlaku juga untuk request yang dikirim spec lewat
+`page.request` — cookie `monsa_csrf` saja **tidak cukup**; POST tanpa header
+`x-csrf-token` yang cocok selalu **403 secara diam**. Dulu ini membuat cleanup
+`afterEach` beberapa spec gagal tanpa jejak (config Dapodik sempat tertinggal
+nilai fixture `127.0.0.1` di database dev).
+
+Kontrak helper yang dipakai spec (lihat `postConfig` di
+`e2e/dapodik-config-cf-access.spec.ts`):
+
+```ts
+async function postConfig(page: Page, data: Record<string, unknown>) {
+  const tokenRes = await page.request.get("/api/csrf-token");
+  const { token } = (await tokenRes.json()) as { token: string };
+  return page.request.post("/api/dapodik/config", {
+    data,
+    headers: { "x-csrf-token": token },
+  });
+}
+```
+
+Aturan untuk spec baru:
+
+1. Setiap `page.request.post/put/patch/delete` wajib mengambil token dari
+   `GET /api/csrf-token` lalu mengirimnya sebagai header `x-csrf-token`.
+2. Cleanup/restore di `afterEach` **harus** melewati helper ber-CSRF — dan
+   gagal keras (`throw`) bila responsnya bukan 2xx, agar kebocoran fixture
+   tidak lagi tersembunyi.

@@ -4,6 +4,10 @@ import { readdirSync, readFileSync, statSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+// Batas waktu suite dimulai — log wrapper server yang lebih lama dari ini
+// adalah sisa run sebelumnya (mode reuse tidak menulis log baru).
+const suiteStartedAt = Date.now() - 5 * 60_000;
+
 // warmup: /api/bos-expenditures /api/bos-documents /api/auth/login
 
 /**
@@ -24,7 +28,10 @@ function latestServerLog(): string {
   // Tidak ada log wrapper (mis. suite dijalankan melawan server yang sudah
   // berjalan lewat mode reuse) → jangan crash; gate 5xx dinilai dari string
   // kosong (tidak pernah match) sehingga asersi utama test tetap berlaku.
-  if (!base) return "";
+  // Log BASI dari run/sever lama juga diabaikan: tanpa ini, mode reuse bisa
+  // membaca log wrapper run sebelumnya (mis. `next start` yang exit 255) dan
+  // gagal pada asersi audit yang seharusnya hanya berlaku untuk log run ini.
+  if (!base || statSync(join(dir, base)).mtimeMs < suiteStartedAt) return "";
   const out = readFileSync(join(dir, base), "utf8");
   const errFile = join(dir, `${base}.err`);
   const err = existsSync(errFile) ? readFileSync(errFile, "utf8") : "";

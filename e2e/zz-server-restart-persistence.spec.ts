@@ -23,9 +23,19 @@ import { join } from "node:path";
  *   - DILEWATI bila .zscripts/dev.pid ada (reuse mode: server milik
  *     developer sedang hidup) — tidak mematikan server orang.
  *
- * Session & CSRF bertahan lintas restart: SESSION_SECRET memakai dev
- * fallback deterministik (tanpa AUTH_SECRET) dan CSRF adalah cookie-vs-header
- * tanpa secret server — jadi login admin tetap valid setelah server baru naik.
+ * Session & CSRF bertahan lintas restart ASALKAN server baru SAMA mode-nya
+ * dengan server asli wrapper (next start vs next dev):
+ *   - Nama cookie sesi bergantung NODE_ENV: `__Host-monsa_session` saat
+ *     produksi, `monsa_session` saat dev (lihat src/lib/auth.ts).
+ *   - Tanda tangan HMAC token bergantung AUTH_SECRET — diwarisi proses test,
+ *     sama untuk server asli maupun hasil restart.
+ *   - CSRF murni cookie-vs-header tanpa secret server, jadi aman selama
+ *     cookie browser tidak berubah.
+ * Mismatch mode = server baru tak membaca cookie sesi browser → 401 di
+ * request ter-autentikasi PERTAMA pasca-restart (bug flaky CI: request
+ * pertama gagal, retry lulus karena login ulang terjadi di server baru).
+ * startServer() karena itu memilih subkomando next yang sama (start/dev)
+ * dengan E2E_SERVER_CMD wrapper.
  */
 const baseURL = process.env.E2E_BASE_URL ?? "";
 const port = baseURL ? new URL(baseURL).port || "3000" : "";
@@ -153,6 +163,13 @@ function killServerTree(portOwnerPid: number): void {
   }
 }
 
+// Mode server asli wrapper, dibaca dari E2E_SERVER_CMD ("bun run start" →
+// produksi, default "bun run dev" → dev). WAJIB dipertahankan saat restart:
+// cookie sesi (`__Host-monsa_session` vs `monsa_session`) dan kontrak build
+// bergantung padanya — mismatch membuat sesi admin tak terbaca server baru
+// (401 di DELETE pasca-restart; lulus saat retry = signature flaky CI).
+const prodServer = /\bstart\b/.test(process.env.E2E_SERVER_CMD ?? "");
+
 function startServer(): void {
   const stamp = Date.now();
   const logOut = join(tmpdir(), `monsa-restart-${stamp}.log`);
@@ -174,25 +191,30 @@ function startServer(): void {
   // tunggal. Env DIWARISI agar DB + distDir sama dengan server asli.
   if (isWin) {
     const nextBin = "node_modules/next/dist/bin/next";
+    // Subkomando mengikuti mode server asli (start = produksi, dev = dev) —
+    // lihat komentar `prodServer` di atas.
+    const subCmd = prodServer ? "start" : "dev";
     // distDir WAJIB beda dari server dev utama developer (yang biasanya
     // memakai `.next` default): Next.js menolak dua `next dev` yang berbagi
     // distDir yang sama di proyek yang sama ("Another next dev server is
     // already running"). Bila wrapper tidak menyetel NEXT_DIST_DIR (mis. uji
     // standalone), pakai `.next-gate` — pola yang sama seperti server e2e.
-    const distDir = process.env.NEXT_DIST_DIR || ".next-gate";
+    // KECUALI mode produksi: `next start` butuh hasil build produksi, jadi
+    // default-nya `.next` (hasil `bun run build` di step CI sebelumnya).
+    const distDir = process.env.NEXT_DIST_DIR || (prodServer ? ".next" : ".next-gate");
     const ps = spawn(
       "powershell",
       [
         "-NoProfile",
         "-Command",
-        `$env:DATABASE_URL='${process.env.DATABASE_URL ?? ""}'; $env:NEXT_DIST_DIR='${distDir}'; (Start-Process -FilePath '${process.execPath}' -ArgumentList '${nextBin}','dev','-p','${port}' -RedirectStandardOutput '${logOut}' -RedirectStandardError '${logErr}' -WindowStyle Hidden -PassThru).Id`,
+        `$env:DATABASE_URL='${process.env.DATABASE_URL ?? ""}'; $env:NEXT_DIST_DIR='${distDir}'; (Start-Process -FilePath '${process.execPath}' -ArgumentList '${nextBin}','${subCmd}','-p','${port}' -RedirectStandardOutput '${logOut}' -RedirectStandardError '${logErr}' -WindowStyle Hidden -PassThru).Id`,
       ],
       { stdio: ["ignore", "ignore", "ignore"] }
     );
     ps.unref();
     return;
   }
-  spawn("bun", ["x", "next", "dev", "-p", port], {
+  spawn("bun", ["x", "next", prodServer ? "start" : "dev", "-p", port], {
     detached: true,
     stdio: "ignore",
     env: process.env,
@@ -298,6 +320,14 @@ test("dokumen BOS bertahan di disk lintas restart server (upload → restart →
   expect(freed).toBe(true);
   startServer();
   expect(await waitForServer()).toBe(true);
+
+  // Probe sesi DINI: server baru wajib tetap mengenali cookie admin. Tanpa
+  // ini, mismatch mode/secret baru terasa sebagai 401 samar di DELETE jauh
+  // di bawah — di sini gagalnya cepat dengan pesan yang menyebut penyebab.
+  const meRes = await page.request.get("/api/auth/me");
+  expect(meRes.ok(), `sesi admin hilang pasca-restart (HTTP ${meRes.status()}) — server baru kemungkinan beda mode (start vs dev) atau AUTH_SECRET berubah`).toBe(true);
+  const me = (await meRes.json()) as { user: { email: string } | null };
+  expect(me.user?.email ?? null).toBe(ADMIN.email);
 
   // --- UNDUH SETELAH RESTART: byte harus PERSIS sama (bukti disk) ---
   const after = await page.request.get(downloadUrl);

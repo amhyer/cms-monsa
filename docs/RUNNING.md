@@ -144,6 +144,8 @@ produksi), dan menulis PDF demo ke `public/uploads/` (di-gitignore).
 > Seed E2E (`E2E_SEED=1 bunx tsx prisma/seed-e2e.ts`, ID "e2e-", kredensial
 > `@mongisidi1.sch.id`) **hanya** untuk menjalankan suite Playwright —
 > datanya sengaja dibuat berpola dan tidak pantas tampil di dev sehari-hari.
+> Kedua seed sekaligus + suite: `bun run test:e2e:demo`; bersihkan sisa
+> fixture e2e dari DB dev: `bunx tsx prisma/seed.ts --purge-e2e`.
 
 ### Produksi (Vercel + Neon)
 
@@ -287,6 +289,7 @@ bun run lint:md      # markdownlint (fence & tautan relatif)
 bun run test         # Vitest (unit/integration)
 bun run test:e2e     # Playwright (bila diinginkan)
 bun run test:e2e:local # test:e2e untuk dev server lokal — E2E_SERVER_LOG otomatis ke .zscripts/dev.log
+bun run test:e2e:demo  # test:e2e:local + seed demo & seed E2E otomatis sebelum suite (coexistence)
 ```
 
 ### Gate CI: job `hooks-gate` (reusable workflow)
@@ -413,6 +416,29 @@ dengan alur: **tentukan server target → panaskan rute → jalankan
 `playwright test` → bersihkan server & tulis artifact log**. Bagian ini
 menjelaskan tiap tahap dan cara mendiagnosa kegagalan (versi ringkas; detail
 lengkap ada di [README.md](../README.md) → *E2E Troubleshooting*).
+
+### Mode data suite: reuse vs seeded (`test:e2e:demo`)
+
+Suite Playwright membaca akun dari `e2e/helpers.ts` (`@mongisidi1.sch.id`,
+lihat [DAPODIK-CREDENTIAL-PROTOCOL.md](DAPODIK-CREDENTIAL-PROTOCOL.md) →
+"Kredensial E2E") — akun itu **hanya** dibuat seed E2E
+(`prisma/seed-e2e.ts`). Akibatnya ada dua mode menjalankan suite:
+
+| Mode | Perintah | Kapan dipakai | Data DB |
+|------|----------|---------------|---------|
+| **Seeded (rekomendasi untuk verifikasi menyeluruh)** | `bun run test:e2e:demo` | Sebelum push/merge — cakupan penuh | `prisma/seed.ts` (demo) + `prisma/seed-e2e.ts` dijalankan dulu (idempoten), lalu suite — **coexistence demo×e2e**, kondisi yang paling sering membedakan dev lokal dari CI |
+| **Reuse (iterasi cepat)** | `bun run test:e2e:local` atau `test:e2e -- --if-up` | Mengulang spec tertentu melawan dev server yang sedang hidup | DB apa pun yang sedang dipakai dev — suite tidak men-seed apa pun; bila akun `@mongisidi1.sch.id` belum ada (DB demo murni), login spec akan 401 |
+
+Di CI, DB disiapkan murni untuk e2e (skema + seed E2E saja, tanpa demo) —
+coexistence hanya relevan untuk run lokal. Spec ditulis agar lulus di
+ketiganya: jangan mengasumsikan hitungan/urutan seed (baca dari API), dan
+barang buatan test dibersihkan lewat `afterEach` yang **wajib** mengirim
+header `x-csrf-token` (lihat protokol CSRF pada dokumen kredensial di atas).
+
+`test:e2e:demo` = kedua seed berurutan lalu delegasi ke `run-e2e-local`
+(asumsi: `db:push` sudah pernah jalan sehingga skema ada). Sisa fixture e2e
+di DB dev murni dibersihkan dengan `bunx tsx prisma/seed.ts --purge-e2e`
+(dua fase, mengikuti urutan FK).
 
 ### Env var (knob E2E)
 
@@ -864,6 +890,7 @@ bun run dev 2>&1 | jq 'select(.level == "error")'
 | Jalankan produksi | `bun run start` |
 | Validasi lengkap | `bun run check` |
 | Test unit | `bun run test` |
+| E2E + seed demo & e2e (coexistence) | `bun run test:e2e:demo` |
 | Backup DB | `bun run backup:db` |
 | Warm-up rute (tanpa suite) | `bun run e2e:warmup` |
 | Triage kegagalan E2E | `bun run triage:e2e` |

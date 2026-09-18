@@ -102,6 +102,10 @@ async function main() {
   }
   // Siswa pertama (urut abjad) HARUS "Aisyah Putri Ramadhani" — students-
   // manager.spec menautkan quick action "Buat akun SISWA" ke nama ini.
+  // Catatan: klaim "pertama" hanya berlaku di DB e2e murni (CI). Di DB dev
+  // yang berisi seed demo sekaligus (coexistence), nama demo "Ahmad Fauzan"
+  // mendahuluinya — yang penting bagi spec hanyalah bahwa kartu "Aisyah"
+  // tampil di halaman 1 (terpenuhi: urut abjadnya paling tidak posisi ke-2).
   const studentNames = [
     "Aisyah Putri Ramadhani",
     "Budi Santoso",

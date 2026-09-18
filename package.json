@@ -20,6 +20,7 @@
     "e2e:warmup": "bunx tsx e2e/warmup-cli.ts",
     "test:e2e": "bunx tsx scripts/run-e2e.ts",
     "test:e2e:local": "bunx tsx scripts/run-e2e-local.ts",
+    "test:e2e:demo": "bunx tsx scripts/e2e-demo-seed.ts",
     "e2e:selfhost": "bunx tsx scripts/run-e2e-selfhost.ts",
     "check:warmup-declarations": "bunx tsx scripts/check-warmup-declarations.ts",
     "check:non2xx": "bunx tsx scripts/check-non2xx.ts",

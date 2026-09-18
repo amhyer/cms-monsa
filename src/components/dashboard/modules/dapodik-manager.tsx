@@ -595,6 +595,7 @@ export function DapodikManager() {
                 <Switch
                   checked={config.allowInsecureInProduction}
                   onCheckedChange={(v) => setConfig((p) => ({ ...p, allowInsecureInProduction: v }))}
+                  aria-label="Izinkan HTTP di production"
                 />
               </div>
             </div>

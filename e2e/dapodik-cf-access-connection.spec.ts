@@ -84,7 +84,13 @@ async function startCfAccessUpstream(opts: {
 }
 
 async function openConfig(page: Page) {
+  // Tunggu GET config (useEffect mount) selesai — hindari race UI state
+  // dengan interaksi berikutnya (fill/switch).
+  const configRes = page.waitForResponse(
+    (r) => r.url().includes("/api/dapodik/config") && r.request().method() === "GET"
+  );
   await page.goto("/dashboard/dapodik");
+  await configRes;
   await page.getByRole("button", { name: "Konfigurasi", exact: true }).click();
   await expect(page.getByLabel("NPSN")).toBeVisible();
 }
@@ -96,6 +102,19 @@ async function saveCredentials(page: Page, port: number) {
   await page.getByLabel("Port").fill(String(port));
   await page.getByLabel("CF Access Client ID").fill(CF_ID);
   await page.getByLabel("CF Access Client Secret").fill(CF_SECRET);
+  // Workflow E2E prod-mode menjalankan server dengan NODE_ENV=production;
+  // emulator upstream-nya HTTP murni. Tanpa ini DapodikClient menolak
+  // membangun koneksi ("HTTP tidak diizinkan di production") SEBELUM
+  // menyentuh upstream — happy path gagal dan test negatif jadi false-pass.
+  // Toggle idempoten: state awal bergantung isi DB, bukan asumsi.
+  const insecureSwitch = page.getByRole("switch", { name: "Izinkan HTTP di production" });
+  if ((await insecureSwitch.getAttribute("aria-checked")) !== "true") {
+    await insecureSwitch.click();
+    await expect(insecureSwitch).toHaveAttribute("aria-checked", "true");
+  }
+  // Server e2e berjalan mode production (next start) — guard DapodikClient
+  // menolak HTTP sebelum request keluar bila toggle ini mati, sehingga semua
+  // test "gagal" akan lulus palsu dan test sukses tak pernah menyentuh upstream.
   await page.getByRole("button", { name: "Simpan Konfigurasi" }).click();
   await expect(page.getByText("Konfigurasi tersimpan!")).toBeVisible();
   // Simpan menutup panel konfigurasi — buka lagi untuk menjangkau
@@ -145,6 +164,10 @@ test.describe("Dapodik koneksi via Cloudflare Access (emulasi upstream)", () => 
       cfAccessClientId: snapshot.cfAccessClientId
         ? String(snapshot.cfAccessClientId)
         : "",
+      // Boolean TIDAK dipertahankan bila absen (route memakai default) —
+      // kirim eksplisit dari snapshot.
+      archiveUnlisted: snapshot.archiveUnlisted !== false,
+      allowInsecureInProduction: snapshot.allowInsecureInProduction === true,
       // token & cfAccessClientSecret tidak dikirim → dipertahankan.
     });
   });

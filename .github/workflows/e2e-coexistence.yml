@@ -175,16 +175,20 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          SHA: ${{ github.sha }}
+          BRANCH: ${{ github.head_ref || github.ref_name }}
         run: |
-          ALREADY=$(gh api "repos/$REPO/actions/workflows/e2e-coexistence.yml/runs?event=workflow_dispatch&head_sha=$SHA" --jq '.total_count' 2>/dev/null || echo 0)
+          # Guard anti-loop per BRANCH, bukan SHA: pada event pull_request,
+          # github.sha = merge commit (bukan head branch) sehingga filter
+          # head_sha tidak pernah match. head_branch = nama branch di kedua
+          # jenis event. gh WAJIB diberi -R: job ini tanpa checkout (tanpa
+          # konteks git) — tanpa itu gh gagal "not a git repository".
+          ALREADY=$(gh api -R "$REPO" "repos/$REPO/actions/workflows/e2e-coexistence.yml/runs?event=workflow_dispatch&head_branch=$BRANCH&per_page=1" --jq '.total_count' 2>/dev/null || echo 0)
           if [ "${ALREADY:-0}" -ge 1 ]; then
-            echo "Auto-retry untuk commit ini sudah pernah dipicu (total_count=$ALREADY) — dilewati (guard anti-loop)."
+            echo "Auto-retry untuk branch '$BRANCH' sudah pernah dipicu — dilewati (guard anti-loop)."
             exit 0
           fi
-          REF="${{ github.head_ref || github.ref_name }}"
-          gh workflow run e2e-coexistence.yml --ref "$REF"
-          echo "Job e2e dibatalkan eksternal — run baru dipicu via workflow_dispatch pada ref '$REF'."
+          gh workflow run -R "$REPO" e2e-coexistence.yml --ref "$BRANCH"
+          echo "Job e2e dibatalkan eksternal — run baru dipicu via workflow_dispatch pada branch '$BRANCH'."
 
       - name: Tautan pemantauan
         run: |

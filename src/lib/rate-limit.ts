@@ -23,11 +23,104 @@ const MAX_FAILURES = 5;
 const LOCK_DURATION = 15 * 60 * 1000;
 const IP_MAX_ATTEMPTS = 20;
 
-// Fallback jika Redis tidak tersedia
-const store = new Map<string, { failures: number; lockedUntil: number }>();
-const ipStore = new Map<string, { failures: number; lockedUntil: number }>();
-const formStore = new Map<string, { count: number; windowStart: number }>();
-const getStore = new Map<string, { count: number; windowStart: number }>();
+/**
+ * Jumlah hop proxy tepercaya di depan aplikasi (temuan review M1).
+ *
+ * Dipakai untuk memilih entri X-Forwarded-For yang benar: dihitung dari KANAN,
+ * bukan dari kiri. Entri paling kiri adalah nilai kiriman KLIENT dan bebas
+ * dipalsukan; entri ke-N dari kanan ditambahkan oleh proxy ke-N yang kita
+ * percayai.
+ *
+ *   - Vercel       : 1 (edge Vercel) — tapi lihat getClientIp, di sana kita
+ *                    memakai x-vercel-forwarded-for yang di-set platform.
+ *   - Self-host    : 1 (Caddy menimpa XFF dengan {remote_host} — lihat Caddyfile)
+ *   - CDN + Caddy  : set TRUSTED_PROXY_HOPS=2, dan pastikan Caddy tidak
+ *                    menimpa XFF bila rantai proxy-nya lebih dari satu.
+ */
+function trustedProxyHops(): number {
+  const n = Number.parseInt(process.env.TRUSTED_PROXY_HOPS ?? "1", 10);
+  return Number.isFinite(n) && n > 0 ? n : 1;
+}
+
+/** Ambil satu alamat IP dari nilai header (buang port/kosong). */
+function firstIp(value: string): string {
+  const ip = value.split(",")[0].trim();
+  return ip || "unknown";
+}
+
+// Fallback jika Redis tidak tersedia.
+//
+// PENTING (temuan review M8): Map global ini dulunya TIDAK PERNAH dibersihkan.
+// Setiap IP/email unik menambah satu entri permanen, sehingga deployment
+// self-host berumur panjang tanpa Redis tumbuh tanpa batas — memory leak yang
+// bisa dipicu sengaja dengan merotasi header IP palsu (lihat getClientIp).
+// Sekarang setiap entri membawa windowStart/lockedUntil dan disapu berkala.
+const store = new Map<string, FailureRecord>();
+const ipStore = new Map<string, FailureRecord>();
+const formStore = new Map<string, CountRecord>();
+const getStore = new Map<string, CountRecord>();
+
+type FailureRecord = { failures: number; lockedUntil: number; windowStart: number };
+type CountRecord = { count: number; windowStart: number };
+
+/** Interval minimum antar-sapu (ms) — disapu oportunistis, bukan pakai timer. */
+const SWEEP_INTERVAL_MS = 60 * 1000;
+/**
+ * Batas keras jumlah entri per Map. Bila terlampaui, entri terlama dibuang.
+ * Jaring pengaman terakhir seandainya sapu berkala kalah cepat dari laju
+ * kedatangan kunci unik (mis. serangan spoofing IP).
+ */
+const MAX_ENTRIES = 50_000;
+
+let lastSweep = 0;
+
+/** Buang entri yang window-nya dan lock-nya sudah lewat. */
+function sweepExpired(now: number): void {
+  if (now - lastSweep < SWEEP_INTERVAL_MS) return;
+  lastSweep = now;
+
+  for (const map of [store, ipStore] as const) {
+    for (const [k, rec] of map) {
+      if (rec.lockedUntil <= now && now - rec.windowStart >= WINDOW) map.delete(k);
+    }
+  }
+  for (const [map, ttl] of [
+    [formStore, 15 * 60 * 1000],
+    [getStore, 60 * 1000],
+  ] as const) {
+    for (const [k, rec] of map) {
+      if (now - rec.windowStart >= ttl) map.delete(k);
+    }
+  }
+}
+
+/**
+ * Jaring pengaman ukuran: buang entri paling lama bila Map melampaui batas.
+ * Map mempertahankan urutan penyisipan, jadi iterasi pertama = terlama.
+ */
+function capSize<K, V>(map: Map<K, V>): void {
+  if (map.size <= MAX_ENTRIES) return;
+  const excess = map.size - MAX_ENTRIES;
+  let removed = 0;
+  for (const k of map.keys()) {
+    if (removed >= excess) break;
+    map.delete(k);
+    removed++;
+  }
+}
+
+/** Ambil record kegagalan, reset bila window-nya sudah lewat. */
+function failureRecord(
+  map: Map<string, FailureRecord>,
+  k: string,
+  now: number
+): FailureRecord {
+  const existing = map.get(k);
+  if (existing && now - existing.windowStart < WINDOW) return existing;
+  const fresh: FailureRecord = { failures: 0, lockedUntil: 0, windowStart: now };
+  map.set(k, fresh);
+  return fresh;
+}
 
 function key(email: string, ip: string) {
   return `login-limit:${email.toLowerCase()}::${ip}`;
@@ -41,11 +134,46 @@ function formKey(ip: string) {
   return `form-limit:${ip}`;
 }
 
+/**
+ * Turunkan IP klien dari header proxy (temuan review M1).
+ *
+ * SEMUA rate limiter di aplikasi ini — lockout brute-force login, batas form
+ * publik, anti-scraper — memakai fungsi ini sebagai kunci bucket. Bila IP-nya
+ * bisa dipalsukan, seluruh pembatas itu bisa dilewati dengan mengirim nilai
+ * header berbeda per request.
+ *
+ * Urutan kepercayaan:
+ *  1. Vercel  → `x-vercel-forwarded-for`. Header ini DI-SET oleh edge Vercel
+ *     dan memuat IP klien nyata. Kita sengaja TIDAK membaca `x-real-ip` di
+ *     Vercel: tidak ada jaminan edge menimpa nilai kiriman klien.
+ *  2. Self-host → `x-real-ip`. Aman karena Caddyfile memakai
+ *     `header_up X-Real-IP {remote_host}` yang MENIMPA (bukan menambah) nilai
+ *     dari klien.
+ *  3. Fallback → `x-forwarded-for`, dihitung TRUSTED_PROXY_HOPS entri dari
+ *     KANAN. Perilaku lama mengambil entri paling KIRI, yaitu nilai yang
+ *     dipilih klien sendiri — di Vercel edge menambahkan IP asli ke rantai,
+ *     sehingga nilai kiri tetap milik penyerang.
+ */
 export function getClientIp(req: RequestLike): string {
+  if (process.env.VERCEL === "1") {
+    const vercelIp = getHeader(req, "x-vercel-forwarded-for");
+    if (vercelIp) return firstIp(vercelIp);
+  }
+
   const real = getHeader(req, "x-real-ip");
-  if (real) return real;
+  if (real) return firstIp(real);
+
   const xff = getHeader(req, "x-forwarded-for");
-  if (xff) return xff.split(",")[0].trim();
+  if (xff) {
+    const parts = xff
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (parts.length === 0) return "unknown";
+    const idx = Math.max(0, parts.length - trustedProxyHops());
+    return parts[idx];
+  }
+
   return "unknown";
 }
 
@@ -80,20 +208,25 @@ export async function recordFailure(email: string, ip: string): Promise<void> {
   const now = Date.now();
 
   if (!redis) {
-    // Fallback to in-memory
-    const rec = store.get(k) || { failures: 0, lockedUntil: 0 };
+    // Fallback to in-memory.
+    // `failureRecord` me-reset penghitung bila WINDOW sudah lewat — perilaku
+    // lama mengakumulasi kegagalan SELAMANYA (5x gagal dalam setahun tetap
+    // mengunci), menyimpang dari jalur Redis yang meng-expire counter.
+    sweepExpired(now);
+
+    const rec = failureRecord(store, k, now);
     rec.failures += 1;
     if (rec.failures >= MAX_FAILURES) {
       rec.lockedUntil = now + LOCK_DURATION;
     }
-    store.set(k, rec);
+    capSize(store);
 
-    const ipRec = ipStore.get(ik) || { failures: 0, lockedUntil: 0 };
+    const ipRec = failureRecord(ipStore, ik, now);
     ipRec.failures += 1;
     if (ipRec.failures >= IP_MAX_ATTEMPTS) {
       ipRec.lockedUntil = now + LOCK_DURATION;
     }
-    ipStore.set(ik, ipRec);
+    capSize(ipStore);
     return;
   }
 
@@ -143,9 +276,11 @@ export async function isFormRateLimited(ip: string, max = 20, windowMs = 600000)
   if (!redis) {
     // Fallback to in-memory
     const now = Date.now();
+    sweepExpired(now);
     const rec = formStore.get(k);
     if (!rec || now - rec.windowStart >= windowMs) {
       formStore.set(k, { count: 1, windowStart: now });
+      capSize(formStore);
       return false;
     }
     rec.count += 1;
@@ -181,9 +316,11 @@ export async function isGetRateLimited(ip: string, max = 30, windowMs = 60000): 
   const k = `get-limit:${ip}`;
   if (!redis) {
     const now = Date.now();
+    sweepExpired(now);
     const rec = getStore.get(k);
     if (!rec || now - rec.windowStart >= windowMs) {
       getStore.set(k, { count: 1, windowStart: now });
+      capSize(getStore);
       return false;
     }
     rec.count += 1;

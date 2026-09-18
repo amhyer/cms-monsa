@@ -39,3 +39,24 @@ export function isHashed(stored: string): boolean {
   const [salt, hash] = stored.split(":");
   return salt.length === 32 && hash.length === 128; // hex of 16 bytes salt + 64 bytes hash
 }
+
+let _dummyHash: string | null = null;
+
+/**
+ * Hash scrypt "palsu" untuk menyamakan waktu respons login (temuan review M2).
+ *
+ * Tanpa ini, email yang tidak terdaftar kembali jauh lebih cepat daripada email
+ * yang terdaftar — karena scrypt (N=2^17, ~100ms+) hanya dijalankan bila user
+ * ditemukan. Selisih waktunya cukup besar untuk dipakai mengenumerasi akun.
+ * Verifikasi terhadap hash ini SELALU gagal; tujuannya murni menghabiskan
+ * waktu CPU yang setara.
+ *
+ * Dihitung malas (bukan konstanta hardcoded) agar otomatis tetap konsisten
+ * bila SCRYPT_OPTIONS berubah.
+ */
+export function dummyPasswordHash(): string {
+  if (!_dummyHash) {
+    _dummyHash = hashPassword(randomBytes(32).toString("hex"));
+  }
+  return _dummyHash;
+}

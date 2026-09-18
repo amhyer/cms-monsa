@@ -62,7 +62,9 @@ describe("POST /api/students/bulk (import CSV)", () => {
   it("collects per-row validation errors without aborting valid rows", async () => {
     mockRequireRole.mockResolvedValue({ ok: true, user: createMockUser() });
     mockPrisma.class.findMany.mockResolvedValue([{ id: "c1" }]);
-    mockPrisma.student.findUnique.mockResolvedValue(null);
+    // Sejak temuan review M4, route mengambil semua kandidat dalam SATU
+    // findMany (bukan satu findUnique per baris).
+    mockPrisma.student.findMany.mockResolvedValue([]);
     mockPrisma.student.create.mockResolvedValue({ id: "new" });
 
     const req = createMockRequest("http://localhost/api/students/bulk", {
@@ -87,9 +89,11 @@ describe("POST /api/students/bulk (import CSV)", () => {
   it("creates new students and updates existing ones by NIS", async () => {
     mockRequireRole.mockResolvedValue({ ok: true, user: createMockUser() });
     mockPrisma.class.findMany.mockResolvedValue([{ id: "c1" }]);
-    mockPrisma.student.findUnique
-      .mockResolvedValueOnce(null) // NIS 1 → create
-      .mockResolvedValueOnce({ id: "s2" }); // NIS 2 → update
+    // Satu findMany mengembalikan siswa yang SUDAH ada. NIS "2" ada → update;
+    // NIS "1" tidak muncul di hasil → create.
+    mockPrisma.student.findMany.mockResolvedValue([
+      { id: "s2", nis: "2", nisn: null, gender: null, parentName: "Lama" },
+    ]);
     mockPrisma.student.create.mockResolvedValue({ id: "s1" });
     mockPrisma.student.update.mockResolvedValue({ id: "s2" });
 
@@ -114,5 +118,88 @@ describe("POST /api/students/bulk (import CSV)", () => {
         data: expect.objectContaining({ name: "Budi", parentName: "Ibu Budi" }),
       })
     );
+  });
+
+  it("membaca semua kandidat dalam SATU query, bukan satu per baris (M4)", async () => {
+    mockRequireRole.mockResolvedValue({ ok: true, user: createMockUser() });
+    mockPrisma.class.findMany.mockResolvedValue([{ id: "c1" }]);
+    mockPrisma.student.findMany.mockResolvedValue([]);
+    mockPrisma.student.create.mockResolvedValue({ id: "new" });
+
+    const items = Array.from({ length: 25 }, (_, i) => ({
+      nis: `B${i}`,
+      name: `Siswa ${i}`,
+      classId: "c1",
+    }));
+    const req = createMockRequest("http://localhost/api/students/bulk", {
+      method: "POST",
+      body: { items },
+    });
+    const res = await POST(asNextRequest(req));
+
+    expect(res.status).toBe(200);
+    // 25 baris → tepat 1 findMany. Sebelumnya 25 findUnique + 25 create
+    // sekuensial = 50 round-trip.
+    expect(mockPrisma.student.findMany).toHaveBeenCalledTimes(1);
+    expect(mockPrisma.student.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("membungkus semua tulis dalam SATU transaksi (atomik)", async () => {
+    mockRequireRole.mockResolvedValue({ ok: true, user: createMockUser() });
+    mockPrisma.class.findMany.mockResolvedValue([{ id: "c1" }]);
+    mockPrisma.student.findMany.mockResolvedValue([]);
+    mockPrisma.student.create.mockResolvedValue({ id: "new" });
+
+    const items = Array.from({ length: 10 }, (_, i) => ({
+      nis: `T${i}`,
+      name: `Siswa ${i}`,
+      classId: "c1",
+    }));
+    const req = createMockRequest("http://localhost/api/students/bulk", {
+      method: "POST",
+      body: { items },
+    });
+    const res = await POST(asNextRequest(req));
+
+    expect(res.status).toBe(200);
+    expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+    const batch = mockPrisma.$transaction.mock.calls[0][0] as unknown[];
+    expect(batch).toHaveLength(10);
+  });
+
+  it("NIS duplikat dalam satu file dilaporkan, tidak di-create dua kali", async () => {
+    mockRequireRole.mockResolvedValue({ ok: true, user: createMockUser() });
+    mockPrisma.class.findMany.mockResolvedValue([{ id: "c1" }]);
+    mockPrisma.student.findMany.mockResolvedValue([]);
+    mockPrisma.student.create.mockResolvedValue({ id: "new" });
+
+    const req = createMockRequest("http://localhost/api/students/bulk", {
+      method: "POST",
+      body: {
+        items: [
+          { nis: "D1", name: "Versi lama", classId: "c1" },
+          { nis: "D2", name: "Unik", classId: "c1" },
+          { nis: "D1", name: "Versi baru", classId: "c1" }, // duplikat baris 2
+        ],
+      },
+    });
+    const res = await POST(asNextRequest(req));
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    // last-write-wins: hanya 2 siswa dibuat, baris yang digantikan dilaporkan
+    expect(data.created).toBe(2);
+    expect(data.errors).toHaveLength(1);
+    expect(data.errors[0].row).toBe(2); // baris pertama D1 (header = baris 1)
+    expect(data.errors[0].error).toContain("D1");
+    // Yang menang adalah kemunculan terakhir.
+    expect(mockPrisma.student.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ nis: "D1", name: "Versi baru" }),
+      })
+    );
+    // Tanpa dedup, dua create dengan NIS sama akan melanggar unique
+    // constraint dan me-rollback SELURUH transaksi.
+    expect(mockPrisma.student.create).toHaveBeenCalledTimes(2);
   });
 });

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { setSession } from "@/lib/auth";
 import { logActivity } from "@/lib/log";
-import { verifyPassword } from "@/lib/password";
+import { verifyPassword, dummyPasswordHash } from "@/lib/password";
 import { logger } from "@/lib/logger";
 import {
   isLocked,
@@ -58,9 +58,15 @@ export async function POST(req: NextRequest) {
     }
 
     const user = await db.user.findUnique({ where: { email: normalizedEmail } });
-    // Support both hashed and (legacy) plaintext stored passwords.
-    const valid = user ? await verifyPassword(password, user.password) : false;
-    // Use constant-time-ish failure regardless of whether user exists.
+    // scrypt dijalankan TANPA SYARAT — termasuk saat email tidak terdaftar —
+    // agar waktu respons identik dan akun tidak bisa dienumerasi lewat timing
+    // (temuan review M2). Komentar lama di sini mengklaim perilaku ini sudah
+    // ada; kenyataannya `user ? verify : false` melewati scrypt sepenuhnya
+    // untuk email yang tidak dikenal.
+    const valid = await verifyPassword(
+      password,
+      user?.password ?? dummyPasswordHash()
+    );
     if (!user || !valid) {
       await recordFailure(normalizedEmail, ip);
       return NextResponse.json(

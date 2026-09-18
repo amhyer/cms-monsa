@@ -46,7 +46,10 @@
     "seed": "tsx prisma/seed.ts"
   },
   "engines": {
-    "node": ">=20.9.0"
+    "node": ">=22.19.0"
+  },
+  "overrides": {
+    "eslint-plugin-react-hooks": "7.0.1"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

@@ -976,11 +976,44 @@ export type ArchiveResult = {
  * data yang tidak muncul lagi di Dapodik diarsipkan. Hanya 2-3 query — aman
  * di bawah batas waktu Vercel Hobby (10 detik).
  */
+/**
+ * Ambang pengaman arsip massal (temuan review H2).
+ *
+ * Bila sebuah panggilan akan mengarsipkan LEBIH dari rasio ini dari total data
+ * aktif, panggilan DITOLAK kecuali `force: true` dikirim eksplisit. Melindungi
+ * dari jembatan yang crash di tengah sync lalu tetap memanggil endpoint dengan
+ * daftar kosong/terpotong — yang sebelumnya akan menonaktifkan seluruh siswa
+ * dan guru dalam satu request.
+ *
+ * 10% dipilih karena pergantian semester normal (siswa lulus/pindah) tidak
+ * pernah mendekati angka itu dalam satu kali sync.
+ */
+export const ARCHIVE_MAX_RATIO = 0.1;
+
+/**
+ * Dilempar bila pagar pengaman arsip menolak sebuah panggilan.
+ * Route memetakannya ke HTTP 409 (bukan 502) agar operator langsung paham
+ * ini keputusan pengaman, bukan kegagalan koneksi ke Dapodik.
+ */
+export class ArchiveSafetyError extends Error {
+  readonly code = "ARCHIVE_SAFETY";
+  constructor(message: string) {
+    super(message);
+    this.name = "ArchiveSafetyError";
+  }
+}
+
 export async function archiveDapodikUnlisted(args: {
   pesertaDidikIds: string[];
   gtkIds: string[];
+  /**
+   * Lewati pagar rasio untuk arsip massal yang MEMANG disengaja (mis. reset
+   * data setelah migrasi). Daftar kosong tetap selalu ditolak — tidak ada
+   * skenario sah di mana jembatan melaporkan "tidak ada satu pun siswa/guru".
+   */
+  force?: boolean;
 }): Promise<ArchiveResult> {
-  const { pesertaDidikIds, gtkIds } = args;
+  const { pesertaDidikIds, gtkIds, force = false } = args;
   const archivedAt = new Date();
 
   // Map dapodikId -> id internal (hanya yang masih aktif & belum diarsip).
@@ -998,6 +1031,22 @@ export async function archiveDapodikUnlisted(args: {
   const pdIdSet = new Set(pesertaDidikIds.filter(Boolean));
   const gtkIdSet = new Set(gtkIds.filter(Boolean));
 
+  // ---- Pagar 1: daftar kosong (selalu ditolak, `force` tidak menolong) ----
+  // Jembatan yang gagal mengambil data akan mengirim array kosong. Tanpa pagar
+  // ini, payload kosong = "tidak ada yang cocok" = arsip SEMUA data aktif.
+  if (pdIdSet.size === 0 && activeStudents.length > 0) {
+    throw new ArchiveSafetyError(
+      `Ditolak: pesertaDidikIds kosong padahal ada ${activeStudents.length} siswa aktif. ` +
+        "Kemungkinan jembatan gagal mengambil data Dapodik — perbaiki sync-nya dulu."
+    );
+  }
+  if (gtkIdSet.size === 0 && activeTeachers.length > 0) {
+    throw new ArchiveSafetyError(
+      `Ditolak: gtkIds kosong padahal ada ${activeTeachers.length} guru aktif. ` +
+        "Kemungkinan jembatan gagal mengambil data Dapodik — perbaiki sync-nya dulu."
+    );
+  }
+
   const studentsToArchive = activeStudents
     .filter((s) => s.dapodikId && !pdIdSet.has(s.dapodikId))
     .map((s) => s.id);
@@ -1012,26 +1061,61 @@ export async function archiveDapodikUnlisted(args: {
     })
     .map((t) => t.id);
 
+  // ---- Pagar 2: radius ledak (boleh dilewati dengan force) ----
+  if (!force) {
+    const siswaRatio =
+      activeStudents.length > 0
+        ? studentsToArchive.length / activeStudents.length
+        : 0;
+    const gtkRatio =
+      activeTeachers.length > 0
+        ? teachersToArchive.length / activeTeachers.length
+        : 0;
+    const pct = (r: number) => `${(r * 100).toFixed(1)}%`;
+
+    if (siswaRatio > ARCHIVE_MAX_RATIO || gtkRatio > ARCHIVE_MAX_RATIO) {
+      const detail = [
+        siswaRatio > ARCHIVE_MAX_RATIO
+          ? `${studentsToArchive.length}/${activeStudents.length} siswa (${pct(siswaRatio)})`
+          : null,
+        gtkRatio > ARCHIVE_MAX_RATIO
+          ? `${teachersToArchive.length}/${activeTeachers.length} guru (${pct(gtkRatio)})`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(", ");
+      logger.error(
+        { studentsToArchive: studentsToArchive.length, teachersToArchive: teachersToArchive.length, force },
+        "[dapodik-archive] Ditolak oleh pagar rasio arsip"
+      );
+      throw new ArchiveSafetyError(
+        `Ditolak: panggilan ini akan mengarsipkan ${detail} — di atas ambang ` +
+          `${pct(ARCHIVE_MAX_RATIO)}. Daftar kiriman kemungkinan terpotong atau sync belum selesai. ` +
+          "Kirim force:true HANYA bila arsip massal ini memang disengaja."
+      );
+    }
+  }
+
+  // Arsip siswa & guru atomik: sebelumnya dua loop updateMany terpisah di luar
+  // transaksi, sehingga kegagalan di tengah menyisakan state setengah jadi.
   let siswaArchived = 0;
   let gtkArchived = 0;
-  if (studentsToArchive.length > 0) {
+  await db.$transaction(async (tx) => {
     for (const ids of chunk(studentsToArchive, ARCHIVE_CHUNK_SIZE)) {
-      const r = await db.student.updateMany({
+      const r = await tx.student.updateMany({
         where: { id: { in: ids } },
         data: { archivedAt, isActive: false },
       });
       siswaArchived += r.count;
     }
-  }
-  if (teachersToArchive.length > 0) {
     for (const ids of chunk(teachersToArchive, ARCHIVE_CHUNK_SIZE)) {
-      const r = await db.teacher.updateMany({
+      const r = await tx.teacher.updateMany({
         where: { id: { in: ids } },
         data: { archivedAt, isActive: false },
       });
       gtkArchived += r.count;
     }
-  }
+  }, DAPODIK_TX_OPTIONS);
 
   return { siswaArchived, gtkArchived };
 }

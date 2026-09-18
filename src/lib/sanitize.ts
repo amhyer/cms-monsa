@@ -48,7 +48,10 @@ export function sanitizeHtml(html: string): string {
   return sanitize(html, {
     allowedTags: ALLOWED_TAGS,
     allowedAttributes: ALLOWED_ATTRIBUTES,
-    allowedSchemes: ["http", "https", "mailto", "ftp", "tel", "file", "sms"],
+    // `file:` sengaja TIDAK diizinkan (temuan review L5): CMS publik tidak
+    // punya alasan menaut ke sistem berkas lokal, dan skema itu hanya
+    // menambah permukaan serangan.
+    allowedSchemes: ["http", "https", "mailto", "ftp", "tel", "sms"],
     // Force rel="noopener noreferrer" on all links with target="_blank"
     transformTags: {
       a: (tagName, attribs) => {

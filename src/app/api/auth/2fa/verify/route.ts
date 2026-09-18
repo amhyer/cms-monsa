@@ -6,6 +6,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { requireCsrf } from "@/lib/csrf";
 import { db } from "@/lib/db";
 import { verifyTOTP } from "@/lib/totp";
 import { validateBody } from "@/lib/validations";
@@ -21,6 +22,9 @@ const verifySchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    const csrfError = await requireCsrf(req);
+    if (csrfError) return csrfError;
+
     const auth = await requireAuth();
     if (!auth.ok) return auth.response;
 

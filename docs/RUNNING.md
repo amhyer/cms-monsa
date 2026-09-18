@@ -430,7 +430,10 @@ lihat [DAPODIK-CREDENTIAL-PROTOCOL.md](DAPODIK-CREDENTIAL-PROTOCOL.md) →
 | **Reuse (iterasi cepat)** | `bun run test:e2e:local` atau `test:e2e -- --if-up` | Mengulang spec tertentu melawan dev server yang sedang hidup | DB apa pun yang sedang dipakai dev — suite tidak men-seed apa pun; bila akun `@mongisidi1.sch.id` belum ada (DB demo murni), login spec akan 401 |
 
 Di CI, DB disiapkan murni untuk e2e (skema + seed E2E saja, tanpa demo) —
-coexistence hanya relevan untuk run lokal. Spec ditulis agar lulus di
+kecuali gate coexistence: workflow
+[e2e-coexistence.yml](../.github/workflows/e2e-coexistence.yml) (push main /
+PR / manual) menjalankan `test:e2e:demo` penuh di atas DB demo×e2e sebagai
+gate tambahan. Spec ditulis agar lulus di
 ketiganya: jangan mengasumsikan hitungan/urutan seed (baca dari API), dan
 barang buatan test dibersihkan lewat `afterEach` yang **wajib** mengirim
 header `x-csrf-token` (lihat protokol CSRF pada dokumen kredensial di atas).

@@ -1,0 +1,135 @@
+name: E2E (Coexistence demo × e2e)
+
+# Gate tambahan: suite Playwright dijalankan di atas DB yang berisi seed demo
+# DAN seed E2E sekaligus (coexistence) — kondisi yang paling sering
+# membedakan dev lokal dari CI dan pernah menyingkap 4 kegagalan spec yang
+# mengasumsikan DB e2e murni (commit "test: buat 4 spec e2e mandiri dari
+# state DB & abaikan log server basi").
+#
+# Perbedaan dengan workflow E2E lain:
+#   - ci.yml (job dev E2E) & playwright.yml (prod E2E): DB e2e MURNI
+#     (db:push + seed E2E saja, tanpa seed demo).
+#   - Workflow ini: `bun run test:e2e:demo` menjalankan prisma/seed.ts +
+#     prisma/seed-e2e.ts (idempoten) sebelum suite — dogfood langsung dari
+#     skrip yang dipakai developer lokal (scripts/e2e-demo-seed.ts).
+#
+# Sengaja LEAN tanpa mesin komentar PR (comment-e2e-failure / cleanup):
+# ci.yml & playwright.yml sudah memiliki komentar sticky ber-marker berbeda
+# di PR; gate coexistence cukup dilaporkan sebagai status job merah + tail
+# log di step summary (ditulis wrapper run-e2e otomatis saat gagal).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-coexistence-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Sama dengan playwright.yml — tail log cukup dalam agar stall/error
+  # runtime selalu terlihat penuh di konsol & step summary saat gagal.
+  E2E_TAIL_LINES: 200
+  E2E_TAIL_LINES_ERR: 100
+  # Retensi artifact (hari) — gate sekunder: trail diagnosa lebih pendek
+  # dari workflow utama (30 hari) karena kegagalan coexistence hampir selalu
+  # bereproduksi lokal via `bun run test:e2e:demo`.
+  ARTIFACT_RETENTION_SERVER_LOG: 14
+  ARTIFACT_RETENTION_REPORT: 7
+
+jobs:
+  e2e-coexistence:
+    name: E2E on seed demo + seed e2e (coexistence)
+    runs-on: ubuntu-latest
+    # PostgreSQL service container — skema tunggal, sama dengan playwright.yml.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ci_e2e_coex
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # 127.0.0.1 (bukan localhost) — service container hanya listen IPv4;
+      # Node 17+ resolve localhost ke ::1 dulu → "Can't reach database server".
+      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/ci_e2e_coex?schema=public"
+      # Bukan secret asli — cukup untuk build & test (sama dengan workflow lain).
+      AUTH_SECRET: "ci-insecure-build-secret"
+      CRON_SECRET: "ci-insecure-cron-secret"
+      NEXT_PUBLIC_SITE_URL: "https://sdn-mongisidi1.sch.id"
+      NODE_OPTIONS: "--dns-result-order=ipv4first"
+    steps:
+      # Checkout WAJIB sebelum action lokal ./.github/actions/setup-repo
+      # (runner me-resolve path dari workspace yang masih kosong tanpa ini).
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup repo (Node + Bun + install)
+        uses: ./.github/actions/setup-repo
+
+      - name: Setup database (schema)
+        run: bun run db:push
+
+      - name: Install Playwright browsers
+        run: bunx playwright install --with-deps chromium
+
+      # test:e2e:demo = scripts/e2e-demo-seed.ts: seed demo (prisma/seed.ts) +
+      # seed E2E (prisma/seed-e2e.ts, pengaman E2E_SEED=1 bawaan skrip) lalu
+      # delegasi ke run-e2e-local → run-e2e (server dev dimulai wrapper via
+      # E2E_SERVER_CMD default "bun run dev", warm-up rute, Playwright,
+      # artifact log merged ke E2E_SERVER_LOG). Kedua seed idempoten — aman
+      # diulang; DB akhirnya berisi coexistence demo×e2e persis seperti dev
+      # lokal yang di-seed lengkap.
+      - name: Run E2E tests (seeded coexistence DB)
+        run: bun run test:e2e:demo
+        env:
+          E2E_SERVER_LOG: ./server-e2e.log
+          # Matikan rate-limit public GET — browser uji menembus 30–60
+          # req/menit secara sah (lihat src/lib/rate-limit.ts).
+          E2E_SUITE: "1"
+
+      # Mutasi API wajib ter-deklarasi di pragma // warmup: (kontrak yang
+      # sama dengan workflow utama — spec baru tanpa pragma membuat job merah).
+      - name: Check warmup declarations
+        run: bun run check:warmup-declarations
+
+      # Sinyal kegagalan server (5xx) tidak boleh muncul di run hijau —
+      # semua rejection path e2e memakai 400. if: always() agar temuan tetap
+      # dilaporkan saat suite merah.
+      - name: Check server log for 5xx
+        if: always()
+        run: bun run check:server-log
+        env:
+          E2E_SERVER_LOG: ./server-e2e.log
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-coexistence
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: ${{ env.ARTIFACT_RETENTION_REPORT }}
+
+      # Log merged (wrapper + server) di-upload di SEMUA run — jejak
+      # post-mortem tanpa perlu mengunduh saat failure-only.
+      - name: Upload server log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-log-coexistence
+          path: server-e2e.log*
+          retention-days: ${{ env.ARTIFACT_RETENTION_SERVER_LOG }}

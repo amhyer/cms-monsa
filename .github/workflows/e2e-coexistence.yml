@@ -46,6 +46,13 @@ jobs:
   e2e-coexistence:
     name: E2E on seed demo + seed e2e (coexistence)
     runs-on: ubuntu-latest
+    # Marker untuk job retry: GitHub men-conclude JOB sebagai 'failure'
+    # (bukan 'cancelled') ketika STEP-nya yang dibatalkan, jadi kondisi
+    # needs.*.result == 'cancelled' tidak pernah match. Step "Tandai
+    # pembatalan" (if: cancelled(), dijalankan pada masa grace saat SIGTERM)
+    # menulis output eksplisit yang dibaca job retry.
+    outputs:
+      externally_cancelled: ${{ steps.cancelmark.outputs.cancelled }}
     # PostgreSQL service container — skema tunggal, sama dengan playwright.yml.
     services:
       postgres:
@@ -71,6 +78,16 @@ jobs:
       NEXT_PUBLIC_SITE_URL: "https://sdn-mongisidi1.sch.id"
       NODE_OPTIONS: "--dns-result-order=ipv4first"
     steps:
+      # Marker pembatalan eksternal — POSISI PALING AWAL: saat runner menerima
+      # sinyal shutdown (SIGTERM), step ber-if: cancelled() dijalankan pada
+      # fase pembatalan dengan masa grace TERBATAS; menaruhnya pertama memberi
+      # peluang terbesar selesai sebelum grace habis. Output-nya dibaca job
+      # retry (outputs.externally_cancelled).
+      - name: Tandai pembatalan eksternal
+        id: cancelmark
+        if: cancelled()
+        run: echo "cancelled=true" >> "$GITHUB_OUTPUT"
+
       # Checkout WAJIB sebelum action lokal ./.github/actions/setup-repo
       # (runner me-resolve path dari workspace yang masih kosong tanpa ini).
       - name: Checkout
@@ -134,6 +151,7 @@ jobs:
           path: server-e2e.log*
           retention-days: ${{ env.ARTIFACT_RETENTION_SERVER_LOG }}
 
+
   # Auto-retry sekali untuk job e2e yang DIBATALKAN EKSTERNAL (persis run #1:
   # "The operation was canceled." di tengah suite, bukan assertion failure —
   # kegagalan infrastruktur runner/CI, bukan kode). DIPICU SEBAGAI JOB
@@ -151,7 +169,7 @@ jobs:
     needs: e2e-coexistence
     if: >-
       always() &&
-      needs.e2e-coexistence.result == 'cancelled' &&
+      needs.e2e-coexistence.outputs.externally_cancelled == 'true' &&
       github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:

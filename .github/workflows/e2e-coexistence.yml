@@ -133,3 +133,45 @@ jobs:
           name: server-log-coexistence
           path: server-e2e.log*
           retention-days: ${{ env.ARTIFACT_RETENTION_SERVER_LOG }}
+
+  # Auto-retry sekali untuk job e2e yang DIBATALKAN EKSTERNAL (persis run #1:
+  # "The operation was canceled." di tengah suite, bukan assertion failure —
+  # kegagalan infrastruktur runner/CI, bukan kode). DIPICU SEBAGAI JOB
+  # TERPISAH, bukan step di dalam job utama: endpoint rerun menolak run yang
+  # masih in_progress, dan job utama yang sedang menjalankan step membuat run
+  # tetap in_progress (deadlock) — job downstream baru jalan SETELAH job
+  # utama conclude, dan mekanisme yang dipakai adalah workflow_dispatch (run
+  # BARU), bukan rerun. Guard anti-loop:
+  #   - event workflow_dispatch tidak pernah men-retry (maks. 1 retry per
+  #     commit — diverifikasi hitung run dispatch untuk head_sha yang sama)
+  #   - bila ada run lebih baru untuk commit yang sama, batal dipicu adalah
+  #     tanggung jawab concurrency group (cancel-in-progress) di run baru
+  retry-coexistence:
+    name: Auto-retry on external cancellation
+    needs: e2e-coexistence
+    if: >-
+      always() &&
+      needs.e2e-coexistence.result == 'cancelled' &&
+      github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Picu ulang workflow (satu kali)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          ALREADY=$(gh api "repos/$REPO/actions/workflows/e2e-coexistence.yml/runs?event=workflow_dispatch&head_sha=$SHA" --jq '.total_count' 2>/dev/null || echo 0)
+          if [ "${ALREADY:-0}" -ge 1 ]; then
+            echo "Auto-retry untuk commit ini sudah pernah dipicu (total_count=$ALREADY) — dilewati (guard anti-loop)."
+            exit 0
+          fi
+          REF="${{ github.head_ref || github.ref_name }}"
+          gh workflow run e2e-coexistence.yml --ref "$REF"
+          echo "Job e2e dibatalkan eksternal — run baru dipicu via workflow_dispatch pada ref '$REF'."
+
+      - name: Tautan pemantauan
+        run: |
+          echo "Pantau run baru: https://github.com/${{ github.repository }}/actions/workflows/e2e-coexistence.yml" >> "$GITHUB_STEP_SUMMARY"

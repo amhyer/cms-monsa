@@ -42,8 +42,8 @@ Prioritas perbaikan: **H1 → H2 → H3/H4 → sisanya.**
 | M2 | Enumerasi user via timing | ✅ **Selesai** | scrypt selalu jalan (`dummyPasswordHash`). |
 | M3 | `/api/search` tanpa rate limit | ✅ **Selesai** | 30/menit + bug `total` diperbaiki. |
 | M4 | N+1 tanpa transaksi `students/bulk` | ✅ **Selesai** | 2N → 1 findMany + 1 transaksi. Dedup NIS. 3 test baru. |
-| M5 | `engines` Node salah | ✅ **Selesai** | `>=22.19.0` + `.nvmrc`. |
-| M6 | Landmine `react-hooks@^7.0.0` | ✅ **Selesai** | `overrides` pin 7.0.1 → eslint **0 error** (dari 65). |
+| M5 | `engines` Node salah | ⚠️ **Dikoreksi — sebagian dibatalkan** | `.nvmrc` 22.19.0 ditambahkan. `engines` **tetap** `>=20.9.0`: Dockerfile memakai `node:20-alpine` dan build image di `main` hijau, jadi runtime memang cukup Node 20 — yang butuh ≥22 hanya test suite. Menaikkan `engines` akan berkontradiksi dengan image produksi. |
+| M6 | Landmine `react-hooks@^7.0.0` | ✅ **Selesai** (+regenerate `bun.lock`) | `overrides` pin 7.0.1 → eslint **0 error** (dari 65). **Wajib** disertai regenerate `bun.lock` — lihat catatan di bawah. |
 | M7 | PII siswa (NIS/NISN) publik | ⏸️ **Tidak diubah** | Keputusan kebijakan sekolah/DPO, bukan bug teknis. |
 | M8 | Memory leak rate limiter | ✅ **Selesai** | Sapu berkala + `MAX_ENTRIES` + bug window in-memory. |
 | M9 | CSRF bolong di 2FA | ✅ **Selesai** | Aman karena sudah ada interceptor `fetch` global. |
@@ -73,6 +73,20 @@ Prioritas perbaikan: **H1 → H2 → H3/H4 → sisanya.**
 Test component `.tsx` (53 test di 7 file) tidak bisa dijalankan di lingkungan
 review karena butuh jsdom, dan jsdom menarik `undici@8` yang menolak Node 20.
 **Jalankan `bun run check` di Node 22+ untuk konfirmasi penuh.**
+
+> **Catatan proses (PR #15).** Klaim awal bahwa "`bun.lock` tidak perlu
+> di-refresh" ternyata **salah** dan menjatuhkan dua job CI sekaligus
+> (*Docker build, boot smoke & publish* dan *Self-host E2E*). Keduanya
+> menjalankan `bun install --frozen-lockfile`, yang gagal keras dengan
+> `error: lockfile had changes, but lockfile is frozen` / `note: overrides in
+> package.json changed since bun.lock was saved`.
+>
+> Perbaikannya: `bun.lock` di-regenerate dengan `bun install --lockfile-only`
+> memakai **bun 1.2.23** (menghasilkan diff 4 baris), lalu diuji diterima
+> `--frozen-lockfile` oleh bun **1.2.23 dan 1.4.2** — karena repo ini dipakai
+> dua versi bun (CI `1.2.x`, Dockerfile `oven/bun:1-alpine` = 1.4.x).
+> Regenerate dengan bun 1.4.2 ditolak karena menimbulkan drift tak terkait
+> (`ajv-keywords/ajv` 6.12.6 → 8.20.0). Detail lengkap di `AGENTS.md`.
 
 ---
 
@@ -318,9 +332,20 @@ TypeError: webidl.util.markAsUncloneable is not a function
 Kontributor baru di Node 20 akan melihat seluruh test suite gagal dengan pesan yang sama
 sekali tidak menunjuk akar masalahnya.
 
-**Perbaikan:** naikkan `engines.node` menjadi `>=22.19.0` dan tambahkan `.nvmrc` /
-`"volta"`. (Catatan: `sanitize.ts` menyebut Vercel sudah menjalankan Node 24, jadi production aman —
-ini murni masalah DX dan akurasi metadata.)
+**Perbaikan:** tambahkan `.nvmrc` (22.19.0) agar kontributor yang menjalankan `nvm use`
+mendapat Node yang sama dengan CI.
+
+**Tetapi JANGAN naikkan `engines.node`.** Review ini awalnya merekomendasikan
+`>=22.19.0`, dan itu keliru: `Dockerfile` memakai `node:20-alpine` untuk stage
+deps/builder/runner dan check "Docker build, boot smoke" di `main` hijau — jadi
+**build + runtime memang cukup Node 20**. Yang butuh ≥22 hanya test suite.
+`engines` mendeskripsikan kebutuhan runtime paket, sehingga `>=20.9.0` sudah akurat.
+Menaikkannya akan berkontradiksi dengan image produksi self-host.
+
+Bila memang ingin menyeragamkan ke Node 22, urutannya: naikkan `Dockerfile` ke
+`node:22-alpine` **dan** uji build image-nya dulu, baru sentuh `engines`.
+
+> Koreksi ini ditemukan setelah PR dibuka — lihat "Catatan proses (PR #15)" di bawah.
 
 ### M6. `eslint-plugin-react-hooks: ^7.0.0` adalah landmine
 

@@ -47,16 +47,50 @@
   hanya memuat 5 siswa baru. Menambah pagar rasio di sana akan mematahkan
   test itu dan memang tidak sesuai semantiknya.
 
-## Node.js Version
+## Node.js Version — RUNTIME vs TEST SUITE BEDA
 
-- **Butuh Node ≥ 22.19** (lihat `.nvmrc`). `undici@8`, `jsdom@30`,
-  `whatwg-url@17`, dan `markdownlint@0.41` semuanya menolak Node 20. Di Node 20
-  `vitest run` mati dengan `TypeError: webidl.util.markAsUncloneable is not a
-  function` — 69 error yang tidak menyebut akar masalahnya sama sekali.
-- `eslint-plugin-react-hooks` di-pin ke **7.0.1** lewat field `overrides` di
-  `package.json`. Versi 7.1.x mengaktifkan `react-hooks/set-state-in-effect`
-  yang menghasilkan ~65 error di 30+ file. Ini penundaan sadar, bukan
-  penyelesaian — lihat komentar di `eslint.config.mjs`.
+Ada dua angka Node yang berbeda di repo ini, dan mengacaukannya menyesatkan:
+
+| Kebutuhan | Node | Bukti |
+|---|---|---|
+| **Build + runtime aplikasi** | **≥ 20.9** | `Dockerfile` memakai `node:20-alpine` untuk stage deps/builder/runner, dan check "Docker build, boot smoke" di `main` hijau. |
+| **Test suite (`vitest run`)** | **≥ 22.19** | `undici@8`, `jsdom@30`, `whatwg-url@17`, `markdownlint@0.41` semuanya menolak Node 20. |
+| **CI (`setup-repo` action)** | 22 | `.github/actions/setup-repo/action.yml` default `node-version: "22"`. |
+
+Di Node 20, `vitest run` mati dengan **69 error**
+`TypeError: webidl.util.markAsUncloneable is not a function` — pesan yang sama
+sekali tidak menunjuk akar masalahnya. `npm install` juga memuntahkan
+`EBADENGINE` untuk empat paket di atas.
+
+**`.nvmrc` diset 22.19.0** agar kontributor yang menjalankan `nvm use`
+mendapat Node yang sama dengan CI dan bisa menjalankan test suite.
+
+**`engines.node` tetap `>=20.9.0`** — SENGAJA. Field itu mendeskripsikan
+kebutuhan runtime paket, dan runtime memang jalan di Node 20 (Docker
+membuktikannya). Menaikkannya ke `>=22.19.0` akan berkontradiksi dengan
+image produksi self-host. Jangan "merapikan" ini tanpa sekalian menaikkan
+`Dockerfile` ke `node:22-alpine` dan menguji build image-nya.
+
+## bun.lock & `overrides` (jangan pakai `bun install` biasa lalu commit)
+
+- `package.json` punya `overrides` untuk mem-pin `eslint-plugin-react-hooks`
+  ke 7.0.1 (lihat `eslint.config.mjs`). **Setiap perubahan pada `dependencies`,
+  `devDependencies`, ATAU `overrides` wajib disertai regenerate `bun.lock`.**
+  CI dan Dockerfile sama-sama menjalankan `bun install --frozen-lockfile`, yang
+  gagal keras dengan `error: lockfile had changes, but lockfile is frozen` bila
+  keduanya tidak sinkron. Ini pernah menjatuhkan dua job sekaligus
+  (Docker build + Self-host E2E) pada PR #15.
+- **Regenerate dengan `bun install --lockfile-only`**, bukan `bun install`
+  penuh — lebih cepat dan tidak menyentuh `node_modules`.
+- **Versi bun memengaruhi hasil lockfile.** Repo ini dipakai dua versi bun:
+  CI memakai `1.2.x` (`setup-repo`), Dockerfile memakai `oven/bun:1-alpine`
+  (= 1.4.x terbaru). Keduanya harus menerima lockfile yang sama.
+  - bun 1.4.2 menghasilkan **drift tak terkait** (mis. `ajv-keywords/ajv`
+    6.12.6 → 8.20.0) dan mempertahankan `configVersion: 1`.
+  - bun 1.2.23 menghasilkan diff minimal dan **menghapus** `configVersion`.
+  - Lockfile hasil 1.2.23 sudah diuji diterima `--frozen-lockfile` oleh
+    **kedua** versi (1.2.23 dan 1.4.2), jadi itu yang dipakai.
+  - Bila nanti meng-regenerate, ulangi uji kedua versi itu sebelum commit.
 
 ## Pre-commit Hook
 

@@ -98,26 +98,11 @@ jobs:
       - name: Install Playwright browsers
         run: bunx playwright install --with-deps chromium
 
-      # Seed SEBELUM build — mirror urutan job e2e ci.yml (build boleh melihat
-      # DB berisi data; halaman publik yang di-prerender tidak membakar state
-      # kosong). Kedua seed idempoten — dijalankan LAGI di dalam test:e2e:demo
-      # tanpa masalah.
-      - name: Seed demo data
-        run: bunx tsx prisma/seed.ts
-
-      - name: Seed E2E data
-        run: E2E_SEED=1 bunx tsx prisma/seed-e2e.ts
-
       # Production build — suite dijalankan terhadap server produksi (next
-      # start), BUKAN dev mode Turbopack. Preseden: 6 kegagalan beruntun
-      # (2026-09-12 s.d. 09-13, lihat komentar job e2e ci.yml) selalu terjadi
-      # saat chromium diluncurkan di atas server dev Turbopack pada runner
-      # 7 GB — runner menerima "shutdown signal" di fase warm-up. Varian
-      # produksi (tanpa kompilator on-demand) bertahan >26 menit di pool yang
-      # sama. Workflow inilah satu-satunya yang masih memakai dev mode —
-      # 7+ run coexistence terbunuh deterministik di warm-up (terakhir run
-      # #13-#14 attempt 1-3); prod mode adalah fix primer, job retry hanya
-      # jaring pengaman.
+      # start), BUKAN dev mode Turbopack. Seed SEBELUM build dihapus untuk
+      # mengurangi memory pressure (53 operasi seed + build + chromium =
+      # melebihi 7 GB runner). test:e2e:demo menjalankan kedua seed secara
+      # idempoten SEBELUM suite dimulai.
       - name: Build (production)
         run: bun run build
 
@@ -125,9 +110,9 @@ jobs:
       # seed E2E (prisma/seed-e2e.ts, pengaman E2E_SEED=1 bawaan skrip) lalu
       # delegasi ke run-e2e-local → run-e2e (server PRODUKSI dimulai wrapper
       # via E2E_SERVER_CMD "bun run start", warm-up rute, Playwright, artifact
-      # log merged ke E2E_SERVER_LOG). Kedua seed idempoten — aman diulang;
-      # DB akhirnya berisi coexistence demo×e2e persis seperti dev lokal yang
-      # di-seed lengkap.
+      # log merged ke E2E_SERVER_LOG). Kedua seed dijalankan SEKALI di sini
+      # (sebelum suite, sesudah build) — tidak ada seed duplikat sebelum build.
+      # DB berisi coexistence demo×e2e persis seperti dev lokal yang di-seed lengkap.
       # id: e2e — conclusion STEP ini (bukan conclusion job!) dibaca job
       # retry sebagai deteksi pembatalan: GitHub men-conclude JOB 'failure'
       # saat STEP-nya yang dibatalkan runner (hard-cancel TANPA fase grace —

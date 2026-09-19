@@ -7,6 +7,16 @@
 
 ## [Unreleased] - 2026-09-15
 
+### ✨ Added — Health check harian terjadwal (Actions cron)
+
+Workflow `daily-health-check.yml` (jadwal 01:00 UTC, `workflow_dispatch`)
+menjalankan `bun run health:daily` melawan `BASE_URL` produksi: typecheck,
+unit test penuh, probe `/api/health` + 6 rute publik, satu vonis PASS/FAIL.
+Bila gagal: notifikasi Telegram/Fonnte via `scripts/notify-cron-failure.ts`
+(yang sudah ada) + auto-`gh issue` harian (satu terbuka per hari, status
+job di-comment bila sudah ada). Secret opsional: `TELEGRAM_BOT_TOKEN`,
+`TELEGRAM_CHAT_ID`, `FONNTE_TOKEN`, `ADMIN_PHONE`.
+
 ### ✨ Added — Seed demo dev (prisma/seed.ts) + `--purge-e2e`
 
 `bun run db:seed` mengisi database lokal dengan data sekolah SD Indonesia

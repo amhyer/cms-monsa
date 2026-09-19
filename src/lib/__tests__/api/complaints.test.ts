@@ -25,6 +25,11 @@ const { mockSendEmail } = vi.hoisted(() => ({
 vi.mock("@/lib/email", () => ({
   sendEmail: (...args: unknown[]) => mockSendEmail(...args),
   emailTemplates: {
+    // POST /api/complaints memakai template ini saat ADMIN_EMAIL tersedia
+    complaintNotification: vi.fn((d: { subject: string }) => ({
+      subject: d.subject,
+      html: "<p>complaint notification</p>",
+    })),
     complaintReply: vi.fn((d: { subject: string }) => ({
       subject: `Re: ${d.subject}`,
       html: "<p>reply</p>",

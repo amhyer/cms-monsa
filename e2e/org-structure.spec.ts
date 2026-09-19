@@ -29,7 +29,7 @@ test.describe("Struktur Organisasi — halaman publik", () => {
       await expect(
         page.getByRole("heading", { name: m.name, level: 3 })
       ).toBeVisible();
-      await expect(page.getByText(m.position, { exact: true })).toBeVisible();
+      await expect(page.getByText(m.position, { exact: true }).first()).toBeVisible();
       // Foto opsional — ada avatar atau placeholder.
       const hasPhoto = m.photo && m.photo.length > 0;
       if (hasPhoto) {

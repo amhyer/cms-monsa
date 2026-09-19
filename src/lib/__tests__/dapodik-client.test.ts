@@ -88,6 +88,13 @@ expect(u.searchParams.get("semester_id")).toBe("20261");
     await expect(client.getSekolah()).rejects.toThrow(/bukan JSON valid/);
   });
 
+  it("getSekolah melempar error jelas saat NPSN tidak dikenal (rows kosong, bukan undefined)", async () => {
+    // Dapodik membalas 200 + { rows: [] } untuk NPSN yang tidak terdaftar.
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ rows: [] })));
+
+    await expect(makeClient().getSekolah()).rejects.toThrow(/rows kosong/);
+  });
+
   it("getSemesters mengumpulkan semester_id unik dari peserta didik + rombel (urutan menurun)", async () => {
     const pdRows = [
       { id: "pd-1", peserta_didik_id: "pd-1", nama: "A", semester_id: "20252" },

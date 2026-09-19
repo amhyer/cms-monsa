@@ -304,7 +304,17 @@ export class DapodikClient {
     const json = await this.requestRaw(endpoint);
     if (json && typeof json === "object" && "rows" in (json as Record<string, unknown>)) {
       const rows = (json as DapodikListResponse<T>).rows;
-      return Array.isArray(rows) ? rows[0] : (rows as T);
+      const first = Array.isArray(rows) ? rows[0] : (rows as T);
+      if (first == null) {
+        // Dapodik membalas 200 dengan rows kosong bila NPSN tidak ditemukan
+        // (bukan 401/403) — lempar error yang jelas alih-alih undefined
+        // yang meledak samar di pemanggil (test-connection: "nama undefined").
+        throw new Error(
+          "Web Service Dapodik tidak mengembalikan data (rows kosong). " +
+            "Kemungkinan NPSN tidak terdaftar di server Dapodik ini."
+        );
+      }
+      return first;
     }
     return json as T;
   }

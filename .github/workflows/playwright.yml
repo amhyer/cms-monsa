@@ -140,13 +140,21 @@ jobs:
         env:
           E2E_SERVER_LOG: ./server-e2e.log
 
-      # Pastikan heading step summary sesuai E2E_TAIL_LINES — menangkap
-      # perubahan env var YAML tanpa mengupdate wrapper (atau sebaliknya).
+      # Kontrak: BILA jalur gagal wrapper menulis section tail di step
+      # summary, heading-nya harus cocok dengan E2E_TAIL_LINES (menangkap
+      # env YAML vs wrapper yang tidak sinkron). Dua kasus TIDAK menulis
+      # section tail dan wajar dilewati: (1) suite lulus (termasuk
+      # flaky-only, exit 0 — summary sukses tanpa tail), (2) kegagalan step
+      # check LAIN yang men-trigger if: failure() secara kaskade (bukan
+      # sinyal server-log). Suite gagal tanpa summary tail sama sekali tetap
+      # terdeteksi — cabang else.
       - name: Check tail heading matches E2E_TAIL_LINES
         if: failure()
         run: |
           if grep -q "server log tail ($E2E_TAIL_LINES baris stdout" "$GITHUB_STEP_SUMMARY"; then
             echo "Tail heading matches E2E_TAIL_LINES ($E2E_TAIL_LINES) ✓"
+          elif grep -q "## ✅ E2E passed" "$GITHUB_STEP_SUMMARY"; then
+            echo "Suite lulus (summary sukses tanpa section tail) — verifikasi heading tidak relevan, dilewati."
           else
             ACTUAL=$(grep -o 'server log tail ([0-9]* baris' "$GITHUB_STEP_SUMMARY" | head -1)
             echo "::error::Step summary tail heading ($ACTUAL) does not match E2E_TAIL_LINES ($E2E_TAIL_LINES)"

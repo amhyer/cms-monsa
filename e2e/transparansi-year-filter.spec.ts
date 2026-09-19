@@ -76,7 +76,10 @@ test.describe("Transparansi — filter tahun (server-side)", () => {
     ).toBeVisible();
 
     const filter = page.getByLabel("Filter tahun anggaran");
-    await expect(filter).toHaveValue("all");
+    // Asersi pertama halaman: beri timeout panjang — hit pertama saat dev
+    // server dingin bisa menahan kompilasi Turbopack >15s (sudah pernah
+    // terjadi: attempt 1 flaky di full run, lulus di retry).
+    await expect(filter).toHaveValue("all", { timeout: 45_000 });
 
     // Opsi tahun harus mencakup 2025 + tahun lain.
     const options = filter.locator("option");

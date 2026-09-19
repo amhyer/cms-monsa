@@ -27,8 +27,12 @@ test("academic page: directory, kalender, dan halaman portofolio guru", async ({
   await expect(
     page.getByRole("heading", { name: "Kalender Akademik", exact: true })
   ).toBeVisible();
+  // Kalender merender beberapa bulan sekaligus (bulat sekarang + berikutnya)
+  // → strict-mode butuh .first() agar tidak ambigu.
   await expect(
-    page.getByRole("heading", { name: /Agustus 2026|September 2026|Oktober 2026/ })
+    page
+      .getByRole("heading", { name: /Agustus 2026|September 2026|Oktober 2026/ })
+      .first()
   ).toBeVisible();
 
   // Klik kartu pertama → MODAL profil (bio/kontak, tanpa NUPTK/NIP/NIK).

@@ -62,7 +62,7 @@ export function StorageQuotaWidget() {
       </div>
       <Progress
         value={data?.usagePercent != null ? Math.min(data.usagePercent, 100) : 0}
-        className="h-1.5 bg-sidebar-accent"
+        className={cn("h-1.5 bg-sidebar-accent", tone(data?.usagePercent ?? 0))}
         aria-label={
           data?.usagePercent != null
             ? `Pemakaian storage ${data.usagePercent.toFixed(0)}%`

@@ -137,8 +137,10 @@ async function readJson(res: Response): Promise<Record<string, unknown>> {
 }
 
 export function DapodikManager() {
-  const [config, setConfig] = useState({ npsn: "", token: "", host: "localhost", port: "5774", protocol: "http", archiveUnlisted: true as boolean, allowInsecureInProduction: false as boolean });
+  const [config, setConfig] = useState({ npsn: "", token: "", host: "localhost", port: "5774", protocol: "http", archiveUnlisted: true as boolean, allowInsecureInProduction: false as boolean, cfAccessClientId: "", cfAccessClientSecret: "" });
   const [hasExistingToken, setHasExistingToken] = useState(false);
+  const [hasExistingCfSecret, setHasExistingCfSecret] = useState(false);
+  const [cfSecretMasked, setCfSecretMasked] = useState<string | null>(null);
   const [configLoaded, setConfigLoaded] = useState(false);
   const [data, setData] = useState<DapodikData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -159,7 +161,6 @@ export function DapodikManager() {
   const [tokenDialogOpen, setTokenDialogOpen] = useState(false);
   const [generatingKey, setGeneratingKey] = useState(false);
   const [revokingKey, setRevokingKey] = useState(false);
-  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     fetch("/api/dapodik/config")
@@ -177,8 +178,12 @@ export function DapodikManager() {
             protocol: json.config.protocol || "http",
             archiveUnlisted: json.config.archiveUnlisted !== false,
             allowInsecureInProduction: json.config.allowInsecureInProduction === true,
+            cfAccessClientId: json.config.cfAccessClientId || "",
+            cfAccessClientSecret: "",
           });
           setHasExistingToken(Boolean(json.config.hasToken ?? json.config.token));
+          setHasExistingCfSecret(Boolean(json.config.cfAccessClientSecret));
+          setCfSecretMasked(json.config.cfAccessClientSecret || null);
           setHasBridgeToken(Boolean(json.config.hasBridgeToken));
           setBridgePrefix(json.config.bridgeTokenPrefix || null);
           setBridgeCreatedAt(json.config.bridgeTokenCreatedAt || null);
@@ -206,12 +211,27 @@ export function DapodikManager() {
           protocol: config.protocol,
           archiveUnlisted: config.archiveUnlisted,
           allowInsecureInProduction: config.allowInsecureInProduction,
+          cfAccessClientId: config.cfAccessClientId,
+          // Secret hanya dikirim bila diisi — kosong = pertahankan secret
+          // tersimpan (backend mem-fallback ke nilai DB, tidak ter-wipe).
+          ...(config.cfAccessClientSecret
+            ? { cfAccessClientSecret: config.cfAccessClientSecret }
+            : {}),
         }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
       toast.success("Konfigurasi tersimpan!");
       if (config.token) setHasExistingToken(true);
+      // Secret write-only: bila user mengisi field, secret tersimpan berubah —
+      // kosongkan field dan tampilkan hint mask baru tanpa menunggu reload.
+      // Bila field dikosongkan (tidak dikirim), secret DB dipertahankan dan
+      // hint mask lama tetap valid.
+      if (config.cfAccessClientSecret) {
+        setConfig((p) => ({ ...p, cfAccessClientSecret: "" }));
+        setHasExistingCfSecret(true);
+        setCfSecretMasked("****");
+      }
       setShowConfig(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Gagal menyimpan");
@@ -339,31 +359,6 @@ export function DapodikManager() {
       toast.error(err instanceof Error ? err.message : "Gagal sinkronisasi");
     } finally {
       setSyncing(false);
-    }
-  }, []);
-
-  const downloadJembatan = useCallback(async () => {
-    setDownloading(true);
-    try {
-      const res = await fetch("/api/dapodik/download");
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        throw new Error(json.error || `HTTP ${res.status}`);
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "jembatan-dapodik-monsa.zip";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      toast.success("Paket jembatan diunduh. Jalankan di PC yang sama dengan Dapodik.");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Gagal mengunduh");
-    } finally {
-      setDownloading(false);
     }
   }, []);
 
@@ -548,6 +543,33 @@ export function DapodikManager() {
                   onChange={(e) => setConfig((p) => ({ ...p, token: e.target.value }))}
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="dapodik-cf-client-id">CF Access Client ID</Label>
+                <Input
+                  id="dapodik-cf-client-id"
+                  placeholder="Kosongkan jika tidak memakai Cloudflare Access"
+                  value={config.cfAccessClientId}
+                  onChange={(e) => setConfig((p) => ({ ...p, cfAccessClientId: e.target.value }))}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Service token Cloudflare Access bila Web Service Dapodik berada di balik CF — opsional.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="dapodik-cf-secret">CF Access Client Secret</Label>
+                <Input
+                  id="dapodik-cf-secret"
+                  type="password"
+                  placeholder={hasExistingCfSecret ? "Kosongkan jika tidak ingin mengubah secret" : "Secret service token (opsional)"}
+                  value={config.cfAccessClientSecret}
+                  onChange={(e) => setConfig((p) => ({ ...p, cfAccessClientSecret: e.target.value }))}
+                />
+                {hasExistingCfSecret && cfSecretMasked && (
+                  <p className="text-xs text-muted-foreground">
+                    Secret tersimpan: <span className="font-mono">{cfSecretMasked}</span>
+                  </p>
+                )}
+              </div>
               <div className="flex items-center justify-between gap-3 rounded-md border p-3 md:col-span-2">
                 <div>
                   <p className="text-sm font-medium">Nonaktifkan data yang tidak ada di Dapodik</p>
@@ -573,6 +595,7 @@ export function DapodikManager() {
                 <Switch
                   checked={config.allowInsecureInProduction}
                   onCheckedChange={(v) => setConfig((p) => ({ ...p, allowInsecureInProduction: v }))}
+                  aria-label="Izinkan HTTP di production"
                 />
               </div>
             </div>

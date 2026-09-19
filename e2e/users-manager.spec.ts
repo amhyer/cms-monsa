@@ -37,9 +37,20 @@ test.describe("Manajemen Akun — pemisahan & filter per role", () => {
     await expect(page.getByText(/\d+ dari \d+ akun/)).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText(ADMIN.email)).toHaveCount(0);
 
-    // Tab "Siswa" → empty state (counter tidak muncul saat 0 item), tidak ada email admin.
+    // Tab "Siswa" → isolasi role. Spec ini harus lulus di DB e2e murni (CI,
+    // tab Siswa kosong) maupun DB dev yang di-seed demo (ada akun SISWA demo):
+    // hitung dulu dari API, lalu asersi sesuai hitungan — jangan asumsikan seed.
     await page.getByRole("tab", { name: /Siswa/ }).click();
-    await expect(page.getByText("Belum ada akun")).toBeVisible({ timeout: 30_000 });
+    const siswaCount = await page.evaluate<number>(async () => {
+      const r = await fetch("/api/users?role=SISWA&limit=1");
+      const d = await r.json();
+      return d.counts?.SISWA ?? 0;
+    });
+    if (siswaCount === 0) {
+      await expect(page.getByText("Belum ada akun")).toBeVisible({ timeout: 30_000 });
+    } else {
+      await expect(page.getByText(/\d+ dari \d+ akun/)).toBeVisible({ timeout: 30_000 });
+    }
     await expect(page.getByText(ADMIN.email)).toHaveCount(0);
   });
 

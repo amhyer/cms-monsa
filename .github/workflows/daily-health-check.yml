@@ -1,0 +1,108 @@
+# ============================================================
+# Daily health check — audit menyeluruh + notifikasi kegagalan
+#
+# Setiap pagi (01:00 UTC / 08:00 WIB) menjalankan `bun run
+# health:daily` melawan BASE_URL: typecheck, unit test penuh,
+# probe /api/health + rute publik utama — satu vonis PASS/FAIL.
+#
+# Bila FAIL:
+#   1. Notifikasi admin via Telegram/WhatsApp (scripts/notify-
+#      health-failure.ts — mandiri dari aplikasi, tetap jalan
+#      saat situs yang diaudit mati).
+#   2. Issue GitHub harian berisi ringkasan (satu issue terbuka
+#      per hari — tidak menggandakan issue yang sudah ada).
+#
+# Secret opsional (tanpa notifikasi tetap tercatat di issue):
+#   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID,
+#   FONNTE_TOKEN, ADMIN_PHONE
+# ============================================================
+name: Daily health check
+
+on:
+  schedule:
+    - cron: "0 1 * * *" # 01:00 UTC = 08:00 WIB, setiap hari
+  workflow_dispatch: # manual dari Actions sidebar
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: daily-health-check-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  BASE_URL: ${{ secrets.HEALTH_BASE_URL || 'https://sdn-mongisidi1.sch.id' }}
+
+jobs:
+  health:
+    name: health:daily (production probe)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup repo (Node + Bun + install)
+        uses: ./.github/actions/setup-repo
+
+      - name: Run daily health check
+        id: health
+        run: |
+          set -o pipefail
+          bun run health:daily 2>&1 | tee health-output.log
+          HEALTH_EXIT=$?
+          # Tulis ringkasan kegagalan SEBELUM exit (set -e tidak dipakai
+          # supaya baris ini tetap jalan saat health gagal).
+          {
+            echo 'summary<<EOF'
+            grep '^✗' health-output.log || true
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+          exit $HEALTH_EXIT
+
+      # Fail jelas bila health:daily gagal — langkah di bawah tetap jalan
+      # (GitHub menjalankan step dengan if: always()).
+      - name: Health check failed
+        if: failure()
+        run: |
+          echo "::error title=Health check harian gagal::bun run health:daily exit non-zero — lihat langkah 'Run daily health check'"
+
+      - name: Notify admin channels (Telegram/WhatsApp)
+        if: failure()
+        env:
+          HEALTH_SUMMARY: ${{ steps.health.outputs.summary }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          FONNTE_TOKEN: ${{ secrets.FONNTE_TOKEN }}
+          ADMIN_PHONE: ${{ secrets.ADMIN_PHONE }}
+        run: bunx tsx scripts/notify-health-failure.ts
+
+      - name: Open daily issue with failure summary
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEALTH_SUMMARY: ${{ steps.health.outputs.summary }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          TITLE="🚨 Health check harian gagal — $(date -u +%F)"
+          BODY=$(cat <<MD
+          ## Health check harian GAGAL
+
+          - **Situs diaudit:** $BASE_URL
+          - **Run:** $RUN_URL
+
+          ### Detail
+          \`\`\`
+          $HEALTH_SUMMARY
+          \`\`\`
+
+          _Dibuat otomatis oleh workflow Daily health check._
+          MD
+          )
+          # Satu issue per hari: pakai yang sudah ada bila belum ditutup.
+          EXISTING=$(gh issue list --search "in:title \"$TITLE\"" --state open --limit 1 --json number --jq '.[0].number' || true)
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "Run gagal lain pada hari yang sama: $RUN_URL"
+          else
+            gh issue create --title "$TITLE" --body "$BODY"
+          fi

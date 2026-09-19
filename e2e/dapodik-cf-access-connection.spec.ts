@@ -2,7 +2,7 @@ import { test, expect } from "./mutation-log";
 import { ADMIN, login } from "./helpers";
 import type { Page } from "@playwright/test";
 
-// warmup: /api/dapodik/config
+// warmup: /api/dapodik/config /api/dapodik/test-connection /api/auth/login
 
 /**
  * Uji end-to-end koneksi Dapodik lewat Cloudflare Access (service token).

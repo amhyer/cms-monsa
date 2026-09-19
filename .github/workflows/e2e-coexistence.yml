@@ -181,9 +181,10 @@ jobs:
           RUN_ID: ${{ github.run_id }}
         run: |
           # rerun-failed-jobs men-retry HANYA job yang gagal (job e2e) pada
-          # run yang sama — run_id eksplisit, repo eksplisit: job ini tanpa
-          # checkout sehingga gh tanpa -R gagal "not a git repository".
-          gh api -X POST -R "$REPO" "repos/$REPO/actions/runs/$RUN_ID/rerun-failed-jobs"
+          # run yang sama. CATATAN: `gh api` tidak punya flag -R (repo sudah
+          # ada di path endpoint) — tanpa checkout, deteksi repo gh pun tak
+          # dibutuhkan di sini.
+          gh api -X POST "repos/$REPO/actions/runs/$RUN_ID/rerun-failed-jobs"
           echo "Job e2e dibatalkan eksternal — failed jobs di-run #$RUN_ID di-rerun (attempt 2)."
 
       - name: Tautan pemantauan

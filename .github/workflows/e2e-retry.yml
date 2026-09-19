@@ -1,0 +1,50 @@
+# Helper untuk e2e-coexistence.yml — JANGAN dijalankan manual.
+#
+# rerun-failed-jobs tidak bisa dipanggil dari job di DALAM run yang sama:
+# API menolak dengan 403 "This workflow is already running" karena run
+# masih in_progress selama job retry-nya sendiri berjalan (bukti run #13).
+# Workflow terpisah ini yang melakukan POST — dipicu dispatch dari job
+# retry e2e-coexistence SETELAH run asal conclude, sehingga run asal sudah
+# tidak in_progress saat POST tiba.
+
+name: E2E coexistence auto-retry helper
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Run ID e2e-coexistence yang failed jobs-nya akan di-rerun
+        required: true
+        type: string
+
+permissions:
+  actions: write
+
+jobs:
+  rerun:
+    name: Rerun failed jobs run asal
+    runs-on: ubuntu-latest
+    steps:
+      - name: Rerun failed jobs pada run asal
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ inputs.run_id }}
+        run: |
+          # Guard anti-loop: hanya run yang SUDAH conclude failure dengan
+          # attempt < 2 yang boleh di-rerun — attempt 2 yang dibatalkan lagi
+          # tidak pernah men-retry (maks. 2 percobaan per run).
+          STATE=$(gh api "repos/$REPO/actions/runs/$RUN_ID" \
+            --jq '"\(.status) \(.conclusion // "-") \(.run_attempt)"')
+          echo "State run asal: $STATE"
+          read -r STATUS CONCLUSION ATTEMPT <<<"$STATE"
+          if [ "$STATUS" != "completed" ] || [ "$CONCLUSION" != "failure" ] || [ "$ATTEMPT" -ge 2 ]; then
+            echo "Guard menolak rerun (status=$STATUS conclusion=$CONCLUSION attempt=$ATTEMPT) — dilewati."
+            exit 0
+          fi
+          gh api -X POST "repos/$REPO/actions/runs/$RUN_ID/rerun-failed-jobs"
+          echo "rerun-failed-jobs dipicu untuk run #$RUN_ID (attempt $((ATTEMPT+1)))."
+
+      - name: Tautan pemantauan
+        run: |
+          echo "Pantau attempt 2 run asal: https://github.com/${{ github.repository }}/actions/runs/${{ inputs.run_id }}/attempts/2" >> "$GITHUB_STEP_SUMMARY"

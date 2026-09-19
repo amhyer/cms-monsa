@@ -181,18 +181,19 @@ jobs:
     permissions:
       actions: write
     steps:
-      - name: Rerun failed jobs pada run yang sama (satu kali)
+      - name: Picu helper retry (dispatch e2e-retry.yml)
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           RUN_ID: ${{ github.run_id }}
         run: |
-          # rerun-failed-jobs men-retry HANYA job yang gagal (job e2e) pada
-          # run yang sama. CATATAN: `gh api` tidak punya flag -R (repo sudah
-          # ada di path endpoint) — tanpa checkout, deteksi repo gh pun tak
-          # dibutuhkan di sini.
-          gh api -X POST "repos/$REPO/actions/runs/$RUN_ID/rerun-failed-jobs"
-          echo "Job e2e dibatalkan eksternal — failed jobs di-run #$RUN_ID di-rerun (attempt 2)."
+          # rerun-failed-jobs TIDAK BISA dipanggil dari job di dalam run yang
+          # sama: API menolak 403 "This workflow is already running" karena
+          # run masih in_progress selama job retry-nya berjalan (bukti run
+          # #13). Dispatch workflow helper terpisah — POST dilakukan SETELAH
+          # run ini conclude (job retry adalah job terakhirnya).
+          gh workflow run -R "$REPO" e2e-retry.yml -f run_id="$RUN_ID"
+          echo "Helper retry didispatch untuk run #$RUN_ID — rerun-failed-jobs akan dipicu dari sana."
 
       - name: Tautan pemantauan
         run: |

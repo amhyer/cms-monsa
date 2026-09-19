@@ -46,6 +46,12 @@ jobs:
   e2e-coexistence:
     name: E2E on seed demo + seed e2e (coexistence)
     runs-on: ubuntu-latest
+    # Batas keras: run degeneratif (runner mati tanpa menutup step — log
+    # BlobNotFound, step conclusion null seperti run #12) berhenti paling
+    # lama 40 menit dan terkonversi jadi 'cancelled' — yang terbaca job
+    # retry untuk memicu rerun-failed-jobs. Suite penuh + seed ± 20 menit,
+    # jadi 40 menit aman untuk variasi kecepatan runner.
+    timeout-minutes: 40
     # Marker untuk job retry: GitHub men-conclude JOB sebagai 'failure'
     # (bukan 'cancelled') ketika STEP-nya yang dibatalkan, jadi kondisi
     # needs.*.result == 'cancelled' tidak pernah match. Step "Tandai
@@ -167,7 +173,8 @@ jobs:
     needs: e2e-coexistence
     if: >-
       always() &&
-      needs.e2e-coexistence.outputs.e2e_step_conclusion == 'cancelled' &&
+      (needs.e2e-coexistence.outputs.e2e_step_conclusion == 'cancelled' ||
+       needs.e2e-coexistence.outputs.e2e_step_conclusion == '') &&
       github.event_name != 'workflow_dispatch' &&
       github.run_attempt < 2
     runs-on: ubuntu-latest

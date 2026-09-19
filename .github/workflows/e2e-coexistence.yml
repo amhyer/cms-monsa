@@ -154,42 +154,38 @@ jobs:
   # TERPISAH, bukan step di dalam job utama: endpoint rerun menolak run yang
   # masih in_progress, dan job utama yang sedang menjalankan step membuat run
   # tetap in_progress (deadlock) — job downstream baru jalan SETELAH job
-  # utama conclude, dan mekanisme yang dipakai adalah workflow_dispatch (run
-  # BARU), bukan rerun. Guard anti-loop:
-  #   - event workflow_dispatch tidak pernah men-retry (maks. 1 retry per
-  #     commit — diverifikasi hitung run dispatch untuk head_sha yang sama)
-  #   - bila ada run lebih baru untuk commit yang sama, batal dipicu adalah
-  #     tanggung jawab concurrency group (cancel-in-progress) di run baru
+  # utama conclude.
+  #
+  # Mekanisme: POST rerun-failed-jobs (bukan workflow_dispatch) — memaafkan
+  # run yang sama, konteks PR tetap, dan attempt berjalan di runner baru.
+  # Dipilih setelah run dispatch dibuktikan juga terkena pembunuh eksternal
+  # (run #10) dan guard anti-loop per-branch membuat dispatch one-shot.
+  # Guard anti-loop: github.run_attempt < 2 — attempt 2 yang dibatalkan lagi
+  # tidak pernah men-retry (maks. 2 percobaan per run).
   retry-coexistence:
     name: Auto-retry on external cancellation
     needs: e2e-coexistence
     if: >-
       always() &&
       needs.e2e-coexistence.outputs.e2e_step_conclusion == 'cancelled' &&
-      github.event_name != 'workflow_dispatch'
+      github.event_name != 'workflow_dispatch' &&
+      github.run_attempt < 2
     runs-on: ubuntu-latest
     permissions:
       actions: write
     steps:
-      - name: Picu ulang workflow (satu kali)
+      - name: Rerun failed jobs pada run yang sama (satu kali)
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          BRANCH: ${{ github.head_ref || github.ref_name }}
+          RUN_ID: ${{ github.run_id }}
         run: |
-          # Guard anti-loop per BRANCH, bukan SHA: pada event pull_request,
-          # github.sha = merge commit (bukan head branch) sehingga filter
-          # head_sha tidak pernah match. head_branch = nama branch di kedua
-          # jenis event. gh WAJIB diberi -R: job ini tanpa checkout (tanpa
-          # konteks git) — tanpa itu gh gagal "not a git repository".
-          ALREADY=$(gh api -R "$REPO" "repos/$REPO/actions/workflows/e2e-coexistence.yml/runs?event=workflow_dispatch&head_branch=$BRANCH&per_page=1" --jq '.total_count' 2>/dev/null || echo 0)
-          if [ "${ALREADY:-0}" -ge 1 ]; then
-            echo "Auto-retry untuk branch '$BRANCH' sudah pernah dipicu — dilewati (guard anti-loop)."
-            exit 0
-          fi
-          gh workflow run -R "$REPO" e2e-coexistence.yml --ref "$BRANCH"
-          echo "Job e2e dibatalkan eksternal — run baru dipicu via workflow_dispatch pada branch '$BRANCH'."
+          # rerun-failed-jobs men-retry HANYA job yang gagal (job e2e) pada
+          # run yang sama — run_id eksplisit, repo eksplisit: job ini tanpa
+          # checkout sehingga gh tanpa -R gagal "not a git repository".
+          gh api -X POST -R "$REPO" "repos/$REPO/actions/runs/$RUN_ID/rerun-failed-jobs"
+          echo "Job e2e dibatalkan eksternal — failed jobs di-run #$RUN_ID di-rerun (attempt 2)."
 
       - name: Tautan pemantauan
         run: |
-          echo "Pantau run baru: https://github.com/${{ github.repository }}/actions/workflows/e2e-coexistence.yml" >> "$GITHUB_STEP_SUMMARY"
+          echo "Pantau attempt 2: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/2" >> "$GITHUB_STEP_SUMMARY"

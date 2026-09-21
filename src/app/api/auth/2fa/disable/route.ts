@@ -3,6 +3,7 @@
  *
  * Disable 2FA for the authenticated user. Requires password confirmation.
  */
+import { safeJson } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -27,7 +28,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = await req.json();
+    const parsed = await safeJson(req);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
     const validation = validateBody(disableSchema, body);
     if (!validation.ok) {
       return NextResponse.json({ error: validation.error }, { status: 400 });

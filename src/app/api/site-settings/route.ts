@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/api-helpers";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
@@ -53,7 +54,9 @@ export async function PUT(req: Request) {
   if (!auth.ok) return auth.response;
 
   try {
-    const body = await req.json();
+    const parsed = await safeJson(req);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
     const data = {
       schoolName: String(body.schoolName ?? ""),
       npsn: String(body.npsn ?? ""),

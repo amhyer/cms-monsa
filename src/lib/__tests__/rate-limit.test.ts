@@ -7,6 +7,8 @@ import {
   getClientIp,
   isFormRateLimited,
   rateLimitPublicForm,
+  isMutationRateLimited,
+  rateLimitMutation,
 } from "@/lib/rate-limit";
 
 describe("rate-limit utilities", () => {
@@ -129,6 +131,46 @@ describe("rate-limit utilities", () => {
       }
       expect(await isLocked(email1, "127.0.0.8")).toBe(true);
       expect(await isLocked(email2, "127.0.0.8")).toBe(false);
+    });
+  });
+
+  describe("isMutationRateLimited (B1 audit fix)", () => {
+    it("tidak membatasi mutation pertama dalam window", async () => {
+      const ip = `mut-${Date.now()}`;
+      expect(await isMutationRateLimited(ip, 5, 60_000)).toBe(false);
+    });
+
+    it("membatasi setelah melebihi kuota dalam window", async () => {
+      const ip = `mut-max-${Date.now()}`;
+      for (let i = 0; i < 5; i++) {
+        expect(await isMutationRateLimited(ip, 5, 60_000)).toBe(false);
+      }
+      expect(await isMutationRateLimited(ip, 5, 60_000)).toBe(true);
+    });
+
+    it("dibypass total saat E2E_SUITE=1 (harness e2e sah menembak cepat)", async () => {
+      const ip = `mut-e2e-${Date.now()}`;
+      process.env.E2E_SUITE = "1";
+      try {
+        for (let i = 0; i < 10; i++) {
+          expect(await isMutationRateLimited(ip, 2, 60_000)).toBe(false);
+        }
+      } finally {
+        delete process.env.E2E_SUITE;
+      }
+    });
+
+    it("rateLimitMutation mengembalikan 429 + Retry-After saat terbatas", async () => {
+      const ip = `mut-resp-${Date.now()}`;
+      const req = new Request("http://localhost/api/agenda", {
+        method: "POST",
+        headers: { "x-real-ip": ip },
+      });
+      expect(await rateLimitMutation(req, 1, 60_000)).toBeNull();
+      const res = await rateLimitMutation(req, 1, 60_000);
+      expect(res).not.toBeNull();
+      expect(res?.status).toBe(429);
+      expect(res?.headers.get("Retry-After")).toBe("60");
     });
   });
 

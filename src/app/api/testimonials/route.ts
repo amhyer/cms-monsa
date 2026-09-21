@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { rateLimitPublicForm } from "@/lib/rate-limit";
@@ -62,7 +63,9 @@ export async function POST(req: NextRequest) {
   if (rateLimited) return rateLimited;
 
   try {
-    const body = await req.json();
+    const parsed = await safeJson(req);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
     const validation = validateBody(createTestimonialSchema, body);
     if (!validation.ok) {
       return NextResponse.json({ error: validation.error }, { status: 400 });

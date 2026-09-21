@@ -4,12 +4,14 @@
  * Verify 2FA code during login flow. Supports both TOTP tokens and backup codes.
  * Called after the main login succeeds and the user has 2FA enabled.
  */
+import { safeJson } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { setSession } from "@/lib/auth";
 import { logActivity } from "@/lib/log";
 import { verifyTOTP, verifyBackupCode, parseBackupCodes, serializeBackupCodes } from "@/lib/totp";
 import { validateBody } from "@/lib/validations";
+import { rateLimitPublicForm } from "@/lib/rate-limit";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
 
@@ -20,7 +22,15 @@ const login2FASchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    // Rate limit ketat: endpoint ini memverifikasi kode TOTP pra-sesi —
+    // tanpa pembatas, kode 6 digit bisa di-brute-force. 10 percobaan/menit
+    // per IP masih jauh di atas kebutuhan manusia yang sah.
+    const limited = await rateLimitPublicForm(req, 10, 60_000);
+    if (limited) return limited;
+
+    const parsed = await safeJson(req);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
     const validation = validateBody(login2FASchema, body);
     if (!validation.ok) {
       return NextResponse.json({ error: validation.error }, { status: 400 });

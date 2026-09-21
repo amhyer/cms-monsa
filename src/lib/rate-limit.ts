@@ -170,6 +170,54 @@ export async function rateLimitPublicForm(req: RequestLike, max?: number, window
     return null;
 }
 
+// --- Authenticated Mutation Rate Limiter ---
+
+const mutationStore = new Map<string, { count: number; windowStart: number }>();
+
+/**
+ * Pembatas untuk request mutation ter-autentikasi (POST/PUT/PATCH/DELETE).
+ * Dipasang di `requireCsrf` (choke point bersama semua route mutation), bukan
+ * per-handler, agar coverage tidak bergantung pada disiplin tiap route.
+ * Jauh lebih longgar daripada limit form publik: operator sah bisa melakukan
+ * puluhan mutation per menit (bulk edit, impor data), tapi flood programatik
+ * tetap terhenti.
+ * Diabaikan total saat E2E_SUITE=1 — harness Playwright menembak banyak
+ * mutation dari satu IP (localhost) dalam hitungan detik.
+ */
+export async function isMutationRateLimited(ip: string, max = 120, windowMs = 60_000): Promise<boolean> {
+  if (process.env.E2E_SUITE === "1") return false;
+  const k = `mutation-limit:${ip}`;
+  if (!redis) {
+    const now = Date.now();
+    const rec = mutationStore.get(k);
+    if (!rec || now - rec.windowStart >= windowMs) {
+      mutationStore.set(k, { count: 1, windowStart: now });
+      return false;
+    }
+    rec.count += 1;
+    return rec.count > max;
+  }
+
+  const count = await redis.incr(k);
+  if (count === 1) {
+    await redis.pexpire(k, windowMs);
+  }
+  return count > max;
+}
+
+/** Wrapper siap-pakai: kembalikan 429 bila mutation dari IP ini melebihi kuota. */
+export async function rateLimitMutation(req: RequestLike, max?: number, windowMs?: number): Promise<Response | null> {
+  const ip = getClientIp(req);
+  if (await isMutationRateLimited(ip, max, windowMs)) {
+    logger.warn({ ip, max: max ?? 120 }, "[rate-limit] mutation limit exceeded");
+    return Response.json(
+      { error: "Terlalu banyak permintaan. Silakan coba lagi beberapa saat." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil((windowMs ?? 60_000) / 1000)) } }
+    );
+  }
+  return null;
+}
+
 // --- Public GET Rate Limiter ---
 
 export async function isGetRateLimited(ip: string, max = 30, windowMs = 60000): Promise<boolean> {

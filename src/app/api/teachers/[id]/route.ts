@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
@@ -33,7 +34,9 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   if (!existing) {
     return NextResponse.json({ error: "Data tidak ditemukan." }, { status: 404 });
   }
-  const body = await req.json();
+  const parsed = await safeJson(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
   const updated = await db.teacher.update({
     where: { id },
     data: {

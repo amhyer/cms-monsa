@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole, getSession } from "@/lib/auth";
@@ -47,7 +48,9 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     return NextResponse.json({ error: "Berita tidak ditemukan." }, { status: 404 });
   }
 
-  const body = await req.json();
+  const parsed = await safeJson(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
   const title = String(body.title ?? existing.title).trim();
   if (!title) {
     return NextResponse.json({ error: "Judul wajib diisi." }, { status: 400 });

@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
@@ -156,7 +157,9 @@ export async function POST(req: NextRequest) {
 
   const auth = await requireRole("SUPER_ADMIN");
   if (!auth.ok) return auth.response;
-  const body = await req.json();
+  const parsed = await safeJson(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
   const validation = validateBody(createUserSchema, body);
   if (!validation.ok) {
     return NextResponse.json({ error: validation.error }, { status: 400 });

@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
@@ -16,7 +17,9 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   if (!auth.ok) return auth.response;
 
   const { id } = await params;
-  const body = await req.json();
+  const parsed = await safeJson(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
 
   const validation = validateBody(changePasswordSchema, body);
   if (!validation.ok) {

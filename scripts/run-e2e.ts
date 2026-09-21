@@ -76,6 +76,11 @@ import { buildRunStats, computeRequestStats } from "./e2e-stats";
 const isWin = process.platform === "win32";
 const port = process.env.E2E_PORT ?? "3000";
 const serverCmd = process.env.E2E_SERVER_CMD ?? "bun run dev";
+// Wrapper ini adalah harness E2E: tandai proses server & Playwright yang
+// di-spawn agar rate limiter publik/mutation (src/lib/rate-limit.ts)
+// membolehkan tembakan cepat dari satu IP localhost. CI menyetel env ini
+// di level workflow; wrapper menjaminnya juga untuk run lokal.
+process.env.E2E_SUITE = process.env.E2E_SUITE ?? "1";
 
 // Log WRAPPER sendiri (alur + status warm-up ✓/◇/✗ per rute + ringkasan) —
 // ditulis ke file di %TEMP% lalu DIGABUNG ke E2E_SERVER_LOG saat selesai,

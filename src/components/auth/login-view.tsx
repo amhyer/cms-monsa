@@ -25,20 +25,10 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-const DEMO = [
-  {
-    label: "Super Admin",
-    email: "admin@mongisidi1.sch.id",
-    password: "admin123",
-    desc: "Akses penuh — pengaturan, operator, log",
-  },
-  {
-    label: "Operator",
-    email: "operator@mongisidi1.sch.id",
-    password: "operator123",
-    desc: "Manajemen konten harian",
-  },
-];
+// Keamanan: kredensial akun TIDAK pernah di-hardcode di sini —
+// string apa pun di komponen client ikut ter-bundle ke JavaScript publik.
+// Lihat prisma/seed.ts untuk kredensial seed & docs untuk panduan ganti
+// password setelah deploy.
 
 export function LoginView() {
   const router = useRouter();
@@ -69,12 +59,6 @@ export function LoginView() {
       return;
     }
     toast.success("Selamat datang kembali!");
-  }
-
-  function autofill(d: (typeof DEMO)[number]) {
-    setEmail(d.email);
-    setPassword(d.password);
-    setError(null);
   }
 
   return (
@@ -189,42 +173,6 @@ export function LoginView() {
               </Button>
             </form>
 
-            <div className="mt-5 rounded-lg border border-gold/40 bg-gold/10 p-3">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gold-foreground">
-                Akun Demo
-              </p>
-              <div className="space-y-2">
-                {DEMO.map((d) => (
-                  <div
-                    key={d.email}
-                    className="flex items-center justify-between gap-2 rounded-md bg-background/80 px-3 py-2"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-x-2">
-                        <span className="text-sm font-semibold text-foreground">
-                          {d.label}
-                        </span>
-                        <span className="truncate text-xs text-muted-foreground">
-                          {d.email} · {d.password}
-                        </span>
-                      </div>
-                      <p className="truncate text-[11px] text-muted-foreground">
-                        {d.desc}
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => autofill(d)}
-                      disabled={submitting}
-                    >
-                      Isi Otomatis
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
           </CardContent>
         </Card>
 

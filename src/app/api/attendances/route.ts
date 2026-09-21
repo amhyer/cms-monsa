@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth, requireRole, canAccessClass } from "@/lib/auth";
@@ -104,7 +105,9 @@ export async function POST(req: NextRequest) {
   const auth = await requireRole("GURU");
   if (!auth.ok) return auth.response;
 
-  const body = await req.json();
+  const parsed = await safeJson(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
   const studentId = String(body.studentId ?? "").trim();
   const classId = String(body.classId ?? "").trim();
   const dateValue = String(body.date ?? "").trim();

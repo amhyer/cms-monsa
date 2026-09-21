@@ -1,4 +1,5 @@
 import { safeJson } from "@/lib/api-helpers";
+import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
@@ -61,42 +62,51 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const csrfError = await requireCsrf(req);
-  if (csrfError) return csrfError;
+  try {
 
-  const auth = await requireRole("OPERATOR");
-  if (!auth.ok) return auth.response;
+    const csrfError = await requireCsrf(req);
+    if (csrfError) return csrfError;
 
-  const parsed = await safeJson(req);
-  if (!parsed.ok) return parsed.response;
-  const body = parsed.data;
-  const validation = validateBody(createStudentSchema, body);
+    const auth = await requireRole("OPERATOR");
+    if (!auth.ok) return auth.response;
 
-  if (!validation.ok) {
-    return NextResponse.json({ error: validation.error }, { status: 400 });
-  }
+    const parsed = await safeJson(req);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
+    const validation = validateBody(createStudentSchema, body);
 
-  const { nis, name, classId } = validation.data;
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
+    }
 
-  const exists = await db.student.findUnique({ where: { nis } });
-  if (exists) {
-    return NextResponse.json({ error: "NIS sudah terdaftar." }, { status: 409 });
-  }
+    const { nis, name, classId } = validation.data;
 
-  const classExists = await db.class.findUnique({ where: { id: classId } });
-  if (!classExists) {
-    return NextResponse.json({ error: "Kelas tidak ditemukan." }, { status: 404 });
-  }
+    const exists = await db.student.findUnique({ where: { nis } });
+    if (exists) {
+      return NextResponse.json({ error: "NIS sudah terdaftar." }, { status: 409 });
+    }
 
-  const item = await db.student.create({
-    data: {
-      ...validation.data,
-      dateOfBirth: validation.data.dateOfBirth
-        ? new Date(validation.data.dateOfBirth)
-        : null,
-    },
-  });
+    const classExists = await db.class.findUnique({ where: { id: classId } });
+    if (!classExists) {
+      return NextResponse.json({ error: "Kelas tidak ditemukan." }, { status: 404 });
+    }
 
-  await logActivity(auth.user, "CREATE", "Student", `Menambah siswa: ${name} (${nis})`, item.id);
-  return NextResponse.json(item);
-}
+    const item = await db.student.create({
+      data: {
+        ...validation.data,
+        dateOfBirth: validation.data.dateOfBirth
+          ? new Date(validation.data.dateOfBirth)
+          : null,
+      },
+    });
+
+    await logActivity(auth.user, "CREATE", "Student", `Menambah siswa: ${name} (${nis})`, item.id);
+    return NextResponse.json(item);
+
+  } catch (err) {
+    logger.error({ err, path: req.url }, "Route handler error");
+    return NextResponse.json(
+      { error: "Terjadi kesalahan server." },
+      { status: 500 }
+    );
+  }}

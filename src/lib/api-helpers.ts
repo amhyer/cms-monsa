@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 
 /**
  * Parse body JSON dari Request dengan aman (C1 audit fix).
@@ -38,4 +39,33 @@ export async function safeJson<T = any>(
       ),
     };
   }
+}
+
+/**
+ * Bungkus route handler mutation (POST/PUT/DELETE) dengan try/catch global.
+ * Mengembalikan 500 safe (tanpa stack trace) + logger.error untuk trace.
+ *
+ * Contoh:
+ *   export const POST = withErrorHandling(async (req) => { ... })
+ */
+export function withErrorHandling(
+  handler: (
+    req: Request,
+    ctx?: Record<string, string>
+  ) => Promise<NextResponse>
+) {
+  return async (
+    req: Request,
+    ctx?: { params?: Promise<Record<string, string>> }
+  ): Promise<NextResponse> => {
+    try {
+      return await handler(req, ctx?.params ? await ctx.params : undefined);
+    } catch (err) {
+      logger.error({ err, path: req.url, method: req.method }, "Unhandled route error");
+      return NextResponse.json(
+        { error: "Terjadi kesalahan server." },
+        { status: 500 }
+      );
+    }
+  };
 }

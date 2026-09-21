@@ -9,7 +9,6 @@ import {
   parseBearerToken,
   verifyBridgeToken,
 } from "@/lib/dapodik-bridge";
-import { buildZipStore } from "@/lib/zip-store";
 
 describe("bridge token", () => {
   it("menghasilkan token monsa_br_ dan hash SHA-256", () => {

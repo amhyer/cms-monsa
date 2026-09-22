@@ -9,13 +9,24 @@ import {
   rateLimitPublicForm,
   isMutationRateLimited,
   rateLimitMutation,
+  getUploadCount,
+  recordUpload,
+  UPLOAD_QUOTA_PER_DAY,
 } from "@/lib/rate-limit";
 
 describe("rate-limit utilities", () => {
+  const savedTrustProxy = process.env.TRUST_PROXY;
   beforeEach(() => {
-    // Clear all failures before each test by using a unique email per test
-    // The in-memory store is shared, so we use unique keys
+    // Kebanyakan test memakai XFF untuk membedakan IP per-test — aktifkan
+    // kembali kepercayaan proxy yang default-nya mati (H1 fix).
+    process.env.TRUST_PROXY = "true";
   });
+  afterAll(() => {
+    if (savedTrustProxy === undefined) delete process.env.TRUST_PROXY;
+    else process.env.TRUST_PROXY = savedTrustProxy;
+  });
+  // Clear all failures before each test by using a unique email per test
+  // The in-memory store is shared, so we use unique keys
 
   describe("getClientIp", () => {
     const saved = process.env.TRUST_PROXY;
@@ -321,5 +332,37 @@ describe("rate-limit utilities", () => {
       expect(rejected).not.toBeNull();
       expect(rejected?.status).toBe(429);
     });
+  });
+});
+describe("upload quota harian per pengguna (M7)", () => {
+  const savedE2E = process.env.E2E_SUITE;
+  beforeEach(() => {
+    delete process.env.E2E_SUITE;
+  });
+  afterAll(() => {
+    if (savedE2E === undefined) delete process.env.E2E_SUITE;
+    else process.env.E2E_SUITE = savedE2E;
+  });
+
+  it("menghitung hanya upload yang dicatat (recordUpload)", async () => {
+    const uid = `quota-test-${Date.now()}`;
+    expect(await getUploadCount(uid)).toBe(0);
+    await recordUpload(uid);
+    await recordUpload(uid);
+    expect(await getUploadCount(uid)).toBe(2);
+  });
+
+  it("kuota penuh terdeteksi lewat pre-check >= UPLOAD_QUOTA_PER_DAY", async () => {
+    const uid = `quota-full-${Date.now()}`;
+    for (let i = 0; i < UPLOAD_QUOTA_PER_DAY; i++) await recordUpload(uid);
+    const count = await getUploadCount(uid);
+    expect(count).toBeGreaterThanOrEqual(UPLOAD_QUOTA_PER_DAY);
+  });
+
+  it("E2E_SUITE=1 menonaktifkan kuota (harness boleh flood upload)", async () => {
+    process.env.E2E_SUITE = "1";
+    const uid = `quota-e2e-${Date.now()}`;
+    for (let i = 0; i < UPLOAD_QUOTA_PER_DAY + 5; i++) await recordUpload(uid);
+    expect(await getUploadCount(uid)).toBe(0);
   });
 });

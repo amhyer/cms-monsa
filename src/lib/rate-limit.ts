@@ -250,6 +250,55 @@ export async function rateLimitMutation(req: RequestLike, max?: number, windowMs
   return null;
 }
 
+// --- Upload Quota per Pengguna (M7) ---
+
+const uploadQuotaStore = new Map<string, { count: number; windowStart: number }>();
+
+/** Batas file upload (gambar + PDF BOS) per user per jendela 24 jam bergeser. */
+export const UPLOAD_QUOTA_PER_DAY = 50;
+const UPLOAD_QUOTA_WINDOW = 24 * 60 * 60 * 1000;
+
+function uploadQuotaKey(userId: string) {
+  return `upload-quota:${userId}`;
+}
+
+/**
+ * Jumlah upload user dalam 24 jam bergeser terakhir. Dicek SEBELUM proses
+ * (pre-check); penghitungannya naik hanya untuk upload yang berhasil
+ * (`recordUpload`) agar file ditolak (ukuran/magic-bytes) tidak memunahkan kuota.
+ * Dimatikan saat E2E_SUITE=1 — harness mengunggah banyak gambar dari satu akun.
+ */
+export async function getUploadCount(userId: string): Promise<number> {
+  if (process.env.E2E_SUITE === "1") return 0;
+  const k = uploadQuotaKey(userId);
+  if (!redis) {
+    const rec = uploadQuotaStore.get(k);
+    if (!rec || Date.now() - rec.windowStart >= UPLOAD_QUOTA_WINDOW) return 0;
+    return rec.count;
+  }
+  return parseInt((await redis.get(k)) ?? "0", 10) || 0;
+}
+
+/** Catat satu upload berhasil (dipanggil setelah file tersimpan). */
+export async function recordUpload(userId: string): Promise<void> {
+  if (process.env.E2E_SUITE === "1") return;
+  const k = uploadQuotaKey(userId);
+  if (!redis) {
+    const now = Date.now();
+    const rec = uploadQuotaStore.get(k);
+    if (!rec || now - rec.windowStart >= UPLOAD_QUOTA_WINDOW) {
+      uploadQuotaStore.set(k, { count: 1, windowStart: now });
+    } else {
+      rec.count += 1;
+    }
+    return;
+  }
+  const count = await redis.incr(k);
+  if (count === 1) {
+    await redis.pexpire(k, UPLOAD_QUOTA_WINDOW);
+  }
+}
+
 // --- Public GET Rate Limiter ---
 
 export async function isGetRateLimited(ip: string, max = 30, windowMs = 60000): Promise<boolean> {

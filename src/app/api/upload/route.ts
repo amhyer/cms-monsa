@@ -4,6 +4,7 @@ import { requireCsrf } from "@/lib/csrf";
 import { logger } from "@/lib/logger";
 import { detectImageType, IMAGE_TYPE_EXT, IMAGE_TYPE_MIME } from "@/lib/upload";
 import { saveUpload, maxUploadMb } from "@/lib/file-storage";
+import { getUploadCount, recordUpload, UPLOAD_QUOTA_PER_DAY } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   const csrfError = await requireCsrf(req);
@@ -11,6 +12,16 @@ export async function POST(req: NextRequest) {
 
   const auth = await requireAuth();
   if (!auth.ok) return auth.response;
+
+  // M7: kuota harian per pengguna — cegah satu akun mengisi disk tanpa batas.
+  if ((await getUploadCount(auth.user.id)) >= UPLOAD_QUOTA_PER_DAY) {
+    return NextResponse.json(
+      {
+        error: `Kuota upload harian tercapai (${UPLOAD_QUOTA_PER_DAY} file/24 jam). Coba lagi besok atau hubungi admin.`,
+      },
+      { status: 429 }
+    );
+  }
 
   try {
     const formData = await req.formData();
@@ -58,6 +69,7 @@ export async function POST(req: NextRequest) {
     // Simpan ke backend aktif (disk self-host / tabel UploadedFile di
     // Vercel) — lihat src/lib/file-storage.ts.
     const saved = await saveUpload(bytes, filename, IMAGE_TYPE_MIME[detected]);
+    await recordUpload(auth.user.id);
 
     return NextResponse.json({ url: saved.url });
   } catch (e) {

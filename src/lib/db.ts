@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import { logger } from '@/lib/logger'
 import {
   describeWriteGuard,
   isGuardedWriteAction,
@@ -36,4 +37,4 @@ export const db: PrismaClient = isWriteGuardActive()
     }) as unknown as PrismaClient)
   : prisma
 
-if (isWriteGuardActive()) console.warn(describeWriteGuard())
+if (isWriteGuardActive()) logger.warn(describeWriteGuard())

@@ -22,7 +22,7 @@
 # ter-commit bila commit sekarang", jadi hasilnya sama persis.
 #
 # Di CI (GITHUB_ACTIONS=true) tidak ada staging — checkout fresh. Guard
-# 1/3/4 (env/cookie/lockfile) beralih memindai WORKING TREE ter-track
+# 1/3/4/6 (env/cookie/lockfile/zz-tmp) beralih memindai WORKING TREE ter-track
 # (git ls-files) agar bypass lokal `git commit --no-verify` yang lolos
 # tetap tertangkap saat push/PR (lihat hooks-gate.yml). Guard 2 tetap
 # index-only: file kritikal dihapus dari index = file terhapus di commit.
@@ -334,6 +334,30 @@ if [[ -n "$OVERSIZED" ]]; then
     fpath="${line%% (*}"
     GUARD_VIOLATIONS+=("$fpath")
   done <<< "$OVERSIZED"
+fi
+
+# --- Guard 6: file tes sementara (zz-tmp*)? ------------------------------
+# Kebiasaan repo P3: tes verifikasi cepat bernama zz-tmp* sering tertinggal
+# di src/**/__tests__ setelah sesi debugging dan ikut ter-run di vitest.
+# .gitignore sudah menutup polanya; guard ini menangkap penambahan paksa
+# (`git add -f`) — dan di CI, file yang lolos lewat `commit --no-verify`.
+ZTMPS="$(printf '%s\n' "$GUARD_SCOPE_FILES" | awk '
+{
+  n = $0
+  sub(/^.*\//, "", n)
+  if (n ~ /^zz-tmp/) print
+}' || true)"
+
+if [[ -n "$ZTMPS" ]]; then
+  if [[ "$JSON" -eq 0 ]]; then
+    echo "❌ [hooks] Perubahan DITOLAK — file tes sementara zz-tmp* ter-stage:"
+    echo "$ZTMPS" | sed 's/^/   - /'
+    echo "   Tes zz-tmp* hanya untuk verifikasi sesi — hapus sebelum commit."
+    echo "   Hapus dari index:  git reset HEAD <file>"
+  fi
+  while IFS= read -r f; do
+    [ -n "$f" ] && GUARD_VIOLATIONS+=("$f")
+  done <<< "$ZTMPS"
 fi
 
 emit_result() {

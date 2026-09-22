@@ -107,6 +107,9 @@ dapodik-debug.html
 local-*
 # hasil grep/log investigasi ad-hoc (triage CI, eksperimen lokal) — bukan source
 .tmp-*
+# file tes sementara sesi agent (zz-tmp* — verifikasi cepat yang tidak boleh
+# bertahan ke commit; guard 6 hooks:check menangkap git add -f)
+**/zz-tmp*
 .claude
 .z-ai-config
 test

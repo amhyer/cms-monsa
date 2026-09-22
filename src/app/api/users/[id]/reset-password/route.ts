@@ -6,10 +6,11 @@ import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
 import { hashPassword } from "@/lib/password";
 import { changePasswordSchema, validateBody } from "@/lib/validations";
+import { withErrorHandling } from "@/lib/api-helpers";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-export async function POST(req: NextRequest, { params }: Ctx) {
+async function POST_impl(req: NextRequest, { params }: Ctx) {
   const csrfError = await requireCsrf(req);
   if (csrfError) return csrfError;
 
@@ -49,3 +50,5 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
   return NextResponse.json({ ok: true, message: "Password berhasil direset." });
 }
+
+export const POST = withErrorHandling(POST_impl);

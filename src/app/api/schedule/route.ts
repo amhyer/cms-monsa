@@ -6,6 +6,7 @@ import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
 import { DAYS } from "@/lib/schedule-constants";
 import { createScheduleEntrySchema, validateBody } from "@/lib/validations";
+import { withErrorHandling } from "@/lib/api-helpers";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -46,7 +47,7 @@ export async function GET(req: NextRequest) {
   });
 }
 
-export async function POST(req: NextRequest) {
+async function POST_impl(req: NextRequest) {
   const csrfError = await requireCsrf(req);
   if (csrfError) return csrfError;
 
@@ -96,3 +97,5 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ id: item.id });
 }
+
+export const POST = withErrorHandling(POST_impl);

@@ -53,7 +53,14 @@ padahal kode produksi bersih. Setelah P0-1 dilakukan, seluruh gerbang non-E2E hi
    passwords" di `src/app/api/auth/login/route.ts:64` — menyesatkan saat audit
    berikutnya karena fallback itu sudah tidak ada.
 
-## P1 — Minggu Ini (konsistensi & batas kepercayaan)
+## P1 — Minggu Ini (konsistensi & batas kepercayaan) — ✅ SELESAI 22-09-2026
+
+> Implementasi: `withErrorHandling` di-refactor pass-through + 28 rute mutasi
+> dibungkus; guard `bun run check:mutation-handlers` masuk rantai `check`
+> (pre-commit + CI ikut terkunci); `TRUST_PROXY` jadi batas kepercayaan
+> eksplisit header proxy (default compose `true` di belakang Caddy, lihat
+> RUNNING.md §13); cap per-IP login (20 gagal/15 menit, `isIpLocked`)
+> terverifikasi sudah aktif di `login/route.ts` sejak `a3b0d28`.
 
 1. **Konsistensi error handling API**: dari 104 `route.ts`, ±39 file tidak punya
    `catch` sama sekali. Helper `withErrorHandling` sudah ada di

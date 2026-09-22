@@ -11,6 +11,7 @@ import {
   decodeCursor,
   buildPaginatedResponse,
 } from "@/lib/pagination";
+import { withErrorHandling } from "@/lib/api-helpers";
 
 /**
  * Daftar belanja dana BOS/ARKAS — PUBLIK (transparansi anggaran sekolah).
@@ -97,7 +98,7 @@ export async function GET(req: NextRequest) {
   });
 }
 
-export async function POST(req: NextRequest) {
+async function POST_impl(req: NextRequest) {
   const csrfError = await requireCsrf(req);
   if (csrfError) return csrfError;
 
@@ -134,3 +135,5 @@ export async function POST(req: NextRequest) {
   );
   return NextResponse.json(entry);
 }
+
+export const POST = withErrorHandling(POST_impl);

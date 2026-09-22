@@ -6,6 +6,7 @@ import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
 import { slugify } from "@/lib/format";
 import { sanitizeHtml } from "@/lib/sanitize";
+import { withErrorHandling } from "@/lib/api-helpers";
 
 const NEWS_CATEGORIES = ["Akademik", "Kegiatan", "Prestasi"] as const;
 const MAX_CONTENT_LENGTH = 50000;
@@ -35,7 +36,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   return NextResponse.json({ ...news, authorName: news.author?.name });
 }
 
-export async function PUT(req: NextRequest, { params }: Ctx) {
+async function PUT_impl(req: NextRequest, { params }: Ctx) {
   const csrfError = await requireCsrf(req);
   if (csrfError) return csrfError;
 
@@ -129,7 +130,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   return NextResponse.json({ ...updated, authorName: updated.author?.name });
 }
 
-export async function DELETE(req: NextRequest, { params }: Ctx) {
+async function DELETE_impl(req: NextRequest, { params }: Ctx) {
   const csrfError = await requireCsrf(req);
   if (csrfError) return csrfError;
 
@@ -153,3 +154,6 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
 
   return NextResponse.json({ ok: true });
 }
+
+export const PUT = withErrorHandling(PUT_impl);
+export const DELETE = withErrorHandling(DELETE_impl);

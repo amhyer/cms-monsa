@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
+import { withErrorHandling } from "@/lib/api-helpers";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -24,7 +25,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   return NextResponse.json({ ...item, uploadedByName: item.uploadedBy?.name });
 }
 
-export async function PUT(req: NextRequest, { params }: Ctx) {
+async function PUT_impl(req: NextRequest, { params }: Ctx) {
   const csrfError = await requireCsrf(req);
   if (csrfError) return csrfError;
 
@@ -56,7 +57,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   return NextResponse.json(updated);
 }
 
-export async function DELETE(req: NextRequest, { params }: Ctx) {
+async function DELETE_impl(req: NextRequest, { params }: Ctx) {
   const csrfError = await requireCsrf(req);
   if (csrfError) return csrfError;
 
@@ -73,3 +74,6 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
   await logActivity(auth.user, "DELETE", "Document", `Menghapus dokumen: ${existing.title}`, id);
   return NextResponse.json({ ok: true });
 }
+
+export const PUT = withErrorHandling(PUT_impl);
+export const DELETE = withErrorHandling(DELETE_impl);

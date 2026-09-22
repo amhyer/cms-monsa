@@ -6,8 +6,9 @@ import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
 import { verifyPassword, hashPassword, isHashed } from "@/lib/password";
 import { changePasswordSchema, validateBody } from "@/lib/validations";
+import { withErrorHandling } from "@/lib/api-helpers";
 
-export async function POST(req: NextRequest) {
+async function POST_impl(req: NextRequest) {
   const csrfError = await requireCsrf(req);
   if (csrfError) return csrfError;
 
@@ -47,3 +48,5 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ ok: true, message: "Password berhasil diubah." });
 }
+
+export const POST = withErrorHandling(POST_impl);

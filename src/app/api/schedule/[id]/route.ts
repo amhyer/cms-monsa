@@ -5,8 +5,9 @@ import { requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
 import { DAYS } from "@/lib/schedule-constants";
+import { withErrorHandling } from "@/lib/api-helpers";
 
-export async function PUT(
+async function PUT_impl(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -72,7 +73,7 @@ export async function PUT(
   return NextResponse.json({ ok: true });
 }
 
-export async function DELETE(
+async function DELETE_impl(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -94,3 +95,6 @@ export async function DELETE(
 
   return NextResponse.json({ ok: true });
 }
+
+export const PUT = withErrorHandling(PUT_impl);
+export const DELETE = withErrorHandling(DELETE_impl);

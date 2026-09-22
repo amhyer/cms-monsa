@@ -42,24 +42,23 @@ export async function safeJson<T = any>(
 }
 
 /**
- * Bungkus route handler mutation (POST/PUT/DELETE) dengan try/catch global.
- * Mengembalikan 500 safe (tanpa stack trace) + logger.error untuk trace.
+ * Bungkus route handler (terutama mutation POST/PUT/PATCH/DELETE) dengan
+ * try/catch global: klien menerima 500 safe (tanpa stack trace), server
+ * mencatat trace via logger.error.
+ *
+ * Handler di-pass-through apa adanya — argumen konteks Next 15+ (`ctx`)
+ * tetap di-handle sendiri oleh handler (mis. destructuring `{ params }`).
  *
  * Contoh:
- *   export const POST = withErrorHandling(async (req) => { ... })
+ *   async function POST_impl(req: NextRequest) { ... }
+ *   export const POST = withErrorHandling(POST_impl);
  */
-export function withErrorHandling(
-  handler: (
-    req: Request,
-    ctx?: Record<string, string>
-  ) => Promise<NextResponse>
+export function withErrorHandling<Req extends Request, A extends unknown[]>(
+  handler: (req: Req, ...args: A) => Promise<Response>
 ) {
-  return async (
-    req: Request,
-    ctx?: { params?: Promise<Record<string, string>> }
-  ): Promise<NextResponse> => {
+  return async (req: Req, ...args: A): Promise<Response> => {
     try {
-      return await handler(req, ctx?.params ? await ctx.params : undefined);
+      return await handler(req, ...args);
     } catch (err) {
       logger.error({ err, path: req.url, method: req.method }, "Unhandled route error");
       return NextResponse.json(

@@ -5,6 +5,7 @@ import { requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
 import { DAYS } from "@/lib/schedule-constants";
+import { withErrorHandling } from "@/lib/api-helpers";
 
 type BulkEntry = {
   day: string;
@@ -17,7 +18,7 @@ type BulkEntry = {
   academicYear: string;
 };
 
-export async function POST(req: NextRequest) {
+async function POST_impl(req: NextRequest) {
   const csrfError = await requireCsrf(req);
   if (csrfError) return csrfError;
 
@@ -79,3 +80,5 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ imported, skipped });
 }
+
+export const POST = withErrorHandling(POST_impl);

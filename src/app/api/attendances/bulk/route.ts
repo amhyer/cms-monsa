@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requireRole, canAccessClass } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
+import { withErrorHandling } from "@/lib/api-helpers";
 
 const ATTENDANCE_STATUSES = ["HADIR", "SAKIT", "IZIN", "ALFA"] as const;
 
@@ -24,7 +25,7 @@ function parseDateInput(value: string): Date | null {
  * Simpan kehadiran seluruh siswa sekelas dalam satu request.
  * Body: { classId, date: "yyyy-mm-dd", records: [{ studentId, status, note? }] }
  */
-export async function POST(req: NextRequest) {
+async function POST_impl(req: NextRequest) {
   const csrfError = await requireCsrf(req);
   if (csrfError) return csrfError;
 
@@ -145,3 +146,5 @@ export async function POST(req: NextRequest) {
     items: saved.map((s) => ({ ...s, studentName: byId.get(s.studentId) ?? "" })),
   });
 }
+
+export const POST = withErrorHandling(POST_impl);

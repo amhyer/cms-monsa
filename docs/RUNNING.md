@@ -691,6 +691,17 @@ CMS MONSA menerapkan rate limiting di beberapa endpoint untuk melindungi
 aplikasi dari abuse, brute-force, dan scraping. Semua implementasi ada di
 `src/lib/rate-limit.ts`.
 
+### Batas Kepercayaan Proxy (TRUST_PROXY)
+
+IP klien dibaca dari header `X-Real-IP` / `X-Forwarded-For` **hanya bila**
+`TRUST_PROXY=true` (atau `1`). Deployment self-host standar sudah aman:
+`docker-compose.yml` menyetel default `true` karena Caddy menimpa header
+tersebut dengan IP riil (`header_up`). Bila port aplikasi pernah terekspos
+langsung ke jaringan, set `TRUST_PROXY=false` — tanpa flag aktif, semua
+request dikunci ke kunci bersama `"unknown"` dan header dari klien diabaikan
+(diperingatkan sekali via log). Catatan: di `bun run dev` tanpa proxy, header
+memang tidak ada sehingga perilaku tidak berubah.
+
 ### Public GET Endpoints (Anti-Scraping)
 
 | Endpoint | Default Limit | Window | Catatan |

@@ -41,7 +41,39 @@ function formKey(ip: string) {
   return `form-limit:${ip}`;
 }
 
+/**
+ * H1 audit fix — batas kepercayaan proxy.
+ *
+ * Header `X-Real-IP`/`X-Forwarded-For` HANYA boleh dipercaya bila aplikasi
+ * berada di belakang reverse proxy yang MENIMPA header tersebut dengan IP
+ * riil (Caddy kita melakukan ini via `header_up`). Tanpa `TRUST_PROXY=true`,
+ * header forwarding dari klien diabaikan sepenuhnya — kalau tidak, siapa pun
+ * yang bisa mengakses port aplikasi secara langsung dapat memalsukan IP untuk
+ * melewati rate limit login (credential stuffing) atau memicu lockout akun
+ * orang lain.
+ *
+ * docker-compose.yml menyetel default `TRUST_PROXY=true` karena deployment
+ * self-host selalu di belakang Caddy. Non-set / nilai lain = tidak percaya.
+ */
+export function isProxyTrusted(): boolean {
+  return process.env.TRUST_PROXY === "true" || process.env.TRUST_PROXY === "1";
+}
+
+let warnedUntrustedHeaders = false;
+
 export function getClientIp(req: RequestLike): string {
+  if (!isProxyTrusted()) {
+    if (
+      !warnedUntrustedHeaders &&
+      (getHeader(req, "x-real-ip") || getHeader(req, "x-forwarded-for"))
+    ) {
+      warnedUntrustedHeaders = true;
+      logger.warn(
+        "[rate-limit] header forwarding diterima tapi TRUST_PROXY tidak diset — IP diabaikan 'unknown'. Set TRUST_PROXY=true hanya di belakang reverse proxy yang menimpa header."
+      );
+    }
+    return "unknown";
+  }
   const real = getHeader(req, "x-real-ip");
   if (real) return real;
   const xff = getHeader(req, "x-forwarded-for");

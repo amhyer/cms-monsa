@@ -7,6 +7,7 @@ import { logActivity } from "@/lib/log";
 import { omitFields } from "@/lib/utils";
 import { PUBLIC_TEACHER_OMIT } from "@/lib/public-scope";
 import { teacherProfileData } from "@/lib/validations";
+import { withErrorHandling } from "@/lib/api-helpers";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   return NextResponse.json({ item: omitFields(item, PUBLIC_TEACHER_OMIT) });
 }
 
-export async function PUT(req: NextRequest, { params }: Ctx) {
+async function PUT_impl(req: NextRequest, { params }: Ctx) {
   const csrfError = await requireCsrf(req);
   if (csrfError) return csrfError;
 
@@ -53,7 +54,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   return NextResponse.json(updated);
 }
 
-export async function DELETE(req: NextRequest, { params }: Ctx) {
+async function DELETE_impl(req: NextRequest, { params }: Ctx) {
   const csrfError = await requireCsrf(req);
   if (csrfError) return csrfError;
 
@@ -68,3 +69,6 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
   await logActivity(auth.user, "DELETE", "Teacher", `Menghapus data guru/staf: ${existing.name}`, id);
   return NextResponse.json({ ok: true });
 }
+
+export const PUT = withErrorHandling(PUT_impl);
+export const DELETE = withErrorHandling(DELETE_impl);

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
+import { withErrorHandling } from "@/lib/api-helpers";
 
 export async function GET() {
   const auth = await requireAuth();
@@ -28,7 +29,7 @@ export async function GET() {
   return NextResponse.json(user);
 }
 
-export async function PUT(req: NextRequest) {
+async function PUT_impl(req: NextRequest) {
   const csrfError = await requireCsrf(req);
   if (csrfError) return csrfError;
 
@@ -85,3 +86,5 @@ export async function PUT(req: NextRequest) {
 
   return NextResponse.json(updated);
 }
+
+export const PUT = withErrorHandling(PUT_impl);

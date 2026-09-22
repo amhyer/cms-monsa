@@ -1,5 +1,15 @@
-import { describe, expect, it } from "vitest";
-import { safeJson } from "@/lib/api-helpers";
+import { describe, expect, it, vi } from "vitest";
+import { safeJson, withErrorHandling } from "@/lib/api-helpers";
+
+vi.mock("@/lib/logger", () => ({
+  logger: {
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn(),
+    fatal: vi.fn(),
+  },
+}));
 
 describe("safeJson (C1 audit fix)", () => {
   it("mem-parse body JSON valid", async () => {
@@ -45,5 +55,37 @@ describe("safeJson (C1 audit fix)", () => {
     });
     const parsed = await safeJson<{ dryRun?: boolean }>(req);
     expect(parsed.ok).toBe(true);
+  });
+});
+
+describe("withErrorHandling (P1-1 konsistensi error handling)", () => {
+  it("meneruskan handler + argumen ctx apa adanya saat sukses", async () => {
+    const handler = vi.fn(
+      async (_req: Request, ctx: { params: Promise<{ id: string }> }) => {
+        const { id } = await ctx.params;
+        return Response.json({ id });
+      }
+    );
+    const wrapped = withErrorHandling(handler);
+    const res = await wrapped(
+      new Request("http://localhost/api/x", { method: "PUT" }),
+      { params: Promise.resolve({ id: "42" }) }
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ id: "42" });
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it("mengembalikan 500 safe (tanpa stack/pesan internal) + logger.error saat melempar", async () => {
+    const { logger } = await import("@/lib/logger");
+    const wrapped = withErrorHandling(async () => {
+      throw new Error("rahasia internal: connection string bocor");
+    });
+    const res = await wrapped(new Request("http://localhost/api/x", { method: "POST" }));
+    expect(res.status).toBe(500);
+    const body = (await res.json()) as Record<string, string>;
+    expect(body.error).toBe("Terjadi kesalahan server.");
+    expect(JSON.stringify(body)).not.toContain("connection string");
+    expect(logger.error).toHaveBeenCalledTimes(1);
   });
 });

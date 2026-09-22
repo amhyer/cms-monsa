@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import {
   isLocked,
   recordFailure,
@@ -18,6 +18,15 @@ describe("rate-limit utilities", () => {
   });
 
   describe("getClientIp", () => {
+    const saved = process.env.TRUST_PROXY;
+    beforeEach(() => {
+      process.env.TRUST_PROXY = "true";
+    });
+    afterAll(() => {
+      if (saved === undefined) delete process.env.TRUST_PROXY;
+      else process.env.TRUST_PROXY = saved;
+    });
+
     it("extracts IP from x-forwarded-for header", () => {
       const req = new Request("http://localhost", {
         headers: { "x-forwarded-for": "1.2.3.4, 5.6.7.8" },
@@ -45,6 +54,25 @@ describe("rate-limit utilities", () => {
         },
       });
       expect(getClientIp(req)).toBe("9.8.7.6");
+    });
+
+    it("mengabaikan header forwarding saat TRUST_PROXY tidak diset (H1)", () => {
+      delete process.env.TRUST_PROXY;
+      const req = new Request("http://localhost", {
+        headers: {
+          "x-forwarded-for": "1.2.3.4",
+          "x-real-ip": "9.8.7.6",
+        },
+      });
+      expect(getClientIp(req)).toBe("unknown");
+    });
+
+    it("TRUST_PROXY=false juga tidak mempercayai header", () => {
+      process.env.TRUST_PROXY = "false";
+      const req = new Request("http://localhost", {
+        headers: { "x-real-ip": "9.8.7.6" },
+      });
+      expect(getClientIp(req)).toBe("unknown");
     });
   });
 

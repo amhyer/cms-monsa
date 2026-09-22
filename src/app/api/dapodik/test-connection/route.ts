@@ -3,8 +3,9 @@ import { requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { testConnection } from "@/lib/dapodik-sync";
 import { logActivity } from "@/lib/log";
+import { withErrorHandling } from "@/lib/api-helpers";
 
-export async function POST(req: Request) {
+async function POST_impl(req: Request) {
   const csrfError = await requireCsrf(req);
   if (csrfError) return csrfError;
 
@@ -26,3 +27,5 @@ export async function GET() {
     { status: 405 }
   );
 }
+
+export const POST = withErrorHandling(POST_impl);

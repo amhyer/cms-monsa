@@ -19,7 +19,7 @@
 | [docs/ARCHITECTURE.md](ARCHITECTURE.md) | Arsitektur internal: struktur direktori, alur data, modul. |
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Deploy produksi (standalone, Docker Compose, PostgreSQL). |
 | [DEPLOYMENT_SSL.md](DEPLOYMENT_SSL.md) | SSL/TLS + reverse proxy Caddy + troubleshooting SSL. |
-| [VERCEL_DEPLOYMENT.md](VERCEL_DEPLOYMENT.md) | Deploy ke Vercel. |
+| [legacy/VERCEL_DEPLOYMENT.md](legacy/VERCEL_DEPLOYMENT.md) | Deploy ke Vercel. |
 | [DAPODIK_SYNC_MAPPING.md](DAPODIK_SYNC_MAPPING.md) | Pemetaan field sinkronisasi Dapodik. |
 | [scripts/BACKUP.md](../scripts/BACKUP.md) | Backup & restore database (rotasi 14 hari). |
 | [dapodik-client/README.md](../dapodik-client/README.md) | Klien Web Service Dapodik (PHP/TS) — sub-paket terpisah. |

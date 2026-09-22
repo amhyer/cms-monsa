@@ -27,10 +27,10 @@ padahal kode produksi bersih. Setelah P0-1 dilakukan, seluruh gerbang non-E2E hi
 | Cache-busting `Date.now()` di home-view | ✅ Selesai |
 | ThemeToggle tersembunyi di mobile | ✅ Selesai |
 | Sanitizer, magic-bytes upload, Caddyfile open proxy, switch-role gate, escapeHtml email, scrypt OWASP (N=2^17), password cap 100, Zod enrollments | ✅ Selesai (konsisten dengan commit `734a9af`, `a3b0d28`) |
-| Fallback password plaintext di login | ✅ Logika dihapus (`verifyPassword` menolak non-hash) — tersisa **komentar basi** baris 64 `src/app/api/auth/login/route.ts` |
+| Fallback password plaintext di login | ✅ Logika dihapus (`verifyPassword` menolak non-hash) — komentar basi di `src/app/api/auth/login/route.ts` ikut diperbaiki (P1) |
 | RSS pengumuman link ke `/` | 🔶 Diperbaiki sebagian — kini `/#pengumuman` (anchor), halaman detail `/announcements/[slug]` memang tidak ada (by design) |
-| `getClientIp()` percaya `X-Forwarded-For` (H1) | ❌ Masih terbuka |
-| 5 file manager >800 baris (audit #8) | ❌ Masih terbuka & bertambah (lihat P2-1) |
+| `getClientIp()` percaya `X-Forwarded-For` (H1) | ✅ Selesai (P1) — header dibaca hanya bila `TRUST_PROXY=true`; docker-compose set defaults true di belakang Caddy |
+| Manager >800 baris (audit #8) | ✅ Selesai (P2-1) — 6 file (settings 1069 … students 800) dipecah ke folder `modules/<name>/` + barrel; file terbesar kini `bos-expenditures-manager.tsx` (781, di luar scope) |
 | `console.*` di client (audit #7) | ✅ Nyaris selesai — API 0, components 1; sisa 22 di `src/lib/` (mayoritas CLI scraper Dapodik, wajar) |
 | picsum.photos (audit #1) | 🔶 Sisa 8 di `prisma/seed.ts` saja (data demo) — nol di `src/` |
 
@@ -83,7 +83,16 @@ padahal kode produksi bersih. Setelah P0-1 dilakukan, seluruh gerbang non-E2E hi
    (selain kunci per email+IP) agar credential stuffing banyak email dari satu IP
    tetap terblokir.
 
-## P2 — 1–2 Minggu (struktur kode)
+## P2 — 1–2 Minggu (struktur kode) — ✅ SELESAI 22-09-2026
+
+> Catatan implementasi: keenam manager dipecah ke folder `modules/<name>-manager/`
+> dengan barrel `index.tsx` (path import konsumen tidak berubah; named + default
+> export dipertahankan; semua file <450 baris). `dapodik-sync.ts` menjadi folder
+> `src/lib/dapodik-sync/` (types/normalize/plan/commit + barrel re-export helper
+> & config agar 15+3 import lama tetap bekerja). Kuota upload M7: 50 file/24 jam
+> per pengguna di `/api/upload` dan `/api/bos-documents` (Redis/in-memory, nonaktif
+> saat `E2E_SUITE=1`). Jalur Vercel ditandai LEGACY (`docs/legacy/VERCEL_DEPLOYMENT.md`,
+> komentar di workflow) — `vercel.json` + workflow dipertahankan sebagai fallback.
 
 1. **Pecah 6 file manager dashboard** yang melewati 800 baris:
    `settings-manager.tsx` (1069), `users-manager.tsx` (1049),

@@ -61,7 +61,8 @@ export async function POST(req: NextRequest) {
     }
 
     const user = await db.user.findUnique({ where: { email: normalizedEmail } });
-    // Support both hashed and (legacy) plaintext stored passwords.
+    // verifyPassword hanya menerima format hash "salt:hash" (scrypt);
+    // fallback plaintext legacy sudah dihapus.
     const valid = user ? await verifyPassword(password, user.password) : false;
     // Use constant-time-ish failure regardless of whether user exists.
     if (!user || !valid) {

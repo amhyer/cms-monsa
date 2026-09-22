@@ -196,8 +196,8 @@
 
 #### 9.1 APM Integration
 - [x] Setup Sentry untuk error tracking ✅ (`@sentry/nextjs` + `sentry.client.config.ts` + `sentry.server.config.ts` + `sentry.edge.config.ts` + `withSentryConfig` di `next.config.ts`)
-- [ ] Setup performance monitoring ❌ (Sentry tracesSampleRate sudah dikonfigurasi, tapi belum ada dashboard/alerting)
-- [ ] Setup alerting untuk error rate > 1% ❌
+- [~] Setup performance monitoring ◐ (Sentry tracesSampleRate terkonfigurasi; dashboard self-host "CMS MONSA — Error Rate & Traffic" ter-provision di Grafana sejak 22-09-2026 (P3-1). Dashboard sisi Sentry SaaS tetap opsional/manual)
+- [x] Setup alerting untuk error rate > 1% ✅ (22-09-2026, P3-1: aturan Grafana ter-provision via `config/loki/grafana-provisioning/alerting/` — `monsa-error-rate-1pct`, `monsa-critical-error`, `monsa-nginx-5xx-1pct`; notifikasi webhook via `MONSA_ALERT_WEBHOOK_URL`. Lihat docs/RUNNING.md §Alerting)
 
 #### 9.2 Health Check
 - [x] Buat /api/health endpoint (DB + Redis status) ✅

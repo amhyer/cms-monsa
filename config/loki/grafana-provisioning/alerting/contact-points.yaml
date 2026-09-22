@@ -1,0 +1,27 @@
+# Grafana Alerting Provisioning — Contact Points (P3-1)
+#
+# Notifikasi alert diarahkan ke webhook ops lewat env MONSA_ALERT_WEBHOOK_URL
+# (Telegram bridge / ntfy / Slack webhook — apa pun yang menerima POST JSON
+# format alert Grafana). File provisioning alerting meng-interpolasi `$VAR`
+# dari environment; docker-compose.logging.yml selalu meneruskannya (boleh
+# kosong → pengiriman notifikasi gagal & terlihat di log Grafana, alert tetap
+# tercatat di Alerting → History).
+#
+# Alternatif non-self-host: Sentry SaaS sudah menerima error via SDK
+# (tracesSampleRate dikonfigurasi di sentry.*.config.ts); aturan alert
+# "error rate > 1%" versi Sentry dibuat di UI project Sentry (butuh akun —
+# bukan artefak repo). Aturan di bawah ini jalur self-host-nya.
+
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: monsa-ops
+    receivers:
+      - uid: monsa-ops-webhook
+        type: webhook
+        settings:
+          url: $MONSA_ALERT_WEBHOOK_URL
+          httpMethod: POST
+          maxAlerts: "20"
+        disableResolveMessage: false

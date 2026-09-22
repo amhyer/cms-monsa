@@ -10,6 +10,13 @@
 #
 # Environment:
 #   LOKI_URL=http://localhost:3100/loki/api/v1/push  (set in .env)
+#   MONSA_ALERT_WEBHOOK_URL=...  (opsional — webhook notifikasi alert Grafana,
+#     lihat config/loki/grafana-provisioning/alerting/)
+#
+# Alerting (P3-1): aturan + contact point + kebijakan notifikasi di-provision
+# otomatis dari ./config/loki/grafana-provisioning/alerting/ (error rate >1%,
+# critical/fatal, nginx 5xx >1%) dan dashboard "CMS MONSA — Error Rate &
+# Traffic" dari ./config/loki/grafana-provisioning/dashboards/json/.
 
 services:
   # ── Loki ──────────────────────────────────────────────────────────
@@ -56,6 +63,8 @@ services:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_USERS_ALLOW_SIGN_UP=false
+      # Dipakai expanded-template di alerting/contact-points.yaml.
+      - MONSA_ALERT_WEBHOOK_URL=${MONSA_ALERT_WEBHOOK_URL:-}
     volumes:
       - grafana-data:/var/lib/grafana
       - ./config/loki/grafana-provisioning:/etc/grafana/provisioning

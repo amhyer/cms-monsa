@@ -1,0 +1,197 @@
+# Grafana Alerting Provisioning — Aturan Alert (P3-1)
+#
+# Sumber metrik: log pino di Loki. Rasio error dihitung dari VOLUME LOG
+# (error+critical / total) — proksi sehat untuk stack self-host tanpa APM;
+# nginx access log (job="nginx") dipakai untuk lalu lintas & 5xx.
+# Selector level mencakup dua jalur ingestion:
+#   - pino-loki  → label level string ("error", "critical")
+#   - promtail   → label level numerik pino ("50", "60")
+#
+# Ambang ">= 30 log dalam 5 menit" pada aturan rasio mencegah false alarm
+# trafik-sepi (1 error dari 5 log = 20% tapi tidak berarti).
+
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: monsa-health
+    folder: CMS MONSA
+    interval: 1m
+    rules:
+      # ── Error rate > 1% (TODO P3-1) ─────────────────────────────
+      - uid: monsa-error-rate-1pct
+        title: "CMS MONSA: error rate > 1% (5 menit)"
+        condition: D
+        noDataState: OK
+        execErrState: OK
+        for: 5m
+        labels:
+          severity: warning
+          service: cms-monsa
+        annotations:
+          summary: "Rasio log error+critical terhadap total log melebihi 1% selama 5 menit."
+          description: "Nilai rasio saat ini: {{ $values.C }} (guard trafik: total >= 30 log/5m). Cek dashboard 'CMS MONSA — Error Rate' dan Loki: {service=\"cms-monsa\", level=~\"error|critical|50|60\"}."
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: P8E80F9AEF21F6940
+            model:
+              refId: A
+              datasource:
+                type: loki
+                uid: P8E80F9AEF21F6940
+              queryType: instant
+              editorMode: code
+              expr: 'sum(count_over_time({service="cms-monsa", level=~"error|critical|50|60"}[5m]))'
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: P8E80F9AEF21F6940
+            model:
+              refId: B
+              datasource:
+                type: loki
+                uid: P8E80F9AEF21F6940
+              queryType: instant
+              editorMode: code
+              expr: 'sum(count_over_time({service="cms-monsa"}[5m]))'
+          - refId: C
+            datasourceUid: "-100"
+            model:
+              refId: C
+              type: math
+              # Ternary di expr-lang: 1 = breach, 0 = normal. clamp_min
+              # menghindari division-by-zero saat tidak ada log sama sekali.
+              expression: '(($A / clamp_min($B, 1)) > 0.01 and ($B >= 30)) ? 1 : 0'
+          - refId: D
+            datasourceUid: "-100"
+            model:
+              refId: D
+              type: threshold
+              expression: C
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params:
+                      - 0.5
+                  operator:
+                    type: and
+                  query:
+                    params: []
+                  reducer:
+                    type: last
+
+      # ── Error fatal apa pun (tanpa ambang rasio) ────────────────
+      - uid: monsa-critical-error
+        title: "CMS MONSA: error critical/fatal terdeteksi"
+        condition: B
+        noDataState: OK
+        execErrState: OK
+        for: 0m
+        labels:
+          severity: critical
+          service: cms-monsa
+        annotations:
+          summary: "pino level fatal (loki 'critical') muncul di Loki dalam 5 menit terakhir."
+          description: "Jumlah: {{ $values.A }} log critical. Cari: {service=\"cms-monsa\", level=~\"critical|60\"}."
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: P8E80F9AEF21F6940
+            model:
+              refId: A
+              datasource:
+                type: loki
+                uid: P8E80F9AEF21F6940
+              queryType: instant
+              editorMode: code
+              expr: 'sum(count_over_time({service="cms-monsa", level=~"critical|60"}[5m]))'
+          - refId: B
+            datasourceUid: "-100"
+            model:
+              refId: B
+              type: threshold
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params:
+                      - 0
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    type: last
+
+      # ── 5xx nginx > 1% (ketersediaan sisi proxy) ────────────────
+      - uid: monsa-nginx-5xx-1pct
+        title: "CMS MONSA: nginx 5xx rate > 1% (5 menit)"
+        condition: D
+        noDataState: OK
+        execErrState: OK
+        for: 5m
+        labels:
+          severity: warning
+          service: cms-monsa
+        annotations:
+          summary: "Rasio response 5xx nginx terhadap total request melebihi 1% (hanya aktif bila akses log nginx di-tail promtail)."
+          description: "Nilai rasio saat ini: {{ $values.C }} (guard trafik: total >= 30 req/5m)."
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: P8E80F9AEF21F6940
+            model:
+              refId: A
+              datasource:
+                type: loki
+                uid: P8E80F9AEF21F6940
+              queryType: instant
+              editorMode: code
+              expr: 'sum(count_over_time({job="nginx", status=~"5.."}[5m]))'
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: P8E80F9AEF21F6940
+            model:
+              refId: B
+              datasource:
+                type: loki
+                uid: P8E80F9AEF21F6940
+              queryType: instant
+              editorMode: code
+              expr: 'sum(count_over_time({job="nginx"}[5m]))'
+          - refId: C
+            datasourceUid: "-100"
+            model:
+              refId: C
+              type: math
+              expression: '(($A / clamp_min($B, 1)) > 0.01 and ($B >= 30)) ? 1 : 0'
+          - refId: D
+            datasourceUid: "-100"
+            model:
+              refId: D
+              type: threshold
+              expression: C
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params:
+                      - 0.5
+                  operator:
+                    type: and
+                  query:
+                    params: []
+                  reducer:
+                    type: last

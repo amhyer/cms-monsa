@@ -852,6 +852,24 @@ bun run dev
 dashboard: http://localhost:3001 (admin/admin)
 ```
 
+**Alerting (provisioned — tidak perlu setup manual):**
+
+Grafana memuat otomatis aturan alert dari
+`config/loki/grafana-provisioning/alerting/`:
+
+| UID rule | Kondisi | Severity |
+|----------|---------|----------|
+| `monsa-error-rate-1pct` | Rasio log `error+critical` > 1% dari total log (window 5m, guard ≥30 log) | warning |
+| `monsa-critical-error` | Ada log `critical` (pino fatal) dalam 5m | critical |
+| `monsa-nginx-5xx-1pct` | Rasio response 5xx nginx > 1% (butuh access log nginx di-tail promtail) | warning |
+
+Dashboard pendamping: "CMS MONSA — Error Rate & Traffic"
+(`cms-monsa-error-rate.json`). Notifikasi dikirim ke webhook yang di-set via
+`MONSA_ALERT_WEBHOOK_URL` di `.env` sebelum `docker compose up` (kosong =
+alert tetap tercatat di History Grafana, tanpa notifikasi keluar). Jalur
+Sentry (opsional, SaaS): atur alert rule equivalent di UI project Sentry —
+DSN & sample rate sudah dikonfigurasi di `sentry.*.config.ts`.
+
 **Architecture:**
 
 ```

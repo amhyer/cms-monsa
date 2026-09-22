@@ -1,0 +1,18 @@
+# Grafana Alerting Provisioning — Notification Policy default (P3-1)
+#
+# PERHATIAN: kebijakan notifikasi terprovision lengkap — mendefinisikan
+# ulang sebagian pohon kebijakan lewat file ini menggantikan perubahan UI
+# (dokumentasi Grafana: "total definition; partial updates fail").
+# Semua alert tanpa sub-kebijakan (routes) → contact point `monsa-ops`.
+
+apiVersion: 1
+
+policies:
+  - orgId: 1
+    receiver: monsa-ops
+    group_by:
+      - grafana_folder
+      - alertname
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h

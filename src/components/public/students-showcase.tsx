@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import {
   Search,
   Users,
@@ -52,9 +53,11 @@ function StudentCard({
       )}
     >
       {s.photoUrl ? (
-        <img
+        <Image
           src={s.photoUrl}
           alt={s.name}
+          width={160}
+          height={160}
           loading="lazy"
           className={cn(
             "aspect-square rounded-2xl border object-cover shadow-sm",

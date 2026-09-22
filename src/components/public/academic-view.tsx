@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import {
   Search,
   BookMarked,
@@ -63,9 +64,11 @@ function TeacherAvatar({ t }: { t: TeacherItem }) {
     .toUpperCase();
   if (t.photo) {
     return (
-      <img
+      <Image
         src={t.photo}
         alt={t.name}
+        width={64}
+        height={64}
         loading="lazy"
         className="size-16 rounded-full border-2 border-gold object-cover"
       />
@@ -461,9 +464,11 @@ export function AcademicView() {
           </DialogHeader>
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
             {selected?.photo ? (
-              <img
+              <Image
                 src={selected.photo}
                 alt={selected.name}
+                width={112}
+                height={112}
                 className="size-28 shrink-0 rounded-full border object-cover"
               />
             ) : (

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import Image from "next/image";
 import {
   ArrowLeft,
   CalendarDays,
@@ -232,11 +233,16 @@ export function NewsDetailView({ slug: propSlug }: NewsDetailViewProps = {}) {
           </div>
 
           {item.coverImage && (
-            <img
-              src={item.coverImage}
-              alt={item.title}
-              className="mt-6 aspect-[16/9] w-full rounded-xl border object-cover"
-            />
+            <div className="relative mt-6 aspect-[16/9] w-full overflow-hidden rounded-xl border">
+              <Image
+                src={item.coverImage}
+                alt={item.title}
+                fill
+                priority
+                sizes="(max-width: 768px) 100vw, 896px"
+                className="object-cover"
+              />
+            </div>
           )}
 
           <p className="mt-6 text-base font-medium leading-relaxed text-foreground">
@@ -269,11 +275,12 @@ export function NewsDetailView({ slug: propSlug }: NewsDetailViewProps = {}) {
                 >
                   <div className="relative size-20 shrink-0 overflow-hidden rounded-lg bg-muted">
                     {r.coverImage ? (
-                      <img
+                      <Image
                         src={r.coverImage}
                         alt={r.title}
-                        loading="lazy"
-                        className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        fill
+                        sizes="80px"
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                     ) : (
                       <div className="flex size-full items-center justify-center text-muted-foreground">

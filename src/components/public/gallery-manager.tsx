@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Image from "next/image";
 // Ikon "Image" lucide di-alias ImageIcon agar jsx-a11y/alt-text tidak
 // menganggapnya komponen gambar yang wajib punya prop alt.
 import { Image as ImageIcon, Grid, List } from "lucide-react";
@@ -108,9 +109,11 @@ export function GalleryManager({ limit = 12 }: GalleryManagerProps) {
                 }`}
               >
                 {album.coverUrl ? (
-                  <img
+                  <Image
                     src={album.coverUrl}
                     alt={album.name}
+                    width={160}
+                    height={160}
                     className={`object-cover ${
                       viewMode === "grid" ? "size-full" : "size-16 shrink-0 rounded"
                     }`}

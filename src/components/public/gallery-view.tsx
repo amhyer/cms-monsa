@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import {
   Image as ImageIcon,
   Play,
@@ -161,11 +162,12 @@ export function GalleryView() {
                   style={{ aspectRatio: "4/3" }}
                 >
                   {g.thumbnail || g.url ? (
-                    <img
+                    <Image
                       src={g.thumbnail ?? g.url}
                       alt={g.title}
-                      loading="lazy"
-                      className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      fill
+                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                      className="object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                   ) : (
                     <div className="flex size-full items-center justify-center bg-muted text-muted-foreground">
@@ -233,10 +235,12 @@ export function GalleryView() {
                     allowFullScreen
                   />
                 ) : activeItem.url || activeItem.thumbnail ? (
-                  <img
+                  <Image
                     src={activeItem.url ?? activeItem.thumbnail}
                     alt={activeItem.title}
-                    className="size-full object-contain"
+                    fill
+                    sizes="(max-width: 1024px) 100vw, 1024px"
+                    className="object-contain"
                   />
                 ) : (
                   <div className="flex size-full items-center justify-center bg-black text-muted-foreground">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Image from "next/image";
 import { Star, Award, GraduationCap, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -98,9 +99,11 @@ export function StarOfMonth({ type }: StarOfMonthProps) {
               <div className="relative flex items-start gap-4">
                 {/* Photo */}
                 {person && (("photoUrl" in person && person.photoUrl) || ("photo" in person && person.photo)) ? (
-                  <img
+                  <Image
                     src={("photoUrl" in person && person.photoUrl) || ("photo" in person && person.photo) || ""}
                     alt={person.name}
+                    width={64}
+                    height={64}
                     className="size-16 shrink-0 rounded-full border-2 border-yellow-500 object-cover"
                   />
                 ) : (

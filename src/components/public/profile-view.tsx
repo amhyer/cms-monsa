@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import {
   Building2,
   Computer,
@@ -50,9 +51,11 @@ function LeaderCard({ t }: { t: TeacherItem }) {
   return (
     <div className="flex flex-col items-center gap-3 rounded-xl border bg-card p-5 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
       {t.photo ? (
-        <img
+        <Image
           src={t.photo}
           alt={t.name}
+          width={96}
+          height={96}
           loading="lazy"
           className="size-24 rounded-full border-2 border-gold object-cover"
         />

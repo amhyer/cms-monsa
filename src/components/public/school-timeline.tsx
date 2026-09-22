@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Image from "next/image";
 import { Calendar, Award, Building, Star } from "lucide-react";
 
 interface TimelineItem {
@@ -124,11 +125,15 @@ export function SchoolTimeline({ limit = 20 }: SchoolTimelineProps) {
                         </p>
                       )}
                       {item.imageUrl && (
-                        <img
-                          src={item.imageUrl}
-                          alt={item.title}
-                          className="mt-2 h-24 w-full rounded object-cover"
-                        />
+                        <div className="relative mt-2 h-24 w-full overflow-hidden rounded">
+                          <Image
+                            src={item.imageUrl}
+                            alt={item.title}
+                            fill
+                            sizes="(max-width: 768px) 50vw, 25vw"
+                            className="object-cover"
+                          />
+                        </div>
                       )}
                     </div>
                   </div>

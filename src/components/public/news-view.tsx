@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import {
   Search,
   Newspaper,
@@ -175,7 +176,7 @@ export function NewsView() {
                   </p>
                 </div>
               )
-              : items.map((n) => (
+              : items.map((n, i) => (
                   <article
                     key={n.id}
                     onClick={() => router.push(`/news/${n.slug}`)}
@@ -192,11 +193,13 @@ export function NewsView() {
                   >
                     <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted">
                       {n.coverImage ? (
-                        <img
+                        <Image
                           src={n.coverImage}
                           alt={n.title}
-                          loading="lazy"
-                          className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          fill
+                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                          priority={i === 0}
+                          className="object-cover transition-transform duration-500 group-hover:scale-105"
                         />
                       ) : (
                         <div className="flex size-full items-center justify-center text-muted-foreground">

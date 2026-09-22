@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import Image from "next/image";
 import { GraduationCap, Menu, PencilLine, ExternalLink } from "lucide-react";
 import { useAppStore } from "@/store/app";
 import { PUBLIC_NAV } from "@/lib/nav";
@@ -88,9 +89,11 @@ export function SiteHeader() {
             )}
           >
             {settings?.logo ? (
-              <img
+              <Image
                 src={settings.logo}
                 alt={`Logo ${schoolName}`}
+                width={40}
+                height={40}
                 className="h-full w-full object-cover"
               />
             ) : (
@@ -190,7 +193,7 @@ export function SiteHeader() {
                 <SheetTitle className="flex items-center gap-2">
                   <span className="flex size-9 items-center justify-center overflow-hidden rounded-full bg-sidebar-accent text-sidebar-foreground">
                     {settings?.logo ? (
-                      <img src={settings.logo} alt="Logo" className="h-full w-full object-cover" />
+                      <Image src={settings.logo} alt="Logo" width={36} height={36} className="h-full w-full object-cover" />
                     ) : (
                       <GraduationCap className="size-5 text-gold" />
                     )}

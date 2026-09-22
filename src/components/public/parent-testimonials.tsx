@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Image from "next/image";
 import { Star, Quote, User, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -230,9 +231,11 @@ export function ParentTestimonials({ limit = 6, showForm = true }: ParentTestimo
             {/* Author */}
             <div className="mt-4 flex items-center gap-3">
               {testimonial.photoUrl ? (
-                <img
+                <Image
                   src={testimonial.photoUrl}
                   alt={testimonial.parentName}
+                  width={40}
+                  height={40}
                   className="size-10 rounded-full object-cover"
                 />
               ) : (

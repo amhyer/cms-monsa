@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   ArrowLeft,
   Award,
@@ -131,9 +132,11 @@ export function TeacherPortfolioView({ guruId }: { guruId?: string }) {
               <div className="flex flex-col items-center gap-5 sm:flex-row">
                 <div className="shrink-0">
                   {t.photo ? (
-                    <img
+                    <Image
                       src={t.photo}
                       alt={t.name}
+                      width={112}
+                      height={112}
                       className="size-28 rounded-full border-4 border-gold object-cover shadow-lg"
                     />
                   ) : (

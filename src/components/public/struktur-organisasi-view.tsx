@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Mail, Network, Phone, UserCircle2 } from "lucide-react";
+import Image from "next/image";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -103,9 +104,11 @@ export function StrukturOrganisasiView() {
                 className="flex cursor-pointer items-center gap-3 rounded-xl border bg-card p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold sm:gap-4 sm:p-5"
               >
                 {m.photo ? (
-                  <img
+                  <Image
                     src={m.photo}
                     alt={m.name}
+                    width={64}
+                    height={64}
                     loading="lazy"
                     className="size-12 shrink-0 rounded-full border object-cover sm:size-16"
                   />
@@ -143,9 +146,11 @@ export function StrukturOrganisasiView() {
           </DialogHeader>
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
             {selected?.photo ? (
-              <img
+              <Image
                 src={selected.photo}
                 alt={selected.name}
+                width={112}
+                height={112}
                 className="size-28 shrink-0 rounded-full border object-cover"
               />
             ) : (

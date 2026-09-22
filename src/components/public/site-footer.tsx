@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import {
   Facebook,
   Instagram,
@@ -44,7 +45,7 @@ export function SiteFooter() {
             <div className="flex items-center gap-3">
               <span className="flex size-11 items-center justify-center overflow-hidden rounded-xl bg-sidebar-accent ring-1 ring-gold/40">
                 {settings?.logo ? (
-                  <img src={settings.logo} alt="Logo" className="h-full w-full object-cover" />
+                  <Image src={settings.logo} alt="Logo" width={44} height={44} className="h-full w-full object-cover" />
                 ) : (
                   <GraduationCap className="size-6 text-gold" />
                 )}

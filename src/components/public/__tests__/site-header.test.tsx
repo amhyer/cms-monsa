@@ -193,7 +193,9 @@ describe("SiteHeader", () => {
     render(<SiteHeader />);
     const logos = screen.getAllByRole("img", { name: /Logo/ });
     expect(logos.length).toBeGreaterThan(0);
-    expect(logos[0]).toHaveAttribute("src", "/logo.png");
+    // Logo kini dimuat lewat optimizer next/image (migrasi dari <img> mentah),
+    // sehingga src direwrite ke /_next/image dengan parameter optimasi.
+    expect(logos[0].getAttribute("src")).toMatch(/^\/_next\/image\?url=%2Flogo\.png(&|$)/);
   });
 
   it("renders hamburger menu button", () => {

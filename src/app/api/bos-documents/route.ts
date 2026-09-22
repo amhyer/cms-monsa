@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 import { requireCsrf } from "@/lib/csrf";
-import { rateLimitPublicGet } from "@/lib/rate-limit";
+import { rateLimitPublicGet, getUploadCount, recordUpload, UPLOAD_QUOTA_PER_DAY } from "@/lib/rate-limit";
 import { logActivity } from "@/lib/log";
 import { createBosDocumentSchema, validateBody } from "@/lib/validations";
 import { detectPdf } from "@/lib/upload";
@@ -119,6 +119,16 @@ export async function POST(req: NextRequest) {
   const auth = await requireRole("SUPER_ADMIN");
   if (!auth.ok) return auth.response;
 
+  // M7: kuota harian per pengguna (bergabung dengan hitungan /api/upload).
+  if ((await getUploadCount(auth.user.id)) >= UPLOAD_QUOTA_PER_DAY) {
+    return NextResponse.json(
+      {
+        error: `Kuota upload harian tercapai (${UPLOAD_QUOTA_PER_DAY} file/24 jam). Coba lagi besok.`,
+      },
+      { status: 429 }
+    );
+  }
+
   // Nama file coba-unggah (bisa null bila body rusak / tidak ada file) —
   // dicatat di setiap cabang (diterima, ditolak, gagal) untuk jejak audit.
   let attemptedName: string | null = null;
@@ -217,6 +227,7 @@ export async function POST(req: NextRequest) {
     // Simpan ke backend aktif (disk self-host / tabel UploadedFile di Vercel)
     // — lihat src/lib/file-storage.ts.
     await saveUpload(bytes, filename, "application/pdf");
+    await recordUpload(auth.user.id);
 
     const doc = await db.bosDocument.create({
       data: {

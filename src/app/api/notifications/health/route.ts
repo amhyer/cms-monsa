@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { readStorageAlertState } from "@/lib/upload-stats";
+import { withErrorHandling } from "@/lib/api-helpers";
 
 /**
  * GET status kesehatan semua channel notifikasi + log aktivitas terakhir.
@@ -88,9 +89,11 @@ export async function GET() {
   });
 }
 
-export async function POST() {
+async function POST_impl() {
   return NextResponse.json(
     { error: "Gunakan GET untuk melihat kesehatan notifikasi." },
     { status: 405 }
   );
 }
+
+export const POST = withErrorHandling(POST_impl);

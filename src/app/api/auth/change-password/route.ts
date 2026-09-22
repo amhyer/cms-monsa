@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
@@ -5,15 +6,18 @@ import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
 import { verifyPassword, hashPassword, isHashed } from "@/lib/password";
 import { changePasswordSchema, validateBody } from "@/lib/validations";
+import { withErrorHandling } from "@/lib/api-helpers";
 
-export async function POST(req: NextRequest) {
+async function POST_impl(req: NextRequest) {
   const csrfError = await requireCsrf(req);
   if (csrfError) return csrfError;
 
   const auth = await requireAuth();
   if (!auth.ok) return auth.response;
 
-  const body = await req.json();
+  const parsed = await safeJson(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
   const validation = validateBody(changePasswordSchema, body);
   if (!validation.ok) {
     return NextResponse.json({ error: validation.error }, { status: 400 });
@@ -44,3 +48,5 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ ok: true, message: "Password berhasil diubah." });
 }
+
+export const POST = withErrorHandling(POST_impl);

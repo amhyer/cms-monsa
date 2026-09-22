@@ -82,6 +82,11 @@ services:
       # hostname service compose saat memakai profile with-redis:
       #   REDIS_URL=redis://redis:6379
       REDIS_URL: ${REDIS_URL:-}
+      # H1: rate limiter hanya membaca X-Real-IP/X-Forwarded-For bila proxy
+      # tepercaya. Container ini dirancang di belakang Caddy (Caddyfile.docker
+      # menimpa header tsb) sehingga default true aman. Set TRUST_PROXY=false
+      # di .env bila port 3000 pernah diekspos langsung ke jaringan.
+      TRUST_PROXY: ${TRUST_PROXY:-true}
       AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET wajib diisi di .env}
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://sdn-mongisidi1.sch.id}
       # Backend penyimpanan upload: "disk" (default self-host — file di

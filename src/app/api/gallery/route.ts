@@ -1,3 +1,5 @@
+import { safeJson } from "@/lib/api-helpers";
+import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
@@ -36,28 +38,39 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const csrfError = await requireCsrf(req);
-  if (csrfError) return csrfError;
+  try {
 
-  const auth = await requireRole("OPERATOR");
-  if (!auth.ok) return auth.response;
-  const body = await req.json();
-  const validation = validateBody(createGallerySchema, body);
-  if (!validation.ok) {
-    return NextResponse.json({ error: validation.error }, { status: 400 });
-  }
+    const csrfError = await requireCsrf(req);
+    if (csrfError) return csrfError;
 
-  const { title, description, imageUrl, url, category } = validation.data;
-  const item = await db.galleryItem.create({
-    data: {
-      title,
-      description: description || null,
-      type: body.type === "VIDEO" ? "VIDEO" : "PHOTO",
-      url: url || imageUrl || "",
-      thumbnail: body.thumbnail || null,
-      category: category || "Kegiatan",
-    },
-  });
-  await logActivity(auth.user, "CREATE", "Gallery", `Menambah media galeri: ${title}`, item.id);
-  return NextResponse.json(item);
-}
+    const auth = await requireRole("OPERATOR");
+    if (!auth.ok) return auth.response;
+    const parsed = await safeJson(req);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
+    const validation = validateBody(createGallerySchema, body);
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
+    }
+
+    const { title, description, imageUrl, url, category } = validation.data;
+    const item = await db.galleryItem.create({
+      data: {
+        title,
+        description: description || null,
+        type: body.type === "VIDEO" ? "VIDEO" : "PHOTO",
+        url: url || imageUrl || "",
+        thumbnail: body.thumbnail || null,
+        category: category || "Kegiatan",
+      },
+    });
+    await logActivity(auth.user, "CREATE", "Gallery", `Menambah media galeri: ${title}`, item.id);
+    return NextResponse.json(item);
+
+  } catch (err) {
+    logger.error({ err, path: req.url }, "Route handler error");
+    return NextResponse.json(
+      { error: "Terjadi kesalahan server." },
+      { status: 500 }
+    );
+  }}

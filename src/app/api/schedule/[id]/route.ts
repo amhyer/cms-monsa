@@ -1,11 +1,13 @@
+import { safeJson } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
 import { DAYS } from "@/lib/schedule-constants";
+import { withErrorHandling } from "@/lib/api-helpers";
 
-export async function PUT(
+async function PUT_impl(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -16,7 +18,9 @@ export async function PUT(
   if (!auth.ok) return auth.response;
 
   const { id } = await params;
-  const body = await req.json();
+  const parsed = await safeJson(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
   const day = String(body.day ?? "").trim();
   const subject = String(body.subject ?? "").trim();
   const academicYear = String(body.academicYear ?? "").trim();
@@ -69,7 +73,7 @@ export async function PUT(
   return NextResponse.json({ ok: true });
 }
 
-export async function DELETE(
+async function DELETE_impl(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -91,3 +95,6 @@ export async function DELETE(
 
   return NextResponse.json({ ok: true });
 }
+
+export const PUT = withErrorHandling(PUT_impl);
+export const DELETE = withErrorHandling(DELETE_impl);

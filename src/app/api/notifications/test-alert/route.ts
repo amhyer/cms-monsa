@@ -4,6 +4,7 @@ import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
 import { notifyAdmin } from "@/lib/notifications";
 import { markStorageAlertTested } from "@/lib/storage-alert";
+import { withErrorHandling } from "@/lib/api-helpers";
 
 /**
  * Uji jalur alert admin (notifyAdmin) dari dashboard.
@@ -15,7 +16,7 @@ import { markStorageAlertTested } from "@/lib/storage-alert";
  * (ADMIN_PHONE + FONNTE_TOKEN → WhatsApp, TELEGRAM_BOT_TOKEN +
  * TELEGRAM_CHAT_ID → Telegram).
  */
-export async function POST(req: Request) {
+async function POST_impl(req: Request) {
   const csrfError = await requireCsrf(req);
   if (csrfError) return csrfError;
 
@@ -105,3 +106,5 @@ export async function GET() {
     { status: 405 }
   );
 }
+
+export const POST = withErrorHandling(POST_impl);

@@ -26,10 +26,10 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-const ADMIN_DEMO = {
-  email: "admin@mongisidi1.sch.id",
-  password: "admin123",
-};
+// Keamanan: kredensial Super Admin TIDAK pernah di-hardcode di sini —
+// string apa pun di komponen client ikut ter-bundle ke JavaScript publik.
+// Lihat prisma/seed.ts untuk kredensial seed & docs untuk panduan ganti
+// password setelah deploy.
 
 export function AdminLoginView() {
   const router = useRouter();
@@ -77,12 +77,6 @@ export function AdminLoginView() {
     }
     toast.success("Selamat datang, Administrator!");
     router.replace("/dashboard");
-  }
-
-  function autofillAdmin() {
-    setEmail(ADMIN_DEMO.email);
-    setPassword(ADMIN_DEMO.password);
-    setError(null);
   }
 
   return (
@@ -203,36 +197,6 @@ export function AdminLoginView() {
                 )}
               </Button>
             </form>
-
-            <div className="mt-5 rounded-lg border border-gold/40 bg-gold/10 p-3">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gold-foreground">
-                Akun Demo Super Admin
-              </p>
-              <div className="flex items-center justify-between gap-2 rounded-md bg-background/80 px-3 py-2">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-x-2">
-                    <span className="text-sm font-semibold text-foreground">
-                      Super Admin
-                    </span>
-                    <span className="truncate text-xs text-muted-foreground">
-                      {ADMIN_DEMO.email} · {ADMIN_DEMO.password}
-                    </span>
-                  </div>
-                  <p className="truncate text-[11px] text-muted-foreground">
-                    Akses penuh — pengaturan, operator, log aktivitas
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={autofillAdmin}
-                  disabled={submitting}
-                >
-                  Isi Otomatis
-                </Button>
-              </div>
-            </div>
 
             <button
               type="button"

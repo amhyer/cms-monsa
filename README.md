@@ -884,7 +884,7 @@ berlapis otomatis:
 
 > Panduan lengkap: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) ·
 > Checklist produksi: [docs/DEPLOYMENT_CHECKLIST.md](docs/DEPLOYMENT_CHECKLIST.md) ·
-> Vercel + Neon: [docs/VERCEL_DEPLOYMENT.md](docs/VERCEL_DEPLOYMENT.md)
+> Vercel + Neon: [docs/legacy/VERCEL_DEPLOYMENT.md](docs/legacy/VERCEL_DEPLOYMENT.md)
 
 ### Development
 ```bash

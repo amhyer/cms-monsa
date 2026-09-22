@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import {
   isLocked,
   recordFailure,
@@ -7,15 +7,37 @@ import {
   getClientIp,
   isFormRateLimited,
   rateLimitPublicForm,
+  isMutationRateLimited,
+  rateLimitMutation,
+  getUploadCount,
+  recordUpload,
+  UPLOAD_QUOTA_PER_DAY,
 } from "@/lib/rate-limit";
 
 describe("rate-limit utilities", () => {
+  const savedTrustProxy = process.env.TRUST_PROXY;
   beforeEach(() => {
-    // Clear all failures before each test by using a unique email per test
-    // The in-memory store is shared, so we use unique keys
+    // Kebanyakan test memakai XFF untuk membedakan IP per-test — aktifkan
+    // kembali kepercayaan proxy yang default-nya mati (H1 fix).
+    process.env.TRUST_PROXY = "true";
   });
+  afterAll(() => {
+    if (savedTrustProxy === undefined) delete process.env.TRUST_PROXY;
+    else process.env.TRUST_PROXY = savedTrustProxy;
+  });
+  // Clear all failures before each test by using a unique email per test
+  // The in-memory store is shared, so we use unique keys
 
   describe("getClientIp", () => {
+    const saved = process.env.TRUST_PROXY;
+    beforeEach(() => {
+      process.env.TRUST_PROXY = "true";
+    });
+    afterAll(() => {
+      if (saved === undefined) delete process.env.TRUST_PROXY;
+      else process.env.TRUST_PROXY = saved;
+    });
+
     it("extracts IP from x-forwarded-for header", () => {
       const req = new Request("http://localhost", {
         headers: { "x-forwarded-for": "1.2.3.4, 5.6.7.8" },
@@ -43,6 +65,25 @@ describe("rate-limit utilities", () => {
         },
       });
       expect(getClientIp(req)).toBe("9.8.7.6");
+    });
+
+    it("mengabaikan header forwarding saat TRUST_PROXY tidak diset (H1)", () => {
+      delete process.env.TRUST_PROXY;
+      const req = new Request("http://localhost", {
+        headers: {
+          "x-forwarded-for": "1.2.3.4",
+          "x-real-ip": "9.8.7.6",
+        },
+      });
+      expect(getClientIp(req)).toBe("unknown");
+    });
+
+    it("TRUST_PROXY=false juga tidak mempercayai header", () => {
+      process.env.TRUST_PROXY = "false";
+      const req = new Request("http://localhost", {
+        headers: { "x-real-ip": "9.8.7.6" },
+      });
+      expect(getClientIp(req)).toBe("unknown");
     });
   });
 
@@ -129,6 +170,46 @@ describe("rate-limit utilities", () => {
       }
       expect(await isLocked(email1, "127.0.0.8")).toBe(true);
       expect(await isLocked(email2, "127.0.0.8")).toBe(false);
+    });
+  });
+
+  describe("isMutationRateLimited (B1 audit fix)", () => {
+    it("tidak membatasi mutation pertama dalam window", async () => {
+      const ip = `mut-${Date.now()}`;
+      expect(await isMutationRateLimited(ip, 5, 60_000)).toBe(false);
+    });
+
+    it("membatasi setelah melebihi kuota dalam window", async () => {
+      const ip = `mut-max-${Date.now()}`;
+      for (let i = 0; i < 5; i++) {
+        expect(await isMutationRateLimited(ip, 5, 60_000)).toBe(false);
+      }
+      expect(await isMutationRateLimited(ip, 5, 60_000)).toBe(true);
+    });
+
+    it("dibypass total saat E2E_SUITE=1 (harness e2e sah menembak cepat)", async () => {
+      const ip = `mut-e2e-${Date.now()}`;
+      process.env.E2E_SUITE = "1";
+      try {
+        for (let i = 0; i < 10; i++) {
+          expect(await isMutationRateLimited(ip, 2, 60_000)).toBe(false);
+        }
+      } finally {
+        delete process.env.E2E_SUITE;
+      }
+    });
+
+    it("rateLimitMutation mengembalikan 429 + Retry-After saat terbatas", async () => {
+      const ip = `mut-resp-${Date.now()}`;
+      const req = new Request("http://localhost/api/agenda", {
+        method: "POST",
+        headers: { "x-real-ip": ip },
+      });
+      expect(await rateLimitMutation(req, 1, 60_000)).toBeNull();
+      const res = await rateLimitMutation(req, 1, 60_000);
+      expect(res).not.toBeNull();
+      expect(res?.status).toBe(429);
+      expect(res?.headers.get("Retry-After")).toBe("60");
     });
   });
 
@@ -251,5 +332,37 @@ describe("rate-limit utilities", () => {
       expect(rejected).not.toBeNull();
       expect(rejected?.status).toBe(429);
     });
+  });
+});
+describe("upload quota harian per pengguna (M7)", () => {
+  const savedE2E = process.env.E2E_SUITE;
+  beforeEach(() => {
+    delete process.env.E2E_SUITE;
+  });
+  afterAll(() => {
+    if (savedE2E === undefined) delete process.env.E2E_SUITE;
+    else process.env.E2E_SUITE = savedE2E;
+  });
+
+  it("menghitung hanya upload yang dicatat (recordUpload)", async () => {
+    const uid = `quota-test-${Date.now()}`;
+    expect(await getUploadCount(uid)).toBe(0);
+    await recordUpload(uid);
+    await recordUpload(uid);
+    expect(await getUploadCount(uid)).toBe(2);
+  });
+
+  it("kuota penuh terdeteksi lewat pre-check >= UPLOAD_QUOTA_PER_DAY", async () => {
+    const uid = `quota-full-${Date.now()}`;
+    for (let i = 0; i < UPLOAD_QUOTA_PER_DAY; i++) await recordUpload(uid);
+    const count = await getUploadCount(uid);
+    expect(count).toBeGreaterThanOrEqual(UPLOAD_QUOTA_PER_DAY);
+  });
+
+  it("E2E_SUITE=1 menonaktifkan kuota (harness boleh flood upload)", async () => {
+    process.env.E2E_SUITE = "1";
+    const uid = `quota-e2e-${Date.now()}`;
+    for (let i = 0; i < UPLOAD_QUOTA_PER_DAY + 5; i++) await recordUpload(uid);
+    expect(await getUploadCount(uid)).toBe(0);
   });
 });

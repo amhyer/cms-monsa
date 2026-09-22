@@ -368,7 +368,7 @@ docker compose down -v     # stop + hapus volume DB (HATI-HATI)
 
 Dengan Docker, migrasi PostgreSQL dijalankan otomatis oleh container
 (`prisma migrate deploy`) sebelum aplikasi start. Detail: [DEPLOYMENT.md](DEPLOYMENT.md),
-[DEPLOYMENT_SSL.md](DEPLOYMENT_SSL.md), [VERCEL_DEPLOYMENT.md](VERCEL_DEPLOYMENT.md).
+[DEPLOYMENT_SSL.md](DEPLOYMENT_SSL.md), [VERCEL_DEPLOYMENT.md](legacy/VERCEL_DEPLOYMENT.md).
 
 ---
 
@@ -691,6 +691,17 @@ CMS MONSA menerapkan rate limiting di beberapa endpoint untuk melindungi
 aplikasi dari abuse, brute-force, dan scraping. Semua implementasi ada di
 `src/lib/rate-limit.ts`.
 
+### Batas Kepercayaan Proxy (TRUST_PROXY)
+
+IP klien dibaca dari header `X-Real-IP` / `X-Forwarded-For` **hanya bila**
+`TRUST_PROXY=true` (atau `1`). Deployment self-host standar sudah aman:
+`docker-compose.yml` menyetel default `true` karena Caddy menimpa header
+tersebut dengan IP riil (`header_up`). Bila port aplikasi pernah terekspos
+langsung ke jaringan, set `TRUST_PROXY=false` — tanpa flag aktif, semua
+request dikunci ke kunci bersama `"unknown"` dan header dari klien diabaikan
+(diperingatkan sekali via log). Catatan: di `bun run dev` tanpa proxy, header
+memang tidak ada sehingga perilaku tidak berubah.
+
 ### Public GET Endpoints (Anti-Scraping)
 
 | Endpoint | Default Limit | Window | Catatan |
@@ -713,6 +724,15 @@ Saat IP melampaui limit, sistem akan:
 | `POST /api/complaints` | 20 req | 10 menit |
 | `POST /api/contact` | 20 req | 10 menit |
 | `POST /api/dapodik/ingest` | 30 req | 15 menit |
+
+### Kuota Upload Harian per Pengguna (M7)
+
+`POST /api/upload` (gambar) dan `POST /api/bos-documents` (PDF BOS) berbagi
+kuota **50 file per user per 24 jam bergeser** (`UPLOAD_QUOTA_PER_DAY` di
+`src/lib/rate-limit.ts`). Penghitung naik hanya untuk upload yang BERHASIL
+ditimpan — file yang ditolak (ukuran/isi) tidak memunahkan kuota. Melebihi
+kuota → HTTP 429 dengan pesan jelas. Nonaktif otomatis saat `E2E_SUITE=1`.
+Per-file tetap dibatasi `MAX_UPLOAD_MB` (5 MB self-host / 4 MB Vercel).
 
 ### Login Endpoint (Anti-Brute-Force)
 

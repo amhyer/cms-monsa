@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -23,14 +24,14 @@ async function getLatestReleaseUrl(platform: Platform): Promise<string | null> {
     });
 
     if (!res.ok) {
-      console.error("[jembatan-download] GitHub API error:", res.status);
+      logger.error({ status: res.status }, "[jembatan-download] GitHub API error");
       return null;
     }
 
     const releases = await res.json();
     
     if (!Array.isArray(releases) || releases.length === 0) {
-      console.log("[jembatan-download] No releases found");
+      logger.info("[jembatan-download] No releases found");
       return null;
     }
 
@@ -51,16 +52,16 @@ async function getLatestReleaseUrl(platform: Platform): Promise<string | null> {
         const name = asset.name.toLowerCase();
         const matches = targetPatterns.some((p) => name.includes(p.toLowerCase()));
         if (matches && asset.browser_download_url) {
-          console.log("[jembatan-download] Found asset:", asset.name, "in release:", release.tag_name);
+          logger.info({ asset: asset.name, release: release.tag_name }, "[jembatan-download] Found asset");
           return asset.browser_download_url;
         }
       }
     }
 
-    console.log("[jembatan-download] No matching asset found for platform:", platform);
+    logger.warn({ platform }, "[jembatan-download] No matching asset found");
     return null;
   } catch (err) {
-    console.error("[jembatan-download] Error fetching release:", err);
+    logger.error({ err }, "[jembatan-download] Error fetching release");
     return null;
   }
 }
@@ -94,7 +95,7 @@ export async function GET(req: NextRequest) {
 
   if (downloadUrl) {
     // Redirect to GitHub download
-    console.log("[jembatan-download] Redirecting to:", downloadUrl);
+    logger.info({ downloadUrl }, "[jembatan-download] Redirecting");
     return NextResponse.redirect(downloadUrl);
   }
 

@@ -1,8 +1,10 @@
+import { safeJson } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
+import { withErrorHandling } from "@/lib/api-helpers";
 
 const MAX = { phone: 20, email: 120, subject: 120, education: 120, photo: 500, motto: 200, riwayat: 1000, sertifikasi: 1000, prestasi: 1000, badges: 200 } as const;
 
@@ -52,7 +54,7 @@ export async function GET() {
   return NextResponse.json(teacher);
 }
 
-export async function PUT(req: NextRequest) {
+async function PUT_impl(req: NextRequest) {
   const csrfError = await requireCsrf(req);
   if (csrfError) return csrfError;
 
@@ -70,7 +72,9 @@ export async function PUT(req: NextRequest) {
     );
   }
 
-  const body = await req.json();
+  const parsed = await safeJson(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
   const data: Record<string, string | null> = {};
   for (const key of MANUAL_FIELDS) {
     if (body[key] === undefined) continue;
@@ -95,3 +99,5 @@ export async function PUT(req: NextRequest) {
   await logActivity(auth.user, "UPDATE", "Teacher", "Memperbarui profil sendiri (portofolio)");
   return NextResponse.json(teacher);
 }
+
+export const PUT = withErrorHandling(PUT_impl);

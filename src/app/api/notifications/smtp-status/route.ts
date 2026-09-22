@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth";
+import { withErrorHandling } from "@/lib/api-helpers";
 
 /**
  * GET status konfigurasi SMTP — hanya mengembalikan metadata ringkas
@@ -25,9 +26,11 @@ export async function GET() {
   });
 }
 
-export async function POST() {
+async function POST_impl() {
   return NextResponse.json(
     { error: "Gunakan GET untuk melihat status SMTP." },
     { status: 405 }
   );
 }
+
+export const POST = withErrorHandling(POST_impl);

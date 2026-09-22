@@ -41,7 +41,39 @@ function formKey(ip: string) {
   return `form-limit:${ip}`;
 }
 
+/**
+ * H1 audit fix — batas kepercayaan proxy.
+ *
+ * Header `X-Real-IP`/`X-Forwarded-For` HANYA boleh dipercaya bila aplikasi
+ * berada di belakang reverse proxy yang MENIMPA header tersebut dengan IP
+ * riil (Caddy kita melakukan ini via `header_up`). Tanpa `TRUST_PROXY=true`,
+ * header forwarding dari klien diabaikan sepenuhnya — kalau tidak, siapa pun
+ * yang bisa mengakses port aplikasi secara langsung dapat memalsukan IP untuk
+ * melewati rate limit login (credential stuffing) atau memicu lockout akun
+ * orang lain.
+ *
+ * docker-compose.yml menyetel default `TRUST_PROXY=true` karena deployment
+ * self-host selalu di belakang Caddy. Non-set / nilai lain = tidak percaya.
+ */
+export function isProxyTrusted(): boolean {
+  return process.env.TRUST_PROXY === "true" || process.env.TRUST_PROXY === "1";
+}
+
+let warnedUntrustedHeaders = false;
+
 export function getClientIp(req: RequestLike): string {
+  if (!isProxyTrusted()) {
+    if (
+      !warnedUntrustedHeaders &&
+      (getHeader(req, "x-real-ip") || getHeader(req, "x-forwarded-for"))
+    ) {
+      warnedUntrustedHeaders = true;
+      logger.warn(
+        "[rate-limit] header forwarding diterima tapi TRUST_PROXY tidak diset — IP diabaikan 'unknown'. Set TRUST_PROXY=true hanya di belakang reverse proxy yang menimpa header."
+      );
+    }
+    return "unknown";
+  }
   const real = getHeader(req, "x-real-ip");
   if (real) return real;
   const xff = getHeader(req, "x-forwarded-for");
@@ -168,6 +200,103 @@ export async function rateLimitPublicForm(req: RequestLike, max?: number, window
         );
     }
     return null;
+}
+
+// --- Authenticated Mutation Rate Limiter ---
+
+const mutationStore = new Map<string, { count: number; windowStart: number }>();
+
+/**
+ * Pembatas untuk request mutation ter-autentikasi (POST/PUT/PATCH/DELETE).
+ * Dipasang di `requireCsrf` (choke point bersama semua route mutation), bukan
+ * per-handler, agar coverage tidak bergantung pada disiplin tiap route.
+ * Jauh lebih longgar daripada limit form publik: operator sah bisa melakukan
+ * puluhan mutation per menit (bulk edit, impor data), tapi flood programatik
+ * tetap terhenti.
+ * Diabaikan total saat E2E_SUITE=1 — harness Playwright menembak banyak
+ * mutation dari satu IP (localhost) dalam hitungan detik.
+ */
+export async function isMutationRateLimited(ip: string, max = 120, windowMs = 60_000): Promise<boolean> {
+  if (process.env.E2E_SUITE === "1") return false;
+  const k = `mutation-limit:${ip}`;
+  if (!redis) {
+    const now = Date.now();
+    const rec = mutationStore.get(k);
+    if (!rec || now - rec.windowStart >= windowMs) {
+      mutationStore.set(k, { count: 1, windowStart: now });
+      return false;
+    }
+    rec.count += 1;
+    return rec.count > max;
+  }
+
+  const count = await redis.incr(k);
+  if (count === 1) {
+    await redis.pexpire(k, windowMs);
+  }
+  return count > max;
+}
+
+/** Wrapper siap-pakai: kembalikan 429 bila mutation dari IP ini melebihi kuota. */
+export async function rateLimitMutation(req: RequestLike, max?: number, windowMs?: number): Promise<Response | null> {
+  const ip = getClientIp(req);
+  if (await isMutationRateLimited(ip, max, windowMs)) {
+    logger.warn({ ip, max: max ?? 120 }, "[rate-limit] mutation limit exceeded");
+    return Response.json(
+      { error: "Terlalu banyak permintaan. Silakan coba lagi beberapa saat." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil((windowMs ?? 60_000) / 1000)) } }
+    );
+  }
+  return null;
+}
+
+// --- Upload Quota per Pengguna (M7) ---
+
+const uploadQuotaStore = new Map<string, { count: number; windowStart: number }>();
+
+/** Batas file upload (gambar + PDF BOS) per user per jendela 24 jam bergeser. */
+export const UPLOAD_QUOTA_PER_DAY = 50;
+const UPLOAD_QUOTA_WINDOW = 24 * 60 * 60 * 1000;
+
+function uploadQuotaKey(userId: string) {
+  return `upload-quota:${userId}`;
+}
+
+/**
+ * Jumlah upload user dalam 24 jam bergeser terakhir. Dicek SEBELUM proses
+ * (pre-check); penghitungannya naik hanya untuk upload yang berhasil
+ * (`recordUpload`) agar file ditolak (ukuran/magic-bytes) tidak memunahkan kuota.
+ * Dimatikan saat E2E_SUITE=1 — harness mengunggah banyak gambar dari satu akun.
+ */
+export async function getUploadCount(userId: string): Promise<number> {
+  if (process.env.E2E_SUITE === "1") return 0;
+  const k = uploadQuotaKey(userId);
+  if (!redis) {
+    const rec = uploadQuotaStore.get(k);
+    if (!rec || Date.now() - rec.windowStart >= UPLOAD_QUOTA_WINDOW) return 0;
+    return rec.count;
+  }
+  return parseInt((await redis.get(k)) ?? "0", 10) || 0;
+}
+
+/** Catat satu upload berhasil (dipanggil setelah file tersimpan). */
+export async function recordUpload(userId: string): Promise<void> {
+  if (process.env.E2E_SUITE === "1") return;
+  const k = uploadQuotaKey(userId);
+  if (!redis) {
+    const now = Date.now();
+    const rec = uploadQuotaStore.get(k);
+    if (!rec || now - rec.windowStart >= UPLOAD_QUOTA_WINDOW) {
+      uploadQuotaStore.set(k, { count: 1, windowStart: now });
+    } else {
+      rec.count += 1;
+    }
+    return;
+  }
+  const count = await redis.incr(k);
+  if (count === 1) {
+    await redis.pexpire(k, UPLOAD_QUOTA_WINDOW);
+  }
 }
 
 // --- Public GET Rate Limiter ---

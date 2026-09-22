@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
@@ -28,7 +29,9 @@ export async function POST(req: NextRequest) {
     const rateLimited = await rateLimitPublicForm(req);
     if (rateLimited) return rateLimited;
 
-    const body = await req.json();
+    const parsed = await safeJson(req);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
     const validation = validateBody(createComplaintSchema, body);
     if (!validation.ok) {
       return NextResponse.json({ error: validation.error }, { status: 400 });

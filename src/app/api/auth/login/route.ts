@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { setSession } from "@/lib/auth";
@@ -17,7 +18,9 @@ import type { Role } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const parsed = await safeJson(req);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
     const validation = validateBody(loginSchema, body);
     if (!validation.ok) {
       return NextResponse.json({ error: validation.error }, { status: 400 });
@@ -58,7 +61,8 @@ export async function POST(req: NextRequest) {
     }
 
     const user = await db.user.findUnique({ where: { email: normalizedEmail } });
-    // Support both hashed and (legacy) plaintext stored passwords.
+    // verifyPassword hanya menerima format hash "salt:hash" (scrypt);
+    // fallback plaintext legacy sudah dihapus.
     const valid = user ? await verifyPassword(password, user.password) : false;
     // Use constant-time-ish failure regardless of whether user exists.
     if (!user || !valid) {

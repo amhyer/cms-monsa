@@ -1,3 +1,5 @@
+import { safeJson } from "@/lib/api-helpers";
+import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth, requireRole } from "@/lib/auth";
@@ -62,50 +64,61 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const csrfError = await requireCsrf(req);
-  if (csrfError) return csrfError;
+  try {
 
-  const auth = await requireRole("OPERATOR");
-  if (!auth.ok) return auth.response;
+    const csrfError = await requireCsrf(req);
+    if (csrfError) return csrfError;
 
-  const body = await req.json();
-  const validation = validateBody(createNewsSchema, body);
-  if (!validation.ok) {
-    return NextResponse.json({ error: validation.error }, { status: 400 });
-  }
+    const auth = await requireRole("OPERATOR");
+    if (!auth.ok) return auth.response;
 
-  const { title, content, excerpt, coverImage, category, status } = validation.data;
-  const sanitizedContent = sanitizeHtml(content);
-  const trimmedExcerpt = (excerpt ?? "").slice(0, 500);
+    const parsed = await safeJson(req);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
+    const validation = validateBody(createNewsSchema, body);
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
+    }
 
-  let slug = slugify(title);
-  const existing = await db.news.findUnique({ where: { slug } });
-  if (existing) slug = `${slug}-${Date.now().toString(36)}`;
+    const { title, content, excerpt, coverImage, category, status } = validation.data;
+    const sanitizedContent = sanitizeHtml(content);
+    const trimmedExcerpt = (excerpt ?? "").slice(0, 500);
 
-  const publishedAt = status === "PUBLISHED" ? new Date() : null;
+    let slug = slugify(title);
+    const existing = await db.news.findUnique({ where: { slug } });
+    if (existing) slug = `${slug}-${Date.now().toString(36)}`;
 
-  const news = await db.news.create({
-    data: {
-      title,
-      slug,
-      excerpt: trimmedExcerpt,
-      content: sanitizedContent,
-      coverImage: coverImage || null,
-      category,
-      status,
-      authorId: auth.user.id,
-      publishedAt,
-    },
-    include: { author: { select: { name: true } } },
-  });
+    const publishedAt = status === "PUBLISHED" ? new Date() : null;
 
-  await logActivity(
-    auth.user,
-    "CREATE",
-    "News",
-    `Membuat berita: ${title}`,
-    news.id
-  );
+    const news = await db.news.create({
+      data: {
+        title,
+        slug,
+        excerpt: trimmedExcerpt,
+        content: sanitizedContent,
+        coverImage: coverImage || null,
+        category,
+        status,
+        authorId: auth.user.id,
+        publishedAt,
+      },
+      include: { author: { select: { name: true } } },
+    });
 
-  return NextResponse.json({ ...news, authorName: news.author?.name });
-}
+    await logActivity(
+      auth.user,
+      "CREATE",
+      "News",
+      `Membuat berita: ${title}`,
+      news.id
+    );
+
+    return NextResponse.json({ ...news, authorName: news.author?.name });
+
+  } catch (err) {
+    logger.error({ err, path: req.url }, "Route handler error");
+    return NextResponse.json(
+      { error: "Terjadi kesalahan server." },
+      { status: 500 }
+    );
+  }}

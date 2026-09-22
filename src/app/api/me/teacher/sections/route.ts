@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth, hasRole } from "@/lib/auth";
@@ -74,7 +75,9 @@ export async function POST(req: NextRequest) {
     const auth = await requireAuth();
     if (!auth.ok) return auth.response;
 
-    const body = await req.json();
+    const parsed = await safeJson(req);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
     const { title, content, icon, teacherId: bodyTeacherId } = body;
 
     // Determine which teacher to add section for
@@ -185,7 +188,9 @@ export async function PUT(req: NextRequest) {
       }
     }
 
-    const body = await req.json();
+    const parsed = await safeJson(req);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
     const { sections } = body;
 
     if (!Array.isArray(sections)) {

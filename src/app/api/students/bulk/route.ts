@@ -1,8 +1,10 @@
+import { safeJson } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
+import { withErrorHandling } from "@/lib/api-helpers";
 
 type BulkStudent = {
   nis: string;
@@ -20,14 +22,16 @@ const MAX_RECORDS = 500;
  * Body: { items: [{ nis, name, classId, nisn?, gender?, parentName? }] }
  * Response: { created, updated, skipped, errors: [{ row, error }] }
  */
-export async function POST(req: NextRequest) {
+async function POST_impl(req: NextRequest) {
   const csrfError = await requireCsrf(req);
   if (csrfError) return csrfError;
 
   const auth = await requireRole("OPERATOR");
   if (!auth.ok) return auth.response;
 
-  const body = await req.json();
+  const parsed = await safeJson(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
   const items: BulkStudent[] = Array.isArray(body.items) ? body.items : [];
 
   if (items.length === 0) {
@@ -119,3 +123,5 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ ok: true, created, updated, errors });
 }
+
+export const POST = withErrorHandling(POST_impl);

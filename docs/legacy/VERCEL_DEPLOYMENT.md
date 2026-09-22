@@ -1,5 +1,11 @@
 # CMS MONSA - Vercel Deployment Guide
 
+> **STATUS: LEGACY (arsip 2026-09-22).** Target produksi kini self-host Docker
+> — lihat `docs/DEPLOYMENT.md` + `docker-compose.yml` dan
+> `docs/MIGRATION-VERCEL-TO-SELFHOST.md`. Dokumen ini dipertahankan sebagai
+> rujukan historis / fallback; `vercel.json` dan workflow `deploy-vercel.yml`
+> masih ada tetapi bukan jalur deploy utama.
+
 ## Overview
 
 This guide covers deploying CMS MONSA to Vercel with PostgreSQL database support.

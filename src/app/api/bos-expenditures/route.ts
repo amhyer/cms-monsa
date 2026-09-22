@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
@@ -10,6 +11,7 @@ import {
   decodeCursor,
   buildPaginatedResponse,
 } from "@/lib/pagination";
+import { withErrorHandling } from "@/lib/api-helpers";
 
 /**
  * Daftar belanja dana BOS/ARKAS — PUBLIK (transparansi anggaran sekolah).
@@ -96,13 +98,15 @@ export async function GET(req: NextRequest) {
   });
 }
 
-export async function POST(req: NextRequest) {
+async function POST_impl(req: NextRequest) {
   const csrfError = await requireCsrf(req);
   if (csrfError) return csrfError;
 
   const auth = await requireRole("SUPER_ADMIN");
   if (!auth.ok) return auth.response;
-  const body = await req.json();
+  const parsed = await safeJson(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
   const validation = validateBody(createBosExpenditureSchema, body);
   if (!validation.ok) {
     return NextResponse.json({ error: validation.error }, { status: 400 });
@@ -131,3 +135,5 @@ export async function POST(req: NextRequest) {
   );
   return NextResponse.json(entry);
 }
+
+export const POST = withErrorHandling(POST_impl);

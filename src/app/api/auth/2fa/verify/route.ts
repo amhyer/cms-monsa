@@ -4,6 +4,7 @@
  * Verify a TOTP code and enable 2FA for the authenticated user.
  * Must be called after /api/auth/2fa/setup.
  */
+import { safeJson } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -31,7 +32,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = await req.json();
+    const parsed = await safeJson(req);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
     const validation = validateBody(verifySchema, body);
     if (!validation.ok) {
       return NextResponse.json({ error: validation.error }, { status: 400 });

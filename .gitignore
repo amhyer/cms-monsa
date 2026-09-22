@@ -122,6 +122,8 @@ prompt
 .zscripts/dev.pid
 .zscripts/dev.port
 .zscripts/dev.log
+.zscripts/dev.log.err
+.tmp-*.log
 
 # Freebuff desktop app state (run doc, preview logs, aplikasi SQLite desktop-v2.db*) —
 # Turbopack menghormati .gitignore untuk file-watching; root-anchor ini mengeluarkan

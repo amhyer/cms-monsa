@@ -1,3 +1,5 @@
+import { safeJson } from "@/lib/api-helpers";
+import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
@@ -151,77 +153,88 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const csrfError = await requireCsrf(req);
-  if (csrfError) return csrfError;
+  try {
 
-  const auth = await requireRole("SUPER_ADMIN");
-  if (!auth.ok) return auth.response;
-  const body = await req.json();
-  const validation = validateBody(createUserSchema, body);
-  if (!validation.ok) {
-    return NextResponse.json({ error: validation.error }, { status: 400 });
-  }
+    const csrfError = await requireCsrf(req);
+    if (csrfError) return csrfError;
 
-  const { name, email, password, role, guardianClassId, guardianStudentId, studentId } = validation.data;
-  const exists = await db.user.findUnique({ where: { email } });
-  if (exists) {
-    return NextResponse.json({ error: "Email sudah terdaftar." }, { status: 409 });
-  }
-  if (role === "ORANG_TUA" || role === "SISWA") {
-    const linkStudentId = role === "ORANG_TUA" ? guardianStudentId : studentId;
-    if (!linkStudentId) {
-      return NextResponse.json(
-        {
-          error:
-            role === "ORANG_TUA"
-              ? "Akun ORANG_TUA wajib ditautkan ke siswa (guardianStudentId)."
-              : "Akun SISWA wajib ditautkan ke siswa (studentId).",
-        },
-        { status: 400 }
-      );
+    const auth = await requireRole("SUPER_ADMIN");
+    if (!auth.ok) return auth.response;
+    const parsed = await safeJson(req);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
+    const validation = validateBody(createUserSchema, body);
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
     }
-    const linkedStudent = await db.student.findUnique({
-      where: { id: linkStudentId },
-      select: { id: true },
-    });
-    if (!linkedStudent) {
-      return NextResponse.json(
-        { error: "Siswa yang ditautkan tidak ditemukan." },
-        { status: 400 }
-      );
+
+    const { name, email, password, role, guardianClassId, guardianStudentId, studentId } = validation.data;
+    const exists = await db.user.findUnique({ where: { email } });
+    if (exists) {
+      return NextResponse.json({ error: "Email sudah terdaftar." }, { status: 409 });
     }
-    if (role === "SISWA") {
-      const taken = await db.user.findFirst({
-        where: { studentId: linkStudentId },
-        select: { id: true },
-      });
-      if (taken) {
+    if (role === "ORANG_TUA" || role === "SISWA") {
+      const linkStudentId = role === "ORANG_TUA" ? guardianStudentId : studentId;
+      if (!linkStudentId) {
         return NextResponse.json(
-          { error: "Siswa tersebut sudah memiliki akun." },
-          { status: 409 }
+          {
+            error:
+              role === "ORANG_TUA"
+                ? "Akun ORANG_TUA wajib ditautkan ke siswa (guardianStudentId)."
+                : "Akun SISWA wajib ditautkan ke siswa (studentId).",
+          },
+          { status: 400 }
         );
       }
+      const linkedStudent = await db.student.findUnique({
+        where: { id: linkStudentId },
+        select: { id: true },
+      });
+      if (!linkedStudent) {
+        return NextResponse.json(
+          { error: "Siswa yang ditautkan tidak ditemukan." },
+          { status: 400 }
+        );
+      }
+      if (role === "SISWA") {
+        const taken = await db.user.findFirst({
+          where: { studentId: linkStudentId },
+          select: { id: true },
+        });
+        if (taken) {
+          return NextResponse.json(
+            { error: "Siswa tersebut sudah memiliki akun." },
+            { status: 409 }
+          );
+        }
+      }
     }
-  }
-  const user = await db.user.create({
-    data: {
-      name,
-      email,
-      password: hashPassword(password),
-      role,
-      isActive: true,
-      // Password diinput admin → wajib diganti saat login pertama.
-      mustChangePassword: true,
-      guardianClassId: role === "GURU" ? guardianClassId || null : null,
-      guardianStudentId: role === "ORANG_TUA" ? guardianStudentId || null : null,
-      studentId: role === "SISWA" ? studentId || null : null,
-    },
-    select: { id: true, name: true, email: true, role: true, isActive: true, guardianStudentId: true, studentId: true, createdAt: true },
-  });
-  await logActivity(auth.user, "CREATE", "User", `Menambah akun ${role}: ${name} (${email})`, user.id);
-  if (role === "ORANG_TUA" && guardianStudentId) {
-    // Non-blokir: kegagalan WhatsApp tidak membatalkan pembuatan akun.
-    await sendParentWelcome(guardianStudentId, email, password).catch(() => {});
-  }
-  return NextResponse.json(user);
-}
+    const user = await db.user.create({
+      data: {
+        name,
+        email,
+        password: hashPassword(password),
+        role,
+        isActive: true,
+        // Password diinput admin → wajib diganti saat login pertama.
+        mustChangePassword: true,
+        guardianClassId: role === "GURU" ? guardianClassId || null : null,
+        guardianStudentId: role === "ORANG_TUA" ? guardianStudentId || null : null,
+        studentId: role === "SISWA" ? studentId || null : null,
+      },
+      select: { id: true, name: true, email: true, role: true, isActive: true, guardianStudentId: true, studentId: true, createdAt: true },
+    });
+    await logActivity(auth.user, "CREATE", "User", `Menambah akun ${role}: ${name} (${email})`, user.id);
+    if (role === "ORANG_TUA" && guardianStudentId) {
+      // Non-blokir: kegagalan WhatsApp tidak membatalkan pembuatan akun.
+      await sendParentWelcome(guardianStudentId, email, password).catch(() => {});
+    }
+    return NextResponse.json(user);
+
+  } catch (err) {
+    logger.error({ err, path: req.url }, "Route handler error");
+    return NextResponse.json(
+      { error: "Terjadi kesalahan server." },
+      { status: 500 }
+    );
+  }}

@@ -1,6 +1,7 @@
 import { randomBytes, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { rateLimitMutation } from "@/lib/rate-limit";
 
 const CSRF_COOKIE = "monsa_csrf";
 const CSRF_HEADER = "x-csrf-token";
@@ -66,7 +67,7 @@ export async function validateCsrfToken(req: Request): Promise<boolean> {
  */
 export async function requireCsrf(
   req: Request
-): Promise<NextResponse | null> {
+): Promise<Response | null> {
   const method = req.method.toUpperCase();
 
   // Safe methods don't need CSRF
@@ -85,6 +86,16 @@ export async function requireCsrf(
   const isPublicPost = method === "POST" && publicPaths.some(p => url.pathname === p || url.pathname.startsWith(p + "/"));
   if (isPublicPost) {
     return null;
+  }
+
+  // Rate limit semua mutation ter-autentikasi (choke point — lihat
+  // `rateLimitMutation`). Fail-open: limiter tidak boleh membuat mutation
+  // sah gagal (mis. modul di-mock penuh pada unit test atau Redis berkedip).
+  try {
+    const limited = await rateLimitMutation(req);
+    if (limited) return limited;
+  } catch {
+    // ignore — lanjut ke validasi CSRF
   }
 
   const isValid = await validateCsrfToken(req);

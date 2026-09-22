@@ -1,9 +1,11 @@
+import { safeJson } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
 import { DAYS } from "@/lib/schedule-constants";
+import { withErrorHandling } from "@/lib/api-helpers";
 
 type BulkEntry = {
   day: string;
@@ -16,14 +18,16 @@ type BulkEntry = {
   academicYear: string;
 };
 
-export async function POST(req: NextRequest) {
+async function POST_impl(req: NextRequest) {
   const csrfError = await requireCsrf(req);
   if (csrfError) return csrfError;
 
   const auth = await requireRole("OPERATOR");
   if (!auth.ok) return auth.response;
 
-  const body = await req.json();
+  const parsed = await safeJson(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
   const items: BulkEntry[] = body.items;
 
   if (!Array.isArray(items) || items.length === 0) {
@@ -76,3 +80,5 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ imported, skipped });
 }
+
+export const POST = withErrorHandling(POST_impl);

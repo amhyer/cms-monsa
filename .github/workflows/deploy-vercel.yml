@@ -1,6 +1,12 @@
 # ============================================================
 # Deploy database (Vercel + Neon)
 #
+# STATUS LEGACY (diarsipkan 2026-09-22): target produksi kini self-host
+# Docker (docker-compose.yml — entrypoint container menjalankan migrate).
+# Workflow ini HANYA relevan bila masih deploy ke Vercel + Neon; secret
+# DATABASE_URL yang tidak ada membuat workflow gagal/no-op — hapus saja
+# bila jalur Vercel sudah benar-benar ditinggalkan.
+#
 # Menjalankan scripts/deploy-vercel.sh SETELAH push ke main —
 # langkah post-deploy yang TIDAK bisa dilakukan Vercel sendiri:
 # migrasi skema Prisma + seed data awal ke database Neon.

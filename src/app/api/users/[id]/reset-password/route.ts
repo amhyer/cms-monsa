@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
@@ -5,10 +6,11 @@ import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
 import { hashPassword } from "@/lib/password";
 import { changePasswordSchema, validateBody } from "@/lib/validations";
+import { withErrorHandling } from "@/lib/api-helpers";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-export async function POST(req: NextRequest, { params }: Ctx) {
+async function POST_impl(req: NextRequest, { params }: Ctx) {
   const csrfError = await requireCsrf(req);
   if (csrfError) return csrfError;
 
@@ -16,7 +18,9 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   if (!auth.ok) return auth.response;
 
   const { id } = await params;
-  const body = await req.json();
+  const parsed = await safeJson(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
 
   const validation = validateBody(changePasswordSchema, body);
   if (!validation.ok) {
@@ -46,3 +50,5 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
   return NextResponse.json({ ok: true, message: "Password berhasil direset." });
 }
+
+export const POST = withErrorHandling(POST_impl);

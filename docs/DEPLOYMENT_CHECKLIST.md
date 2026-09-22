@@ -128,7 +128,7 @@ ls -la .next/
 
 - [ ] Vercel: tanpa konfigurasi — upload otomatis disimpan di tabel
   `UploadedFile` (filesystem serverless ephemeral; lihat
-  `src/lib/file-storage.ts` & docs/VERCEL_DEPLOYMENT.md)
+  `src/lib/file-storage.ts` & docs/legacy/VERCEL_DEPLOYMENT.md)
 - [ ] Vercel: sadar batas 4 MB per upload (limit platform Vercel 4,5 MB)
 - [ ] Docker/self-host: volume uploads terpasang
   (`uploads-data:/app/public/uploads` — sudah default di docker-compose.yml)

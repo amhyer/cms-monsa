@@ -10,6 +10,13 @@
  * Kedua seed idempoten (upsert), aman dijalankan ulang. Seed E2E sudah punya
  * pengaman: wajib E2E_SEED=1, menolak DATABASE_URL Neon.
  *
+ * Env vars:
+ *   CI_SKIP_DEMO_SEED=1  — skip seed demo (prisma/seed.ts) untuk
+ *     mengurangi memory pressure di CI; hanya seed E2E yang dijalankan.
+ *     Berguna untuk workflow yang tidak butuh coexistence (mis. playwright.yml
+ *     yang hanya butuh akun e2e). Workflow coexistence TIDAK memakai flag ini
+ *     karena tujuannya menguji koeksistensi data demo × e2e.
+ *
  * Pemakaian:
  *   bun run test:e2e:demo [args playwright...]
  *   bun run test:e2e:demo dapodik-config-cf-access.spec.ts
@@ -42,7 +49,12 @@ function runSeed(script: string, env: NodeJS.ProcessEnv): void {
 async function main(): Promise<void> {
   // seed.ts tidak punya guard env (sama seperti `bun run db:seed`);
   // seed-e2e wajib E2E_SEED=1 (pengaman bawaannya).
-  runSeed(join("prisma", "seed.ts"), process.env);
+  const skipDemoSeed = process.env.CI_SKIP_DEMO_SEED === "1";
+  if (skipDemoSeed) {
+    console.log("[e2e:demo] ⏭ CI_SKIP_DEMO_SEED=1 — skip seed demo, jalankan seed E2E saja.");
+  } else {
+    runSeed(join("prisma", "seed.ts"), process.env);
+  }
   runSeed(join("prisma", "seed-e2e.ts"), { ...process.env, E2E_SEED: "1" });
 
   // Delegasikan ke run-e2e-local (env E2E_SERVER_LOG dsb. diset di sana);

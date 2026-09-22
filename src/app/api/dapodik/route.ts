@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
@@ -15,7 +16,9 @@ export async function POST(req: NextRequest) {
 
   let endpoint = "all";
   try {
-    const body = await req.json();
+    const parsed = await safeJson(req);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
     if (body?.endpoint) endpoint = body.endpoint;
   } catch {
     // body kosong/tidak valid — pakai default "all"

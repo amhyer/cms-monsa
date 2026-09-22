@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole, getSession } from "@/lib/auth";
@@ -5,6 +6,7 @@ import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
 import { slugify } from "@/lib/format";
 import { sanitizeHtml } from "@/lib/sanitize";
+import { withErrorHandling } from "@/lib/api-helpers";
 
 const NEWS_CATEGORIES = ["Akademik", "Kegiatan", "Prestasi"] as const;
 const MAX_CONTENT_LENGTH = 50000;
@@ -34,7 +36,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   return NextResponse.json({ ...news, authorName: news.author?.name });
 }
 
-export async function PUT(req: NextRequest, { params }: Ctx) {
+async function PUT_impl(req: NextRequest, { params }: Ctx) {
   const csrfError = await requireCsrf(req);
   if (csrfError) return csrfError;
 
@@ -47,7 +49,9 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     return NextResponse.json({ error: "Berita tidak ditemukan." }, { status: 404 });
   }
 
-  const body = await req.json();
+  const parsed = await safeJson(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
   const title = String(body.title ?? existing.title).trim();
   if (!title) {
     return NextResponse.json({ error: "Judul wajib diisi." }, { status: 400 });
@@ -126,7 +130,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   return NextResponse.json({ ...updated, authorName: updated.author?.name });
 }
 
-export async function DELETE(req: NextRequest, { params }: Ctx) {
+async function DELETE_impl(req: NextRequest, { params }: Ctx) {
   const csrfError = await requireCsrf(req);
   if (csrfError) return csrfError;
 
@@ -150,3 +154,6 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
 
   return NextResponse.json({ ok: true });
 }
+
+export const PUT = withErrorHandling(PUT_impl);
+export const DELETE = withErrorHandling(DELETE_impl);

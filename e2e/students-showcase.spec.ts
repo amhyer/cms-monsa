@@ -27,8 +27,12 @@ test.describe("Galeri Siswa — beranda", () => {
       section.getByRole("combobox", { name: "Filter kelas" })
     ).toBeVisible();
 
-    // Marquee: minimal satu siswa berfoto (img src http + alt = nama siswa).
-    await expect(section.locator("img[src^='http']").first()).toBeVisible();
+    // Marquee: minimal satu siswa berfoto. Foto dimuat via next/image sehingga
+    // src direwrite ke /_next/image?url=… — pola 'http' tetap dicakup untuk
+    // gambar non-optimasi (mis. disable opts).
+    await expect(
+      section.locator("img[src^='http'], img[src^='/_next/image']").first()
+    ).toBeVisible();
     await expect(section).toContainText("Menampilkan");
   });
 
@@ -37,7 +41,9 @@ test.describe("Galeri Siswa — beranda", () => {
     const section = gallery(page);
 
     // Ambil nama siswa berfoto pertama di marquee, lalu cari kata pertamanya.
-    const photoImg = section.locator("img[src^='http']").first();
+    const photoImg = section
+      .locator("img[src^='http'], img[src^='/_next/image']")
+      .first();
     await expect(photoImg).toBeVisible();
     const fullName = await photoImg.getAttribute("alt");
     expect(fullName).toBeTruthy();
@@ -126,7 +132,9 @@ test.describe("Galeri Siswa — beranda", () => {
     const section = gallery(page);
 
     // Nama + kelas siswa berfoto pertama dari kartu marquee.
-    const photoImg = section.locator("img[src^='http']").first();
+    const photoImg = section
+      .locator("img[src^='http'], img[src^='/_next/image']")
+      .first();
     await expect(photoImg).toBeVisible();
     const fullName = await photoImg.getAttribute("alt");
     expect(fullName).toBeTruthy();

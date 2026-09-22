@@ -51,7 +51,7 @@ export async function GET(req: Request) {
           headers: {
             "Content-Type": file.mimeType,
             "Content-Length": String(file.size),
-            "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+            "Cache-Control": FAVICON_CACHE,
             ETag: file.etag,
           },
         });
@@ -75,6 +75,12 @@ export async function GET(req: Request) {
   }
 }
 
+// Favicon kecil tapi sering dikira "tidak berubah" setelah diganti admin:
+// Chrome menyimpan ikon di favicon-store sendiri DAN menghormati cache header.
+// max-age 5 menit memangkas jalur cache HTTP sehingga perubahan tampil pada
+// reload berikutnya (favicon-store Chrome tetap butuh reload keras sekali).
+const FAVICON_CACHE = "public, max-age=300, stale-while-revalidate=86400";
+
 /** Baca /logo.svg dari disk dan melayani langsung — same-origin, tanpa redirect. */
 async function serveDefaultLogo(): Promise<Response> {
   const logo = await readFile(path.join(process.cwd(), "public", "logo.svg"));
@@ -83,7 +89,7 @@ async function serveDefaultLogo(): Promise<Response> {
     headers: {
       "Content-Type": "image/svg+xml",
       "Content-Length": String(logo.byteLength),
-      "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+      "Cache-Control": FAVICON_CACHE,
     },
   });
 }

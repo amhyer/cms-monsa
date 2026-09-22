@@ -109,6 +109,11 @@ describe("GET /api/favicon", () => {
 
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("image/png");
+    // TTL pendek: favicon yang baru diganti admin harus tampil pada reload
+    // berikutnya, bukan 24 jam kemudian (keluhan nyata 22-09-2026).
+    expect(res.headers.get("cache-control")).toBe(
+      "public, max-age=300, stale-while-revalidate=86400"
+    );
     expect(await res.text()).toBe("png-bytes");
   });
 

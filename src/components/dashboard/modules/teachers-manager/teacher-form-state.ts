@@ -1,0 +1,67 @@
+export type FormState = {
+  name: string;
+  position: string;
+  subject: string;
+  education: string;
+  photo: string;
+  isActive: boolean;
+  nuptk: string;
+  nip: string;
+  nik: string;
+  tempatLahir: string;
+  tanggalLahir: string;
+  gender: string;
+  agama: string;
+  statusKepegawaian: string;
+  jenisPtk: string;
+  pangkatGolongan: string;
+  bidangStudi: string;
+  phone: string;
+  email: string;
+  motto: string;
+  riwayat: string;
+  sertifikasi: string;
+  prestasi: string;
+  badges: string;
+  cvUrl: string;
+  linkedinUrl: string;
+  githubUrl: string;
+  websiteUrl: string;
+  officeHours: string;
+  consultationNote: string;
+  languages: string;
+};
+
+export const EMPTY: FormState = {
+  name: "",
+  position: "",
+  subject: "",
+  education: "",
+  photo: "",
+  isActive: true,
+  nuptk: "",
+  nip: "",
+  nik: "",
+  tempatLahir: "",
+  tanggalLahir: "",
+  gender: "",
+  agama: "",
+  statusKepegawaian: "",
+  jenisPtk: "",
+  pangkatGolongan: "",
+  bidangStudi: "",
+  phone: "",
+  email: "",
+  motto: "",
+  riwayat: "",
+  sertifikasi: "",
+  prestasi: "",
+  badges: "",
+  cvUrl: "",
+  linkedinUrl: "",
+  githubUrl: "",
+  websiteUrl: "",
+  officeHours: "",
+  consultationNote: "",
+  languages: "",
+};

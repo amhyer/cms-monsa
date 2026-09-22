@@ -30,6 +30,19 @@ function fail(msg: string): never {
   process.exit(1);
 }
 
+/**
+ * Foto placeholder untuk data demo. Default: picsum.photos — disengaja untuk
+ * seed dev (kontrak di header: seed ini sudah menolak DB produksi). Untuk
+ * demo publik/ekspor, letakkan foto asli di `public/demo/<seed>.jpg` (lihat
+ * public/demo/README.md) — seed otomatis memakai jalur lokal itu.
+ */
+function demoPhoto(seed: string, width: number, height: number): string {
+  if (existsSync(join("public", "demo", `${seed}.jpg`))) {
+    return `/demo/${seed}.jpg`;
+  }
+  return `https://picsum.photos/seed/${seed}/${width}/${height}`;
+}
+
 // ---- Muat .env / .env.local sendiri (tsx tidak memuat otomatis) ----
 // Precedensi mengikuti Next.js: .env.local menang atas .env; env shell
 // (di-set eksplisit dari luar) menang atas keduanya. Catatan: `bun run`
@@ -283,7 +296,7 @@ async function main() {
         address: `Jl. Monginsidi KM-${(i % 9) + 1}, Maricaya Baru, Makassar`,
         parentName: ["Hasan Basri", "Rusnawati", "Syamsuddin", "Halimah", "Bakri", "Nurhayati"][i % 6],
         parentPhone: `0852${String(41000000 + i * 91337).slice(0, 8)}`,
-        photoUrl: `https://picsum.photos/seed/demo-siswa-${i + 1}/400/400`,
+        photoUrl: demoPhoto(`demo-siswa-${i + 1}`, 400, 400),
         classId: classIds[grade - 1],
         isActive: true,
       },
@@ -339,7 +352,7 @@ async function main() {
         title: n.t,
         excerpt: n.x,
         content: `${n.x}\n\nKegiatan ini merupakan bagian dari program rutin sekolah untuk menumbuhkan semangat belajar, kemandirian, dan kepedulian sosial peserta didik. Sekolah menyampaikan terima kasih kepada seluruh guru, komite, dan orang tua atas dukungannya.\n\nDokumentasi kegiatan dapat dilihat pada galeri foto di laman galeri sekolah.`,
-        coverImage: `https://picsum.photos/seed/demo-berita-${i + 1}/800/450`,
+        coverImage: demoPhoto(`demo-berita-${i + 1}`, 800, 450),
         category: n.c,
         status: "PUBLISHED",
         authorId: "demo-user-admin",
@@ -424,8 +437,8 @@ async function main() {
         title: ["Upacara HUT RI", "Pasarkan Projek P5", "Juara Cerdas Cermat", "Perpustakaan Mini", "Ruang Kelas Baru", "Taman Baca"][i - 1],
         description: "Dokumentasi kegiatan sekolah.",
         type: "PHOTO",
-        url: `https://picsum.photos/seed/demo-galeri-${i}/800/600`,
-        thumbnail: `https://picsum.photos/seed/demo-galeri-${i}/400/300`,
+        url: demoPhoto(`demo-galeri-${i}`, 800, 600),
+        thumbnail: demoPhoto(`demo-galeri-${i}`, 400, 300),
         category: (["Kegiatan", "Kegiatan", "Prestasi", "Fasilitas", "Fasilitas", "Kegiatan"] as const)[i - 1],
       },
     });
@@ -440,7 +453,7 @@ async function main() {
         id: `demo-album-${a}`,
         name: a === 1 ? "Kegiatan Upacara & Peringatan" : "Ekstrakurikuler & Projek P5",
         description: "Kumpulan foto kegiatan sekolah.",
-        coverUrl: `https://picsum.photos/seed/demo-album-${a}/600/400`,
+        coverUrl: demoPhoto(`demo-album-${a}`, 600, 400),
         category: a === 1 ? "Upacara" : "Kegiatan",
         isPublished: true,
         sortOrder: a,
@@ -455,8 +468,8 @@ async function main() {
           id: `demo-photo-${a}-${p}`,
           albumId: `demo-album-${a}`,
           title: `Foto Kegiatan ${a}-${p}`,
-          url: `https://picsum.photos/seed/demo-album-${a}-foto-${p}/800/600`,
-          thumbnailUrl: `https://picsum.photos/seed/demo-album-${a}-foto-${p}/400/300`,
+          url: demoPhoto(`demo-album-${a}-foto-${p}`, 800, 600),
+          thumbnailUrl: demoPhoto(`demo-album-${a}-foto-${p}`, 400, 300),
           mimeType: "image/jpeg",
           isFeatured: a === 1 && p === 1,
           sortOrder: p,
@@ -594,7 +607,7 @@ async function main() {
       year,
       studentId: "demo-student-1",
       reason: "Paling rajin dan tekun mengumpulkan tugas selama bulan ini.",
-      photoUrl: "https://picsum.photos/seed/demo-siswa-1/400/400",
+      photoUrl: demoPhoto("demo-siswa-1", 400, 400),
       isActive: true,
     },
   });

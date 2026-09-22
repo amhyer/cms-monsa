@@ -117,26 +117,32 @@ padahal kode produksi bersih. Setelah P0-1 dilakukan, seluruh gerbang non-E2E hi
    Docker (6 file compose). Workflow lama yang tidak dipakai menambah kebisingan CI
    (9 workflow aktif).
 
-## P3 — Berkelanjutan (operasional & produk)
+## P3 — Berkelanjutan (operasional & produk) — ✅ Dikerjakan 22-09-2026
 
-1. **Alerting Sentry**: error tracking sudah aktif, tapi dua item TODO masih
-   terbuka — dashboard performance monitoring dan alert error rate > 1%.
-   Untuk self-host, tambahkan aturan alert di Grafana (stack Loki/Grafana sudah
-   tersedia via `docker-compose.logging.yml`) atau Sentry webhook.
-2. **Halaman detail pengumuman**: pertimbangkan `/announcements/[slug]` agar
-   tautan RSS dan broadcast WhatsApp mengarah ke konten penuh; saat ini
-   jangkar `/#pengumuman` bisa diterima, tapi catat sebagai keputusan desain
-   di `ARCHITECTURE.md` agar tidak muncul lagi sebagai "temuan" di audit berikutnya.
-3. **Foto asli untuk seed demo**: 8 URL `picsum.photos` hanya ada di
-   `prisma/seed.ts`. Untuk demo publik/ekspor, ganti dengan foto sekolah asli
-   atau folder `public/demo/`; biarkan di seed dev jika memang disengaja.
-4. **Sisa `console.*` di `src/lib/`**: 15 di antaranya milik
-   `dapodik-scraper-cli.ts`/`dapodik-scraper.ts` (pola CLI, wajar); audit 3 sisanya
-   (`encryption.ts`, `db.ts`, `auth.ts`) → konversi ke `logger` pino.
-5. **Kebiasaan repo**: lanjutkan aturan `REPO_HEALTH_AUDIT.md` (commit logis kecil,
-   pre-commit gate aktif). Setelah P0, jaga `git status --porcelain` mendekati 0
-   dan jangan tinggalkan file "zz-tmp*" — tambahkan `**/zz-tmp*` ke `.gitignore`
-   sekaligus guard di `hooks:check` agar tes sementara tidak pernah lolos ke gate.
+> Catatan implementasi per item:
+>
+> 1. **Alerting** — aturan alert Grafana ter-provision di
+>    `config/loki/grafana-provisioning/alerting/` (`monsa-error-rate-1pct`
+>    rasio log error+critical > 1%/5m dengan guard trafik ≥30,
+>    `monsa-critical-error`, `monsa-nginx-5xx-1pct`), contact point webhook
+>    `MONSA_ALERT_WEBHOOK_URL`, dan dashboard "CMS MONSA — Error Rate &
+>    Traffic". Runner-up dokumentasi di `docs/RUNNING.md` §Alerting. Sisi
+>    Sentry SaaS (dashboard UI project) tetap opsional — di luar repo.
+> 2. **Halaman detail pengumuman** — keputusan desain tercatat di
+>    `docs/ARCHITECTURE.md` §2.3: anchor `/#pengumuman` dipertahankan
+>    (WA broadcast kirim isi penuh inline, konten panjang punya `/news/[slug]`),
+>    lengkap dengan kondisi peninjauan ulang.
+> 3. **Foto seed** — helper `demoPhoto()` di `prisma/seed.ts`: fallback
+>    `picsum.photos` (dev, disengaja) tapi otomatis memakai foto asli
+>    `public/demo/<seed>.jpg` bila tersedia; konvensi nama di
+>    `public/demo/README.md`. Tinggal isi fotonya lalu `bun run db:seed` ulang.
+> 4. **Sisa console.*** — hasil audit: `encryption.ts` & `auth.ts` TIDAK
+>    memanggil console (dua-duanya string pesan "generate key"); hanya
+>    `db.ts:39` yang nyata → sudah `logger.warn`. Tidak ada `console.*`
+>    fungsional tersisa di `src/lib/` selain pola CLI dapodik-scraper.
+> 5. **Guard zz-tmp** — `**/zz-tmp*` di `.gitignore` + Guard 6 baru di
+>    `.githooks/run-checks.sh` (menangkap `git add -f` di lokal dan file
+>    ter-track di CI); terverifikasi menolak stage `zz-tmp-*.ts`.
 
 ## Estimasi & Urutan Eksekusi
 

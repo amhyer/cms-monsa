@@ -217,6 +217,29 @@ Konsekuensi refactor:
 - **Redirect legacy**: `#/dashboard/...` dari bookmark lama diarahkan via
   `router.replace(hash.slice(1))` di layout selama masa transisi.
 
+#### Keputusan desain — pengumuman tanpa halaman detail
+
+Pengumuman sengaja TIDAK memiliki halaman detail `/announcements/[slug]`;
+seluruh tautan pengumuman mengarah ke anchor `/#pengumuman` di beranda
+(lihat `src/app/api/rss/route.ts`). Alasan:
+
+- Konten pengumuman pendek dan berumur singkat (deadline, sosialisasi,
+  pengingat) — dikonsumsi lewat daftar di beranda dan ticker
+  `running-announcements.tsx`, bukan dibaca ulang per item.
+- Konten panjang/siap-arsip sudah punya rumahnya sendiri: berita di
+  `/news/[slug]`. Menambah `/announcements/[slug]` akan menghasilkan dua
+  halaman nyaris identik dan halaman tipis (thin content) untuk SEO.
+- Broadcast WhatsApp mengirim isi lengkap pengumuman langsung di pesan
+  (`announcementMessage` di `src/lib/whatsapp.ts`), jadi tidak butuh URL
+  tujuan.
+
+Kondisi untuk meninjau ulang keputusan ini: bila pengumuman mulai
+menyertakan lampiran/konten panjang, butuh permalink yang stabil untuk
+dibagikan ulang, atau butuh analitik per-pengumuman — saat itu tambahkan
+`/announcements/[slug]` dan ganti tautan RSS. Temuan audit yang meminta
+"halaman detail pengumuman" agar tidak muncul lagi: ini keputusan,
+bukan kekosongan.
+
 ---
 
 ## 3. ERD Database (17 model)

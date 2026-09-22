@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
+import { withErrorHandling } from "@/lib/api-helpers";
 import { sendBulkWhatsApp, normalizePhone, announcementMessage } from "@/lib/whatsapp";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -17,7 +18,7 @@ type Ctx = { params: Promise<{ id: string }> };
  * Body opsional: `{ dryRun?: boolean }` — dryRun=true menghitung jumlah
  * penerima tanpa benar-benar mengirim (berguna untuk pratinjau dari UI).
  */
-export async function POST(req: NextRequest, { params }: Ctx) {
+async function POST_impl(req: NextRequest, { params }: Ctx) {
   const csrfError = await requireCsrf(req);
   if (csrfError) return csrfError;
 
@@ -90,3 +91,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     errors: result.errors.slice(0, 20),
   });
 }
+
+// Proteksi error konsisten (gate: check-mutation-handlers) — klien menerima
+// 500 tersanitasi, server mencatat trace via logger.error.
+export const POST = withErrorHandling(POST_impl);

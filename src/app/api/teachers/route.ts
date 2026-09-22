@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requireAuth, requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
+import { withErrorHandling } from "@/lib/api-helpers";
 import { logger } from "@/lib/logger";
 import { omitFields } from "@/lib/utils";
 import { PUBLIC_TEACHER_OMIT } from "@/lib/public-scope";
@@ -70,7 +71,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function POST(req: NextRequest) {
+async function POST_impl(req: NextRequest) {
   const csrfError = await requireCsrf(req);
   if (csrfError) return csrfError;
 
@@ -100,3 +101,7 @@ export async function POST(req: NextRequest) {
   await logActivity(auth.user, "CREATE", "Teacher", `Menambah data guru/staf: ${name}`, item.id);
   return NextResponse.json(item);
 }
+
+// Proteksi error konsisten (gate: check-mutation-handlers) — klien menerima
+// 500 tersanitasi, server mencatat trace via logger.error.
+export const POST = withErrorHandling(POST_impl);

@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession, updateSessionRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
+import { withErrorHandling } from "@/lib/api-helpers";
 import { ROLES, type Role } from "@/lib/types";
 
 const VALID_ROLES = Object.keys(ROLES);
 
 /** Mock role switcher for testing RBAC without re-login. */
-export async function POST(req: NextRequest) {
+async function POST_impl(req: NextRequest) {
   // Dev-only mock (REFACTOR_PLAN #7 / SECURITY_AUDIT H4): tidak boleh aktif di produksi.
   if (process.env.NODE_ENV === "production") {
     return NextResponse.json(
@@ -45,3 +46,7 @@ export async function POST(req: NextRequest) {
   await logActivity(user, "SWITCH", "Auth", `Mengganti peran aktif ke ${target}`);
   return NextResponse.json({ role: target });
 }
+
+// Proteksi error konsisten (gate: check-mutation-handlers) — klien menerima
+// 500 tersanitasi, server mencatat trace via logger.error.
+export const POST = withErrorHandling(POST_impl);

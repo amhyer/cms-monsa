@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/auth";
 import { requireCsrf } from "@/lib/csrf";
 import { logActivity } from "@/lib/log";
 import { db } from "@/lib/db";
+import { withErrorHandling } from "@/lib/api-helpers";
 import {
   getAutoSyncStatus,
   setAutoSyncSettings,
@@ -21,7 +22,7 @@ export async function GET() {
 }
 
 // Perbarui pengaturan sinkronisasi otomatis.
-export async function POST(req: NextRequest) {
+async function POST_impl(req: NextRequest) {
   const csrfError = await requireCsrf(req);
   if (csrfError) return csrfError;
   const auth = await requireRole("OPERATOR");
@@ -52,3 +53,7 @@ export async function POST(req: NextRequest) {
   );
   return NextResponse.json({ success: true, ...status });
 }
+
+// Proteksi error konsisten (gate: check-mutation-handlers) — klien menerima
+// 500 tersanitasi, server mencatat trace via logger.error.
+export const POST = withErrorHandling(POST_impl);

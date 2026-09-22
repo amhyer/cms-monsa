@@ -12,11 +12,9 @@
 # migrasi skema Prisma + seed data awal ke database Neon.
 #
 # Trigger:
-#   - push ke main: setiap push menjalankan migrate deploy (idempotent —
-#     hanya menerapkan migrasi baru) + seed (idempotent — dilewati bila DB
-#     sudah berisi akun).
-#   - workflow_dispatch: jalankan manual dari Actions sidebar kapan saja
-#     (mis. setelah setup awal database Neon).
+#   - workflow_dispatch SAJA: jalankan manual dari Actions sidebar
+#     (mis. setelah setup awal database Neon). Push ke main TIDAK lagi
+#     men-jalankannya otomatis — lihat komentar di bawah `name:`.
 #
 # Prasyarat — SET SATU repository secret di GitHub:
 #   Settings → Secrets and variables → Actions → New repository secret
@@ -28,9 +26,12 @@
 # ============================================================
 name: Deploy database (Vercel + Neon)
 
+# HANYA manual sejak 22-09-2026: target produksi self-host Docker, dan secret
+# DATABASE_URL (Neon) tidak diset di repo ini — trigger push ke main membuat
+# workflow gagal guard setiap kali tanpa nilai tambah (drift guard skema sudah
+# dijalankan ci.yml via `bun run check:schema-migrations`). Jalankan manual
+# dari sidebar Actions bila jalur Vercel + Neon aktif kembali.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:

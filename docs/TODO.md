@@ -216,8 +216,8 @@
 
 #### 9.1 APM Integration
 - [x] Setup Sentry for error tracking ✅
-- [ ] Setup performance monitoring
-- [ ] Setup alerting for error rate > 1%
+- [x] Setup performance monitoring ✅ (22-09-2026 — dashboard Grafana `cms-monsa-error-rate`: volume log per level, error rate, nginx req/s + 5xx; via Loki/promtail, bukan Sentry APM/browser RUM)
+- [x] Setup alerting for error rate > 1% ✅ (22-09-2026 — rules ter-provision di `config/loki/grafana-provisioning/alerting/`: `monsa-error-rate-1pct`, `monsa-critical-error`, `monsa-nginx-5xx-1pct` → webhook `MONSA_ALERT_WEBHOOK_URL`)
 
 #### 9.2 Health Check
 - [x] /api/health endpoint (DB + Redis status) ✅

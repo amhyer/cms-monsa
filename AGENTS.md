@@ -8,9 +8,11 @@
 
 - **E2E timeout from dev server warmup**: Under heavy load (repeated Playwright runs), Next.js Turbopack can leave pages stuck on "Memuat…" (loading state) — the page never hydrates and interactive elements never appear. This is a pre-existing infrastructure issue, not a code bug. Kill the dev server and restart if tests hang.
 
+- **`next/image` breaks `img[src^='http']` selectors**: After the `<img>` → `next/image` migration, rendered `src` is rewritten to `/_next/image?url=…` (even for external URLs), so e2e specs asserting a raw-URL prefix fail (this exact regression failed 3 CI e2e jobs on 2026-09-22, fixed in `7a0febb`). Match both forms: `img[src^='http'], img[src^='/_next/image']`. Admin-pasted URLs from hosts outside `next.config.ts` `images.remotePatterns` render raw via `smart-image.tsx` (keeps `unoptimized`) — that's why the allowlist there and `OPTIMIZED_REMOTE_HOSTS` must stay in sync (pinned by `smart-image.test.ts`).
+
 ## ThemeToggle Mobile Visibility
 
-- **ThemeToggle has `hidden sm:inline-flex`** in both `src/components/public/site-header.tsx` and `src/app/dashboard/layout.tsx`. This means it's invisible below 640px viewport width. The mobile sheet does NOT have a theme toggle either, so mobile users cannot switch themes at all. Fix: remove the `hidden` class to make it always visible (same as LanguageSwitcher which uses `inline-flex` without `hidden`).
+- **RESOLVED 2026-09**: ThemeToggle is `inline-flex` (no `hidden sm:inline-flex`) in both `src/components/public/site-header.tsx` and `src/app/dashboard/layout.tsx`, and the mobile sheet also renders one — mobile users can switch themes. Don't re-add the `hidden` class.
 
 ## Pre-commit Hook
 
@@ -18,7 +20,7 @@
 
 ## Frontend Cache Strategy
 
-- **`home-view.tsx` defeats its own caching**: All fetch calls use `cache: "no-store"` plus `_=${Date.now()}` cache-buster. The Cache-Control headers on API routes only help CDN/proxy caches — the browser never benefits. This is intentional for now but worth noting: removing the cache-busting would make browser caching effective.
+- **`home-view.tsx` now relies on Cache-Control** (resolved 2026-09): the `cache: "no-store"` + `_=${Date.now()}` cache-busters were removed; browser caching works through the `s-maxage`/`stale-while-revalidate` headers set on public API routes. Don't reintroduce per-request cache-busters — they silently defeat that strategy.
 
 ## Graphify (Knowledge Graph Tool)
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Image from "next/image";
+import { Image } from "@/components/shared/smart-image";
 import { Calendar, Award, Building, Star } from "lucide-react";
 
 interface TimelineItem {

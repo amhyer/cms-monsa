@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import Image from "next/image";
+import { Image } from "@/components/shared/smart-image";
 import { GraduationCap, Menu, PencilLine, ExternalLink } from "lucide-react";
 import { useAppStore } from "@/store/app";
 import { PUBLIC_NAV } from "@/lib/nav";

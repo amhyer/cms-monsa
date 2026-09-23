@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Mail, Network, Phone, UserCircle2 } from "lucide-react";
-import Image from "next/image";
+import { Image } from "@/components/shared/smart-image";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,

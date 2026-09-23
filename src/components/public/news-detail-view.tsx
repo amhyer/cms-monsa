@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import Image from "next/image";
+import { Image } from "@/components/shared/smart-image";
 import {
   ArrowLeft,
   CalendarDays,

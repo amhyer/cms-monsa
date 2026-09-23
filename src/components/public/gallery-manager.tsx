@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Image from "next/image";
+import { Image } from "@/components/shared/smart-image";
 // Ikon "Image" lucide di-alias ImageIcon agar jsx-a11y/alt-text tidak
 // menganggapnya komponen gambar yang wajib punya prop alt.
 import { Image as ImageIcon, Grid, List } from "lucide-react";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
+import { Image } from "@/components/shared/smart-image";
 import {
   Image as ImageIcon,
   Play,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import Image from "next/image";
+import { Image } from "@/components/shared/smart-image";
 import {
   Facebook,
   Instagram,

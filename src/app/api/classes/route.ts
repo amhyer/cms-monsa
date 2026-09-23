@@ -1,5 +1,4 @@
-import { safeJson } from "@/lib/api-helpers";
-import { logger } from "@/lib/logger";
+import { safeJson, withErrorHandling } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth, requireRole } from "@/lib/auth";
@@ -49,51 +48,47 @@ export async function GET(req: NextRequest) {
   return withCache(NextResponse.json({ items }), "public, s-maxage=300, stale-while-revalidate=600");
 }
 
-export async function POST(req: NextRequest) {
-  try {
+async function POST_impl(req: NextRequest) {
 
-    const csrfError = await requireCsrf(req);
-    if (csrfError) return csrfError;
+  const csrfError = await requireCsrf(req);
+  if (csrfError) return csrfError;
 
-    const auth = await requireRole("SUPER_ADMIN");
-    if (!auth.ok) return auth.response;
+  const auth = await requireRole("SUPER_ADMIN");
+  if (!auth.ok) return auth.response;
 
-    const parsed = await safeJson(req);
-    if (!parsed.ok) return parsed.response;
-    const body = parsed.data;
-    const name = String(body.name ?? "").trim();
-    const grade = String(body.grade ?? "").trim();
-    const academicYear = String(body.academicYear ?? "").trim();
+  const parsed = await safeJson(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
+  const name = String(body.name ?? "").trim();
+  const grade = String(body.grade ?? "").trim();
+  const academicYear = String(body.academicYear ?? "").trim();
 
-    if (!name || !grade || !academicYear) {
-      return NextResponse.json(
-        { error: "Nama kelas, grade, dan tahun ajaran wajib diisi." },
-        { status: 400 }
-      );
-    }
-
-    const exists = await db.class.findUnique({ where: { name } });
-    if (exists) {
-      return NextResponse.json({ error: "Nama kelas sudah ada." }, { status: 409 });
-    }
-
-    const item = await db.class.create({
-      data: {
-        name,
-        grade,
-        stream: body.stream || null,
-        academicYear,
-        homeroomTeacherId: body.homeroomTeacherId || null,
-      },
-    });
-
-    await logActivity(auth.user, "CREATE", "Class", `Menambah kelas: ${name}`, item.id);
-    return NextResponse.json(item);
-
-  } catch (err) {
-    logger.error({ err, path: req.url }, "Route handler error");
+  if (!name || !grade || !academicYear) {
     return NextResponse.json(
-      { error: "Terjadi kesalahan server." },
-      { status: 500 }
+      { error: "Nama kelas, grade, dan tahun ajaran wajib diisi." },
+      { status: 400 }
     );
-  }}
+  }
+
+  const exists = await db.class.findUnique({ where: { name } });
+  if (exists) {
+    return NextResponse.json({ error: "Nama kelas sudah ada." }, { status: 409 });
+  }
+
+  const item = await db.class.create({
+    data: {
+      name,
+      grade,
+      stream: body.stream || null,
+      academicYear,
+      homeroomTeacherId: body.homeroomTeacherId || null,
+    },
+  });
+
+  await logActivity(auth.user, "CREATE", "Class", `Menambah kelas: ${name}`, item.id);
+  return NextResponse.json(item);
+}
+
+// Proteksi error konsisten (gate: check-mutation-handlers) — klien menerima
+// 500 tersanitasi, server mencatat trace via logger.error.
+export const POST = withErrorHandling(POST_impl);

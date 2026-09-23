@@ -1,5 +1,4 @@
-import { safeJson } from "@/lib/api-helpers";
-import { logger } from "@/lib/logger";
+import { safeJson, withErrorHandling } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth, requireRole, canAccessClass } from "@/lib/auth";
@@ -99,86 +98,82 @@ export async function GET(req: NextRequest) {
   });
 }
 
-export async function POST(req: NextRequest) {
-  try {
+async function POST_impl(req: NextRequest) {
 
-    const csrfError = await requireCsrf(req);
-    if (csrfError) return csrfError;
+  const csrfError = await requireCsrf(req);
+  if (csrfError) return csrfError;
 
-    const auth = await requireRole("GURU");
-    if (!auth.ok) return auth.response;
+  const auth = await requireRole("GURU");
+  if (!auth.ok) return auth.response;
 
-    const parsed = await safeJson(req);
-    if (!parsed.ok) return parsed.response;
-    const body = parsed.data;
-    const studentId = String(body.studentId ?? "").trim();
-    const classId = String(body.classId ?? "").trim();
-    const dateValue = String(body.date ?? "").trim();
-    const status = String(body.status ?? "").trim();
-    const note = body.note ? String(body.note).trim() : null;
+  const parsed = await safeJson(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
+  const studentId = String(body.studentId ?? "").trim();
+  const classId = String(body.classId ?? "").trim();
+  const dateValue = String(body.date ?? "").trim();
+  const status = String(body.status ?? "").trim();
+  const note = body.note ? String(body.note).trim() : null;
 
-    if (!studentId || !classId || !dateValue) {
-      return NextResponse.json(
-        { error: "Siswa, kelas, dan tanggal wajib diisi." },
-        { status: 400 }
-      );
-    }
-    if (!canAccessClass(auth.user, classId)) {
-      return NextResponse.json(
-        { error: "Forbidden. Anda hanya dapat mengelola kelas wali Anda." },
-        { status: 403 }
-      );
-    }
-    if (!ATTENDANCE_STATUSES.includes(status as (typeof ATTENDANCE_STATUSES)[number])) {
-      return NextResponse.json(
-        { error: "Status kehadiran tidak valid. Gunakan HADIR, SAKIT, IZIN, atau ALFA." },
-        { status: 400 }
-      );
-    }
-
-    const date = parseDateInput(dateValue);
-    if (!date) {
-      return NextResponse.json(
-        { error: "Format tanggal tidak valid (gunakan yyyy-mm-dd)." },
-        { status: 400 }
-      );
-    }
-
-    const student = await db.student.findUnique({ where: { id: studentId } });
-    if (!student || student.classId !== classId) {
-      return NextResponse.json(
-        { error: "Siswa tidak ditemukan di kelas ini." },
-        { status: 404 }
-      );
-    }
-
-    const item = await db.attendance.upsert({
-      where: { studentId_date: { studentId, date } },
-      create: {
-        studentId,
-        classId,
-        date,
-        status,
-        note,
-        createdById: auth.user.id,
-      },
-      update: { status, note },
-    });
-
-    await logActivity(
-      auth.user,
-      "CREATE",
-      "Attendance",
-      `Mencatat kehadiran ${student.name}: ${status} (${dateValue})`,
-      item.id
-    );
-
-    return NextResponse.json(item);
-
-  } catch (err) {
-    logger.error({ err, path: req.url }, "Route handler error");
+  if (!studentId || !classId || !dateValue) {
     return NextResponse.json(
-      { error: "Terjadi kesalahan server." },
-      { status: 500 }
+      { error: "Siswa, kelas, dan tanggal wajib diisi." },
+      { status: 400 }
     );
-  }}
+  }
+  if (!canAccessClass(auth.user, classId)) {
+    return NextResponse.json(
+      { error: "Forbidden. Anda hanya dapat mengelola kelas wali Anda." },
+      { status: 403 }
+    );
+  }
+  if (!ATTENDANCE_STATUSES.includes(status as (typeof ATTENDANCE_STATUSES)[number])) {
+    return NextResponse.json(
+      { error: "Status kehadiran tidak valid. Gunakan HADIR, SAKIT, IZIN, atau ALFA." },
+      { status: 400 }
+    );
+  }
+
+  const date = parseDateInput(dateValue);
+  if (!date) {
+    return NextResponse.json(
+      { error: "Format tanggal tidak valid (gunakan yyyy-mm-dd)." },
+      { status: 400 }
+    );
+  }
+
+  const student = await db.student.findUnique({ where: { id: studentId } });
+  if (!student || student.classId !== classId) {
+    return NextResponse.json(
+      { error: "Siswa tidak ditemukan di kelas ini." },
+      { status: 404 }
+    );
+  }
+
+  const item = await db.attendance.upsert({
+    where: { studentId_date: { studentId, date } },
+    create: {
+      studentId,
+      classId,
+      date,
+      status,
+      note,
+      createdById: auth.user.id,
+    },
+    update: { status, note },
+  });
+
+  await logActivity(
+    auth.user,
+    "CREATE",
+    "Attendance",
+    `Mencatat kehadiran ${student.name}: ${status} (${dateValue})`,
+    item.id
+  );
+
+  return NextResponse.json(item);
+}
+
+// Proteksi error konsisten (gate: check-mutation-handlers) — klien menerima
+// 500 tersanitasi, server mencatat trace via logger.error.
+export const POST = withErrorHandling(POST_impl);

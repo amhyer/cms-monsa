@@ -1,10 +1,9 @@
-import { safeJson } from "@/lib/api-helpers";
+import { safeJson, withErrorHandling } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { setSession } from "@/lib/auth";
 import { logActivity } from "@/lib/log";
 import { verifyPassword } from "@/lib/password";
-import { logger } from "@/lib/logger";
 import {
   isLocked,
   isIpLocked,
@@ -16,121 +15,117 @@ import {
 import { loginSchema, validateBody } from "@/lib/validations";
 import type { Role } from "@/lib/types";
 
-export async function POST(req: NextRequest) {
-  try {
-    const parsed = await safeJson(req);
-    if (!parsed.ok) return parsed.response;
-    const body = parsed.data;
-    const validation = validateBody(loginSchema, body);
-    if (!validation.ok) {
-      return NextResponse.json({ error: validation.error }, { status: 400 });
-    }
+async function POST_impl(req: NextRequest) {
+  const parsed = await safeJson(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
+  const validation = validateBody(loginSchema, body);
+  if (!validation.ok) {
+    return NextResponse.json({ error: validation.error }, { status: 400 });
+  }
 
-    const { email, password } = validation.data;
-    const normalizedEmail = email.toLowerCase();
-    const ip = getClientIp(req);
+  const { email, password } = validation.data;
+  const normalizedEmail = email.toLowerCase();
+  const ip = getClientIp(req);
 
-    if (password.length > 1024) {
-      return NextResponse.json(
-        { error: "Password terlalu panjang." },
-        { status: 400 }
-      );
-    }
-
-    // Rate limit: reject if this email+ip is currently locked.
-    if (await isLocked(normalizedEmail, ip)) {
-      const secs = await lockSecondsRemaining(normalizedEmail, ip);
-      return NextResponse.json(
-        {
-          error: `Terlalu banyak percobaan gagal. Coba lagi dalam ${Math.ceil(
-            secs / 60
-          )} menit.`,
-        },
-        { status: 429 }
-      );
-    }
-
-    // IP-level rate limit: prevent credential stuffing attacks across multiple accounts
-    if (await isIpLocked(ip)) {
-      return NextResponse.json(
-        {
-          error: `Terlalu banyak percobaan dari alamat ini. Coba lagi dalam 15 menit.`,
-        },
-        { status: 429 }
-      );
-    }
-
-    const user = await db.user.findUnique({ where: { email: normalizedEmail } });
-    // verifyPassword hanya menerima format hash "salt:hash" (scrypt);
-    // fallback plaintext legacy sudah dihapus.
-    const valid = user ? await verifyPassword(password, user.password) : false;
-    // Use constant-time-ish failure regardless of whether user exists.
-    if (!user || !valid) {
-      await recordFailure(normalizedEmail, ip);
-      return NextResponse.json(
-        { error: "Email atau password salah." },
-        { status: 401 }
-      );
-    }
-    if (!user.isActive) {
-      return NextResponse.json(
-        { error: "Akun Anda dinonaktifkan. Hubungi administrator." },
-        { status: 403 }
-      );
-    }
-
-    // Success — clear any prior failure counter.
-    await clearFailures(normalizedEmail, ip);
-
-    // Check if 2FA is enabled — if so, don't create session yet
-    if (user.twoFactorEnabled) {
-      return NextResponse.json({
-        requires2FA: true,
-        userId: user.id,
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          isActive: user.isActive,
-        },
-      });
-    }
-
-    await setSession(user.id, user.role as Role);
-
-    await logActivity(
-      {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role as Role,
-        isActive: user.isActive,
-        mustChangePassword: (user as Record<string, unknown>).mustChangePassword === true,
-        guardianClassId: user.guardianClassId ?? null,
-        guardianStudentId: user.guardianStudentId ?? null,
-      },
-      "LOGIN",
-      "Auth",
-      "Login ke sistem"
+  if (password.length > 1024) {
+    return NextResponse.json(
+      { error: "Password terlalu panjang." },
+      { status: 400 }
     );
+  }
 
+  // Rate limit: reject if this email+ip is currently locked.
+  if (await isLocked(normalizedEmail, ip)) {
+    const secs = await lockSecondsRemaining(normalizedEmail, ip);
+    return NextResponse.json(
+      {
+        error: `Terlalu banyak percobaan gagal. Coba lagi dalam ${Math.ceil(
+          secs / 60
+        )} menit.`,
+      },
+      { status: 429 }
+    );
+  }
+
+  // IP-level rate limit: prevent credential stuffing attacks across multiple accounts
+  if (await isIpLocked(ip)) {
+    return NextResponse.json(
+      {
+        error: `Terlalu banyak percobaan dari alamat ini. Coba lagi dalam 15 menit.`,
+      },
+      { status: 429 }
+    );
+  }
+
+  const user = await db.user.findUnique({ where: { email: normalizedEmail } });
+  // verifyPassword hanya menerima format hash "salt:hash" (scrypt);
+  // fallback plaintext legacy sudah dihapus.
+  const valid = user ? await verifyPassword(password, user.password) : false;
+  // Use constant-time-ish failure regardless of whether user exists.
+  if (!user || !valid) {
+    await recordFailure(normalizedEmail, ip);
+    return NextResponse.json(
+      { error: "Email atau password salah." },
+      { status: 401 }
+    );
+  }
+  if (!user.isActive) {
+    return NextResponse.json(
+      { error: "Akun Anda dinonaktifkan. Hubungi administrator." },
+      { status: 403 }
+    );
+  }
+
+  // Success — clear any prior failure counter.
+  await clearFailures(normalizedEmail, ip);
+
+  // Check if 2FA is enabled — if so, don't create session yet
+  if (user.twoFactorEnabled) {
     return NextResponse.json({
+      requires2FA: true,
+      userId: user.id,
       user: {
         id: user.id,
         name: user.name,
         email: user.email,
         role: user.role,
         isActive: user.isActive,
-        mustChangePassword: (user as Record<string, unknown>).mustChangePassword === true,
-        guardianClassId: user.guardianClassId ?? null,
       },
     });
-  } catch (e) {
-    logger.error({ err: e }, "[login] error");
-    return NextResponse.json(
-      { error: "Terjadi kesalahan server." },
-      { status: 500 }
-    );
   }
+
+  await setSession(user.id, user.role as Role);
+
+  await logActivity(
+    {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role as Role,
+      isActive: user.isActive,
+      mustChangePassword: (user as Record<string, unknown>).mustChangePassword === true,
+      guardianClassId: user.guardianClassId ?? null,
+      guardianStudentId: user.guardianStudentId ?? null,
+    },
+    "LOGIN",
+    "Auth",
+    "Login ke sistem"
+  );
+
+  return NextResponse.json({
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      isActive: user.isActive,
+      mustChangePassword: (user as Record<string, unknown>).mustChangePassword === true,
+      guardianClassId: user.guardianClassId ?? null,
+    },
+  });
 }
+
+// Proteksi error konsisten (gate: check-mutation-handlers) — klien menerima
+// 500 tersanitasi, server mencatat trace via logger.error.
+export const POST = withErrorHandling(POST_impl);

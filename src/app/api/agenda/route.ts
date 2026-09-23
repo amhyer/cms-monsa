@@ -1,5 +1,4 @@
-import { safeJson } from "@/lib/api-helpers";
-import { logger } from "@/lib/logger";
+import { safeJson, withErrorHandling } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
@@ -25,41 +24,37 @@ export async function GET(req: NextRequest) {
   return withCache(NextResponse.json({ items }), "public, s-maxage=120, stale-while-revalidate=300");
 }
 
-export async function POST(req: NextRequest) {
-  try {
+async function POST_impl(req: NextRequest) {
 
-    const csrfError = await requireCsrf(req);
-    if (csrfError) return csrfError;
+  const csrfError = await requireCsrf(req);
+  if (csrfError) return csrfError;
 
-    const auth = await requireRole("OPERATOR");
-    if (!auth.ok) return auth.response;
-    const parsed = await safeJson(req);
-    if (!parsed.ok) return parsed.response;
-    const body = parsed.data;
-    const title = String(body.title ?? "").trim();
-    if (!title) {
-      return NextResponse.json({ error: "Nama kegiatan wajib diisi." }, { status: 400 });
-    }
-    if (!body.date) {
-      return NextResponse.json({ error: "Tanggal wajib diisi." }, { status: 400 });
-    }
-    const item = await db.agenda.create({
-      data: {
-        title,
-        description: body.description || null,
-        date: parseDateInput(String(body.date)),
-        time: body.time || null,
-        location: body.location || null,
-        category: String(body.category || "Umum"),
-      },
-    });
-    await logActivity(auth.user, "CREATE", "Agenda", `Menjadwalkan agenda: ${title}`, item.id);
-    return NextResponse.json(item);
+  const auth = await requireRole("OPERATOR");
+  if (!auth.ok) return auth.response;
+  const parsed = await safeJson(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
+  const title = String(body.title ?? "").trim();
+  if (!title) {
+    return NextResponse.json({ error: "Nama kegiatan wajib diisi." }, { status: 400 });
+  }
+  if (!body.date) {
+    return NextResponse.json({ error: "Tanggal wajib diisi." }, { status: 400 });
+  }
+  const item = await db.agenda.create({
+    data: {
+      title,
+      description: body.description || null,
+      date: parseDateInput(String(body.date)),
+      time: body.time || null,
+      location: body.location || null,
+      category: String(body.category || "Umum"),
+    },
+  });
+  await logActivity(auth.user, "CREATE", "Agenda", `Menjadwalkan agenda: ${title}`, item.id);
+  return NextResponse.json(item);
+}
 
-  } catch (err) {
-    logger.error({ err, path: req.url }, "Route handler error");
-    return NextResponse.json(
-      { error: "Terjadi kesalahan server." },
-      { status: 500 }
-    );
-  }}
+// Proteksi error konsisten (gate: check-mutation-handlers) — klien menerima
+// 500 tersanitasi, server mencatat trace via logger.error.
+export const POST = withErrorHandling(POST_impl);

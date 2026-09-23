@@ -1,5 +1,4 @@
-import { safeJson } from "@/lib/api-helpers";
-import { logger } from "@/lib/logger";
+import { safeJson, withErrorHandling } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
@@ -37,40 +36,36 @@ export async function GET(req: NextRequest) {
   );
 }
 
-export async function POST(req: NextRequest) {
-  try {
+async function POST_impl(req: NextRequest) {
 
-    const csrfError = await requireCsrf(req);
-    if (csrfError) return csrfError;
+  const csrfError = await requireCsrf(req);
+  if (csrfError) return csrfError;
 
-    const auth = await requireRole("OPERATOR");
-    if (!auth.ok) return auth.response;
-    const parsed = await safeJson(req);
-    if (!parsed.ok) return parsed.response;
-    const body = parsed.data;
-    const validation = validateBody(createGallerySchema, body);
-    if (!validation.ok) {
-      return NextResponse.json({ error: validation.error }, { status: 400 });
-    }
+  const auth = await requireRole("OPERATOR");
+  if (!auth.ok) return auth.response;
+  const parsed = await safeJson(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
+  const validation = validateBody(createGallerySchema, body);
+  if (!validation.ok) {
+    return NextResponse.json({ error: validation.error }, { status: 400 });
+  }
 
-    const { title, description, imageUrl, url, category } = validation.data;
-    const item = await db.galleryItem.create({
-      data: {
-        title,
-        description: description || null,
-        type: body.type === "VIDEO" ? "VIDEO" : "PHOTO",
-        url: url || imageUrl || "",
-        thumbnail: body.thumbnail || null,
-        category: category || "Kegiatan",
-      },
-    });
-    await logActivity(auth.user, "CREATE", "Gallery", `Menambah media galeri: ${title}`, item.id);
-    return NextResponse.json(item);
+  const { title, description, imageUrl, url, category } = validation.data;
+  const item = await db.galleryItem.create({
+    data: {
+      title,
+      description: description || null,
+      type: body.type === "VIDEO" ? "VIDEO" : "PHOTO",
+      url: url || imageUrl || "",
+      thumbnail: body.thumbnail || null,
+      category: category || "Kegiatan",
+    },
+  });
+  await logActivity(auth.user, "CREATE", "Gallery", `Menambah media galeri: ${title}`, item.id);
+  return NextResponse.json(item);
+}
 
-  } catch (err) {
-    logger.error({ err, path: req.url }, "Route handler error");
-    return NextResponse.json(
-      { error: "Terjadi kesalahan server." },
-      { status: 500 }
-    );
-  }}
+// Proteksi error konsisten (gate: check-mutation-handlers) — klien menerima
+// 500 tersanitasi, server mencatat trace via logger.error.
+export const POST = withErrorHandling(POST_impl);

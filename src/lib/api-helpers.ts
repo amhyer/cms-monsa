@@ -49,12 +49,17 @@ export async function safeJson<T = any>(
  * Handler di-pass-through apa adanya — argumen konteks Next 15+ (`ctx`)
  * tetap di-handle sendiri oleh handler (mis. destructuring `{ params }`).
  *
+ * `options.errorMessage` mempertahankan pesan error spesifik route
+ * (kontrak respons lama dengan catch inline) tanpa mengubah sanitasi.
+ *
  * Contoh:
  *   async function POST_impl(req: NextRequest) { ... }
  *   export const POST = withErrorHandling(POST_impl);
+ *   export const DELETE = withErrorHandling(DELETE_impl, { errorMessage: "Gagal berhenti berlangganan." });
  */
 export function withErrorHandling<Req extends Request, A extends unknown[]>(
-  handler: (req: Req, ...args: A) => Promise<Response>
+  handler: (req: Req, ...args: A) => Promise<Response>,
+  options?: { errorMessage?: string }
 ) {
   return async (req: Req, ...args: A): Promise<Response> => {
     try {
@@ -62,7 +67,7 @@ export function withErrorHandling<Req extends Request, A extends unknown[]>(
     } catch (err) {
       logger.error({ err, path: req.url, method: req.method }, "Unhandled route error");
       return NextResponse.json(
-        { error: "Terjadi kesalahan server." },
+        { error: options?.errorMessage ?? "Terjadi kesalahan server." },
         { status: 500 }
       );
     }

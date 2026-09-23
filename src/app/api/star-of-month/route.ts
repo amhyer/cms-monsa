@@ -1,4 +1,4 @@
-import { safeJson } from "@/lib/api-helpers";
+import { safeJson, withErrorHandling } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireCsrf } from "@/lib/csrf";
@@ -10,59 +10,55 @@ import { logger } from "@/lib/logger";
  * GET /api/star-of-month
  * Public: get star of the month
  */
-export async function GET(req: NextRequest) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const type = searchParams.get("type"); // STUDENT | TEACHER
-    const month = searchParams.get("month");
-    const year = searchParams.get("year");
+async function GET_impl(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const type = searchParams.get("type"); // STUDENT | TEACHER
+  const month = searchParams.get("month");
+  const year = searchParams.get("year");
 
-    const now = new Date();
-    const targetMonth = month ? parseInt(month) : now.getMonth() + 1;
-    const targetYear = year ? parseInt(year) : now.getFullYear();
+  const now = new Date();
+  const targetMonth = month ? parseInt(month) : now.getMonth() + 1;
+  const targetYear = year ? parseInt(year) : now.getFullYear();
 
-    const where: Record<string, unknown> = {
-      isActive: true,
-      month: targetMonth,
-      year: targetYear,
-    };
+  const where: Record<string, unknown> = {
+    isActive: true,
+    month: targetMonth,
+    year: targetYear,
+  };
 
-    if (type) {
-      where.type = type;
-    }
+  if (type) {
+    where.type = type;
+  }
 
-    const stars = await db.starOfMonth.findMany({
-      where,
-      include: {
-        student: {
-          select: {
-            id: true,
-            name: true,
-            photoUrl: true,
-            class: { select: { name: true } },
-          },
-        },
-        teacher: {
-          select: {
-            id: true,
-            name: true,
-            photo: true,
-            position: true,
-          },
+  const stars = await db.starOfMonth.findMany({
+    where,
+    include: {
+      student: {
+        select: {
+          id: true,
+          name: true,
+          photoUrl: true,
+          class: { select: { name: true } },
         },
       },
-      orderBy: { createdAt: "desc" },
-    });
+      teacher: {
+        select: {
+          id: true,
+          name: true,
+          photo: true,
+          position: true,
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
 
-    return NextResponse.json({ stars });
-  } catch (e) {
-    logger.error({ err: e }, "[star-of-month] GET error");
-    return NextResponse.json(
-      { error: "Gagal memuat bintang bulanan." },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json({ stars });
 }
+
+// Proteksi error konsisten (gate: check-mutation-handlers) — klien menerima
+// 500 tersanitasi, server mencatat trace via logger.error.
+export const GET = withErrorHandling(GET_impl, { errorMessage: "Gagal memuat bintang bulanan." });
 
 /**
  * POST /api/star-of-month

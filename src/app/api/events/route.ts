@@ -1,4 +1,4 @@
-import { safeJson } from "@/lib/api-helpers";
+import { safeJson, withErrorHandling } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireCsrf } from "@/lib/csrf";
@@ -10,83 +10,79 @@ import { logger } from "@/lib/logger";
  * GET /api/events
  * Public: get school events
  */
-export async function GET(req: NextRequest) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
-    const category = searchParams.get("category");
-    const upcoming = searchParams.get("upcoming") === "true";
-    const month = searchParams.get("month"); // format: YYYY-MM
+async function GET_impl(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
+  const category = searchParams.get("category");
+  const upcoming = searchParams.get("upcoming") === "true";
+  const month = searchParams.get("month"); // format: YYYY-MM
 
-    const where: Record<string, unknown> = {
-      isPublished: true,
-    };
+  const where: Record<string, unknown> = {
+    isPublished: true,
+  };
 
-    if (category) {
-      where.category = category;
-    }
-
-    if (upcoming) {
-      where.startDate = { gte: new Date() };
-    }
-
-    if (month) {
-      const [year, mon] = month.split("-").map(Number);
-      const start = new Date(year, mon - 1, 1);
-      const end = new Date(year, mon, 0, 23, 59, 59);
-      where.startDate = { gte: start, lte: end };
-    }
-
-    const events = await db.schoolEvent.findMany({
-      where,
-      orderBy: { startDate: "asc" },
-      take: limit,
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        startDate: true,
-        endDate: true,
-        location: true,
-        category: true,
-        type: true,
-        isAllDay: true,
-        color: true,
-        imageUrl: true,
-        maxParticipants: true,
-        requiresRegistration: true,
-        _count: {
-          select: { registrations: true },
-        },
-      },
-    });
-
-    // Get categories with counts
-    const categories = await db.schoolEvent.groupBy({
-      by: ["category"],
-      where: { isPublished: true },
-      _count: { id: true },
-    });
-
-    return NextResponse.json({
-      events: events.map((e) => ({
-        ...e,
-        registrationCount: e._count.registrations,
-        _count: undefined,
-      })),
-      categories: categories.map((c) => ({
-        name: c.category,
-        count: c._count.id,
-      })),
-    });
-  } catch (e) {
-    logger.error({ err: e }, "[events] GET error");
-    return NextResponse.json(
-      { error: "Gagal memuat event." },
-      { status: 500 }
-    );
+  if (category) {
+    where.category = category;
   }
+
+  if (upcoming) {
+    where.startDate = { gte: new Date() };
+  }
+
+  if (month) {
+    const [year, mon] = month.split("-").map(Number);
+    const start = new Date(year, mon - 1, 1);
+    const end = new Date(year, mon, 0, 23, 59, 59);
+    where.startDate = { gte: start, lte: end };
+  }
+
+  const events = await db.schoolEvent.findMany({
+    where,
+    orderBy: { startDate: "asc" },
+    take: limit,
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      startDate: true,
+      endDate: true,
+      location: true,
+      category: true,
+      type: true,
+      isAllDay: true,
+      color: true,
+      imageUrl: true,
+      maxParticipants: true,
+      requiresRegistration: true,
+      _count: {
+        select: { registrations: true },
+      },
+    },
+  });
+
+  // Get categories with counts
+  const categories = await db.schoolEvent.groupBy({
+    by: ["category"],
+    where: { isPublished: true },
+    _count: { id: true },
+  });
+
+  return NextResponse.json({
+    events: events.map((e) => ({
+      ...e,
+      registrationCount: e._count.registrations,
+      _count: undefined,
+    })),
+    categories: categories.map((c) => ({
+      name: c.category,
+      count: c._count.id,
+    })),
+  });
 }
+
+// Proteksi error konsisten (gate: check-mutation-handlers) — klien menerima
+// 500 tersanitasi, server mencatat trace via logger.error.
+export const GET = withErrorHandling(GET_impl, { errorMessage: "Gagal memuat event." });
 
 /**
  * POST /api/events

@@ -1,4 +1,4 @@
-import { safeJson } from "@/lib/api-helpers";
+import { safeJson, withErrorHandling } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireCsrf } from "@/lib/csrf";
@@ -10,63 +10,59 @@ import { logger } from "@/lib/logger";
  * GET /api/albums
  * Public: get gallery albums
  */
-export async function GET(req: NextRequest) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
-    const category = searchParams.get("category");
+async function GET_impl(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
+  const category = searchParams.get("category");
 
-    const where: Record<string, unknown> = {
-      isPublished: true,
-    };
+  const where: Record<string, unknown> = {
+    isPublished: true,
+  };
 
-    if (category) {
-      where.category = category;
-    }
-
-    const albums = await db.album.findMany({
-      where,
-      orderBy: { sortOrder: "asc" },
-      take: limit,
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        coverUrl: true,
-        category: true,
-        createdAt: true,
-        _count: {
-          select: { photos: true },
-        },
-      },
-    });
-
-    // Get categories with counts
-    const categories = await db.album.groupBy({
-      by: ["category"],
-      where: { isPublished: true },
-      _count: { id: true },
-    });
-
-    return NextResponse.json({
-      albums: albums.map((a) => ({
-        ...a,
-        photoCount: a._count.photos,
-        _count: undefined,
-      })),
-      categories: categories.map((c) => ({
-        name: c.category,
-        count: c._count.id,
-      })),
-    });
-  } catch (e) {
-    logger.error({ err: e }, "[albums] GET error");
-    return NextResponse.json(
-      { error: "Gagal memuat album." },
-      { status: 500 }
-    );
+  if (category) {
+    where.category = category;
   }
+
+  const albums = await db.album.findMany({
+    where,
+    orderBy: { sortOrder: "asc" },
+    take: limit,
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      coverUrl: true,
+      category: true,
+      createdAt: true,
+      _count: {
+        select: { photos: true },
+      },
+    },
+  });
+
+  // Get categories with counts
+  const categories = await db.album.groupBy({
+    by: ["category"],
+    where: { isPublished: true },
+    _count: { id: true },
+  });
+
+  return NextResponse.json({
+    albums: albums.map((a) => ({
+      ...a,
+      photoCount: a._count.photos,
+      _count: undefined,
+    })),
+    categories: categories.map((c) => ({
+      name: c.category,
+      count: c._count.id,
+    })),
+  });
 }
+
+// Proteksi error konsisten (gate: check-mutation-handlers) — klien menerima
+// 500 tersanitasi, server mencatat trace via logger.error.
+export const GET = withErrorHandling(GET_impl, { errorMessage: "Gagal memuat album." });
 
 /**
  * POST /api/albums

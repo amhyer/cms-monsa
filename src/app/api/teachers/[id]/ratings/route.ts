@@ -1,4 +1,4 @@
-import { safeJson } from "@/lib/api-helpers";
+import { safeJson, withErrorHandling } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { rateLimitPublicForm } from "@/lib/rate-limit";
@@ -9,54 +9,50 @@ import { logger } from "@/lib/logger";
  * GET /api/teachers/[id]/ratings
  * Public: get approved ratings for a teacher
  */
-export async function GET(
+async function GET_impl(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id } = await params;
-    const { searchParams } = new URL(req.url);
-    const limit = Math.min(parseInt(searchParams.get("limit") || "10"), 50);
+  const { id } = await params;
+  const { searchParams } = new URL(req.url);
+  const limit = Math.min(parseInt(searchParams.get("limit") || "10"), 50);
 
-    const ratings = await db.teacherRating.findMany({
-      where: {
-        teacherId: id,
-        isApproved: true,
-      },
-      orderBy: { createdAt: "desc" },
-      take: limit,
-      select: {
-        id: true,
-        rating: true,
-        comment: true,
-        authorName: true,
-        createdAt: true,
-      },
-    });
+  const ratings = await db.teacherRating.findMany({
+    where: {
+      teacherId: id,
+      isApproved: true,
+    },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    select: {
+      id: true,
+      rating: true,
+      comment: true,
+      authorName: true,
+      createdAt: true,
+    },
+  });
 
-    // Calculate average rating
-    const stats = await db.teacherRating.aggregate({
-      where: {
-        teacherId: id,
-        isApproved: true,
-      },
-      _avg: { rating: true },
-      _count: { rating: true },
-    });
+  // Calculate average rating
+  const stats = await db.teacherRating.aggregate({
+    where: {
+      teacherId: id,
+      isApproved: true,
+    },
+    _avg: { rating: true },
+    _count: { rating: true },
+  });
 
-    return NextResponse.json({
-      ratings,
-      averageRating: stats._avg.rating || 0,
-      totalRatings: stats._count.rating || 0,
-    });
-  } catch (e) {
-    logger.error({ err: e }, "[teacher-ratings] GET error");
-    return NextResponse.json(
-      { error: "Gagal memuat rating." },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json({
+    ratings,
+    averageRating: stats._avg.rating || 0,
+    totalRatings: stats._count.rating || 0,
+  });
 }
+
+// Proteksi error konsisten (gate: check-mutation-handlers) — klien menerima
+// 500 tersanitasi, server mencatat trace via logger.error.
+export const GET = withErrorHandling(GET_impl, { errorMessage: "Gagal memuat rating." });
 
 /**
  * POST /api/teachers/[id]/ratings

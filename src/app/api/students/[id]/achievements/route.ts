@@ -1,4 +1,4 @@
-import { safeJson } from "@/lib/api-helpers";
+import { safeJson, withErrorHandling } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireCsrf } from "@/lib/csrf";
@@ -10,64 +10,60 @@ import { logger } from "@/lib/logger";
  * GET /api/students/[id]/achievements
  * Public: get student achievements
  */
-export async function GET(
+async function GET_impl(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id } = await params;
-    const { searchParams } = new URL(req.url);
-    const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
-    const category = searchParams.get("category");
+  const { id } = await params;
+  const { searchParams } = new URL(req.url);
+  const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
+  const category = searchParams.get("category");
 
-    const where: Record<string, unknown> = {
-      studentId: id,
-      isActive: true,
-    };
+  const where: Record<string, unknown> = {
+    studentId: id,
+    isActive: true,
+  };
 
-    if (category) {
-      where.category = category;
-    }
-
-    const achievements = await db.studentAchievement.findMany({
-      where,
-      orderBy: { date: "desc" },
-      take: limit,
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        category: true,
-        level: true,
-        date: true,
-        certificate: true,
-        issuedBy: true,
-      },
-    });
-
-    // Get stats
-    const stats = await db.studentAchievement.groupBy({
-      by: ["category"],
-      where: { studentId: id, isActive: true },
-      _count: { id: true },
-    });
-
-    return NextResponse.json({
-      achievements,
-      stats: stats.map((s) => ({
-        category: s.category,
-        count: s._count.id,
-      })),
-      total: achievements.length,
-    });
-  } catch (e) {
-    logger.error({ err: e }, "[student-achievements] GET error");
-    return NextResponse.json(
-      { error: "Gagal memuat prestasi siswa." },
-      { status: 500 }
-    );
+  if (category) {
+    where.category = category;
   }
+
+  const achievements = await db.studentAchievement.findMany({
+    where,
+    orderBy: { date: "desc" },
+    take: limit,
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      category: true,
+      level: true,
+      date: true,
+      certificate: true,
+      issuedBy: true,
+    },
+  });
+
+  // Get stats
+  const stats = await db.studentAchievement.groupBy({
+    by: ["category"],
+    where: { studentId: id, isActive: true },
+    _count: { id: true },
+  });
+
+  return NextResponse.json({
+    achievements,
+    stats: stats.map((s) => ({
+      category: s.category,
+      count: s._count.id,
+    })),
+    total: achievements.length,
+  });
 }
+
+// Proteksi error konsisten (gate: check-mutation-handlers) — klien menerima
+// 500 tersanitasi, server mencatat trace via logger.error.
+export const GET = withErrorHandling(GET_impl, { errorMessage: "Gagal memuat prestasi siswa." });
 
 /**
  * POST /api/students/[id]/achievements

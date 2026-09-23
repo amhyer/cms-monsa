@@ -1,4 +1,4 @@
-import { safeJson } from "@/lib/api-helpers";
+import { safeJson, withErrorHandling } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { rateLimitPublicForm } from "@/lib/rate-limit";
@@ -9,50 +9,46 @@ import { logger } from "@/lib/logger";
  * GET /api/testimonials
  * Public: get published testimonials
  */
-export async function GET(req: NextRequest) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const limit = Math.min(parseInt(searchParams.get("limit") || "10"), 50);
+async function GET_impl(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const limit = Math.min(parseInt(searchParams.get("limit") || "10"), 50);
 
-    const testimonials = await db.parentTestimonial.findMany({
-      where: {
-        isPublished: true,
-      },
-      orderBy: { createdAt: "desc" },
-      take: limit,
-      select: {
-        id: true,
-        parentName: true,
-        studentName: true,
-        className: true,
-        relation: true,
-        content: true,
-        rating: true,
-        photoUrl: true,
-        createdAt: true,
-      },
-    });
+  const testimonials = await db.parentTestimonial.findMany({
+    where: {
+      isPublished: true,
+    },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    select: {
+      id: true,
+      parentName: true,
+      studentName: true,
+      className: true,
+      relation: true,
+      content: true,
+      rating: true,
+      photoUrl: true,
+      createdAt: true,
+    },
+  });
 
-    // Get average rating
-    const stats = await db.parentTestimonial.aggregate({
-      where: { isPublished: true },
-      _avg: { rating: true },
-      _count: { id: true },
-    });
+  // Get average rating
+  const stats = await db.parentTestimonial.aggregate({
+    where: { isPublished: true },
+    _avg: { rating: true },
+    _count: { id: true },
+  });
 
-    return NextResponse.json({
-      testimonials,
-      averageRating: stats._avg.rating || 0,
-      total: stats._count.id || 0,
-    });
-  } catch (e) {
-    logger.error({ err: e }, "[testimonials] GET error");
-    return NextResponse.json(
-      { error: "Gagal memuat testimoni." },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json({
+    testimonials,
+    averageRating: stats._avg.rating || 0,
+    total: stats._count.id || 0,
+  });
 }
+
+// Proteksi error konsisten (gate: check-mutation-handlers) — klien menerima
+// 500 tersanitasi, server mencatat trace via logger.error.
+export const GET = withErrorHandling(GET_impl, { errorMessage: "Gagal memuat testimoni." });
 
 /**
  * POST /api/testimonials

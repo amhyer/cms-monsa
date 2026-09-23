@@ -1,44 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
+import { withErrorHandling } from "@/lib/api-helpers";
 import { db } from "@/lib/db";
-import { logger } from "@/lib/logger";
 
 /**
  * GET /api/teachers/[id]/meeting-slots
  * Public: get available meeting slots for a teacher
  */
-export async function GET(
+async function GET_impl(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id } = await params;
+  const { id } = await params;
 
-    // Verify teacher exists
-    const teacher = await db.teacher.findUnique({
-      where: { id },
-      select: { id: true, isActive: true },
-    });
+  // Verify teacher exists
+  const teacher = await db.teacher.findUnique({
+    where: { id },
+    select: { id: true, isActive: true },
+  });
 
-    if (!teacher || !teacher.isActive) {
-      return NextResponse.json(
-        { error: "Guru tidak ditemukan." },
-        { status: 404 }
-      );
-    }
-
-    // Mock slots belum memakai officeHours — query detail guru di-skip
-    // sampai generator slot-nya benar-benar mengonsumsi jam operasional.
-    const slots = generateMockSlots();
-
-    return NextResponse.json({ slots });
-  } catch (e) {
-    logger.error({ err: e }, "[meeting-slots] GET error");
+  if (!teacher || !teacher.isActive) {
     return NextResponse.json(
-      { error: "Gagal memuat slot pertemuan." },
-      { status: 500 }
+      { error: "Guru tidak ditemukan." },
+      { status: 404 }
     );
   }
+
+  // Mock slots belum memakai officeHours — query detail guru di-skip
+  // sampai generator slot-nya benar-benar mengonsumsi jam operasional.
+  const slots = generateMockSlots();
+
+  return NextResponse.json({ slots });
 }
+
+// Proteksi error konsisten (gate: check-mutation-handlers) — klien menerima
+// 500 tersanitasi, server mencatat trace via logger.error.
+export const GET = withErrorHandling(GET_impl, { errorMessage: "Gagal memuat slot pertemuan." });
 
 /**
  * Generate mock meeting slots based on office hours

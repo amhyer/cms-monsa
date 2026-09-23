@@ -1,4 +1,4 @@
-import { safeJson } from "@/lib/api-helpers";
+import { safeJson, withErrorHandling } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireCsrf } from "@/lib/csrf";
@@ -10,69 +10,65 @@ import { logger } from "@/lib/logger";
  * GET /api/documents
  * Public: get school documents
  */
-export async function GET(req: NextRequest) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
-    const category = searchParams.get("category");
-    const search = searchParams.get("q");
+async function GET_impl(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
+  const category = searchParams.get("category");
+  const search = searchParams.get("q");
 
-    const where: Record<string, unknown> = {
-      isPublished: true,
-    };
+  const where: Record<string, unknown> = {
+    isPublished: true,
+  };
 
-    if (category) {
-      where.category = category;
-    }
-
-    if (search) {
-      where.OR = [
-        { title: { contains: search } },
-        { description: { contains: search } },
-      ];
-    }
-
-    const documents = await db.schoolDocument.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      take: limit,
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        category: true,
-        fileName: true,
-        fileSize: true,
-        fileType: true,
-        version: true,
-        accessLevel: true,
-        downloadCount: true,
-        createdAt: true,
-      },
-    });
-
-    // Get categories with counts
-    const categories = await db.schoolDocument.groupBy({
-      by: ["category"],
-      where: { isPublished: true },
-      _count: { id: true },
-    });
-
-    return NextResponse.json({
-      documents,
-      categories: categories.map((c) => ({
-        name: c.category,
-        count: c._count.id,
-      })),
-    });
-  } catch (e) {
-    logger.error({ err: e }, "[documents] GET error");
-    return NextResponse.json(
-      { error: "Gagal memuat dokumen." },
-      { status: 500 }
-    );
+  if (category) {
+    where.category = category;
   }
+
+  if (search) {
+    where.OR = [
+      { title: { contains: search } },
+      { description: { contains: search } },
+    ];
+  }
+
+  const documents = await db.schoolDocument.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      category: true,
+      fileName: true,
+      fileSize: true,
+      fileType: true,
+      version: true,
+      accessLevel: true,
+      downloadCount: true,
+      createdAt: true,
+    },
+  });
+
+  // Get categories with counts
+  const categories = await db.schoolDocument.groupBy({
+    by: ["category"],
+    where: { isPublished: true },
+    _count: { id: true },
+  });
+
+  return NextResponse.json({
+    documents,
+    categories: categories.map((c) => ({
+      name: c.category,
+      count: c._count.id,
+    })),
+  });
 }
+
+// Proteksi error konsisten (gate: check-mutation-handlers) — klien menerima
+// 500 tersanitasi, server mencatat trace via logger.error.
+export const GET = withErrorHandling(GET_impl, { errorMessage: "Gagal memuat dokumen." });
 
 /**
  * POST /api/documents

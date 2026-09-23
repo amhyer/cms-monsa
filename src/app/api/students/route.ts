@@ -1,5 +1,4 @@
-import { safeJson } from "@/lib/api-helpers";
-import { logger } from "@/lib/logger";
+import { safeJson, withErrorHandling } from "@/lib/api-helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
@@ -61,52 +60,48 @@ export async function GET(req: NextRequest) {
   );
 }
 
-export async function POST(req: NextRequest) {
-  try {
+async function POST_impl(req: NextRequest) {
 
-    const csrfError = await requireCsrf(req);
-    if (csrfError) return csrfError;
+  const csrfError = await requireCsrf(req);
+  if (csrfError) return csrfError;
 
-    const auth = await requireRole("OPERATOR");
-    if (!auth.ok) return auth.response;
+  const auth = await requireRole("OPERATOR");
+  if (!auth.ok) return auth.response;
 
-    const parsed = await safeJson(req);
-    if (!parsed.ok) return parsed.response;
-    const body = parsed.data;
-    const validation = validateBody(createStudentSchema, body);
+  const parsed = await safeJson(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
+  const validation = validateBody(createStudentSchema, body);
 
-    if (!validation.ok) {
-      return NextResponse.json({ error: validation.error }, { status: 400 });
-    }
+  if (!validation.ok) {
+    return NextResponse.json({ error: validation.error }, { status: 400 });
+  }
 
-    const { nis, name, classId } = validation.data;
+  const { nis, name, classId } = validation.data;
 
-    const exists = await db.student.findUnique({ where: { nis } });
-    if (exists) {
-      return NextResponse.json({ error: "NIS sudah terdaftar." }, { status: 409 });
-    }
+  const exists = await db.student.findUnique({ where: { nis } });
+  if (exists) {
+    return NextResponse.json({ error: "NIS sudah terdaftar." }, { status: 409 });
+  }
 
-    const classExists = await db.class.findUnique({ where: { id: classId } });
-    if (!classExists) {
-      return NextResponse.json({ error: "Kelas tidak ditemukan." }, { status: 404 });
-    }
+  const classExists = await db.class.findUnique({ where: { id: classId } });
+  if (!classExists) {
+    return NextResponse.json({ error: "Kelas tidak ditemukan." }, { status: 404 });
+  }
 
-    const item = await db.student.create({
-      data: {
-        ...validation.data,
-        dateOfBirth: validation.data.dateOfBirth
-          ? new Date(validation.data.dateOfBirth)
-          : null,
-      },
-    });
+  const item = await db.student.create({
+    data: {
+      ...validation.data,
+      dateOfBirth: validation.data.dateOfBirth
+        ? new Date(validation.data.dateOfBirth)
+        : null,
+    },
+  });
 
-    await logActivity(auth.user, "CREATE", "Student", `Menambah siswa: ${name} (${nis})`, item.id);
-    return NextResponse.json(item);
+  await logActivity(auth.user, "CREATE", "Student", `Menambah siswa: ${name} (${nis})`, item.id);
+  return NextResponse.json(item);
+}
 
-  } catch (err) {
-    logger.error({ err, path: req.url }, "Route handler error");
-    return NextResponse.json(
-      { error: "Terjadi kesalahan server." },
-      { status: 500 }
-    );
-  }}
+// Proteksi error konsisten (gate: check-mutation-handlers) — klien menerima
+// 500 tersanitasi, server mencatat trace via logger.error.
+export const POST = withErrorHandling(POST_impl);

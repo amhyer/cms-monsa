@@ -926,7 +926,8 @@ bun install --frozen-lockfile
 bunx prisma generate
 bun run db:migrate:prod   # prisma migrate deploy (PostgreSQL)
 bun run build
-bun run start             # atau: node .next/standalone/server.js
+bun run start             # launcher standalone: link .next/static + public/,
+                          # salin .env*, lalu jalankan .next/standalone/server.js
 ```
 
 ### Production dengan Caddy (Reverse Proxy)

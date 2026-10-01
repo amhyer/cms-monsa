@@ -36,7 +36,10 @@ bun run db:migrate:prod
 
 # 4. Build & start
 bun run build
-bun run start      # atau jalankan via pm2/systemd dengan output standalone: .next/standalone
+bun run start      # server produksi: scripts/start-standalone.mjs menyiapkan link
+                   # .next/static + public/ + salinan .env*, lalu jalankan
+                   # .next/standalone/server.js (jangan jalankan server.js langsung
+                   # tanpa launcher — asset static dan upload tidak terhubung).
 
 # 6. HTTPS — Caddyfile sudah disediakan; sesuaikan domain.
 ```

@@ -21,6 +21,44 @@
  *   PRISMA_DIFF_ARGS      — (opsional) argumen tambahan untuk prisma migrate diff
  */
 import { execSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+/**
+ * Muat `.env.local` lalu `.env` (urutan sama dengan Next.js) — HANYA untuk
+ * kunci yang belum ada di process.env.
+ *
+ * Kenapa perlu: Prisma CLI memuat `.env` sendiri, sedangkan skrip ini dijalankan
+ * lewat tsx (`bun run check:schema-migrations`) yang tidak memuat file env apa
+ * pun. Tanpa pemuat ini check selalu gagal "DATABASE_URL tidak diset" meski
+ * file env sudah benar — padahal kasus DB tak terjangkau sudah ditangani
+ * fail-soft di bawah.
+ */
+function loadEnvFiles(): void {
+  for (const file of [".env.local", ".env"]) {
+    const path = resolve(process.cwd(), file);
+    if (!existsSync(path)) continue;
+    for (const rawLine of readFileSync(path, "utf8").split(/\r?\n/)) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith("#")) continue;
+      const eq = line.indexOf("=");
+      if (eq <= 0) continue;
+      const key = line.slice(0, eq).trim();
+      if (process.env[key] !== undefined) continue; // env eksplisit menang
+      let value = line.slice(eq + 1).trim();
+      if (
+        value.length >= 2 &&
+        ((value.startsWith('"') && value.endsWith('"')) ||
+          (value.startsWith("'") && value.endsWith("'")))
+      ) {
+        value = value.slice(1, -1);
+      }
+      process.env[key] = value;
+    }
+  }
+}
+
+loadEnvFiles();
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {

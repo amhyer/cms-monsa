@@ -46,3 +46,9 @@ services:
 
 volumes:
   postgres-dev-data:
+    # Nama eksplisit: data dev sebenarnya ada di volume ini (container
+    # `monsa-postgres-dev` dibuat via `docker run` tanpa label compose, sehingga
+    # compose tidak mengenalinya dan `up -d` selalu gagal "container name is
+    # already in use"). Dengan nama ini compose memakai volume yang sama →
+    # data dev tidak berpindah saat container direcreate.
+    name: monsa-dev-db-data

@@ -122,10 +122,11 @@ prompt
 /verify_zip.ps1
 # artefak audit satu kali (seed avatar) — bukan bagian dari app & jangan di-serve
 /public/avatar-audit.html
-.zscripts/dev.pid
-.zscripts/dev.port
-.zscripts/dev.log
-.zscripts/dev.log.err
+# runtime state/logs launcher dev-e2e (hanya *.sh yang dilacak)
+.zscripts/*.pid
+.zscripts/*.port
+.zscripts/*.log
+.zscripts/*.log.err
 .tmp-*.log
 
 # Freebuff desktop app state (run doc, preview logs, aplikasi SQLite desktop-v2.db*) —

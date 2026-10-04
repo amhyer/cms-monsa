@@ -1,6 +1,5 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
-import { withSentryConfig } from "@sentry/nextjs";
 
 const isProd = process.env.NODE_ENV === "production";
 // Vercel menandai env VERCEL=1. Di Vercel output "standalone" tidak perlu
@@ -118,28 +117,7 @@ const nextConfig: NextConfig = {
 // next-intl: menghubungkan konfigurasi request (src/i18n/request.ts) ke next-intl.
 const withNextIntl = createNextIntlPlugin();
 
-export default withSentryConfig(
-  withNextIntl(nextConfig),
-  {
-    // For all available options, see:
-    // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
-
-    // Upload a larger source map for presale sources to increase the
-    // accuracy of stack traces in error messages.
-    widenClientFileUpload: true,
-
-    // Transpile Sentry client-side config files to work with older browsers.
-    transpileClientSDK: true,
-
-    // Hides source maps from generated client bundles.
-    hideSourceMaps: true,
-
-    // Automatically tree-shake Sentry logger statements to reduce bundle size.
-    disableLogger: true,
-
-    // Enables automatic instrumentation of Vercel Cron Monitors.
-    // See https://docs.sentry.io/platforms/javascript/guides/nextjs/crons/ for
-    // further information.
-    automaticVercelMonitors: true,
-  },
-);
+// withSentryConfig sengaja tidak dipakai: tanpa SENTRY_AUTH_TOKEN wrapper itu
+// hanya memicu warning build, dan runtime Sentry sendiri no-op tanpa DSN
+// (monitoring error berjalan lewat pino-loki → Loki/Grafana).
+export default withNextIntl(nextConfig);

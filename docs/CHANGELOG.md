@@ -4,6 +4,54 @@ Catatan perubahan terkurasi untuk CMS MONSA (SDN Mongisidi 1). Format mengikuti
 kesan [Keep a Changelog](https://keepachangelog.com/); tanggal absolut, referensi
 commit `git` agar bisa dilacak.
 
+## [2026-10-01] — Start disamakan dengan `output: standalone`, env & compose
+
+Awal sesi: gate kode hijau (tsc · eslint · markdownlint · 918 test) tetapi
+aplikasi mati di runtime — Docker Desktop tidak jalan sehingga Postgres dev
+`127.0.0.1:55433` ikut mati (`PrismaClientInitializationError: Can't reach
+database server`). Database dihidupkan lagi, lalu tiga inkonsistensi
+lingkungan dibersihkan dan gate dijalankan ulang — lulus penuh (`3ca06c8`).
+
+### Diperbaiki
+
+- **`bun run start` menabrak `output: standalone`** (`3ca06c8`) — `next start`
+  pada build standalone pernah exit 255 (`.zscripts/dev.log.err`) dan Next
+  tetap memperingatinya (`"next start" does not work with "output:
+  standalone"`). `start` kini memanggil `scripts/start-standalone.mjs` yang
+  menyiapkan lalu menyalakan `.next/standalone/server.js`:
+  - link `.next/standalone/.next/static` → `.next/static` dan
+    `.next/standalone/public` → `public/` — Next tidak menyalin `static`, dan
+    dengan link itu `next dev`, `next start`, serta standalone berbagi SATU
+    folder upload (spec `zz-server-restart-persistence` me-restart server
+    lewat `next start`);
+  - salin `.env*` root → folder standalone (Next memuat env dari dir server,
+    bukan dari root repo);
+  - sanitasi `HOSTNAME` — di Git Bash/CI nilainya nama mesin yang justru
+    dipakai `server.js` sebagai alamat bind → dipaksa `0.0.0.0`;
+  - `PORT` default 3000, sinyal dan exit code diteruskan, fallback
+    `next start` bila build tanpa standalone, pesan jelas bila belum build.
+
+  README dan `docs/DEPLOYMENT.md` disesuaikan: jangan menjalankan `server.js`
+  langsung tanpa launcher — static dan upload tidak terhubung.
+- **`bun run check:schema-migrations` selalu exit 1 `DATABASE_URL tidak
+  diset`** (`3ca06c8`) — tsx tidak memuat file env apa pun, padahal Prisma CLI
+  membaca `.env` sendiri. Skrip kini memuat `.env.local` lalu `.env` (urutan
+  Next.js, env eksplisit tetap menang); DB `shadow` lokal dibuat sesuai syarat
+  di docstring skrip, sehingga drift check benar-benar berjalan:
+  `✅ Migrasi selaras dengan schema.prisma.`
+- **`.env`: `DATABASE_URL="127.0.0.1"` (sisa era SQLite) → URL PostgreSQL dev**
+  — `.env` gitignored sehingga perbaikan ini lokal dan tidak ikut commit,
+  tetapi Prisma CLI hanya membaca `.env`; skema tunggal PostgreSQL sejak
+  2026-08-28.
+- **`docker compose -f docker-compose.dev.yml up -d` selalu gagal
+  `container name is already in use`** (`3ca06c8`) — container
+  `monsa-postgres-dev` lama dibuat lewat `docker run` (tanpa label compose) di
+  volume `monsa-dev-db-data`, sementara compose menyangka volume miliknya
+  `cmsmonsa_postgres-dev-data` yang ternyata kosong. Volume kini diberi
+  `name: monsa-dev-db-data` eksplisit → `up -d` idempoten dan data dev tidak
+  berpindah; dump pengaman tersimpan di
+  `backups/cms_mongisidi_dev-pre-compose-fix-*.dump`.
+
 ## [2026-09-23] — Blok pasca-program P3 (ef0a683..c192958)
 
 Program P0–P3 `docs/REKOMENDASI-PERBAIKAN-2026-09.md` sudah tutup di `cc1c7cb`;

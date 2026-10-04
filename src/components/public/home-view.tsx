@@ -3,351 +3,39 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Image } from "@/components/shared/smart-image";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight,
-  CalendarDays,
-  ChevronRight,
-  Clock,
   GraduationCap,
-  MapPin,
   Quote,
   Trophy,
   Users,
   Building2,
-  Award,
   PencilLine,
   BookOpen,
   ExternalLink,
-  Newspaper,
 } from "lucide-react";
 import { useAppStore } from "@/store/app";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SectionHeading } from "@/components/shared/section-heading";
-import { CopyableId } from "@/components/shared/copyable-id";
 import { RunningAnnouncements } from "./running-announcements";
-import { CategoryBadge, SectionShell } from "./_shared";
+import { SectionShell } from "./_shared";
 import { StudentsShowcase } from "./students-showcase";
 import { ErrorState } from "@/components/shared/error-state";
-import { formatDate, truncate } from "@/lib/format";
+import { HeroCarousel } from "./home/home-hero-carousel";
+import {
+  AgendaRow,
+  AchievementCard,
+  EventCard,
+  NewsCard,
+  StatCard,
+} from "./home/home-cards";
 import type {
   NewsItem,
   AgendaItem,
   AchievementItem,
   EventItem,
 } from "@/lib/types";
-
-/* ----------------------------- Hero carousel ----------------------------- */
-function HeroCarousel({ items }: { items: NewsItem[] }) {
-  const router = useRouter();
-  const [index, setIndex] = useState(0);
-
-  useEffect(() => {
-    if (items.length <= 1) return;
-    const id = setInterval(() => {
-      setIndex((i) => (i + 1) % items.length);
-    }, 5000);
-    return () => clearInterval(id);
-  }, [items.length]);
-
-  if (items.length === 0) return null;
-
-  return (
-    <section
-      aria-label="Berita terkini"
-      className="relative w-full overflow-hidden bg-sidebar"
-    >
-      <div className="relative h-[60vh] min-h-[420px] w-full sm:h-[70vh]">
-        <AnimatePresence mode="wait">
-          {items.map((n, i) =>
-            i === index ? (
-              <motion.div
-                key={n.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.6, ease: "easeInOut" }}
-                className="absolute inset-0"
-              >
-                {n.coverImage ? (
-                  <Image
-                    src={n.coverImage}
-                    alt={n.title}
-                    fill
-                    className="object-cover"
-                    loading={i === 0 ? "eager" : "lazy"}
-                    sizes="100vw"
-                    priority={i === 0}
-                  />
-                ) : (
-                  <div className="flex size-full items-center justify-center bg-muted text-muted-foreground">
-                    <Newspaper className="size-16" />
-                  </div>
-                )}
-                <div className="absolute inset-0 bg-gradient-to-r from-sidebar/95 via-sidebar/80 to-sidebar/40" />
-              </motion.div>
-            ) : null
-          )}
-        </AnimatePresence>
-
-        <div className="relative z-10 mx-auto flex h-full w-full max-w-7xl items-end px-4 pb-10 sm:px-6 sm:pb-16">
-          <div className="max-w-2xl text-sidebar-foreground">
-            <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gold">
-              <span className="h-px w-6 bg-gold" />
-              Berita Terkini
-            </span>
-            <AnimatePresence mode="wait">
-              <motion.h2
-                key={items[index].id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.4 }}
-                className="mt-3 font-sans text-2xl font-bold leading-tight tracking-tight sm:text-4xl md:text-5xl"
-              >
-                {items[index].title}
-              </motion.h2>
-            </AnimatePresence>
-            <p className="mt-4 hidden max-w-xl text-sm text-sidebar-foreground/85 sm:block sm:text-base">
-              {truncate(items[index].excerpt, 160)}
-            </p>
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              <Button
-                type="button"
-                className="bg-gold text-gold-foreground hover:bg-gold/90"
-                onClick={() => router.push(`/news/${items[index].slug}`)}
-              >
-                Baca Selengkapnya
-                <ArrowRight className="size-4" />
-              </Button>
-              <span className="text-xs text-sidebar-foreground/70">
-                {formatDate(items[index].publishedAt)}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Dots */}
-        <div className="absolute bottom-4 right-4 z-20 flex items-center gap-2 sm:bottom-8 sm:right-8">
-          {items.map((_, i) => (
-            <button
-              key={i}
-              type="button"
-              aria-label={`Slide ${i + 1}`}
-              onClick={() => setIndex(i)}
-              className={
-                i === index
-                  ? "size-2.5 rounded-full bg-gold transition-all"
-                  : "size-2.5 rounded-full bg-sidebar-foreground/40 transition-all hover:bg-sidebar-foreground/70"
-              }
-            />
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ----------------------------- News card ----------------------------- */
-function NewsCard({ item }: { item: NewsItem }) {
-  const router = useRouter();
-  return (
-    <article
-      onClick={() => router.push(`/news/${item.slug}`)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          router.push(`/news/${item.slug}`);
-        }
-      }}
-      role="button"
-      tabIndex={0}
-      aria-label={`Baca berita: ${item.title}`}
-      className="group flex cursor-pointer flex-col overflow-hidden rounded-xl border bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted">
-        {item.coverImage ? (
-          <Image
-            src={item.coverImage}
-            alt={item.title}
-            fill
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
-            loading="lazy"
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-          />
-        ) : (
-          <div className="flex size-full items-center justify-center bg-muted text-muted-foreground">
-            <Newspaper className="size-10" />
-          </div>
-        )}
-        <div className="absolute left-3 top-3">
-          <CategoryBadge category={item.category} />
-        </div>
-      </div>
-      <div className="flex flex-1 flex-col gap-3 p-5">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <CalendarDays className="size-3.5" />
-          {formatDate(item.publishedAt)}
-        </div>
-        <h3 className="line-clamp-2 font-sans text-base font-bold leading-snug tracking-tight text-foreground transition-colors group-hover:text-primary">
-          {item.title}
-        </h3>
-        <p className="line-clamp-3 text-sm text-muted-foreground">
-          {item.excerpt}
-        </p>
-        <div className="mt-auto flex items-center gap-1 text-xs font-semibold text-primary transition-colors group-hover:text-gold-foreground">
-          Baca selengkapnya
-          <ChevronRight className="size-3.5" />
-        </div>
-      </div>
-    </article>
-  );
-}
-
-/* ----------------------------- Stat card ----------------------------- */
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: typeof Users;
-  label: string;
-  value: number;
-}) {
-  return (
-    <div className="flex items-center gap-4 rounded-xl border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-      <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-foreground ring-2 ring-gold/40">
-        <Icon className="size-6 text-gold" />
-      </span>
-      <div className="flex flex-col">
-        <span className="font-sans text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          {value.toLocaleString("id-ID")}
-        </span>
-        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground sm:text-sm">
-          {label}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-/* ----------------------------- Event card ----------------------------- */
-function EventCard({ item }: { item: EventItem }) {
-  const d = new Date(item.startDate);
-  const day = isNaN(d.getTime()) ? "-" : d.getDate();
-  const month = isNaN(d.getTime())
-    ? "-"
-    : new Intl.DateTimeFormat("id-ID", { month: "short" }).format(d);
-  const weekday = isNaN(d.getTime())
-    ? "-"
-    : new Intl.DateTimeFormat("id-ID", { weekday: "long" }).format(d);
-
-  return (
-    <div className="flex items-start gap-4 rounded-xl border bg-card p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-      <div className="flex size-14 shrink-0 flex-col items-center justify-center rounded-lg bg-gold text-gold-foreground">
-        <span className="text-lg font-bold leading-none">{day}</span>
-        <span className="text-[10px] uppercase tracking-wide">
-          {month}
-        </span>
-      </div>
-      <div className="flex flex-1 flex-col gap-1">
-        <h4 className="font-semibold leading-snug text-foreground">
-          {item.title}
-        </h4>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1">
-            <CalendarDays className="size-3.5" /> {weekday}
-          </span>
-          {item.location && (
-            <span className="inline-flex items-center gap-1">
-              <MapPin className="size-3.5" /> {item.location}
-            </span>
-          )}
-        </div>
-        <div className="mt-1">
-          <CategoryBadge category={item.category} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ----------------------------- Agenda row ----------------------------- */
-function AgendaRow({ item }: { item: AgendaItem }) {
-  const d = new Date(item.date);
-  const day = isNaN(d.getTime()) ? "-" : d.getDate();
-  const month = isNaN(d.getTime())
-    ? "-"
-    : new Intl.DateTimeFormat("id-ID", { month: "short" }).format(d);
-
-  return (
-    <div className="flex items-start gap-4 rounded-xl border bg-card p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-      <div className="flex size-14 shrink-0 flex-col items-center justify-center rounded-lg bg-sidebar text-sidebar-foreground">
-        <span className="text-lg font-bold leading-none">{day}</span>
-        <span className="text-[10px] uppercase tracking-wide text-gold">
-          {month}
-        </span>
-      </div>
-      <div className="flex flex-1 flex-col gap-1">
-        <h4 className="font-semibold leading-snug text-foreground">
-          {item.title}
-        </h4>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-          {item.time && (
-            <span className="inline-flex items-center gap-1">
-              <Clock className="size-3.5" /> {item.time}
-            </span>
-          )}
-          {item.location && item.location !== "-" && (
-            <span className="inline-flex items-center gap-1">
-              <MapPin className="size-3.5" /> {item.location}
-            </span>
-          )}
-        </div>
-        <div className="mt-1">
-          <CategoryBadge category={item.category} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ----------------------------- Achievement card ----------------------------- */
-function AchievementCard({ item }: { item: AchievementItem }) {
-  return (
-    <div className="flex flex-col gap-2 rounded-xl border bg-card p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md sm:gap-3 sm:p-5">
-      <div className="flex items-center justify-between">
-        <span className="flex size-8 items-center justify-center rounded-full bg-gold/15 text-gold-foreground sm:size-10">
-          <Trophy className="size-4 text-gold sm:size-5" />
-        </span>
-        <span className="inline-flex items-center rounded-full bg-sidebar-accent px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sidebar-foreground sm:px-2.5">
-          {item.level}
-        </span>
-      </div>
-      <h4 className="font-sans text-sm font-bold leading-snug text-foreground sm:text-base">
-        {item.title}
-      </h4>
-      <p className="text-xs text-muted-foreground sm:text-sm">
-        {item.studentName ?? "Tim Sekolah"}
-      </p>
-      {/* Identitas siswa tertaut (NIS/NISN) — sama seperti kartu dashboard,
-          bisa disalin sekali klik untuk pengecekan silang Dapodik. */}
-      {(item.studentNis || item.studentNisn) && (
-        <div className="space-y-0.5 pt-1">
-          {item.studentNis && <CopyableId label="NIS" value={item.studentNis} />}
-          {item.studentNisn && <CopyableId label="NISN" value={item.studentNisn} />}
-        </div>
-      )}
-      <div className="mt-auto flex items-center justify-between text-xs text-muted-foreground">
-        <span className="inline-flex items-center gap-1">
-          <Award className="size-3.5" /> {item.category}
-        </span>
-        <span>{formatDate(item.date)}</span>
-      </div>
-    </div>
-  );
-}
 
 /* ----------------------------- HomeView ----------------------------- */
 export function HomeView() {

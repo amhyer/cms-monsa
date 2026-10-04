@@ -5,13 +5,18 @@ import {
   buildPriorityComplaintMessage,
 } from "@/lib/notifications";
 
-// WhatsApp di-mock agar tidak ada side effect; Telegram memakai fetch global
-// yang di-stub per test.
+// WhatsApp & email di-mock agar tidak ada side effect; Telegram memakai
+// fetch global yang di-stub per test.
 vi.mock("@/lib/whatsapp", () => ({
   sendWhatsApp: vi.fn(() => Promise.resolve({ ok: true, message: "sent" })),
 }));
 
+vi.mock("@/lib/email", () => ({
+  sendEmail: vi.fn(() => Promise.resolve(true)),
+}));
+
 import { sendWhatsApp } from "@/lib/whatsapp";
+import { sendEmail } from "@/lib/email";
 
 const fetchMock = vi.fn();
 
@@ -138,6 +143,7 @@ describe("notifyAdmin — alert storage/quota", () => {
     delete process.env.TELEGRAM_BOT_TOKEN;
     delete process.env.TELEGRAM_CHAT_ID;
     delete process.env.ADMIN_PHONE;
+    delete process.env.ADMIN_EMAIL;
   });
 
   it("mengirim ke WhatsApp (ADMIN_PHONE) dan Telegram", async () => {
@@ -146,7 +152,7 @@ describe("notifyAdmin — alert storage/quota", () => {
 
     const result = await notifyAdmin("🚨 PERINGATAN STORAGE");
 
-    expect(result).toEqual({ whatsapp: true, telegram: true });
+    expect(result).toEqual({ whatsapp: true, telegram: true, email: false });
     expect(sendWhatsApp).toHaveBeenCalledTimes(1);
     expect(sendWhatsApp).toHaveBeenCalledWith(
       "6281234567890",
@@ -161,7 +167,7 @@ describe("notifyAdmin — alert storage/quota", () => {
 
     const result = await notifyAdmin("alert");
 
-    expect(result).toEqual({ whatsapp: false, telegram: true });
+    expect(result).toEqual({ whatsapp: false, telegram: true, email: false });
     expect(sendWhatsApp).not.toHaveBeenCalled();
   });
 
@@ -173,6 +179,70 @@ describe("notifyAdmin — alert storage/quota", () => {
     const result = await notifyAdmin("alert");
 
     expect(result.whatsapp).toBe(false);
+    expect(result.telegram).toBe(true);
+  });
+});
+
+describe("notifyAdmin — kanal email", () => {
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+    fetchMock.mockResolvedValue(telegramOk());
+    vi.mocked(sendWhatsApp).mockReset();
+    vi.mocked(sendWhatsApp).mockResolvedValue({ ok: true });
+    vi.mocked(sendEmail).mockReset();
+    vi.mocked(sendEmail).mockResolvedValue(true);
+    process.env.TELEGRAM_BOT_TOKEN = "test-bot-token";
+    process.env.TELEGRAM_CHAT_ID = "12345";
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete process.env.TELEGRAM_BOT_TOKEN;
+    delete process.env.TELEGRAM_CHAT_ID;
+    delete process.env.ADMIN_PHONE;
+    delete process.env.ADMIN_EMAIL;
+  });
+
+  it("ADMIN_EMAIL diset → email terkirim ke alamat itu berisi pesan", async () => {
+    process.env.ADMIN_EMAIL = "admin@mongisidi1.sch.id";
+
+    const result = await notifyAdmin("🚨 Sync GAGAL");
+
+    expect(result.email).toBe(true);
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "admin@mongisidi1.sch.id",
+        text: expect.stringContaining("Sync GAGAL"),
+      })
+    );
+  });
+
+  it("tanpa ADMIN_EMAIL → email dilewati tanpa error", async () => {
+    const result = await notifyAdmin("alert");
+
+    expect(result.email).toBe(false);
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("sendEmail gagal (false) → email false, tidak melempar, kanal lain tetap jalan", async () => {
+    process.env.ADMIN_EMAIL = "admin@mongisidi1.sch.id";
+    vi.mocked(sendEmail).mockResolvedValue(false);
+
+    const result = await notifyAdmin("alert");
+
+    expect(result.email).toBe(false);
+    expect(result.telegram).toBe(true);
+  });
+
+  it("sendEmail melempar → tertelan (fire-and-forget), email false", async () => {
+    process.env.ADMIN_EMAIL = "admin@mongisidi1.sch.id";
+    vi.mocked(sendEmail).mockRejectedValue(new Error("smtp down"));
+
+    const result = await notifyAdmin("alert");
+
+    expect(result.email).toBe(false);
     expect(result.telegram).toBe(true);
   });
 });

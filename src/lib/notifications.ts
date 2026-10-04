@@ -14,6 +14,7 @@
  */
 
 import { sendWhatsApp } from "@/lib/whatsapp";
+import { sendEmail } from "@/lib/email";
 import { logger } from "@/lib/logger";
 import { getSiteBaseUrl } from "@/lib/site-url";
 
@@ -231,15 +232,16 @@ export async function notifyComplaintToAdmin(
 // ---------------------------------------------------------------------------
 
 /**
- * Kirim satu pesan peringatan ke admin via WhatsApp (ADMIN_PHONE) dan/atau
- * Telegram (TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID). Fire-and-forget — tidak
- * pernah melempar, pengiriman gagal hanya dicatat di log.
+ * Kirim satu pesan peringatan ke admin via WhatsApp (ADMIN_PHONE), Telegram
+ * (TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID), dan email (ADMIN_EMAIL via SMTP —
+ * lihat src/lib/email.ts). Fire-and-forget — tidak pernah melempar,
+ * pengiriman gagal hanya dicatat di log.
  *
- * Dipakai oleh cron /api/cron/storage-alert (peringatan kuota storage).
+ * Dipakai oleh cron /api/cron/storage-alert dan /api/cron/dapodik-sync-alert.
  */
 export async function notifyAdmin(
   message: string
-): Promise<{ whatsapp: boolean; telegram: boolean }> {
+): Promise<{ whatsapp: boolean; telegram: boolean; email: boolean }> {
   let whatsapp = false;
   const adminPhone = process.env.ADMIN_PHONE;
   if (adminPhone) {
@@ -272,7 +274,33 @@ export async function notifyAdmin(
     );
   }
 
-  return { whatsapp, telegram };
+  // Email: kirim hanya bila ADMIN_EMAIL diset. sendEmail sendiri never-throw
+  // dan mengembalikan false bila SMTP tidak dikonfigurasi — try/catch di sini
+  // murni defensif (fire-and-forget). Pesan WhatsApp/Telegram berformat
+  // Markdown; di email dikirim apa adanya sebagai text + <pre> di html.
+  let email = false;
+  const adminEmail = process.env.ADMIN_EMAIL?.trim();
+  if (adminEmail) {
+    const htmlEscaped = message
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+    try {
+      email = await sendEmail({
+        to: adminEmail,
+        subject: "[CMS MONSA] Alert Admin",
+        html: `<pre style="font-family: monospace; white-space: pre-wrap;">${htmlEscaped}</pre>`,
+        text: message,
+      });
+      if (!email) {
+        logger.warn("[notifications] Email admin alert gagal/SMTP tidak diset");
+      }
+    } catch (e) {
+      logger.warn({ err: e }, "[notifications] Email admin alert error");
+    }
+  }
+
+  return { whatsapp, telegram, email };
 }
 
 // ---------------------------------------------------------------------------

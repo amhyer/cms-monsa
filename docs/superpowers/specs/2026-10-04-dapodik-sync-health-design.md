@@ -121,8 +121,10 @@ dengan kanal **email** (nodemailer + SMTP yang sudah dikonfigurasi, tujuan
 
 ### Cron staleness harian
 
-- Route baru `POST /api/cron/dapodik-sync-alert`, auth `CRON_SECRET` sama
-  dengan cron lain (pola `/api/cron/storage-alert`).
+- Route baru `GET /api/cron/dapodik-sync-alert`, auth `CRON_SECRET` sama
+  dengan cron lain (pola `GET /api/cron/storage-alert` — Vercel Cron mengirim
+  `Authorization: Bearer $CRON_SECRET` otomatis; runner self-host
+  `scripts/cron-job.sh` memakai semantik yang sama).
 - Terdaftar di `vercel.json` sebagai `30 19 * * *` (03.30 WITA, setelah
   `storage-alert`), plus entri curl harian di `docker-compose.cron.yml` untuk
   deployment self-host.

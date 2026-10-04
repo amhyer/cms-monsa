@@ -429,6 +429,40 @@ model DapodikConfig {
   updatedAt                 DateTime  @updatedAt
 }
 
+// ---------- DAPODIK SYNC HEALTH ----------
+
+// Satu baris per run sinkronisasi Dapodik (manual, auto-scheduler, push
+// jembatan/ingest, archive). Riwayat untuk panel dashboard + sumber banner
+// "data basi". Dipangkas: hanya 200 baris terakhir yang disimpan.
+model DapodikSyncLog {
+  id           String   @id @default(cuid())
+  mode         String // AUTO | MANUAL | INGEST | ARCHIVE
+  dataType     String? // untuk INGEST per-modul: sekolah|gtk|rombel|peserta_didik|archive
+  status       String // OK | ERROR
+  actor        String? // userId | "bridge" | "scheduler" | "cron"
+  sekolahCount Int      @default(0)
+  gtkCount     Int      @default(0)
+  rombelCount  Int      @default(0)
+  siswaCount   Int      @default(0)
+  durationMs   Int?
+  error        String? // tersanitasi, maks 500 char
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([status, createdAt])
+}
+
+// State dedupe alert sync (singleton, tahan cold-start — pola StorageAlertState):
+// satu alert per periode kegagalan, reset saat sync sukses.
+model DapodikSyncAlertState {
+  id            String    @id @default("singleton")
+  alertOpen     Boolean   @default(false)
+  reason        String? // sync-error | stale
+  detail        String?
+  lastAlertedAt DateTime?
+  updatedAt     DateTime  @updatedAt
+}
+
 model ActivityLog {
   id        String   @id @default(cuid())
   userId    String?

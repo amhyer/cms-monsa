@@ -113,12 +113,12 @@ describe("POST /api/cron/cron-failure", () => {
   });
 
   it("semua kanal gagal (belum dikonfigurasi) → tetap 200 ok dengan channels false", async () => {
-    vi.mocked(notifyAdmin).mockResolvedValueOnce({ whatsapp: false, telegram: false });
+    vi.mocked(notifyAdmin).mockResolvedValueOnce({ whatsapp: false, telegram: false, email: false });
     const res = await POST(makeReq({ job: "x", attempts: 2 }));
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.ok).toBe(true);
-    expect(json.channels).toEqual({ whatsapp: false, telegram: false });
+    expect(json.channels).toEqual({ whatsapp: false, telegram: false, email: false });
   });
 
   it("notifyAdmin melempar → 502", async () => {

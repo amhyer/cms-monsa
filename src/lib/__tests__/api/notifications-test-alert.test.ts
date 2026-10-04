@@ -74,13 +74,14 @@ describe("POST /api/notifications/test-alert", () => {
     vi.mocked(notifyAdmin).mockResolvedValueOnce({
       whatsapp: false,
       telegram: true,
+      email: false,
     });
 
     const res = await POST(makeReq());
     const json = await res.json();
 
     expect(json.success).toBe(true);
-    expect(json.channels).toEqual({ whatsapp: false, telegram: true });
+    expect(json.channels).toEqual({ whatsapp: false, telegram: true, email: false });
     expect(json.message).toContain("via Telegram");
     expect(json.message).toContain("WhatsApp gagal atau dilewati");
 
@@ -88,6 +89,7 @@ describe("POST /api/notifications/test-alert", () => {
     expect(markStorageAlertTested).toHaveBeenCalledWith({
       whatsapp: false,
       telegram: true,
+      email: false,
     });
   });
 
@@ -116,13 +118,14 @@ describe("POST /api/notifications/test-alert", () => {
     vi.mocked(notifyAdmin).mockResolvedValueOnce({
       whatsapp: false,
       telegram: false,
+      email: false,
     });
 
     const res = await POST(makeReq());
     const json = await res.json();
 
     expect(json.success).toBe(false);
-    expect(json.channels).toEqual({ whatsapp: false, telegram: false });
+    expect(json.channels).toEqual({ whatsapp: false, telegram: false, email: false });
     expect(json.error).toContain("Gagal mengirim alert ke semua kanal");
 
     // Semua kanal gagal → percobaan TETAP tercatat (apa pun hasilnya),

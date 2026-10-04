@@ -4,6 +4,31 @@ Catatan perubahan terkurasi untuk CMS MONSA (SDN Mongisidi 1). Format mengikuti
 kesan [Keep a Changelog](https://keepachangelog.com/); tanggal absolut, referensi
 commit `git` agar bisa dilacak.
 
+## [2026-10-04] — Refactor modul & rapian build
+
+### Diubah
+
+- **Pecah 3 komponen terbesar jadi modul folder** (`28f90ff`) —
+  `bos-expenditures-manager.tsx` (781 baris) → `bos-expenditures-manager/`
+  (7 file, maks 344), `schedule-manager.tsx` (629) → `schedule-manager/`
+  (8 file, maks 342), `home-view.tsx` (709 → 397) + `public/home/` (2 file).
+  Mengikuti pola `news-manager`/`dapodik-manager`: `index.tsx` me-re-export
+  komponen sehingga seluruh import path tidak berubah. Pemindahan kode murni
+  — DOM, teks, aria-label, dan selector e2e identik (diverifikasi diff byte
+  + tsc + eslint per folder oleh 3 subagent paralel; gate penuh 916 test
+  lulus).
+- **`withSentryConfig` dilepas dari `next.config.ts`** (`d91555f`) — tanpa
+  `SENTRY_AUTH_TOKEN` wrapper hanya memicu warning build, dan runtime Sentry
+  no-op tanpa DSN; monitoring error tetap via pino-loki → Loki/Grafana.
+  `sentry.*.config.ts` dibiarkan sebagai hook dorman.
+
+### Rutin
+
+- `.gitignore`: pola `.zscripts/{*.pid,*.port,*.log,*.log.err}` menggantikan
+  daftar `dev.*` spesifik (`d91555f`) — log launcher e2e/standalone tak lagi
+  untracked selamanya.
+- Entri CHANGELOG untuk blok perbaikan standalone (`2260fd0`).
+
 ## [2026-10-01] — Start disamakan dengan `output: standalone`, env & compose
 
 Awal sesi: gate kode hijau (tsc · eslint · markdownlint · 918 test) tetapi
